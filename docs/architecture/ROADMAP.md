@@ -2352,6 +2352,8 @@ Candidate slices:
     order, announced validation, conversation-tab arrows, and modal focus return.
   - [x] Establish typed Chinese/English Web catalogs and migrate the complete
     login/registration slice with bounded persistence and document-language sync.
+  - [x] Migrate the authenticated Web shell chrome to the same live catalog and
+    expose its persistent language selector from the profile dialog.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

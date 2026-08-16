@@ -416,6 +416,23 @@ test("supports authenticated tab navigation and modal focus restoration", async 
   await expect(profileTrigger).toBeFocused();
 });
 
+test("switches the authenticated shell locale from profile and persists it", async ({ page }) => {
+  await installV1ClientFixture(page);
+  await page.goto("/");
+  await page.getByLabel("用户ID (唯一标识)").fill("browser_gate_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page).toHaveURL(/#\/chat$/);
+
+  await page.getByRole("button", { name: "打开个人资料" }).click();
+  await page.getByLabel("界面语言").selectOption("en-US");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en-US");
+  await expect(page.getByRole("tab", { name: "Friends" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Rooms" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open profile" })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("chat.web.locale"))).toBe("en-US");
+});
+
 test("pauses an offline login attempt and requires explicit retry after recovery", async ({ context, page }) => {
   const socketUrls: string[] = [];
   page.on("websocket", socket => socketUrls.push(socket.url()));

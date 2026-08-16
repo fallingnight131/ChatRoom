@@ -69,6 +69,67 @@ const loginCatalog = {
   },
 } as const;
 
+const shellCatalog = {
+  "zh-CN": {
+    language: "界面语言",
+    chinese: "简体中文",
+    english: "English",
+    offlineBanner: "网络已断开，可继续查看已缓存消息，恢复后将自动连接",
+    openProfile: "打开个人资料",
+    userAvatar: "用户头像",
+    theme: "切换主题",
+    lightTheme: "切换到浅色主题",
+    darkTheme: "切换到深色主题",
+    conversationTypes: "会话类型",
+    friends: "好友",
+    rooms: "房间",
+    openConversations: "打开会话列表",
+    conversationList: "会话列表",
+    openMembers: "打开成员列表",
+    memberList: "成员列表",
+    openRoomSettings: "打开房间设置",
+    roomSettings: "房间设置",
+    directMessage: "私聊",
+    offlineEmpty: "网络已断开，将在恢复后自动连接",
+    reconnecting: "正在重新连接...",
+    selectFriend: "选择一个窗口开始聊天",
+    selectRoom: "选择一个房间开始聊天",
+    closeMembers: "关闭成员列表",
+    close: "关闭",
+    connectionLost: "连接已断开",
+    signInAgain: "重新登录",
+  },
+  "en-US": {
+    language: "Interface language",
+    chinese: "简体中文",
+    english: "English",
+    offlineBanner: "You are offline. Cached messages remain available and reconnection is automatic.",
+    openProfile: "Open profile",
+    userAvatar: "User avatar",
+    theme: "Switch theme",
+    lightTheme: "Switch to light theme",
+    darkTheme: "Switch to dark theme",
+    conversationTypes: "Conversation types",
+    friends: "Friends",
+    rooms: "Rooms",
+    openConversations: "Open conversation list",
+    conversationList: "Conversation list",
+    openMembers: "Open member list",
+    memberList: "Members",
+    openRoomSettings: "Open room settings",
+    roomSettings: "Room settings",
+    directMessage: "Direct message",
+    offlineEmpty: "You are offline. Reconnection will start automatically.",
+    reconnecting: "Reconnecting...",
+    selectFriend: "Select a conversation to start chatting",
+    selectRoom: "Select a room to start chatting",
+    closeMembers: "Close member list",
+    close: "Close",
+    connectionLost: "Connection closed",
+    signInAgain: "Sign in again",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -95,6 +156,10 @@ export function persistWebLocale(
 
 export function loginMessages(locale: WebLocale) {
   return loginCatalog[locale];
+}
+
+export function chatShellMessages(locale: WebLocale) {
+  return shellCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

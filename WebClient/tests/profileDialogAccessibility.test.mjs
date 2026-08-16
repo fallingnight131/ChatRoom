@@ -4,6 +4,15 @@ import test from 'node:test'
 
 const source = readFileSync(new URL('../src/components/ProfileDialog.vue', import.meta.url), 'utf8')
 
+test('offers the persistent Web locale preference inside the authenticated profile', () => {
+  for (const marker of [
+    '<label for="profile-locale">{{ shellMessages.language }}</label>',
+    'id="profile-locale" class="input" :value="userStore.locale"',
+    '@change="userStore.setLocale($event.target.value)"',
+    'chatShellMessages(userStore.locale)',
+  ]) assert.ok(source.includes(marker), `missing profile locale marker: ${marker}`)
+})
+
 test('exposes a labeled modal with bounded keyboard focus and trigger restoration', () => {
   for (const marker of [
     'role="dialog" aria-modal="true"',

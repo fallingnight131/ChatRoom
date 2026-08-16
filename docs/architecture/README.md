@@ -1972,7 +1972,13 @@ non-secret `chat.web.locale` preference. Invalid or denied storage defaults to
 Chinese, selection updates the document language, and the login/registration
 surface is the first completely migrated vertical slice. Local login failures
 retain stable catalog keys across language changes; server-provided errors stay
-verbatim. The authenticated shell remains Chinese until later catalog slices.
+verbatim. The authenticated shell is the second migrated slice: navigation,
+network/reconnect state, mobile panel controls, empty states, theme/profile
+entry, and forced-offline recovery update immediately from the same preference.
+The authenticated profile owns the post-login language selector. Feature-owned
+lists, message tools, and profile-editing content remain Chinese until their
+separate catalog slices; this boundary does not claim complete product
+localization.
 
 ### Product consistency
 

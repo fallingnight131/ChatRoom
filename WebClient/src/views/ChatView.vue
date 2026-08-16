@@ -1,7 +1,7 @@
 <template>
   <div class="chat-page">
     <div v-if="networkOffline" class="connection-banner" role="status" aria-live="polite">
-      网络已断开，可继续查看已缓存消息，恢复后将自动连接
+      {{ shellMessages.offlineBanner }}
     </div>
     <!-- 移动端遮罩层 -->
     <div class="panel-overlay" v-if="mobilePanel" @click="mobilePanel = ''"></div>
@@ -10,10 +10,10 @@
     <div class="left-panel" :class="{ 'panel-open': mobilePanel === 'left' }">
       <div class="user-header">
         <button class="user-profile-trigger" type="button" aria-haspopup="dialog"
-                :aria-expanded="showProfile" aria-label="打开个人资料"
+                :aria-expanded="showProfile" :aria-label="shellMessages.openProfile"
                 @click="showProfile = true">
           <img v-if="userStore.avatarData" :src="'data:image/png;base64,' + userStore.avatarData"
-               class="avatar" alt="用户头像" />
+               class="avatar" :alt="shellMessages.userAvatar" />
           <div v-else class="avatar avatar-placeholder" aria-hidden="true"
                :style="{ background: hashColor(userStore.username) }">
             {{ (userStore.displayName || userStore.username).charAt(0) }}
@@ -23,24 +23,24 @@
             <div class="user-id text-ellipsis">@{{ userStore.username }}</div>
           </div>
         </button>
-        <button class="btn-icon theme-btn" type="button" @click="userStore.toggleDarkMode()" title="切换主题"
-                :aria-label="userStore.darkMode ? '切换到浅色主题' : '切换到深色主题'">
+        <button class="btn-icon theme-btn" type="button" @click="userStore.toggleDarkMode()" :title="shellMessages.theme"
+                :aria-label="userStore.darkMode ? shellMessages.lightTheme : shellMessages.darkTheme">
           {{ userStore.darkMode ? '☀️' : '🌙' }}
         </button>
       </div>
-      <div class="tab-bar" role="tablist" aria-label="会话类型">
+      <div class="tab-bar" role="tablist" :aria-label="shellMessages.conversationTypes">
         <button id="friends-tab" class="tab-btn" type="button" role="tab"
                 :class="{ active: activeTab === 'friends' }" :aria-selected="activeTab === 'friends'"
                 :tabindex="activeTab === 'friends' ? 0 : -1"
                 aria-controls="friends-panel" @click="switchToFriends" @keydown="onTabKeydown">
-          好友
+          {{ shellMessages.friends }}
           <span v-if="chatStore.totalFriendUnread > 0 || chatStore.hasPendingFriendReq" class="tab-dot" aria-hidden="true"></span>
         </button>
         <button id="rooms-tab" class="tab-btn" type="button" role="tab"
                 :class="{ active: activeTab === 'rooms' }" :aria-selected="activeTab === 'rooms'"
                 :tabindex="activeTab === 'rooms' ? 0 : -1"
                 aria-controls="rooms-panel" @click="activeTab = 'rooms'" @keydown="onTabKeydown">
-          房间
+          {{ shellMessages.rooms }}
           <span v-if="chatStore.totalRoomUnread > 0" class="tab-dot" aria-hidden="true"></span>
         </button>
       </div>
@@ -57,14 +57,14 @@
     <div class="center-panel" v-if="chatStore.currentRoomId && !chatStore.isFriendChat">
       <!-- 房间标题栏 -->
       <div class="room-header">
-        <button class="btn-icon mobile-menu-btn" type="button" aria-label="打开会话列表"
-                @click="mobilePanel = 'left'" title="房间列表">☰</button>
+        <button class="btn-icon mobile-menu-btn" type="button" :aria-label="shellMessages.openConversations"
+                @click="mobilePanel = 'left'" :title="shellMessages.conversationList">☰</button>
         <div class="room-title text-ellipsis">{{ chatStore.currentRoomName }}</div>
         <div class="room-actions">
-          <button class="btn-icon mobile-members-btn" type="button" aria-label="打开成员列表"
-                  @click="mobilePanel = 'right'" title="成员列表">👥</button>
-          <button class="btn-icon" type="button" aria-label="打开房间设置" aria-haspopup="dialog"
-                  :aria-expanded="showRoomSettings" @click="showRoomSettings = true" title="房间设置">⋯</button>
+          <button class="btn-icon mobile-members-btn" type="button" :aria-label="shellMessages.openMembers"
+                  @click="mobilePanel = 'right'" :title="shellMessages.memberList">👥</button>
+          <button class="btn-icon" type="button" :aria-label="shellMessages.openRoomSettings" aria-haspopup="dialog"
+                  :aria-expanded="showRoomSettings" @click="showRoomSettings = true" :title="shellMessages.roomSettings">⋯</button>
         </div>
       </div>
       <!-- 消息列表 -->
@@ -76,29 +76,29 @@
     <!-- 中间面板：好友私聊模式 -->
     <div class="center-panel" v-else-if="chatStore.isFriendChat && chatStore.currentFriendUsername">
       <div class="room-header">
-        <button class="btn-icon mobile-menu-btn" type="button" aria-label="打开会话列表"
-                @click="mobilePanel = 'left'" title="好友列表">☰</button>
-        <div class="room-title text-ellipsis">私聊 - {{ chatStore.currentFriendDisplayName || chatStore.currentFriendUsername }}</div>
+        <button class="btn-icon mobile-menu-btn" type="button" :aria-label="shellMessages.openConversations"
+                @click="mobilePanel = 'left'" :title="shellMessages.conversationList">☰</button>
+        <div class="room-title text-ellipsis">{{ shellMessages.directMessage }} - {{ chatStore.currentFriendDisplayName || chatStore.currentFriendUsername }}</div>
       </div>
       <MessageList :friend-mode="true" />
       <InputArea :friend-mode="true" />
     </div>
 
     <div class="center-panel empty-state" v-else>
-      <button class="btn-icon mobile-menu-btn empty-menu-btn" type="button" aria-label="打开会话列表"
-              @click="mobilePanel = 'left'" title="房间列表">☰</button>
+      <button class="btn-icon mobile-menu-btn empty-menu-btn" type="button" :aria-label="shellMessages.openConversations"
+              @click="mobilePanel = 'left'" :title="shellMessages.conversationList">☰</button>
       <div v-if="networkOffline" class="empty-icon" aria-hidden="true">📴</div>
       <div v-else-if="reconnecting" class="empty-icon" aria-hidden="true">⏳</div>
       <div v-else class="empty-icon">💬</div>
-      <p role="status" aria-live="polite">{{ networkOffline ? '网络已断开，将在恢复后自动连接' : (reconnecting ? '正在重新连接...' : (activeTab === 'friends' ? '选择一个窗口开始聊天' : '选择一个房间开始聊天')) }}</p>
+      <p role="status" aria-live="polite">{{ emptyStateMessage }}</p>
     </div>
 
     <!-- 右侧面板：成员列表（仅房间模式） -->
     <div class="right-panel" :class="{ 'panel-open': mobilePanel === 'right' }" v-if="chatStore.currentRoomId && !chatStore.isFriendChat">
       <div class="right-panel-header">
-        <button class="btn-icon mobile-back-btn" type="button" aria-label="关闭成员列表"
-                @click="mobilePanel = ''" title="关闭">✕</button>
-        <span>成员列表</span>
+        <button class="btn-icon mobile-back-btn" type="button" :aria-label="shellMessages.closeMembers"
+                @click="mobilePanel = ''" :title="shellMessages.close">✕</button>
+        <span>{{ shellMessages.memberList }}</span>
       </div>
       <UserList />
     </div>
@@ -117,11 +117,11 @@
            aria-modal="true" aria-labelledby="force-offline-title"
            aria-describedby="force-offline-description" tabindex="-1"
            @keydown="onForceOfflineKeydown">
-        <div id="force-offline-title" class="modal-title">连接已断开</div>
+        <div id="force-offline-title" class="modal-title">{{ shellMessages.connectionLost }}</div>
         <p id="force-offline-description" class="force-offline-description">{{ userStore.forceOfflineReason }}</p>
         <div class="modal-actions">
           <button id="force-offline-login" class="btn btn-primary" type="button"
-                  @click="onForceOfflineConfirm">重新登录</button>
+                  @click="onForceOfflineConfirm">{{ shellMessages.signInAgain }}</button>
         </div>
       </div>
     </div>
@@ -146,6 +146,7 @@ import RoomFileManagerDialog from '../components/RoomFileManagerDialog.vue'
 import UserInfoDialog from '../components/UserInfoDialog.vue'
 import RoomPasswordDialog from '../components/RoomPasswordDialog.vue'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
+import { chatShellMessages } from '../localization/webLocale'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -162,6 +163,14 @@ const mobilePanel = ref('')
 const reconnecting = ref(false)
 const networkOffline = ref(typeof navigator !== 'undefined' && navigator.onLine === false)
 const activeTab = ref('friends')
+const shellMessages = computed(() => chatShellMessages(userStore.locale))
+const emptyStateMessage = computed(() => {
+  if (networkOffline.value) return shellMessages.value.offlineEmpty
+  if (reconnecting.value) return shellMessages.value.reconnecting
+  return activeTab.value === 'friends'
+    ? shellMessages.value.selectFriend
+    : shellMessages.value.selectRoom
+})
 const forceOfflineActive = computed(() => !!userStore.forceOfflineReason)
 const {
   dialogRef: forceOfflineDialogRef,

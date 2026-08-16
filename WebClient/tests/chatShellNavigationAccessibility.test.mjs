@@ -6,7 +6,7 @@ const source = readFileSync(new URL('../src/views/ChatView.vue', import.meta.url
 
 test('exposes the friend and room switcher as related tabs and panels', () => {
   for (const marker of [
-    'role="tablist" aria-label="会话类型"',
+    'role="tablist" :aria-label="shellMessages.conversationTypes"',
     'id="friends-tab"',
     'role="tab"',
     ':aria-selected="activeTab === \'friends\'"',
@@ -22,10 +22,10 @@ test('exposes the friend and room switcher as related tabs and panels', () => {
 
 test('names mobile conversation, member, settings, and close controls', () => {
   for (const marker of [
-    'aria-label="打开会话列表"',
-    'aria-label="打开成员列表"',
-    'aria-label="打开房间设置" aria-haspopup="dialog"',
-    'aria-label="关闭成员列表"',
+    ':aria-label="shellMessages.openConversations"',
+    ':aria-label="shellMessages.openMembers"',
+    ':aria-label="shellMessages.openRoomSettings" aria-haspopup="dialog"',
+    ':aria-label="shellMessages.closeMembers"',
     'class="btn-icon theme-btn" type="button"',
   ]) assert.ok(source.includes(marker), `missing chat control marker: ${marker}`)
 })

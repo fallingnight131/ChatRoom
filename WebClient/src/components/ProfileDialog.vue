@@ -4,6 +4,15 @@
          aria-labelledby="profile-dialog-title" tabindex="-1" @keydown="onDialogKeydown">
       <div id="profile-dialog-title" class="modal-title">个人资料</div>
 
+      <div class="input-group locale-section">
+        <label for="profile-locale">{{ shellMessages.language }}</label>
+        <select id="profile-locale" class="input" :value="userStore.locale"
+                @change="userStore.setLocale($event.target.value)">
+          <option value="zh-CN">{{ shellMessages.chinese }}</option>
+          <option value="en-US">{{ shellMessages.english }}</option>
+        </select>
+      </div>
+
       <!-- 头像 -->
       <div class="profile-avatar-section">
         <button type="button" class="profile-avatar-wrap" aria-label="更换头像"
@@ -105,18 +114,20 @@
 </template>
 
 <script setup>
-import { ref, inject, onMounted, onUnmounted } from 'vue'
+import { computed, ref, inject, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
 import { chatWs, MsgType } from '../services/websocket'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
+import { chatShellMessages } from '../localization/webLocale'
 
 const emit = defineEmits(['close'])
 const router = useRouter()
 const chatStore = useChatStore()
 const userStore = useUserStore()
 const hashColor = inject('hashColor')
+const shellMessages = computed(() => chatShellMessages(userStore.locale))
 
 const displayName = ref(userStore.displayName)
 const uid = ref(userStore.username)
@@ -255,6 +266,7 @@ onUnmounted(() => {
   justify-content: center;
   margin-bottom: 20px;
 }
+.locale-section { margin-bottom: 16px; }
 .bandwidth-section { margin: 16px 0; padding: 12px; border: 1px solid var(--border-color); border-radius: 10px; }
 .bandwidth-toggle { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
 .bandwidth-section p, .bandwidth-section small { display: block; margin-top: 6px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }

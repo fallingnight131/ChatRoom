@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   applyDocumentLocale,
+  chatShellMessages,
   loginMessages,
   persistWebLocale,
   resolveWebLocale,
@@ -33,6 +34,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(loginMessages("en-US")).sort(),
     Object.keys(loginMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(chatShellMessages("en-US")).sort(),
+    Object.keys(chatShellMessages("zh-CN")).sort(),
   );
 });
 

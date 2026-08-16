@@ -27,8 +27,8 @@ test('exposes the message timeline as an announced busy-aware log', () => {
 
 test('announces offline and reconnecting state without relying on icons', () => {
   assert.match(chatView, /role="status" aria-live="polite"/)
-  assert.match(chatView, /可继续查看已缓存消息/)
-  assert.match(chatView, /网络已断开，将在恢复后自动连接/)
+  assert.match(chatView, /shellMessages\.offlineBanner/)
+  assert.match(chatView, /emptyStateMessage/)
   assert.match(chatView, /chatWs\.on\('offline', onNetworkOffline\)/)
   assert.match(chatView, /chatWs\.on\('online', onNetworkOnline\)/)
 })
@@ -64,9 +64,9 @@ test('labels composer controls and honors focus and reduced-motion preferences',
 
 test('uses independent native controls for profile entry and theme selection', () => {
   assert.match(chatView, /class="user-profile-trigger" type="button" aria-haspopup="dialog"/)
-  assert.match(chatView, /:aria-expanded="showProfile" aria-label="打开个人资料"/)
-  assert.match(chatView, /class="avatar" alt="用户头像"/)
-  assert.match(chatView, /:aria-label="userStore\.darkMode \? '切换到浅色主题' : '切换到深色主题'"/)
+  assert.match(chatView, /:aria-expanded="showProfile" :aria-label="shellMessages\.openProfile"/)
+  assert.match(chatView, /class="avatar" :alt="shellMessages\.userAvatar"/)
+  assert.match(chatView, /:aria-label="userStore\.darkMode \? shellMessages\.lightTheme : shellMessages\.darkTheme"/)
   assert.doesNotMatch(chatView, /class="user-header" @click=/)
 })
 

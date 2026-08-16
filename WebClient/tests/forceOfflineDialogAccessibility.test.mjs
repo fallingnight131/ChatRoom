@@ -12,7 +12,7 @@ test('exposes a non-dismissible forced-offline alert dialog', () => {
     'initialFocusSelector: \'#force-offline-login\'',
     'active: forceOfflineActive',
     'canClose: () => false',
-    '>重新登录</button>',
+    '{{ shellMessages.signInAgain }}</button>',
   ]) assert.ok(source.includes(marker), `missing force-offline marker: ${marker}`)
 })
 
