@@ -1735,6 +1735,11 @@ estimated used bytes, and total capacity before/after/maximum in the same
 five-millisecond observation loop. Aggregate schema 5 requires nine uniform
 raw-schema-10 children and retains the fields per run. These observations do
 not become a native-memory or capacity threshold (ADR-0402).
+The first clean direct-buffer-aware aggregate is retained as
+`docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_DIRECT_BUFFER_AWARE_LADDER_2026-08-16.*`.
+All direct-buffer samples were available, the maximum estimated used range was
+about 8.62–10.12 MiB, and no sustained-pressure or latency knee triggered. RSS
+remained unavailable on this macOS evidence host.
 
 Reproduce that isolated Linux provider gate from a POSIX development host with:
 

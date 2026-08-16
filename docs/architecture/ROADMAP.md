@@ -1786,6 +1786,11 @@ Progress:
   aggregates to schema 5. Record direct-buffer availability plus
   before/after/maximum count, estimated used bytes, and total capacity in the
   shared observation window without defining a capacity threshold (ADR-0402).
+- [x] Retain a clean aggregate-schema-5 ladder at exact revision `0c50614...`.
+  All nine dual-edge scenarios completed with direct-buffer metrics available
+  in every sample; per-run maximum estimated used memory was about 8.62–10.12
+  MiB. No sustained-pressure or latency knee triggered. RSS remained unavailable
+  on macOS, and this is not a leak, memory limit, or capacity result.
 
 Work:
 

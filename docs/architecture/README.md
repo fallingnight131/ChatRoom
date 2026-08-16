@@ -1359,6 +1359,11 @@ ADR-0402 carries that dimension into raw reconnect schema 10 and aggregate
 schema 5. Each run retains availability plus before/after/maximum count,
 estimated used bytes, and total capacity from the shared observation window.
 No pressure threshold or complete native-memory claim is attached.
+The first clean aggregate-schema-5 ladder at `0c50614...` completed all nine
+profiles with direct-buffer metrics available in every sample. Per-run maximum
+estimated used memory was about 8.62–10.12 MiB; no sustained-pressure or latency
+knee triggered. This local curve is not a leak, limit, or capacity result, and
+RSS remained unavailable on the macOS host.
 
 ## 10. Attachment Flow
 
