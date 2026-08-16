@@ -57,10 +57,8 @@ public final class PostgresLegacyV1FriendRequestCreationAdapter
                     connection.commit();
                     return LegacyV1FriendRequestCreationResult.Rejected.SELF_REQUEST;
                 }
-                if (areActiveFriends(connection, requester.accountId(), recipient.accountId())) {
-                    connection.commit();
-                    return LegacyV1FriendRequestCreationResult.Rejected.ALREADY_FRIENDS;
-                }
+                boolean pairAllowed = PostgresAccountBlockPolicy.lockEnabledPairAndAllows(
+                        connection, requester.accountId(), recipient.accountId());
                 Pending pending = lockPendingPair(
                         connection, requester.accountId(), recipient.accountId());
                 LegacyV1FriendRequestCreationResult result;
@@ -69,7 +67,14 @@ public final class PostgresLegacyV1FriendRequestCreationAdapter
                     result = pending.requesterAccountId().equals(requester.accountId())
                             ? new LegacyV1FriendRequestCreationResult.Accepted(
                                     true, recipient.accountId())
+                            : !pairAllowed
+                                    ? LegacyV1FriendRequestCreationResult.Rejected.INVALID_TARGET
                             : LegacyV1FriendRequestCreationResult.Rejected.REVERSE_PENDING;
+                } else if (!pairAllowed) {
+                    result = LegacyV1FriendRequestCreationResult.Rejected.INVALID_TARGET;
+                } else if (areActiveFriends(
+                        connection, requester.accountId(), recipient.accountId())) {
+                    result = LegacyV1FriendRequestCreationResult.Rejected.ALREADY_FRIENDS;
                 } else {
                     UUID requestId = UUID.randomUUID();
                     insertRequest(connection, requestId, requester.accountId(), recipient.accountId());
@@ -92,7 +97,6 @@ public final class PostgresLegacyV1FriendRequestCreationAdapter
                 FROM chat.account account
                 JOIN chat.legacy_v1_account_map mapping ON mapping.account_id = account.id
                 WHERE account.id = ? AND account.disabled_at IS NULL
-                FOR SHARE OF account
                 """)) {
             statement.setObject(1, accountId);
             try (ResultSet row = statement.executeQuery()) {
@@ -107,7 +111,6 @@ public final class PostgresLegacyV1FriendRequestCreationAdapter
                 FROM chat.account account
                 JOIN chat.legacy_v1_account_map mapping ON mapping.account_id = account.id
                 WHERE account.username_key = ? AND account.disabled_at IS NULL
-                FOR SHARE OF account
                 """)) {
             statement.setString(1, username);
             try (ResultSet row = statement.executeQuery()) {

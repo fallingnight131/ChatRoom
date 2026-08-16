@@ -53,6 +53,11 @@ public final class PostgresMessageForwardAdapter implements MessageForwardPort {
                     connection.rollback();
                     return existingResult(existing.orElseThrow(), digest);
                 }
+                if (!PostgresAccountBlockPolicy.allowsConversationWrite(
+                        connection, command.targetConversationId(), command.actorAccountId())) {
+                    connection.rollback();
+                    return MessageForwardResult.Rejected.NOT_AUTHORIZED;
+                }
                 Optional<SourceText> source = sourceText(connection, command);
                 if (source.isEmpty()) {
                     connection.rollback();

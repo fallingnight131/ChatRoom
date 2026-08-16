@@ -5123,6 +5123,14 @@ class GatewayRuntimePostgresIntegrationTest {
             execute(connection,
                     "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
                     conversationId);
+            UUID first = accountId.toString().compareTo(peerAccountId.toString()) <= 0
+                    ? accountId : peerAccountId;
+            UUID second = first.equals(accountId) ? peerAccountId : accountId;
+            execute(connection,
+                    "INSERT INTO chat.direct_conversation("
+                            + "conversation_id, first_account_id, second_account_id) "
+                            + "VALUES (?, ?, ?)",
+                    conversationId, first, second);
             execute(connection,
                     "INSERT INTO chat.conversation_member(conversation_id, account_id) "
                             + "VALUES (?, ?)",

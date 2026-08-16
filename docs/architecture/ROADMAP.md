@@ -2297,8 +2297,10 @@ Candidate slices:
   - [x] Add the durable PostgreSQL block graph and operation ledger with atomic
     desired-state mutation, concurrent exact retry, opposite-direction locking,
     conflict, disabled-account, clean migration/restart, and self-edge evidence.
-  - [ ] Enforce generic pairwise denial in direct submission and contact-request
-    creation without disclosing which side blocked.
+  - [x] Enforce generic pairwise denial transactionally across V2 direct
+    submit/reply/forward, V1 direct messages, contact-request creation, and
+    pending-request acceptance; preserve exact retries, serialize against block
+    mutation with stable account locks, and leave group delivery unaffected.
   - [ ] Add a default-off V2 capability/wire surface and accessible Web/Windows
     block management only after migration and authorization gates pass.
 - Windows native notifications;

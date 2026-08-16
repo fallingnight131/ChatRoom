@@ -62,6 +62,11 @@ public final class PostgresLegacyV1DirectMessageAdapter implements LegacyV1Direc
                     connection.commit();
                     return result;
                 }
+                if (!PostgresAccountBlockPolicy.lockEnabledPairAndAllows(
+                        connection, command.senderAccountId(), target.targetAccountId())) {
+                    connection.rollback();
+                    return LegacyV1DirectMessageResult.Rejected.FRIENDSHIP_ACCESS_DENIED;
+                }
                 long sequence = allocateSequence(connection, target.conversationId());
                 UUID messageId = UUID.randomUUID();
                 Instant acceptedAt = insertMessage(

@@ -35,18 +35,33 @@ wire or storage path.
   new contact requests between the pair. Denials use a generic unavailable
   result and do not disclose which side blocked. Unblocking does not restore a
   friendship, pending request, presence subscription, or deleted state.
+- PostgreSQL write adapters enforce that rule inside the same transaction as
+  the new write. They lock both accounts in stable UUID order before querying
+  the bilateral block graph, so a committed block cannot be bypassed between a
+  gateway/application precheck and insertion. This covers V2 submit/reply and
+  forward destinations plus V1 direct messages, contact-request creation, and
+  acceptance of a request that was pending before the block.
+- An exact retry of a previously accepted message, forward, or same-direction
+  pending contact request still returns its original result after a later
+  block. It creates no new contact. All other denied paths reuse their existing
+  generic authorization/invalid-target result rather than exposing block
+  direction or existence.
 - Blocking does not delete or mutate existing message history, revoke shared
   group membership, suppress group messages, or invalidate an already-issued
   short-lived attachment grant. Those require their own explicit policies.
-- The Java application service and PostgreSQL adapter remain detached. This
-  slice adds no protocol message, gateway handler, V1 behavior, or client UI.
+- The block-mutation application service and wire surface remain detached. The
+  durable write policy is nevertheless enforced by every current PostgreSQL
+  direct-contact adapter, including V1 compatibility, so later composition
+  cannot accidentally introduce an old-client bypass. This slice adds no block
+  protocol message, gateway handler, or client UI.
 
 ## Consequences
 
 The safety semantics and authenticated-actor boundary can evolve independently
-from transport. Product behavior remains unchanged until later expand-migrate-
-contract steps add pairwise query enforcement, a default-off wire capability,
-and Web/Windows surfaces.
+from transport. Existing deployments have no block rows until a controlled
+mutation surface is enabled, while direct-contact writes already fail closed if
+such rows exist. Later expand-migrate-contract steps can add a default-off wire
+capability and Web/Windows surfaces without changing storage enforcement.
 
 ## Verification
 
@@ -56,10 +71,18 @@ correlation of adapter results. The disposable PostgreSQL gate proves clean V052
 migration, same-database restart, exact retry, conflicting reuse, convergent
 no-op, concurrent exact-operation convergence, opposite-direction lock ordering,
 disabled-target denial, unblock, and the database self-edge constraint.
+It also proves bilateral denial for V2 submit/reply/forward, V1 direct messages,
+new and pending V1 contact requests, exact-retry preservation, group-message
+non-effects, unblock behavior, and a deterministic block-commit/write race that
+waits on the account-pair lock before rejecting the write. The real TLS/WSS
+PostgreSQL gateway integration gate remains green with canonical DIRECT data.
 
 ## Rollback
 
-Keep the forward migration and leave the adapter uncomposed. If V052 must be
-physically removed before product activation, restore the pre-migration database
-backup rather than editing Flyway history. No protocol, runtime configuration,
-or client state requires migration.
+Keep the forward migration and leave block mutation uncomposed. Disabling the
+new policy code while retaining block rows would reopen direct-contact paths, so
+rollback requires first disabling future mutations and proving the graph empty
+or applying an explicitly approved data policy. If V052 must be physically
+removed before product activation, restore the pre-migration database backup
+rather than editing Flyway history. No protocol, runtime configuration, or
+client state requires migration.

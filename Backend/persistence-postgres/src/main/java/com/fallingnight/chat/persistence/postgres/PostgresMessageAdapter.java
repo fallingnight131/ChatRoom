@@ -62,6 +62,11 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     connection.rollback();
                     return existingResult(existing.orElseThrow(), submission, payload, payloadHash);
                 }
+                if (!PostgresAccountBlockPolicy.allowsConversationWrite(
+                        connection, submission.conversationId(), submission.senderAccountId())) {
+                    connection.rollback();
+                    return MessageSubmissionResult.Rejected.NOT_AUTHORIZED;
+                }
                 long sequence = allocateSequence(connection, submission.conversationId());
                 if (!authorizedMentionTargets(connection, submission)) {
                     connection.rollback();

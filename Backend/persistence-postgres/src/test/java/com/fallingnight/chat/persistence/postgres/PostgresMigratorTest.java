@@ -487,6 +487,183 @@ class PostgresMigratorTest {
     }
 
     @Test
+    @Order(98)
+    void enforcesBilateralBlocksAtDirectWriteTransactionsWithoutAffectingGroups()
+            throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID actor = UUID.randomUUID();
+        UUID peer = UUID.randomUUID();
+        UUID contact = UUID.randomUUID();
+        UUID actorDevice = UUID.randomUUID();
+        UUID peerDevice = UUID.randomUUID();
+        UUID direct = UUID.randomUUID();
+        UUID group = UUID.randomUUID();
+        UUID first = actor.toString().compareTo(peer.toString()) <= 0 ? actor : peer;
+        UUID second = first.equals(actor) ? peer : actor;
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id,username_key,display_name,password_hash) "
+                            + "VALUES (?,'policy-actor','Actor',"
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'),"
+                            + "(?,'policy-peer','Peer',"
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'),"
+                            + "(?,'policy-contact','Contact',"
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    actor, peer, contact);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id,account_id) "
+                            + "VALUES (1,?),(2,?),(3,?)", actor, peer, contact);
+            execute(connection,
+                    "INSERT INTO chat.device(id,account_id,client_device_id,platform) "
+                            + "VALUES (?,?,'policy-actor-device','WEB'),"
+                            + "(?,?,'policy-peer-device','WEB')",
+                    actorDevice, actor, peerDevice, peer);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id,kind) VALUES (?,'DIRECT'),(?,'GROUP')",
+                    direct, group);
+            execute(connection,
+                    "INSERT INTO chat.direct_conversation("
+                            + "conversation_id,first_account_id,second_account_id) "
+                            + "VALUES (?,?,?)", direct, first, second);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id,account_id) "
+                            + "VALUES (?,?),(?,?),(?,?),(?,?)",
+                    direct, actor, direct, peer, group, actor, group, peer);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map("
+                            + "legacy_kind,legacy_conversation_id,conversation_id) "
+                            + "VALUES ('FRIENDSHIP',81,?)", direct);
+        }
+
+        PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource());
+        MessageSubmission v2Original = new MessageSubmission(
+                direct, actor, actorDevice, "policy-v2-original", 1,
+                "before block".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MessageSubmissionResult.Accepted v2Accepted =
+                (MessageSubmissionResult.Accepted) messages.submit(v2Original);
+        PostgresLegacyV1DirectMessageAdapter v1Messages =
+                new PostgresLegacyV1DirectMessageAdapter(dataSource());
+        LegacyV1DirectMessageCommand v1Original = new LegacyV1DirectMessageCommand(
+                actor, actorDevice, "policy-peer", "policy-v1-original", "before", "text");
+        assertInstanceOf(LegacyV1DirectMessageResult.Accepted.class,
+                v1Messages.submit(v1Original));
+
+        PostgresLegacyV1FriendRequestCreationAdapter requests =
+                new PostgresLegacyV1FriendRequestCreationAdapter(dataSource());
+        assertInstanceOf(LegacyV1FriendRequestCreationResult.Accepted.class,
+                requests.create(actor, "policy-contact"));
+        long pendingLegacyId;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement("""
+                        SELECT mapping.legacy_request_id
+                        FROM chat.legacy_v1_contact_request_map mapping
+                        JOIN chat.contact_request request
+                          ON request.id = mapping.contact_request_id
+                        WHERE request.requester_account_id = ?
+                          AND request.recipient_account_id = ?
+                          AND request.state = 'PENDING'
+                        """)) {
+            statement.setObject(1, actor);
+            statement.setObject(2, contact);
+            try (ResultSet row = statement.executeQuery()) {
+                assertTrue(row.next());
+                pendingLegacyId = row.getLong(1);
+            }
+        }
+
+        AccountBlockService blocks =
+                new AccountBlockService(new PostgresAccountBlockAdapter(dataSource()));
+        assertInstanceOf(AccountBlockResult.Applied.class,
+                blocks.apply(peer,
+                        new AccountBlockIntent(actor, true, UUID.randomUUID())));
+        assertTrue(((MessageSubmissionResult.Accepted) messages.submit(v2Original)).duplicate());
+        assertTrue(((LegacyV1DirectMessageResult.Accepted)
+                v1Messages.submit(v1Original)).duplicate());
+        assertEquals(MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                messages.submit(new MessageSubmission(
+                        direct, actor, actorDevice, "policy-v2-blocked", 1,
+                        new byte[] {1}, Optional.of(v2Accepted.messageId()))));
+        assertEquals(MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                messages.submit(new MessageSubmission(
+                        direct, peer, peerDevice, "policy-v2-reverse-blocked", 1,
+                        new byte[] {2})));
+        assertEquals(LegacyV1DirectMessageResult.Rejected.FRIENDSHIP_ACCESS_DENIED,
+                v1Messages.submit(new LegacyV1DirectMessageCommand(
+                        actor, actorDevice, "policy-peer", "policy-v1-blocked",
+                        "blocked", "text")));
+
+        MessageSubmissionResult.Accepted groupMessage =
+                (MessageSubmissionResult.Accepted) messages.submit(new MessageSubmission(
+                        group, actor, actorDevice, "policy-group-allowed", 1,
+                        "group survives".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        PostgresMessageForwardAdapter forwards =
+                new PostgresMessageForwardAdapter(dataSource());
+        assertEquals(MessageForwardResult.Rejected.NOT_AUTHORIZED,
+                forwards.forward(new MessageForwardCommand(
+                        group, groupMessage.messageId(), 0, direct,
+                        actor, actorDevice, "policy-forward-blocked")));
+
+        assertInstanceOf(AccountBlockResult.Applied.class,
+                blocks.apply(contact,
+                        new AccountBlockIntent(actor, true, UUID.randomUUID())));
+        assertEquals(new LegacyV1FriendRequestCreationResult.Accepted(true, contact),
+                requests.create(actor, "policy-contact"));
+        PostgresLegacyV1FriendRequestAcceptanceAdapter acceptance =
+                new PostgresLegacyV1FriendRequestAcceptanceAdapter(dataSource());
+        assertEquals(LegacyV1FriendRequestAcceptanceResult.Rejected.INSTANCE,
+                acceptance.accept(pendingLegacyId, contact));
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.contact_request SET state='REJECTED',"
+                            + "resolved_at=transaction_timestamp() "
+                            + "WHERE requester_account_id=? AND recipient_account_id=?",
+                    actor, contact);
+        }
+        assertEquals(LegacyV1FriendRequestCreationResult.Rejected.INVALID_TARGET,
+                requests.create(actor, "policy-contact"));
+
+        blocks.apply(peer, new AccountBlockIntent(actor, false, UUID.randomUUID()));
+        blocks.apply(contact, new AccountBlockIntent(actor, false, UUID.randomUUID()));
+        assertInstanceOf(MessageSubmissionResult.Accepted.class,
+                messages.submit(new MessageSubmission(
+                        direct, actor, actorDevice, "policy-v2-unblocked", 1,
+                        new byte[] {3})));
+        assertEquals(new LegacyV1FriendRequestCreationResult.Accepted(false, contact),
+                requests.create(actor, "policy-contact"));
+
+        ExecutorService serializedWrite = Executors.newSingleThreadExecutor();
+        try (Connection blocker = connect()) {
+            blocker.setAutoCommit(false);
+            try (PreparedStatement statement = blocker.prepareStatement(
+                    "SELECT id FROM chat.account WHERE id IN (?,?) ORDER BY id FOR UPDATE")) {
+                statement.setObject(1, actor);
+                statement.setObject(2, peer);
+                try (ResultSet rows = statement.executeQuery()) {
+                    assertTrue(rows.next());
+                    assertTrue(rows.next());
+                }
+            }
+            execute(blocker,
+                    "INSERT INTO chat.account_block(blocker_account_id,blocked_account_id) "
+                            + "VALUES (?,?)", peer, actor);
+            Future<MessageSubmissionResult> waitingWrite = serializedWrite.submit(
+                    () -> messages.submit(new MessageSubmission(
+                            direct, actor, actorDevice, "policy-race-blocked", 1,
+                            new byte[] {4})));
+            assertThrows(java.util.concurrent.TimeoutException.class,
+                    () -> waitingWrite.get(200, TimeUnit.MILLISECONDS));
+            blocker.commit();
+            assertEquals(MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                    waitingWrite.get(5, TimeUnit.SECONDS));
+        } finally {
+            serializedWrite.shutdownNow();
+        }
+        assertEquals(1, count("SELECT count(*) FROM chat.message WHERE conversation_id='"
+                + group + "' AND client_message_id='policy-group-allowed'"));
+    }
+
+    @Test
     @Order(99)
     void atomicallyImportsAttachmentMessageMappingsCursorAndProofsIdempotently()
             throws Exception {
@@ -805,7 +982,7 @@ class PostgresMigratorTest {
         UUID targetConversation = UUID.randomUUID();
         seedMessageOwner(account, device, sourceConversation);
         try (Connection connection = connect()) {
-            execute(connection, "INSERT INTO chat.conversation(id,kind) VALUES (?,'DIRECT')",
+            execute(connection, "INSERT INTO chat.conversation(id,kind) VALUES (?,'GROUP')",
                     targetConversation);
             execute(connection, "INSERT INTO chat.conversation_member("
                             + "conversation_id,account_id) VALUES (?,?)",
@@ -1314,7 +1491,7 @@ class PostgresMigratorTest {
         UUID secondConversation = UUID.randomUUID();
         seedMessageOwner(account, device, firstConversation);
         try (Connection connection = connect()) {
-            execute(connection, "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
+            execute(connection, "INSERT INTO chat.conversation(id, kind) VALUES (?, 'GROUP')",
                     secondConversation);
             execute(connection, "INSERT INTO chat.conversation_member("
                             + "conversation_id, account_id) VALUES (?, ?)",
@@ -5378,6 +5555,15 @@ class PostgresMigratorTest {
             try (PreparedStatement statement = connection.prepareStatement(
                     "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')")) {
                 statement.setObject(1, conversation);
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "INSERT INTO chat.direct_conversation("
+                            + "conversation_id, first_account_id, second_account_id) "
+                            + "VALUES (?, ?, ?)")) {
+                statement.setObject(1, conversation);
+                statement.setObject(2, account);
+                statement.setObject(3, account);
                 statement.executeUpdate();
             }
             try (PreparedStatement statement = connection.prepareStatement(

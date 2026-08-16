@@ -39,11 +39,17 @@ public final class PostgresLegacyV1FriendRequestAcceptanceAdapter
                     result = new LegacyV1FriendRequestAcceptanceResult.Accepted(
                             true, target.requesterAccountId());
                 } else if ("PENDING".equals(target.state())) {
-                    UUID conversationId = establishRelationship(connection, target);
-                    ensureFriendshipMapping(connection, conversationId);
-                    markAccepted(connection, target.requestId());
-                    result = new LegacyV1FriendRequestAcceptanceResult.Accepted(
-                            false, target.requesterAccountId());
+                    if (!PostgresAccountBlockPolicy.lockEnabledPairAndAllows(
+                            connection, target.requesterAccountId(),
+                            target.recipientAccountId())) {
+                        result = LegacyV1FriendRequestAcceptanceResult.Rejected.INSTANCE;
+                    } else {
+                        UUID conversationId = establishRelationship(connection, target);
+                        ensureFriendshipMapping(connection, conversationId);
+                        markAccepted(connection, target.requestId());
+                        result = new LegacyV1FriendRequestAcceptanceResult.Accepted(
+                                false, target.requesterAccountId());
+                    }
                 } else {
                     result = LegacyV1FriendRequestAcceptanceResult.Rejected.INSTANCE;
                 }

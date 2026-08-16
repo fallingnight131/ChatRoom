@@ -683,8 +683,14 @@ canonical accounts. The adapter first returns an exact durable retry even if the
 target was disabled later; new operations lock both account rows in UUID order,
 require both accounts enabled, mutate current state only when necessary, and
 commit the desired-state result in the same transaction. Reusing an actor-scoped
-operation UUID for another target or desired state is a conflict. No gateway,
-direct-message, contact-request, V1, or client path consumes these tables yet.
+operation UUID for another target or desired state is a conflict. No gateway or
+client block-mutation path consumes these tables yet. Direct-contact write
+adapters do consume the graph: they take stable-order shared locks on the two
+account rows, then check both block directions in the same transaction before a
+new V2 submit/reply/forward, V1 direct message, contact-request insertion, or
+pending-request acceptance. Those locks conflict with mutation's pairwise
+`FOR UPDATE`, closing the check/insert race. Existing exact retries are resolved
+before the new-write policy; GROUP writes never query pairwise blocking.
 
 At the current additive stage, rollback means disabling/removing the unused Java
 route while V1 SQLite remains authoritative. Once PostgreSQL owns a slice,
