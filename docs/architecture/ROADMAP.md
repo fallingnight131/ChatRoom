@@ -2435,6 +2435,8 @@ Candidate slices:
     in Chromium and Firefox.
   - [x] Verify the authenticated V2 device modal focus boundary, Escape/trigger
     restoration, and current-device non-revocability in Chromium and Firefox.
+  - [x] Verify V2 route disposal closes its owned socket normally and does not
+    reconnect after returning to stable V1 in Chromium and Firefox.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

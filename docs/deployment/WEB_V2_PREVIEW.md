@@ -98,8 +98,9 @@ authenticated path also persists low-bandwidth mode and proves text submission
 remains available after enablement. It also verifies multi-conversation keyboard
 focus is non-activating and that navigation/log landmarks reach the browser
 accessibility tree. The device modal additionally verifies contained focus,
-Escape restoration, and current-device protection. It does not satisfy the real
-TLS, Origin/Host, gateway,
+Escape restoration, and current-device protection. Route disposal verifies a
+normal socket close and no background retry after returning to V1. It does not
+satisfy the real TLS, Origin/Host, gateway,
 database, physical network, edge-failover, or deployment checks above and must
 not be reported as release or capacity evidence.
 

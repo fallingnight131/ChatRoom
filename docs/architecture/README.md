@@ -2125,6 +2125,8 @@ without mutating selection, and the opened timeline is a named polite-live log.
 The authenticated device-management dialog is exercised as an actual modal
 interaction: focus enters on Close, reverse Tab wraps to Done, the current device
 has no revoke action, and Escape restores the signed-in-devices trigger.
+Leaving the V2 route is also a verified ownership boundary: it closes the only
+socket normally, returns to stable V1, and does not create a background retry.
 A controlled socket restart
 additionally verifies memory-only session resume and sequence-based active-history
 repair while keeping the authenticated shell available. Browser offline/online

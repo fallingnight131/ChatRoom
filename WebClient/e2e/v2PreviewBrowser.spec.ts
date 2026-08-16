@@ -12,9 +12,11 @@ async function installV2SocketFixture(
   const fixture = createV2ProtocolFixture(mode);
   const socketUrls: string[] = [];
   const sockets: WebSocketRoute[] = [];
+  const clientCloses: Array<{ code?: number; reason?: string }> = [];
   await page.routeWebSocket("wss://fixture.invalid/v2/web", socket => {
     socketUrls.push("wss://fixture.invalid/v2/web");
     sockets.push(socket);
+    socket.onClose((code, reason) => clientCloses.push({ code, reason }));
     socket.onMessage(message => {
       if (typeof message === "string") {
         throw new Error("V2 fixture received a text WebSocket frame");
@@ -22,7 +24,7 @@ async function installV2SocketFixture(
       socket.send(Buffer.from(fixture.respond(Array.from(message))));
     });
   });
-  return { fixture, socketUrls, sockets };
+  return { fixture, socketUrls, sockets, clientCloses };
 }
 
 test("switches and persists the V2 preview locale before authentication", async ({ page }) => {
@@ -189,4 +191,22 @@ test("pauses V2 retries offline and recovers one queued message explicitly", asy
   await expect(page.getByLabel("消息 3：已接收")).toBeVisible();
   expect(fixture.receivedTypes.filter(
     type => type === MessageType.SUBMIT_MESSAGE)).toHaveLength(1);
+});
+
+test("stops the V2 socket when returning to the stable V1 route", async ({ page }) => {
+  test.skip(!enabled, "requires an explicit V2-enabled preview build");
+  const { sockets, clientCloses } = await installV2SocketFixture(page, "accept");
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  expect(sockets).toHaveLength(1);
+  await page.goto("/#/login");
+
+  await expect(page.getByRole("form", { name: "ChatRoom" })).toBeVisible();
+  await expect.poll(() => clientCloses).toEqual([{
+    code: 1000,
+    reason: "client stopped",
+  }]);
+  await page.waitForTimeout(650);
+  expect(sockets).toHaveLength(1);
 });
