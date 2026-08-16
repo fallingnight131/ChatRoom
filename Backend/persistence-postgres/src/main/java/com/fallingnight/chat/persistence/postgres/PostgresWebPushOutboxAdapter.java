@@ -3,6 +3,8 @@ package com.fallingnight.chat.persistence.postgres;
 import com.fallingnight.chat.application.notification.WebPushNotificationIntent;
 import com.fallingnight.chat.application.notification.WebPushOutboxClaim;
 import com.fallingnight.chat.application.notification.WebPushOutboxPort;
+import com.fallingnight.chat.application.notification.WebPushOutboxStatus;
+import com.fallingnight.chat.application.notification.WebPushOutboxStatusPort;
 import com.fallingnight.chat.application.notification.WebPushTerminalOutcome;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,13 +19,15 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
 
 /** PostgreSQL SKIP LOCKED claims and fenced terminal/retry/retention transitions. */
-public final class PostgresWebPushOutboxAdapter implements WebPushOutboxPort {
+public final class PostgresWebPushOutboxAdapter
+        implements WebPushOutboxPort, WebPushOutboxStatusPort {
     static final int MAX_BATCH_SIZE = 100;
     static final int MAX_RETENTION_BATCH_SIZE = 1_000;
     static final Duration MIN_LEASE = Duration.ofSeconds(1);
@@ -178,6 +182,47 @@ public final class PostgresWebPushOutboxAdapter implements WebPushOutboxPort {
                 USING candidates WHERE event.message_id = candidates.message_id
                 """;
         return boundedMutation(sql, cutoff, null, limit, "retention");
+    }
+
+    @Override
+    public WebPushOutboxStatus readStatus(Instant observedAt) {
+        Objects.requireNonNull(observedAt, "observedAt");
+        String sql = """
+                WITH pending AS MATERIALIZED (
+                    SELECT committed_at, expires_at, available_at,
+                           claim_owner, claim_expires_at, attempt_count
+                    FROM chat.web_push_notification_outbox
+                    WHERE completed_at IS NULL
+                )
+                SELECT count(*),
+                       count(*) FILTER (WHERE expires_at > ? AND available_at <= ?
+                           AND (claim_owner IS NULL OR claim_expires_at <= ?)),
+                       count(*) FILTER (WHERE expires_at > ? AND claim_owner IS NOT NULL
+                           AND claim_expires_at > ?),
+                       count(*) FILTER (WHERE expires_at > ? AND available_at > ?
+                           AND (claim_owner IS NULL OR claim_expires_at <= ?)),
+                       count(*) FILTER (WHERE expires_at <= ?),
+                       count(*) FILTER (WHERE attempt_count > 1),
+                       COALESCE(max(attempt_count), 0), min(committed_at)
+                FROM pending
+                """;
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            OffsetDateTime at = at(observedAt);
+            for (int index = 1; index <= 9; index++) statement.setObject(index, at);
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) throw new SQLException("Web Push outbox status missing");
+                OffsetDateTime oldest = result.getObject(8, OffsetDateTime.class);
+                return new WebPushOutboxStatus(
+                        result.getLong(1), result.getLong(2), result.getLong(3),
+                        result.getLong(4), result.getLong(5), result.getLong(6),
+                        result.getInt(7),
+                        Optional.ofNullable(oldest).map(OffsetDateTime::toInstant));
+            }
+        } catch (SQLException exception) {
+            throw new NotificationPersistenceException(
+                    "Web Push outbox status failed", exception);
+        }
     }
 
     private int boundedMutation(

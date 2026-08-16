@@ -2092,6 +2092,12 @@ single named blocking worker, with a one-entry worker queue and bounded graceful
 then-interrupt shutdown. These bounds match the existing non-overlap invariant
 and expose only identity-free local counts. Readiness/backlog policy, provider
 canary, configuration, and `GatewayRuntime` composition remain open.
+A separate durable PostgreSQL status adapter now partitions every incomplete
+push event into ready, actively leased, delayed, or expired backlog and reports
+retry count, maximum attempt count, and oldest committed age. Its application
+record enforces a complete partition, and fixed-name label-free Prometheus
+gauges avoid account, conversation, message, claim, and installation identity.
+Threshold policy and admin/runtime composition remain open.
 The Web client now has a pure Service Worker payload boundary. It accepts only
 schema version 1, three canonical stable UUIDs, and the structural mention
 boolean within 2 KiB; unknown fields, message text, malformed identity, and

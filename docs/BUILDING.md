@@ -1683,6 +1683,18 @@ cancels future scheduling, then waits within a reviewed 100 ms--30 second
 window for in-flight work before interrupting it. Runtime state and active,
 queued, and scheduled counts are identity-free. This resource is still detached
 from `GatewayRuntime`; it does not make the push worker ready or activate it.
+The durable backlog status model and renderer are covered by the normal Java
+`check`; the real PostgreSQL query is included in:
+
+```bash
+JAVA_HOME=/path/to/jdk-21 python3 tools/verify_m0.py --postgres
+```
+
+One aggregate query partitions every incomplete event into ready, actively
+leased, delayed, or expired counts and also reports retry count, maximum attempt
+count, and oldest committed age. The corresponding Prometheus gauges use fixed
+names and no labels. These are observation primitives only: readiness thresholds
+and admin-endpoint composition remain separate work.
 The detached gateway issuance and HTTP bridge can be selected with:
 
 ```bash

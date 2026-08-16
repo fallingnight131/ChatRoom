@@ -245,6 +245,12 @@ resume proof or activate a gateway/client path.
   then interrupts stuck work. Lifecycle and local pool counts contain no
   identity. This is resource-ownership evidence only; backlog readiness,
   provider canary, configuration, and gateway composition remain open.
+- A read-only durable status port now exposes a complete identity-free partition
+  of incomplete push work into ready, actively leased, delayed, or expired
+  counts plus retry, maximum-attempt, and oldest-age signals. PostgreSQL computes
+  it in one aggregate query, and its Prometheus form uses fixed names without
+  labels. No threshold or product-readiness decision follows from observation
+  alone.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

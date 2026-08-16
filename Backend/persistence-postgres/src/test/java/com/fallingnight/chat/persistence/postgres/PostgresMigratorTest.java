@@ -6101,6 +6101,12 @@ class PostgresMigratorTest {
         UUID firstOwner = UUID.randomUUID(), secondOwner = UUID.randomUUID();
         var firstWorker = new PostgresWebPushOutboxAdapter(dataSource());
         var secondWorker = new PostgresWebPushOutboxAdapter(dataSource());
+        var initialStatus = firstWorker.readStatus(claimedAt);
+        assertEquals(3, initialStatus.pending());
+        assertEquals(3, initialStatus.ready());
+        assertEquals(0, initialStatus.leased());
+        assertEquals(0, initialStatus.maximumAttemptCount());
+        assertTrue(initialStatus.oldestCommittedAt().isPresent());
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService workers = Executors.newFixedThreadPool(2);
         List<WebPushOutboxClaim> claims;
@@ -6126,6 +6132,11 @@ class PostgresMigratorTest {
         assertEquals(3, claims.stream().map(claim -> claim.intent().messageId())
                 .distinct().count());
         assertTrue(claims.stream().allMatch(claim -> claim.attemptCount() == 1));
+        var claimedStatus = firstWorker.readStatus(claimedAt.plusMillis(1));
+        assertEquals(3, claimedStatus.pending());
+        assertEquals(0, claimedStatus.ready());
+        assertEquals(3, claimedStatus.leased());
+        assertEquals(1, claimedStatus.maximumAttemptCount());
 
         WebPushOutboxClaim completed = claims.get(0);
         Instant transitionAt = claimedAt.plusMillis(100);
@@ -6142,12 +6153,20 @@ class PostgresMigratorTest {
         WebPushOutboxClaim deferred = claims.get(1);
         Instant retryAt = transitionAt.plusSeconds(2);
         assertTrue(firstWorker.defer(deferred, transitionAt, retryAt, "PROVIDER_TIMEOUT"));
+        var deferredStatus = firstWorker.readStatus(transitionAt.plusMillis(1));
+        assertEquals(2, deferredStatus.pending());
+        assertEquals(1, deferredStatus.leased());
+        assertEquals(1, deferredStatus.delayed());
         assertTrue(firstWorker.claim(
                 UUID.randomUUID(), retryAt.minusMillis(1), Duration.ofSeconds(30), 10).isEmpty());
         WebPushOutboxClaim retried = firstWorker.claim(
                 UUID.randomUUID(), retryAt, Duration.ofSeconds(30), 10).getFirst();
         assertEquals(deferred.intent().messageId(), retried.intent().messageId());
         assertEquals(2, retried.attemptCount());
+        var retriedStatus = firstWorker.readStatus(retryAt.plusMillis(1));
+        assertEquals(2, retriedStatus.leased());
+        assertEquals(1, retriedStatus.retried());
+        assertEquals(2, retriedStatus.maximumAttemptCount());
         assertTrue(firstWorker.complete(
                 retried, retryAt.plusMillis(100), WebPushTerminalOutcome.DELIVERED));
         assertTrue(firstWorker.complete(
@@ -6165,6 +6184,9 @@ class PostgresMigratorTest {
                     OffsetDateTime.ofInstant(oldCommittedAt, ZoneOffset.UTC),
                     OffsetDateTime.ofInstant(expiredAt, ZoneOffset.UTC), expiring.messageId());
         }
+        var expiredStatus = firstWorker.readStatus(claimedAt);
+        assertEquals(1, expiredStatus.pending());
+        assertEquals(1, expiredStatus.expired());
         assertEquals(1, firstWorker.expire(claimedAt, 10));
         assertEquals(0, firstWorker.expire(claimedAt, 10));
         assertEquals(2, firstWorker.purgeCompletedBefore(retryAt.plusSeconds(1), 2));

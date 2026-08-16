@@ -2484,6 +2484,10 @@ Candidate slices:
         one named blocking worker with a one-entry queue, matches the loop's
         non-overlap invariant, cancels future work before bounded graceful-
         then-interrupt shutdown, and exposes only identity-free local counts.
+      - [x] Add a durable identity-free outbox status port and PostgreSQL
+        aggregate that completely partitions incomplete work into ready,
+        actively leased, delayed, or expired backlog, reports retry/attempt/age
+        signals, and renders fixed-name label-free metrics.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
     - [x] Add the pure Service Worker payload boundary with exact version/field/
