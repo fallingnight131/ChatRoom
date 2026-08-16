@@ -209,6 +209,42 @@ test("activates bounded V2 search and reveals one result through the keyboard", 
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain("Fixture");
 });
 
+test("clears V2 search on disconnect and requires an explicit query after resume", async ({ page }) => {
+  test.skip(!enabled || !searchCandidate,
+    "requires the explicit V2 message-search browser candidate");
+  const { fixture, sockets } = await installV2SocketFixture(page, "accept");
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+  await page.getByRole("button", { name: "搜索消息" }).click();
+  const query = page.getByRole("searchbox", { name: "搜索当前会话" });
+  await query.fill("Fixture");
+  await query.press("Enter");
+  await expect(page.getByText("已找到 1 条结果")).toBeVisible();
+  await expect(page.getByRole("list", { name: "消息搜索结果" })).toBeVisible();
+  expect(fixture.searchQueries).toHaveLength(1);
+
+  await sockets[0]!.close({ code: 1012, reason: "fixture restart during search" });
+  await expect.poll(() => sockets.length).toBe(2);
+  await expect.poll(() => fixture.receivedTypes).toContain(MessageType.RESUME_SESSION);
+  await expect(page.getByText("已安全连接", { exact: true })).toBeVisible();
+  await expect(page.getByRole("list", { name: "消息搜索结果" })).toHaveCount(0);
+  await expect(page.getByText("已找到 1 条结果")).toHaveCount(0);
+  await expect(query).toHaveValue("Fixture");
+  await page.waitForTimeout(250);
+  expect(fixture.searchQueries).toHaveLength(1);
+
+  await query.press("Enter");
+  await expect(page.getByText("已找到 1 条结果")).toBeVisible();
+  await expect(page.getByRole("list", { name: "消息搜索结果" })).toBeVisible();
+  expect(fixture.searchQueries).toHaveLength(2);
+  expect(fixture.searchQueries[1]).toEqual(fixture.searchQueries[0]);
+});
+
 test("keeps V2 search absent after the Web candidate rollback", async ({ page }) => {
   test.skip(!enabled || !searchRollback,
     "requires the explicit V2 message-search rollback browser candidate");

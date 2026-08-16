@@ -76,9 +76,12 @@ env CHATROOM_V2_BROWSER_PREVIEW=true \
 
 The enabled path verifies capability-gated type-126/type-127 exchange, bounded
 query shape, live result announcement, accessibility-tree semantics, keyboard
-result activation, and one correlated context read. The rollback path verifies
-that the search entry point and type-126 command are both absent. Application
-tests separately prove result/context non-persistence and cursor isolation.
+result activation, and one correlated context read. A controlled socket restart
+also proves results are cleared, resume does not automatically replay a query,
+and the retained editor text is sent again only after explicit user action. The
+rollback path verifies that the search entry point and type-126 command are both
+absent. Application tests separately prove stale-response isolation,
+result/context non-persistence, and cursor isolation.
 
 This fixture opens no real network connection. It does not prove gateway
 configuration, TLS/WSS, PostgreSQL authority, deployed asset identity,

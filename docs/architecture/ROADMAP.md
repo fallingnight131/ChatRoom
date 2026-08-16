@@ -2221,6 +2221,9 @@ Progress:
       search candidate and same-revision disabled rollback: keyboard query,
       announced/accessibility-tree result, context reveal, and type-126 absence
       after rollback without claiming a real endpoint canary.
+    - [x] Verify a controlled Web search-candidate disconnect clears in-memory
+      results, performs no automatic query after session resume, and requires an
+      explicit user resubmission in Chromium and Firefox.
     - [ ] Add explicit Web endpoint activation and rollback evidence.
     - [ ] Add the equivalent Windows protocol, local state, accessible UI, and
       endpoint activation evidence.
