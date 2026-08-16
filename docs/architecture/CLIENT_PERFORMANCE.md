@@ -40,6 +40,11 @@ performance evidence. Native current/previous browser interaction, realistic
 datasets/networks, and release-host memory measurements remain required before a
 performance claim.
 
+The first schema-validated local observation is recorded in
+[`../baselines/M6_WEB_V2_BROWSER_PERFORMANCE_2026-08-16.md`](../baselines/M6_WEB_V2_BROWSER_PERFORMANCE_2026-08-16.md),
+with raw samples in the adjacent JSON evidence. It remains development-host,
+client-only evidence under the boundary above.
+
 ## Protocol Semantics Boundary
 
 Delivery/read presentation follows the server-authoritative semantics below; it

@@ -2442,6 +2442,9 @@ Candidate slices:
   - [x] Add a clean-revision, generated-Protobuf Chromium V2 client-performance
     harness for raw preview/auth/open/send samples, optional heap observations,
     and validated nearest-rank P50/P95/P99 without a capacity threshold.
+  - [x] Record the first revision-bound local Web V2 client-only baseline with
+    raw samples, host/browser identity, reproducible commands, and an explicit
+    non-capacity claim boundary.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
