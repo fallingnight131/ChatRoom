@@ -2449,6 +2449,9 @@ Candidate slices:
     localized conversation navigation, live history, message content, and
     copy/reply actions in Chromium and Firefox without claiming manual
     screen-reader compatibility.
+  - [x] Verify an authenticated Web V2 keyboard path activates the focused
+    conversation and submits exactly one message with Enter while retaining the
+    cleared composer focus in Chromium and Firefox.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

@@ -92,7 +92,7 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
   await expect(primaryConversation).toBeFocused();
   await expect(primaryConversation).not.toHaveAttribute("aria-current", "page");
   await expect(keyboardConversation).not.toHaveAttribute("aria-current", "page");
-  await primaryConversation.click();
+  await primaryConversation.press("Enter");
 
   const log = page.getByRole("log", { name: "消息记录" });
   await expect(log).toHaveAttribute("aria-live", "polite");
@@ -124,10 +124,13 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
   await expect(deviceDialog).toBeHidden();
   await expect(devicesTrigger).toBeFocused();
 
-  await page.getByLabel("消息内容").fill("Fixture outgoing message");
-  await page.getByRole("button", { name: "发送", exact: true }).click();
+  const composer = page.getByLabel("消息内容");
+  await composer.fill("Fixture outgoing message");
+  await composer.press("Enter");
   await expect(log.getByText("Fixture outgoing message")).toBeVisible();
   await expect(page.getByLabel("消息 2：已接收")).toBeVisible();
+  await expect(composer).toBeFocused();
+  await expect(composer).toHaveValue("");
 
   const receivedBeforeLocaleChange = fixture.receivedTypes.length;
   await page.getByLabel("界面语言").selectOption("en-US");
@@ -149,6 +152,7 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
     MessageType.READ_MESSAGE_HISTORY,
     MessageType.SUBMIT_MESSAGE,
   ]));
+  expect(fixture.receivedTypes.filter(type => type === MessageType.SUBMIT_MESSAGE)).toHaveLength(1);
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain("non-secret-test-value");
   expect(socketUrls).toEqual(["wss://fixture.invalid/v2/web"]);
 });
