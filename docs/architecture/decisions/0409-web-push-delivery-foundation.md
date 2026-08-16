@@ -131,6 +131,11 @@ acceptance, stall synchronization, or reduce gateway readiness.
   purpose/key-ID AAD, plus a separately keyed HMAC-SHA256 endpoint tag. It can
   resolve old encryption key IDs for rotation, but production custody, lookup-
   key rewrite, backup/restore, and rotation rehearsal remain open gates.
+- The subscription application use case consumes an account-free, zeroable
+  request, binds only its authenticated caller, applies exact default-off and
+  admission before protection, returns fixed outcomes, and closes secrets on
+  every path. HTTP authentication/Origin/CSRF and rate-limit adapters remain
+  uncomposed.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

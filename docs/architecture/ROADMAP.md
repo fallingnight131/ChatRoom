@@ -2422,6 +2422,14 @@ Candidate slices:
       deletion without deleting message truth.
   - [ ] Add authenticated HTTP subscription management and a bounded provider
     worker with current-policy reauthorization and secret-free observability.
+    - [x] Add the account-free, zeroable subscription request and authenticated-
+      account application use case with exact default-off, pre-protection
+      admission/rate-limit boundary, fixed outcomes, and failure-path cleanup.
+    - [ ] Add the default-off Netty HTTP route with strict session/token, Origin,
+      CSRF, JSON/body bounds, status mapping, and secret-free telemetry.
+    - [ ] Add complete current-policy recipient/subscription resolution and the
+      bounded provider worker with retry, invalid-subscription erasure, and
+      fixed-cardinality observability.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
 - end-to-end encryption only after a separate cryptographic design, device-key

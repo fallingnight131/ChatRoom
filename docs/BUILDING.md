@@ -1477,6 +1477,18 @@ AAD separation, HMAC-SHA256 endpoint-tag stability, ciphertext/context tamper
 rejection, and decrypt-by-old-key-ID behavior. Fixture key custody uses cleared
 in-memory copies; this is not production KMS, secret provisioning, lookup-key
 rotation, backup/restore, or operational erasure evidence.
+The authenticated subscription application boundary is covered by:
+
+```bash
+cd Backend
+./gradlew --no-daemon :application:test --tests '*WebPushSubscriptionMutation*'
+```
+
+It proves authenticated-account binding from outside an account-free request,
+exact default-off behavior, admission before protection/persistence, bounded
+rate-limit results, quota/availability/delete mapping, and request cleanup after
+success, denial, or persistence failure. It is not an HTTP authentication,
+Origin/CSRF, parser/body-limit, Redis rate-limit, or endpoint integration gate.
 The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility

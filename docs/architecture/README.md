@@ -1996,6 +1996,13 @@ Authenticated unprotection resolves the stored encryption key ID, so an old key
 can remain decryptable during rotation. Key material is supplied only through a
 short-lived callback custody port. No production KMS/secret source, lookup-key
 rewrite, backup/restore, rotation rehearsal, or runtime composition exists yet.
+The detached subscription mutation use case now consumes an account-free,
+zeroable request and binds identity only from its authenticated caller. Its exact
+default-off policy and account/install/action admission boundary run before
+protection or persistence; fixed results represent disabled, rate-limited,
+quota, unavailable-account, replace, delete, and unchanged outcomes. Success,
+rejection, and exceptions all close request and registration secrets. No HTTP
+route, token/Origin/CSRF policy, or rate-limiter adapter is composed yet.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables
