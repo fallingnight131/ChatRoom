@@ -1501,6 +1501,19 @@ duplicate/unknown/malformed/oversized JSON rejection, browser field and key
 bounds, and transport-byte clearing. Its session/CSRF port is only a contract;
 this test does not issue tokens, install a Netty route, invoke PostgreSQL, or
 activate the API.
+The detached Netty route is covered by:
+
+```bash
+cd Backend
+./gradlew --no-daemon :im-gateway:test --tests '*WebPushSubscriptionHttpHandler*'
+```
+
+It proves server-session account binding, CSRF rejection before mutation,
+default-off and Origin rejection before authentication, off-event-loop worker
+dispatch, fixed status/telemetry outcomes, and token-copy clearing. It uses a
+direct deterministic executor and fake session/subscription ports; no route is
+installed in startup, no token is issued, and no production bounded pool or
+PostgreSQL call is exercised.
 The disposable PostgreSQL gate also verifies current Web Push recipient policy:
 complete ordered results or explicit saturation, sender/block/disabled-member
 exclusion, durable mention classification, recall suppression, active-only

@@ -2428,8 +2428,9 @@ Candidate slices:
     - [x] Add the exact-default-off HTTP policy, bounded exact canonical-HTTPS
       Origin allowlist, server-issued session/CSRF authentication result port,
       and strict zeroing browser-subscription JSON decoder.
-    - [ ] Add the Netty HTTP route with off-event-loop session/token and mutation
-      work, method/body bounds, status mapping, and secret-free telemetry.
+    - [x] Add the Netty HTTP route with off-event-loop session/token and mutation
+      work, one request per connection, method/body bounds, fixed status mapping,
+      transport-byte clearing, and secret-free telemetry.
     - [x] Add complete, ordered, limit+1 current-policy recipient resolution
       from committed non-recalled messages, rechecking membership, disabled
       accounts, bilateral block policy, mention classification, and explicit

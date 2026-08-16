@@ -136,9 +136,12 @@ acceptance, stall synchronization, or reduce gateway readiness.
   admission before protection, returns fixed outcomes, and closes secrets on
   every path. The detached HTTP contract adds an exact-default-off policy, one
   bounded exact canonical-HTTPS Origin, a fixed server-session/CSRF decision,
-  and strict bounded JSON decoding with transport-byte clearing. The Netty
-  route, token issuer/store, worker executor, and rate-limit adapters remain
-  uncomposed.
+  and strict bounded JSON decoding with transport-byte clearing. A detached
+  Netty handler now enforces that contract, allows one
+  bounded request per connection, moves session/CSRF/decode/mutation work off
+  the event loop, clears transport secrets, and maps only fixed statuses and
+  identity-free outcomes. It is not installed in the gateway pipeline and has
+  no token implementation or owned production worker pool.
 - PostgreSQL recipient resolution now starts from the exact committed message,
   rechecks current membership/account/bilateral-block/recall truth, and returns
   a complete ordered result or explicit saturation. Active subscription reads

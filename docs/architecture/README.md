@@ -2010,8 +2010,17 @@ an authenticated account/session actor. The strict streaming JSON decoder
 accepts only the browser subscription subset, detects duplicate and unknown
 fields, caps body/nesting/string/number sizes, validates Base64URL material via
 the application credential model, and clears its transport and decoded byte
-copies on success or rejection. No Netty route, token issuer/store, worker
-executor, status mapping, or runtime composition exists yet.
+copies on success or rejection.
+The detached Netty subscription handler now consumes only the stable
+installation path and never accepts an account in JSON. Default-off, exact
+Origin, method, media type, one-request-per-connection, and 8 KiB body checks
+precede copying any credential. Server session/CSRF verification, strict decode,
+admission, protection, and PostgreSQL mutation execute through an injected
+worker rather than the event loop. Bearer, CSRF, body, and decoded-key working
+bytes are cleared; responses use only fixed status mappings and fixed outcome
+counters, and telemetry failure cannot fail the request. The handler is not in
+the gateway pipeline, and no token issuer/store or owned bounded HTTP worker is
+configured, so product behavior remains off.
 The PostgreSQL notification read boundary now resolves only a committed,
 non-deleted, non-recalled source message and rechecks current active membership,
 enabled accounts, sender exclusion, and bilateral block policy. Results are
