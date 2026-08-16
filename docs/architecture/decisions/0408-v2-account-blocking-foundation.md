@@ -75,6 +75,11 @@ server candidate without activating an incomplete client product path.
   detached C++ protocol client that validates the authenticated actor and exact
   desired-state correlation before any product composition. Server or Web
   activation alone therefore cannot create a product feature.
+- An independent Windows CMake gate now carries capability 7 through immutable
+  binary configuration, exact handshake validation, and an isolated bounded Qt
+  transport route for types 128/129 and their correlated errors. It remains
+  default-off and exposes no Widgets action yet; diagnostic schema 5 makes that
+  absence or candidate presence observable without account or session data.
 - The Web candidate keeps the latest operation result in page memory only. It
   does not infer durable state before a result, persist a block graph, or expose
   a block-list read model. A fresh page labels state unknown and can issue an
@@ -87,8 +92,8 @@ transport. Existing deployments have no block rows until the default-off server
 candidate and an explicit compatible client are enabled, while direct-contact
 writes already fail closed if such rows exist. Old clients omit capability 7
 and keep their prior handshake bytes. The first Web candidate is now present;
-Windows capability/UI composition, real endpoint canaries, and a future
-block-list read model remain separate expand-migrate-contract steps.
+Windows accessible UI/application composition, real endpoint canaries, and a
+future block-list read model remain separate expand-migrate-contract steps.
 
 ## Verification
 
@@ -123,6 +128,11 @@ The portable C++ binding gate additionally proves Windows request encoding,
 self-block rejection, actor/target/desired-state/operation correlation,
 same-operation explicit retry, and disconnect cleanup without claiming a native
 Windows product build.
+The Windows configuration policy rejects capability 7 without the preview; the
+portable session/transport tests prove exact seven-capability negotiation,
+default-independent capability selection, isolated command routing, correlated
+response routing, and disconnect cleanup. Native Windows Release evidence is
+still required before activation.
 
 ## Rollback
 

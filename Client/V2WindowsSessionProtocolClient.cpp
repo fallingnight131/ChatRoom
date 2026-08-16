@@ -56,14 +56,16 @@ V2WindowsSessionProtocolClient::V2WindowsSessionProtocolClient(
         RequestIdFactory requestIdFactory,
         Clock clock,
         bool enableMessageForwarding,
-        bool enableMessageSearch)
+        bool enableMessageSearch,
+        bool enableAccountBlocking)
     : m_appVersion(std::move(appVersion)),
       m_clientDeviceId(std::move(clientDeviceId)),
       m_requestIdFactory(requestIdFactory ? std::move(requestIdFactory) : randomUuid),
       m_clock(clock ? std::move(clock) : systemTimeMs),
       m_devices(m_requestIdFactory, m_clock),
       m_messageForwardingEnabled(enableMessageForwarding),
-      m_messageSearchEnabled(enableMessageSearch) {
+      m_messageSearchEnabled(enableMessageSearch),
+      m_accountBlockingEnabled(enableAccountBlocking) {
     if (!boundedText(m_appVersion, 64) || !canonicalUuid(m_clientDeviceId))
         throw std::invalid_argument("invalid Windows V2 client identity");
 }
@@ -98,6 +100,8 @@ V2WindowsSessionProtocolClient::createClientHello() {
         hello.add_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_FORWARDING);
     if (m_messageSearchEnabled)
         hello.add_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_SEARCH);
+    if (m_accountBlockingEnabled)
+        hello.add_capabilities(chat::v2::CLIENT_CAPABILITY_ACCOUNT_BLOCKING);
     Command result = command(
         chat::v2::MESSAGE_TYPE_CLIENT_HELLO, serialize(hello),
         chat::v2::MESSAGE_TYPE_SERVER_HELLO);
@@ -225,6 +229,8 @@ V2WindowsSessionProtocolClient::receive(const std::string &bytes) {
             expectedCapabilities.push_back(chat::v2::CLIENT_CAPABILITY_MESSAGE_FORWARDING);
         if (m_messageSearchEnabled)
             expectedCapabilities.push_back(chat::v2::CLIENT_CAPABILITY_MESSAGE_SEARCH);
+        if (m_accountBlockingEnabled)
+            expectedCapabilities.push_back(chat::v2::CLIENT_CAPABILITY_ACCOUNT_BLOCKING);
         if (hello.selected_protocol_version() != 2
                 || !boundedText(hello.connection_id(), 128)
                 || hello.server_time_epoch_ms() <= 0

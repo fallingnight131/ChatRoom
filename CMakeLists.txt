@@ -18,6 +18,8 @@ option(CHATROOM_ENABLE_WINDOWS_V2_SEARCH
        "Compile the default-off Windows V2 conversation search feature" OFF)
 option(CHATROOM_ENABLE_WINDOWS_V2_NOTIFICATIONS
        "Compile the default-off Windows V2 desktop notification feature" OFF)
+option(CHATROOM_ENABLE_WINDOWS_V2_ACCOUNT_BLOCKING
+       "Compile the default-off Windows V2 account blocking feature" OFF)
 set(CHATROOM_WINDOWS_V2_WSS_URL "" CACHE STRING "Exact Windows V2 WSS endpoint")
 set(CHATROOM_WINDOWS_V2_FALLBACK_WSS_URL "" CACHE STRING "Optional Windows V2 fallback WSS endpoint")
 set(CHATROOM_UPDATE_CHANNEL "" CACHE STRING "Windows update channel")
@@ -58,6 +60,10 @@ endif()
 if(CHATROOM_ENABLE_WINDOWS_V2_NOTIFICATIONS AND NOT CHATROOM_ENABLE_WINDOWS_V2_PREVIEW)
     message(FATAL_ERROR
         "CHATROOM_ENABLE_WINDOWS_V2_NOTIFICATIONS requires CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON")
+endif()
+if(CHATROOM_ENABLE_WINDOWS_V2_ACCOUNT_BLOCKING AND NOT CHATROOM_ENABLE_WINDOWS_V2_PREVIEW)
+    message(FATAL_ERROR
+        "CHATROOM_ENABLE_WINDOWS_V2_ACCOUNT_BLOCKING requires CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON")
 endif()
 
 if(CHATROOM_BUILD_HEADLESS_SERVER)
@@ -270,6 +276,11 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             target_compile_definitions(
                 chatroom_windows_v2_configuration
                 PRIVATE CHAT_WINDOWS_V2_NOTIFICATIONS_ENABLED=1)
+        endif()
+        if(CHATROOM_ENABLE_WINDOWS_V2_ACCOUNT_BLOCKING)
+            target_compile_definitions(
+                chatroom_windows_v2_configuration
+                PRIVATE CHAT_WINDOWS_V2_ACCOUNT_BLOCKING_ENABLED=1)
         endif()
         set_target_properties(
             chatroom_client_local_data
@@ -925,6 +936,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 CHAT_WINDOWS_V2_FORWARDING_ENABLED=1
                 CHAT_WINDOWS_V2_SEARCH_ENABLED=1
                 CHAT_WINDOWS_V2_NOTIFICATIONS_ENABLED=1
+                CHAT_WINDOWS_V2_ACCOUNT_BLOCKING_ENABLED=1
                 CHAT_WINDOWS_V2_WSS_URL="wss://chat.example.test/v2/windows"
                 CHAT_WINDOWS_V2_FALLBACK_WSS_URL="wss://chat-secondary.example.test/v2/windows")
         target_link_libraries(

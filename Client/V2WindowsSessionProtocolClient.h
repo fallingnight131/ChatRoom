@@ -49,7 +49,8 @@ public:
         RequestIdFactory requestIdFactory = {},
         Clock clock = {},
         bool enableMessageForwarding = false,
-        bool enableMessageSearch = false);
+        bool enableMessageSearch = false,
+        bool enableAccountBlocking = false);
     ~V2WindowsSessionProtocolClient();
 
     State state() const;
@@ -86,5 +87,6 @@ private:
     std::size_t m_maximumFrameBytes = 1024U * 1024U + 1024U;
     bool m_messageForwardingEnabled = false;
     bool m_messageSearchEnabled = false;
+    bool m_accountBlockingEnabled = false;
     Session m_session;
 };

@@ -59,6 +59,7 @@ def main() -> int:
         "v2Configuration.messageForwardingEnabled",
         "v2Configuration.messageSearchEnabled",
         "v2Configuration.notificationsEnabled",
+        "v2Configuration.accountBlockingEnabled",
         "password.fill('\\0')",
     ), "Client/main.cpp")
     require(login, ("QByteArray LoginDialog::takePasswordUtf8()", "m_loginPass->clear()"),
@@ -82,10 +83,12 @@ def main() -> int:
         "DeviceManagementViewModel::applyProtocolError",
         "enableMessageForwarding",
         "enableMessageSearch",
+        "enableAccountBlocking",
     ), "Client/WindowsDeviceManagementController.cpp")
     require(session_protocol, (
         "CLIENT_CAPABILITY_MESSAGE_MENTIONS",
         "CLIENT_CAPABILITY_MESSAGE_SEARCH",
+        "CLIENT_CAPABILITY_ACCOUNT_BLOCKING",
     ), "Client/V2WindowsSessionProtocolClient.cpp")
     require(messaging_controller, (
         "participant.accountId) == m_accountId",

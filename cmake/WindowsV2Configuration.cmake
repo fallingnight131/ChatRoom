@@ -14,6 +14,11 @@ function(chatroom_validate_windows_v2_configuration)
         message(FATAL_ERROR
             "Windows V2 notifications require the Windows V2 preview")
     endif()
+    if(CHATROOM_ENABLE_WINDOWS_V2_ACCOUNT_BLOCKING
+            AND NOT CHATROOM_ENABLE_WINDOWS_V2_PREVIEW)
+        message(FATAL_ERROR
+            "Windows V2 account blocking requires the Windows V2 preview")
+    endif()
     if(NOT CHATROOM_ENABLE_WINDOWS_V2_PREVIEW)
         if(NOT "${CHATROOM_WINDOWS_V2_WSS_URL}" STREQUAL "")
             message(FATAL_ERROR

@@ -178,6 +178,40 @@ int main() {
     check(capableSearchEvent.type
               == V2WindowsSessionProtocolClient::EventType::ServerHello,
           "enabled Windows forwarding and search must accept the exact six-capability hello");
+    Ids accountBlockIds;
+    V2WindowsSessionProtocolClient accountBlockClient(
+        "2.0.0-test", deviceId,
+        [&] { return accountBlockIds.next(); }, [] { return 800; }, false, false, true);
+    const auto accountBlockHello = accountBlockClient.createClientHello();
+    chat::v2::Envelope accountBlockHelloEnvelope;
+    chat::v2::ClientHello accountBlockHelloPayload;
+    check(accountBlockHelloEnvelope.ParseFromString(accountBlockHello.bytes)
+              && accountBlockHelloPayload.ParseFromString(
+                  accountBlockHelloEnvelope.payload())
+              && accountBlockHelloPayload.capabilities_size() == 5
+              && accountBlockHelloPayload.capabilities(4)
+                  == chat::v2::CLIENT_CAPABILITY_ACCOUNT_BLOCKING,
+          "enabled Windows account blocking must request capability 7 independently");
+    checkThrows([&] {
+        accountBlockClient.receive(response(
+            chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
+            accountBlockHello.requestId, "", serverHello));
+    }, "enabled Windows account blocking must fail closed when capability 7 is omitted");
+
+    Ids allCapabilityIds;
+    V2WindowsSessionProtocolClient allCapabilityClient(
+        "2.0.0-test", deviceId,
+        [&] { return allCapabilityIds.next(); }, [] { return 800; }, true, true, true);
+    const auto allCapabilityHello = allCapabilityClient.createClientHello();
+    auto allCapabilityServerHello = searchServerHello;
+    allCapabilityServerHello.add_enabled_capabilities(
+        chat::v2::CLIENT_CAPABILITY_ACCOUNT_BLOCKING);
+    const auto allCapabilityEvent = allCapabilityClient.receive(response(
+        chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
+        allCapabilityHello.requestId, "", allCapabilityServerHello));
+    check(allCapabilityEvent.type
+              == V2WindowsSessionProtocolClient::EventType::ServerHello,
+          "enabled Windows features must accept the exact seven-capability hello");
     Ids downgradeIds;
     V2WindowsSessionProtocolClient downgradeClient(
         "2.0.0-test", deviceId,

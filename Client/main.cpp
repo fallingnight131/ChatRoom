@@ -218,7 +218,8 @@ int main(int argc, char *argv[]) {
                 v2Configuration.messageForwardingEnabled,
                 v2Configuration.fallbackEndpoints,
                 v2Configuration.messageSearchEnabled,
-                v2Configuration.notificationsEnabled)) {
+                v2Configuration.notificationsEnabled,
+                v2Configuration.accountBlockingEnabled)) {
             qWarning().noquote()
                 << "[WindowsV2] operation=device-management outcome=disabled";
         }

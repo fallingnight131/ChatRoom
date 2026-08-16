@@ -13,6 +13,7 @@ int main(int argc, char **argv) {
     value.messageForwardingEnabled = true;
     value.messageSearchEnabled = true;
     value.notificationsEnabled = true;
+    value.accountBlockingEnabled = true;
     value.endpoint = QUrl(QStringLiteral("wss://preview-chat.example.test/v2/windows"));
     value.fallbackEndpoints = {
         QUrl(QStringLiteral("wss://preview-chat-secondary.example.test/v2/windows"))};
@@ -22,11 +23,12 @@ int main(int argc, char **argv) {
     const auto object = document.object();
     if (error.error != QJsonParseError::NoError || !document.isObject()
             || encoded != QJsonDocument(object).toJson(QJsonDocument::Compact) + '\n'
-            || object.size() != 7 || object.value(QStringLiteral("schemaVersion")).toInt() != 4
+            || object.size() != 8 || object.value(QStringLiteral("schemaVersion")).toInt() != 5
             || !object.value(QStringLiteral("enabled")).toBool()
             || !object.value(QStringLiteral("messageForwardingEnabled")).toBool()
             || !object.value(QStringLiteral("messageSearchEnabled")).toBool()
             || !object.value(QStringLiteral("notificationsEnabled")).toBool()
+            || !object.value(QStringLiteral("accountBlockingEnabled")).toBool()
             || object.value(QStringLiteral("endpoint")).toString()
                 != QStringLiteral("wss://preview-chat.example.test/v2/windows")
             || object.value(QStringLiteral("fallbackEndpoints")).toArray()
@@ -37,11 +39,12 @@ int main(int argc, char **argv) {
     const auto disabledDocument = QJsonDocument::fromJson(
         WindowsV2ConfigurationDiagnostic::canonicalJson({}));
     const auto disabled = disabledDocument.object();
-    if (disabled.size() != 7 || disabled.value(QStringLiteral("schemaVersion")).toInt() != 4
+    if (disabled.size() != 8 || disabled.value(QStringLiteral("schemaVersion")).toInt() != 5
             || disabled.value(QStringLiteral("enabled")).toBool()
             || disabled.value(QStringLiteral("messageForwardingEnabled")).toBool()
             || disabled.value(QStringLiteral("messageSearchEnabled")).toBool()
             || disabled.value(QStringLiteral("notificationsEnabled")).toBool()
+            || disabled.value(QStringLiteral("accountBlockingEnabled")).toBool()
             || !disabled.value(QStringLiteral("endpoint")).toString().isEmpty()
             || !disabled.value(QStringLiteral("fallbackEndpoints")).toArray().isEmpty()) {
         qCritical() << "disabled Windows V2 diagnostic exposed enabled state";

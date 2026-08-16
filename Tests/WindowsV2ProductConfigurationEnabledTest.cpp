@@ -9,6 +9,7 @@ int main(int argc, char *argv[]) {
     if (!value.enabled || !value.messageForwardingEnabled
             || !value.messageSearchEnabled || !value.error.isEmpty()
             || !value.notificationsEnabled
+            || !value.accountBlockingEnabled
             || value.endpoint.toString()
                 != QStringLiteral("wss://chat.example.test/v2/windows")
             || value.fallbackEndpoints.size() != 1

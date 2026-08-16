@@ -47,7 +47,8 @@ public:
         QObject *parent = nullptr,
         bool enableMessageForwarding = false,
         QList<QUrl> fallbackEndpoints = {},
-        bool enableMessageSearch = false);
+        bool enableMessageSearch = false,
+        bool enableAccountBlocking = false);
     ~V2WindowsDeviceManagementTransport() override;
 
     State state() const;
@@ -57,6 +58,7 @@ public:
     QString listDevices();
     QString revokeDevice(const QString &targetDeviceId);
     bool sendMessagingFrame(const QByteArray &frame);
+    bool sendAccountBlockFrame(const QByteArray &frame);
     void rejectMessagingProtocol();
     static bool isValidEndpoint(const QUrl &endpoint);
 
@@ -69,6 +71,7 @@ signals:
                          const QVector<DeviceManagementViewModel::Device> &devices);
     void deviceRevoked(const QString &requestId, const QString &targetDeviceId);
     void messagingFrameReceived(const QByteArray &frame);
+    void accountBlockFrameReceived(const QByteArray &frame);
     void protocolError(const QString &requestId);
     void failure(const QString &safeReason);
 
@@ -85,6 +88,9 @@ private:
     void clearProtocol();
     void clearResumeCredential();
     bool routeAuthenticatedMessagingFrame(const QByteArray &message);
+    bool sendAuthenticatedFrame(
+        const QByteArray &frame, QSet<QString> &pendingRequestIds,
+        const std::function<bool(std::uint32_t)> &messageTypeAllowed);
 
     QList<QUrl> m_endpoints;
     qsizetype m_endpointIndex = 0;
@@ -99,11 +105,13 @@ private:
     QByteArray m_resumeToken;
     QString m_resumeSessionId;
     QSet<QString> m_pendingMessagingRequestIds;
+    QSet<QString> m_pendingAccountBlockRequestIds;
     QString m_timeoutReason;
     State m_state = State::Idle;
     bool m_desired = false;
     bool m_messageForwardingEnabled = false;
     bool m_messageSearchEnabled = false;
+    bool m_accountBlockingEnabled = false;
     int m_reconnectAttempt = 0;
 };
 

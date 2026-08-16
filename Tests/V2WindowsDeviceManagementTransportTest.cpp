@@ -89,7 +89,8 @@ int main(int argc, char **argv) {
     V2WindowsDeviceManagementTransport transport(
         QUrl(QStringLiteral("wss://chat.example.test/v2/windows")),
         QStringLiteral("2.0.0-test"), deviceId, &socket, std::move(hooks), nullptr,
-        false, {QUrl(QStringLiteral("wss://chat-secondary.example.test/v2/windows"))});
+        false, {QUrl(QStringLiteral("wss://chat-secondary.example.test/v2/windows"))},
+        false, true);
     transport.start();
     check(openedEndpoints == QList<QUrl>{
               QUrl(QStringLiteral("wss://chat.example.test/v2/windows"))},
@@ -110,6 +111,7 @@ int main(int argc, char **argv) {
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS);
+    hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_ACCOUNT_BLOCKING);
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
         helloEnvelope.request_id(), "", hello));
@@ -147,6 +149,39 @@ int main(int argc, char **argv) {
     check(transport.state() == V2WindowsDeviceManagementTransport::State::Authenticated
               && authenticatedDevice == deviceId,
           QStringLiteral("server session authority must activate the Windows transport"));
+
+    chat::v2::Envelope accountBlockCommand;
+    accountBlockCommand.set_protocol_version(2);
+    accountBlockCommand.set_kind(chat::v2::MESSAGE_KIND_COMMAND);
+    accountBlockCommand.set_message_type(chat::v2::MESSAGE_TYPE_SET_ACCOUNT_BLOCK);
+    accountBlockCommand.set_request_id("51000000-0000-4000-8000-000000000001");
+    accountBlockCommand.set_session_id(sessionId);
+    accountBlockCommand.set_sent_at_epoch_ms(901);
+    accountBlockCommand.set_payload("block-request");
+    const auto accountBlockBytes = serialize(accountBlockCommand);
+    check(transport.sendAccountBlockFrame(QByteArray(
+              accountBlockBytes.data(), static_cast<qsizetype>(accountBlockBytes.size())))
+              && sent.size() == 1,
+          QStringLiteral("negotiated account block command must share the product socket"));
+    sent.clear();
+    QByteArray routedAccountBlockFrame;
+    QObject::connect(&transport,
+                     &V2WindowsDeviceManagementTransport::accountBlockFrameReceived,
+                     [&](const QByteArray &value) { routedAccountBlockFrame = value; });
+    chat::v2::Envelope accountBlockResponse;
+    accountBlockResponse.set_protocol_version(2);
+    accountBlockResponse.set_kind(chat::v2::MESSAGE_KIND_RESPONSE);
+    accountBlockResponse.set_message_type(chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_APPLIED);
+    accountBlockResponse.set_request_id(accountBlockCommand.request_id());
+    accountBlockResponse.set_session_id(sessionId);
+    accountBlockResponse.set_sent_at_epoch_ms(902);
+    accountBlockResponse.set_payload("block-result");
+    const auto accountBlockResponseBytes = serialize(accountBlockResponse);
+    socket.binaryMessageReceived(QByteArray(accountBlockResponseBytes.data(),
+        static_cast<qsizetype>(accountBlockResponseBytes.size())));
+    check(routedAccountBlockFrame.size()
+              == static_cast<qsizetype>(accountBlockResponseBytes.size()) && !aborted,
+          QStringLiteral("account block response must use its isolated route"));
 
     chat::v2::Envelope messagingCommand;
     messagingCommand.set_protocol_version(2);

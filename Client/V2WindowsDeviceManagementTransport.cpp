@@ -34,7 +34,8 @@ V2WindowsDeviceManagementTransport::V2WindowsDeviceManagementTransport(
         QObject *parent,
         bool enableMessageForwarding,
         QList<QUrl> fallbackEndpoints,
-        bool enableMessageSearch)
+        bool enableMessageSearch,
+        bool enableAccountBlocking)
     : QObject(parent),
       m_endpoints{std::move(endpoint)},
       m_appVersion(std::move(appVersion)),
@@ -44,7 +45,8 @@ V2WindowsDeviceManagementTransport::V2WindowsDeviceManagementTransport(
       m_ownsSocket(!socket),
       m_hooks(std::move(hooks)),
       m_messageForwardingEnabled(enableMessageForwarding),
-      m_messageSearchEnabled(enableMessageSearch) {
+      m_messageSearchEnabled(enableMessageSearch),
+      m_accountBlockingEnabled(enableAccountBlocking) {
     for (QUrl &fallback : fallbackEndpoints) m_endpoints.push_back(std::move(fallback));
     QSet<QUrl> uniqueEndpoints;
     for (const QUrl &candidate : m_endpoints) {
@@ -144,37 +146,52 @@ QString V2WindowsDeviceManagementTransport::revokeDevice(const QString &targetDe
 }
 
 bool V2WindowsDeviceManagementTransport::sendMessagingFrame(const QByteArray &frame) {
+    return sendAuthenticatedFrame(frame, m_pendingMessagingRequestIds,
+        [this](std::uint32_t messageType) {
+        return messageType == chat::v2::MESSAGE_TYPE_SUBMIT_MESSAGE
+        || messageType == chat::v2::MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE
+        || (messageType == chat::v2::MESSAGE_TYPE_FORWARD_MESSAGE
+            && m_messageForwardingEnabled)
+        || messageType == chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY
+        || messageType == chat::v2::MESSAGE_TYPE_LIST_CONVERSATIONS
+        || messageType == chat::v2::MESSAGE_TYPE_LIST_CONVERSATION_PARTICIPANTS
+        || (messageType == chat::v2::MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES
+            && m_messageSearchEnabled);
+    });
+}
+
+bool V2WindowsDeviceManagementTransport::sendAccountBlockFrame(const QByteArray &frame) {
+    if (!m_accountBlockingEnabled) return false;
+    return sendAuthenticatedFrame(frame, m_pendingAccountBlockRequestIds,
+        [](std::uint32_t messageType) {
+            return messageType == chat::v2::MESSAGE_TYPE_SET_ACCOUNT_BLOCK;
+        });
+}
+
+bool V2WindowsDeviceManagementTransport::sendAuthenticatedFrame(
+        const QByteArray &frame, QSet<QString> &pendingRequestIds,
+        const std::function<bool(std::uint32_t)> &messageTypeAllowed) {
     if (m_state != State::Authenticated || !m_protocol || !m_hooks.connected()
             || frame.isEmpty() || static_cast<quint64>(frame.size()) > maximumWireBytes
-            || m_pendingMessagingRequestIds.size() >= 32)
+            || m_pendingMessagingRequestIds.size()
+                    + m_pendingAccountBlockRequestIds.size() >= 32)
         return false;
     chat::v2::Envelope envelope;
     if (!envelope.ParseFromArray(frame.constData(), static_cast<int>(frame.size())))
         return false;
-    const bool allowedMessageType =
-        envelope.message_type() == chat::v2::MESSAGE_TYPE_SUBMIT_MESSAGE
-        || envelope.message_type() == chat::v2::MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE
-        || (envelope.message_type() == chat::v2::MESSAGE_TYPE_FORWARD_MESSAGE
-            && m_messageForwardingEnabled)
-        || envelope.message_type() == chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY
-        || envelope.message_type() == chat::v2::MESSAGE_TYPE_LIST_CONVERSATIONS
-        || envelope.message_type()
-            == chat::v2::MESSAGE_TYPE_LIST_CONVERSATION_PARTICIPANTS
-        || (envelope.message_type()
-                == chat::v2::MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES
-            && m_messageSearchEnabled);
     if (envelope.protocol_version() != 2
             || envelope.kind() != chat::v2::MESSAGE_KIND_COMMAND
             || qt(envelope.session_id()) != m_resumeSessionId
             || envelope.request_id().empty()
             || envelope.payload().empty()
-            || !allowedMessageType)
+            || !messageTypeAllowed(envelope.message_type()))
         return false;
     const QString requestId = qt(envelope.request_id());
-    if (m_pendingMessagingRequestIds.contains(requestId)) return false;
-    m_pendingMessagingRequestIds.insert(requestId);
+    if (m_pendingMessagingRequestIds.contains(requestId)
+            || m_pendingAccountBlockRequestIds.contains(requestId)) return false;
+    pendingRequestIds.insert(requestId);
     if (m_hooks.sendBinary(frame) == frame.size()) return true;
-    m_pendingMessagingRequestIds.remove(requestId);
+    pendingRequestIds.remove(requestId);
     return false;
 }
 
@@ -222,7 +239,8 @@ void V2WindowsDeviceManagementTransport::handleConnected() {
             standard(m_appVersion), standard(m_clientDeviceId),
             V2WindowsSessionProtocolClient::RequestIdFactory{},
             V2WindowsSessionProtocolClient::Clock{},
-            m_messageForwardingEnabled, m_messageSearchEnabled);
+            m_messageForwardingEnabled, m_messageSearchEnabled,
+            m_accountBlockingEnabled);
         transition(State::Negotiating);
         send(m_protocol->createClientHello());
         armPhaseTimeout(helloTimeoutMs, QStringLiteral("V2 协商超时"));
@@ -352,6 +370,7 @@ void V2WindowsDeviceManagementTransport::clearProtocol() {
     if (m_protocol) m_protocol->close();
     m_protocol.reset();
     m_pendingMessagingRequestIds.clear();
+    m_pendingAccountBlockRequestIds.clear();
 }
 
 void V2WindowsDeviceManagementTransport::clearResumeCredential() {
@@ -378,6 +397,21 @@ bool V2WindowsDeviceManagementTransport::routeAuthenticatedMessagingFrame(
         || envelope.message_type()
             == chat::v2::MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE;
     const QString requestId = qt(envelope.request_id());
+    const bool accountBlockResponse = envelope.message_type()
+        == chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_APPLIED;
+    const bool accountBlockCorrelated = m_pendingAccountBlockRequestIds.contains(requestId);
+    const bool accountBlockError = envelope.message_type()
+        == chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR && accountBlockCorrelated;
+    if (accountBlockResponse || accountBlockError) {
+        if (!accountBlockCorrelated || envelope.protocol_version() != 2
+                || qt(envelope.session_id()) != m_resumeSessionId
+                || (accountBlockResponse && envelope.kind() != chat::v2::MESSAGE_KIND_RESPONSE)
+                || (accountBlockError && envelope.kind() != chat::v2::MESSAGE_KIND_ERROR))
+            throw std::runtime_error("invalid account block transport response");
+        m_pendingAccountBlockRequestIds.remove(requestId);
+        emit accountBlockFrameReceived(message);
+        return true;
+    }
     const bool correlated = m_pendingMessagingRequestIds.contains(requestId);
     const bool messagingError = envelope.message_type()
             == chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR && correlated;

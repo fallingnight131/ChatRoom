@@ -56,6 +56,9 @@ WindowsV2ProductConfiguration::Value WindowsV2ProductConfiguration::fromBuild() 
 #ifdef CHAT_WINDOWS_V2_NOTIFICATIONS_ENABLED
     value.notificationsEnabled = value.enabled;
 #endif
+#ifdef CHAT_WINDOWS_V2_ACCOUNT_BLOCKING_ENABLED
+    value.accountBlockingEnabled = value.enabled;
+#endif
     return value;
 #endif
 }

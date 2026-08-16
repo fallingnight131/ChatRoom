@@ -177,7 +177,8 @@ void ChatWindow::requestApplicationQuit() {
 bool ChatWindow::configureDeviceManagement(
         const QUrl &endpoint, const QString &deviceId, QByteArray passwordUtf8,
         bool enableMessageForwarding, QList<QUrl> fallbackEndpoints,
-        bool enableMessageSearch, bool enableNotifications) {
+        bool enableMessageSearch, bool enableNotifications,
+        bool enableAccountBlocking) {
     if (m_deviceManagementController || passwordUtf8.isEmpty()) {
         passwordUtf8.fill('\0');
         return false;
@@ -190,7 +191,7 @@ bool ChatWindow::configureDeviceManagement(
                 V2WindowsDeviceManagementTransport::SocketHooks{},
                 WindowsV2MessagingController::RepositoryFactory{}, nullptr,
                 enableMessageForwarding, std::move(fallbackEndpoints),
-                enableMessageSearch);
+                enableMessageSearch, enableAccountBlocking);
         m_v2MessageForwardingEnabled = enableMessageForwarding;
         connect(m_deviceManagementController.get(),
                 &WindowsDeviceManagementController::messagingReady,

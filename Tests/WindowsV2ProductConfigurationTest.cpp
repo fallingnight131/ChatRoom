@@ -21,6 +21,7 @@ int main(int argc, char *argv[]) {
                    && !valid.messageForwardingEnabled
                    && !valid.messageSearchEnabled
                    && !valid.notificationsEnabled
+                   && !valid.accountBlockingEnabled
                    && valid.fallbackEndpoints.size() == 1
                    && valid.fallbackEndpoints.first().host()
                        == QStringLiteral("chat-secondary.example.test")
@@ -30,6 +31,7 @@ int main(int argc, char *argv[]) {
                           && !Configuration::fromBuild().messageForwardingEnabled
                           && !Configuration::fromBuild().messageSearchEnabled
                           && !Configuration::fromBuild().notificationsEnabled
+                          && !Configuration::fromBuild().accountBlockingEnabled
                           && Configuration::fromBuild().error.isEmpty(),
                       QStringLiteral("default build enabled Windows V2"))) return 1;
 

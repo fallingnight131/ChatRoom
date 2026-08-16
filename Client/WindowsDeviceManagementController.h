@@ -28,7 +28,8 @@ public:
         QObject *parent = nullptr,
         bool enableMessageForwarding = false,
         QList<QUrl> fallbackEndpoints = {},
-        bool enableMessageSearch = false);
+        bool enableMessageSearch = false,
+        bool enableAccountBlocking = false);
     ~WindowsDeviceManagementController() override;
 
     DeviceManagementViewModel *viewModel() const;

@@ -11,6 +11,7 @@ public:
         bool messageForwardingEnabled = false;
         bool messageSearchEnabled = false;
         bool notificationsEnabled = false;
+        bool accountBlockingEnabled = false;
         QUrl endpoint;
         QList<QUrl> fallbackEndpoints;
         QString error;

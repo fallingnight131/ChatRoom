@@ -3,7 +3,8 @@
 This checklist activates the capability-7 candidate without treating it as a
 complete block-list product or weakening the transactional direct-contact
 policy. It applies to the Java gateway and the default-off Web V2 preview.
-Windows composition remains outside this slice.
+Windows now has a separately compiled protocol/transport candidate, but it has
+no accessible product action and must remain disabled during this procedure.
 
 ## Preconditions
 
@@ -19,6 +20,9 @@ Windows composition remains outside this slice.
 - Confirm support understands that the Web candidate has no persisted block
   list or initial-state read. A fresh page reports unknown state until a desired-
   state command succeeds.
+- Confirm the shipped Windows diagnostic reports schema 5 with
+  `accountBlockingEnabled=false`. A compile-only candidate may set it true for
+  protocol tests, but must not be distributed or included in the rollout.
 
 ## Gateway-first activation
 
@@ -56,6 +60,11 @@ Rollback clients first: move the Web deployment pointer to immutable assets
 without `VITE_CHAT_V2_ACCOUNT_BLOCKING=true`. Existing negotiated connections
 may retain capability 7 until the old page/socket closes, so drain the candidate
 cohort before declaring the client path disabled.
+
+If a Windows compile candidate was used in a test environment, replace it with
+the same-revision build made without
+`CHATROOM_ENABLE_WINDOWS_V2_ACCOUNT_BLOCKING=ON`, verify diagnostic schema 5
+reports false, and close its existing V2 connections.
 
 Then remove `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED` or set it to exact
 `false` and restart/drain gateways. Keep V052 and all transactional direct-

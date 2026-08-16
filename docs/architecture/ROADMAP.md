@@ -2316,6 +2316,9 @@ Candidate slices:
     authenticated-actor and exact desired-state correlation, self-block
     rejection, stable explicit retry identity, and disconnect cleanup; keep it
     absent from Windows product composition.
+  - [x] Carry an independent default-off Windows capability 7 gate through
+    diagnostic schema 5, exact session negotiation, and an isolated bounded Qt
+    transport route; do not expose a Widgets action yet.
   - [ ] Add accessible Windows block management behind its independent product
     gate, then complete real endpoint activation/rollback evidence for both
     supported clients.

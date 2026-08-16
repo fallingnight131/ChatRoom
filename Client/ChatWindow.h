@@ -58,7 +58,8 @@ public:
         bool enableMessageForwarding = false,
         QList<QUrl> fallbackEndpoints = {},
         bool enableMessageSearch = false,
-        bool enableNotifications = false);
+        bool enableNotifications = false,
+        bool enableAccountBlocking = false);
 #endif
 
     /// 获取用户头像缓存

@@ -17,7 +17,8 @@ QByteArray WindowsV2ConfigurationDiagnostic::canonicalJson(
             configuration.messageForwardingEnabled},
         {QStringLiteral("messageSearchEnabled"), configuration.messageSearchEnabled},
         {QStringLiteral("notificationsEnabled"), configuration.notificationsEnabled},
-        {QStringLiteral("schemaVersion"), 4},
+        {QStringLiteral("accountBlockingEnabled"), configuration.accountBlockingEnabled},
+        {QStringLiteral("schemaVersion"), 5},
     };
     return QJsonDocument(value).toJson(QJsonDocument::Compact) + '\n';
 }

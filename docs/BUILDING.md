@@ -1488,7 +1488,8 @@ mapping, bounded-worker rejection, disconnect cleanup, and fixed changed/no-op
 telemetry. Product composition is absent unless exact
 `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true` is supplied, and negotiation
 still requires a client request for capability 7. Ordinary Web and Windows
-builds do not request it; an exact-gated Web candidate can. `python3
+builds do not request it; exact-gated Web and Windows candidates can, although
+the Windows candidate exposes no user action yet. `python3
 tools/verify_m0.py --postgres` additionally
 proves the route over real TLS/WSS against a disposable PostgreSQL database,
 including durable exact retry and generic denial of a later direct message.
@@ -2337,7 +2338,8 @@ capability, application operation, and UI absent, while any other value
 invalidates the V2 runtime. It resolves only the authorized unique non-self
 DIRECT participant, keeps one operation result in page memory, and reuses the
 same operation UUID for explicit retry. It does not provide a persisted block
-list. Windows remains off.
+list. Windows ordinary builds remain off; the separate CMake candidate only
+negotiates and routes the protocol until its accessible Widgets action is done.
 Web V2 browser notifications have the independent exact build-time gate
 `VITE_CHAT_V2_NOTIFICATIONS=true`. Missing, empty, or exact `false` keeps
 application candidate emission off; malformed values invalidate the V2 runtime.
@@ -2380,8 +2382,9 @@ Windows conversation search has its own immutable CMake gate,
 preview. Missing or `OFF` keeps capability 6 absent; an enabled session appends
 capability 6 after the independently optional forwarding capability and rejects
 any omitted, reordered, or additional capability. Binary configuration
-diagnostic schema 4 reports `messageSearchEnabled` and the independent
-`notificationsEnabled` value so CI can prove the final
+diagnostic schema 5 reports `messageSearchEnabled`, the independent
+`notificationsEnabled` value, and `accountBlockingEnabled` so CI can prove the
+final
 ordinary executable is off and the isolated candidate is on. This establishes
 only the activation seam; search commands, state, Widgets interaction, and
 endpoint canary evidence are separate gates.
@@ -2421,8 +2424,18 @@ or conversation switch drops its correlation and at most 100 temporary
 messages. The controller test reopens the same SQLite database to prove the
 context page was not persisted; the offscreen Widgets test proves keyboard
 activation focuses the repaired row.
-CI compiles a separate, non-published forwarding/search/notification-enabled
-`ChatClient`. It runs transport, forwarding-dialog, search-state,
+Windows account blocking has an additional immutable CMake gate,
+`CHATROOM_ENABLE_WINDOWS_V2_ACCOUNT_BLOCKING=ON`, which is rejected without the
+Windows V2 preview. Missing or `OFF` preserves the prior handshake and blocks
+type 128 at the Qt transport. Enabled construction appends capability 7 after
+the independently optional forwarding and search capabilities and rejects an
+inexact `ServerHello`. Account commands and correlated type-129/error responses
+use a dedicated bounded transport route, so the messaging controller cannot
+misinterpret contact-policy payloads. This seam does not expose a Widgets action
+or persist a block graph; accessible management remains a separate gate.
+CI compiles a separate, non-published
+forwarding/search/notification/account-blocking-enabled `ChatClient`. It runs
+transport, forwarding-dialog, search-state,
 search-context/controller, notification-presenter, and Widgets tests without
 replacing the ordinary default-off Windows verification payload. The Web
 baseline compiles separate
@@ -2433,9 +2446,10 @@ and the activation evidence in the forwarding and search runbooks remain
 separate release gates.
 The Windows binary also exposes the side-effect-free
 `--chatroom-print-v2-configuration-json` diagnostic. CI requires the ordinary
-payload to report V2, forwarding, search, and notifications disabled, and
-requires the separate enabled candidate to report schema 4, the exact preview
-endpoint, and all three feature booleans true before accepting its compile gate.
+payload to report V2, forwarding, search, notifications, and account blocking
+disabled, and
+requires the separate enabled candidate to report schema 5, the exact preview
+endpoint, and all four feature booleans true before accepting its compile gate.
 The JSON contains no
 device, account, session, credential, or other secret state.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
