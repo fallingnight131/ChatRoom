@@ -2301,6 +2301,17 @@ Candidate slices:
     through binary diagnostic schema 4, and compile it in the isolated Windows
     feature candidate.
   - [ ] Retain native Windows Release presentation and activation evidence.
+- Web browser notifications:
+  - [x] Define persisted-remote-live eligibility, bounded stable-message
+    deduplication, active-visible-conversation suppression, structural mention
+    classification, privacy-safe copy, and one-shot stable-conversation
+    activation in a detached policy/presenter boundary (ADR-0407).
+  - [ ] Emit candidates only after IndexedDB persistence succeeds and compose
+    them behind an exact default-off Web build gate.
+  - [ ] Add user-gesture permission, visible enable/disable state, localized
+    presentation, notification-click navigation, and Chromium/Firefox evidence.
+  - [ ] Add service-worker/Web Push delivery only after a separate server,
+    subscription, privacy, abuse, expiry, and operations design.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes:

@@ -1900,6 +1900,15 @@ Pinia should represent live UI/application state, not be the only data store.
 Responsive browser layouts may serve phones or tablets, but they do not create
 native Android or iOS application support.
 
+ADR-0407 establishes the detached Web V2 notification boundary. Its pure policy
+accepts only stable remote-live identity, bounds duplicate memory, suppresses an
+active visible conversation while remembering the event, and classifies a
+structural mention without accepting message text. The browser presenter uses
+injected permission, creation, and stable-conversation activation ports with
+generic localized copy and one-shot click consumption. It is not yet composed:
+the default build, runtime, IndexedDB event path, permission UI, and browser
+product behavior remain unchanged until the subsequent default-off slices pass.
+
 The pinned V2 generator now publishes reviewed TypeScript bindings directly to
 the Web source tree, and the protocol gate rejects stale committed output. An
 additive TypeScript protocol/session state machine now validates negotiation,
