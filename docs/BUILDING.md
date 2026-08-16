@@ -2588,6 +2588,13 @@ trees, then runs the fixed Unicode search command through Java, TypeScript, and
 C++. This is wire/model evidence only, not an authorized database search path or
 a Windows Release product gate (ADR-0404).
 
+The next inactive slice adds the real PostgreSQL search adapter. Run
+`python3 tools/verify_m0.py --postgres` to cover active-member authorization,
+literal Unicode and wildcard-looking input, edit replacement, recall/deletion/
+non-text exclusion, descending paging, and ordered-index eligibility. This is a
+disposable-database correctness gate, not production search latency or capacity
+evidence.
+
 ```bash
 python3 tools/verify_m0.py --all
 ```

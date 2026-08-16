@@ -813,6 +813,14 @@ query time; recalled, deleted, and non-text messages are excluded; edits replace
 the searchable body. PostgreSQL remains truth and any index remains rebuildable.
 An external search service is deferred until query evidence justifies it and
 would have to reauthorize results plus consume durable sequence checkpoints.
+The first PostgreSQL adapter now executes that application port in one
+repeatable-read snapshot. It authorizes an enabled active member (and an open
+GROUP lifecycle), scans only current type-1 text in descending conversation
+sequence order, treats `%` and `_` literally, and excludes `deleted_at` or
+recalled rows. Because edits replace `message.payload`, their current body is
+the only searchable revision. The existing conversation-history index remains
+eligible for the bounded ordered scan; no new index or runtime handler has been
+introduced.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

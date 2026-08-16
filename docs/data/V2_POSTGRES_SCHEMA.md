@@ -606,6 +606,17 @@ The disposable PostgreSQL gate proves the forward-history query is eligible for
 `message_conversation_history_idx` with sequential scans disabled. This is an
 index-eligibility regression check, not production planner or latency evidence.
 
+The inactive M6 conversation-search adapter reuses that same ordered index for
+a bounded current-text scan. It first authorizes the enabled active member and
+open GROUP lifecycle inside one repeatable-read snapshot, then filters type-1
+messages by a literal `position(lower(query) in lower(convert_from(payload,
+'UTF8')))` predicate. `deleted_at` and recall-event targets are excluded; an
+edit is visible through the current `message.payload`. `%` and `_` are ordinary
+text, not wildcard syntax. The gate proves index eligibility with sequential
+scans disabled, but does not claim a production query plan, latency envelope,
+or large-conversation capacity. No search table, extension, or external index
+is authoritative or currently present (ADR-0404).
+
 ## Implemented identity/session adapter
 
 The M3 PostgreSQL adapter now performs exact, case-sensitive username lookup to
@@ -689,3 +700,8 @@ reconciliation, durable proof counts, exact V1 ID mappings, idempotent account
 and mapping rerun, exact/case-sensitive compatibility lookup, and transaction
 rollback on account or mapping conflict. The evidence is environment-specific
 and does not by itself qualify a production database configuration.
+
+The same disposable gate now also verifies literal Unicode and wildcard-looking
+search, descending pagination, stable IDs, current edited-body replacement,
+non-text/recall/deletion exclusion, outsider and former-member denial, and
+eligibility for the existing conversation-history index.

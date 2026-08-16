@@ -110,8 +110,11 @@ order and repeats the last hit sequence as its next cursor. Search has no
 idempotency key and never advances the ordinary synchronization cursor.
 
 The application port binds the requester account from authentication and owns
-the same limits independently of Protobuf. Runtime dispatch, PostgreSQL query,
-and both client capability advertisements remain absent. Old V2 clients
+the same limits independently of Protobuf. Its PostgreSQL adapter now
+reauthorizes active membership in a repeatable-read snapshot, matches current
+type-1 bodies literally and case-insensitively under the database collation,
+and excludes recalled/deleted rows. Runtime dispatch and both client capability
+advertisements remain absent. Old V2 clients
 therefore see no new capability or unsolicited shape. The three generated
 bindings parse and re-emit one fixed mixed-language Unicode command fixture
 identically (ADR-0404).

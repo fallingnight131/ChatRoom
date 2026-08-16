@@ -2192,6 +2192,12 @@ Progress:
   - [ ] Implement the authorized PostgreSQL query, deletion/recall/edit
     semantics, query-plan evidence, and gateway handler behind a default-off
     server policy.
+    - [x] Add the repeatable-read PostgreSQL adapter with active-member and
+      group-lifecycle authorization, literal current-text matching, descending
+      sequence pages, edit replacement, recall/deletion/non-text exclusion, and
+      existing history-index eligibility evidence. Runtime remains uncomposed.
+    - [ ] Add the capability/policy-gated gateway handler, fixed-cardinality
+      telemetry, runtime composition, and real TLS/WSS authorization gate.
   - [ ] Add cache-aware, accessible Web and Windows search surfaces with
     endpoint-specific activation and context-history repair.
 

@@ -1,6 +1,7 @@
 package com.fallingnight.chat.persistence.postgres;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -107,6 +108,9 @@ import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.messaging.MessageReactionCommand;
 import com.fallingnight.chat.application.messaging.MessageReactionKind;
 import com.fallingnight.chat.application.messaging.MessageReactionResult;
+import com.fallingnight.chat.application.messaging.MessageSearchPage;
+import com.fallingnight.chat.application.messaging.MessageSearchQuery;
+import com.fallingnight.chat.application.messaging.MessageSearchResult;
 import com.fallingnight.chat.application.messaging.MessagePinCommand;
 import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.MessageEditCommand;
@@ -1088,6 +1092,86 @@ class PostgresMigratorTest {
                 .map(ConversationHistoryEntry.Edit.class::cast)
                 .filter(ConversationHistoryEntry.Edit::contentErased)
                 .count());
+    }
+
+    @Test
+    @Order(16)
+    void searchesCurrentTextWithAuthorizationMutationExclusionAndDescendingCursor()
+            throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID account = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        seedMessageOwner(account, device, conversation);
+        PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource());
+        MessageSubmissionResult.Accepted older = accepted(messages.submit(new MessageSubmission(
+                conversation, account, device, "search-older", 1,
+                "聊天 older".getBytes(java.nio.charset.StandardCharsets.UTF_8))));
+        MessageSubmissionResult.Accepted editable = accepted(messages.submit(
+                new MessageSubmission(conversation, account, device, "search-edit", 1,
+                        "plain".getBytes(java.nio.charset.StandardCharsets.UTF_8))));
+        MessageSubmissionResult.Accepted newest = accepted(messages.submit(
+                new MessageSubmission(conversation, account, device, "search-newest", 1,
+                        "%_ marker 聊天 newest".getBytes(
+                                java.nio.charset.StandardCharsets.UTF_8))));
+        accepted(messages.submit(new MessageSubmission(
+                conversation, account, device, "search-non-text", 100,
+                "聊天 hidden".getBytes(java.nio.charset.StandardCharsets.UTF_8))));
+
+        PostgresMessageSearchAdapter search = new PostgresMessageSearchAdapter(dataSource());
+        MessageSearchPage first = found(search.search(new MessageSearchQuery(
+                conversation, account, "聊天", 0, 1)));
+        assertEquals(List.of(newest.messageId()),
+                first.hits().stream().map(value -> value.messageId()).toList());
+        assertEquals(newest.conversationSequence(), first.nextBeforeSequence());
+        assertTrue(first.hasMore());
+        MessageSearchPage second = found(search.search(new MessageSearchQuery(
+                conversation, account, "聊天", first.nextBeforeSequence(), 1)));
+        assertEquals(List.of(older.messageId()),
+                second.hits().stream().map(value -> value.messageId()).toList());
+        assertFalse(second.hasMore());
+        assertEquals(List.of(newest.messageId()), found(search.search(new MessageSearchQuery(
+                conversation, account, "%_", 0, 10))).hits().stream()
+                .map(value -> value.messageId()).toList());
+
+        MessageEditResult.Applied edited = (MessageEditResult.Applied)
+                new PostgresMessageEditAdapter(dataSource()).edit(new MessageEditCommand(
+                        conversation, editable.messageId(), account, device, 0, 1,
+                        "聊天 edited".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        "search-edit-operation"));
+        assertTrue(edited.changed());
+        assertEquals(List.of(newest.messageId(), editable.messageId(), older.messageId()),
+                found(search.search(new MessageSearchQuery(conversation, account, "聊天",
+                        0, 10))).hits().stream().map(value -> value.messageId()).toList());
+
+        try (Connection connection = connect()) {
+            long recallSequence = edited.conversationSequence() + 1;
+            execute(connection, "UPDATE chat.conversation SET next_sequence=? WHERE id=?",
+                    recallSequence + 1, conversation);
+            execute(connection, "INSERT INTO chat.conversation_entry VALUES "
+                    + "(?,?,'MESSAGE_RECALLED',transaction_timestamp())",
+                    conversation, recallSequence);
+            execute(connection, "INSERT INTO chat.message_recall_event(conversation_id,"
+                    + "conversation_sequence,message_id,actor_account_id,source) "
+                    + "VALUES (?,?,?,?,'V2')", conversation, recallSequence,
+                    newest.messageId(), account);
+            execute(connection, "UPDATE chat.message SET deleted_at=transaction_timestamp() "
+                    + "WHERE id=?", older.messageId());
+        }
+        MessageSearchPage current = found(search.search(new MessageSearchQuery(
+                conversation, account, "聊天", 0, 10)));
+        assertEquals(List.of(editable.messageId()),
+                current.hits().stream().map(value -> value.messageId()).toList());
+        assertEquals(1, current.hits().getFirst().contentRevision());
+        assertArrayEquals(edited.content(), current.hits().getFirst().payload());
+        assertEquals(MessageSearchResult.Rejected.NOT_AUTHORIZED,
+                search.search(new MessageSearchQuery(
+                        conversation, UUID.randomUUID(), "聊天", 0, 10)));
+        assertMessageSearchIndexEligible(conversation);
+        leaveConversation(conversation, account);
+        assertEquals(MessageSearchResult.Rejected.NOT_AUTHORIZED,
+                search.search(new MessageSearchQuery(conversation, account, "聊天", 0, 10)));
     }
 
     @Test
@@ -5236,6 +5320,41 @@ class PostgresMigratorTest {
             }
             assertTrue(plan.contains("message_conversation_history_idx"), plan);
         }
+    }
+
+    private static void assertMessageSearchIndexEligible(UUID conversation) throws SQLException {
+        try (Connection connection = connect()) {
+            connection.setAutoCommit(false);
+            execute(connection, "SET LOCAL enable_seqscan = off");
+            StringBuilder plan = new StringBuilder();
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "EXPLAIN (FORMAT TEXT) SELECT id, conversation_sequence "
+                            + "FROM chat.message WHERE conversation_id=? "
+                            + "AND conversation_sequence < ? AND message_type=1 "
+                            + "AND deleted_at IS NULL "
+                            + "AND position(lower(?) in lower(convert_from(payload,'UTF8'))) > 0 "
+                            + "ORDER BY conversation_sequence DESC LIMIT ?")) {
+                statement.setObject(1, conversation);
+                statement.setLong(2, Long.MAX_VALUE);
+                statement.setString(3, "聊天");
+                statement.setInt(4, 51);
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) plan.append(result.getString(1)).append('\n');
+                }
+            } finally {
+                connection.rollback();
+            }
+            assertTrue(plan.toString().contains("message_conversation_history_idx"),
+                    plan.toString());
+        }
+    }
+
+    private static MessageSubmissionResult.Accepted accepted(MessageSubmissionResult result) {
+        return (MessageSubmissionResult.Accepted) result;
+    }
+
+    private static MessageSearchPage found(MessageSearchResult result) {
+        return ((MessageSearchResult.Found) result).page();
     }
 
     @Test
