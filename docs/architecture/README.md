@@ -151,8 +151,9 @@ connection-serialized bounded executor and fixed page/row telemetry. The Windows
 candidate now composes bounded directory refresh/load-more into a separate
 page-memory ViewModel, retaining visible rows during transient transport loss
 but clearing them at authenticated account boundaries. A feature-gated global
-Windows privacy dialog renders at most 500 of those server rows and bounded pagination without
-requiring an active conversation. Confirmed row-level unblock reuses the same
+Windows privacy dialog renders at most 500 of those server rows with bounded
+pagination and without requiring an active conversation. Confirmed row-level
+unblock reuses the same
 idempotent desired-state command, waits for the correlated server result, then
 refreshes the directory instead of treating local absence as durable truth. The
 exact-gated Web protocol client can
@@ -162,11 +163,6 @@ successful mutation, and contains stale/disconnected requests. Its global
 localized privacy dialog now renders the server list, bounded load-more and
 confirmed per-row unblock while deriving current-DIRECT status only from a
 complete page or operation result. IndexedDB never stores the block graph.
-The detached Windows capability-7 protocol client now also encodes type 134 and
-strictly projects correlated type-135 pages. Its existing isolated Qt transport
-route permits both mutation and directory response types, but no Windows state
-model or Widgets list consumes them yet.
-
 Keep module calls in-process at first. Split a deployable service only for one of
 these reasons:
 
@@ -1959,6 +1955,16 @@ existing page and open only the stable validated conversation ID. Chromium and
 Firefox fixtures prove this path without granting host notification permission.
 Duplicate live events, self echoes, history repair, save refusal, and a stale
 account generation do not emit candidates. The default build remains unchanged.
+
+ADR-0409 defines closed-browser Web Push as a separate Notification-module
+pipeline, not an IM-gateway side effect. Message acceptance will eventually
+produce a stable PostgreSQL outbox event in the same transaction; a bounded
+worker will reauthorize current recipients and invoke an injected provider port.
+Subscription endpoints and key material are encrypted credentials managed by an
+authenticated HTTP API, never chat-envelope fields or diagnostic labels. Push
+payloads use versioned opaque identity plus generic copy and are not message
+truth. The server, provider worker, and exact-gated Service Worker remain
+unimplemented and default-off while the application boundary is introduced.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

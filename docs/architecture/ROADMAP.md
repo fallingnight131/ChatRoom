@@ -2392,8 +2392,18 @@ Candidate slices:
     them behind an exact default-off Web build gate.
   - [x] Add user-gesture permission, visible enable/disable state, localized
     presentation, notification-click navigation, and Chromium/Firefox evidence.
-  - [ ] Add service-worker/Web Push delivery only after a separate server,
-    subscription, privacy, abuse, expiry, and operations design.
+  - [x] Define Web Push module ownership, authenticated subscription boundary,
+    encrypted secret storage, transaction outbox, reauthorization, generic
+    payload, abuse/expiry/telemetry, Service Worker, activation, and rollback
+    policy (ADR-0409).
+  - [ ] Add the default-off Notification application ports and bounded models
+    without composing message acceptance, PostgreSQL, HTTP, provider, or Web UI.
+  - [ ] Add encrypted PostgreSQL subscriptions and a transactionally produced,
+    bounded notification outbox with retention and concurrent claim evidence.
+  - [ ] Add authenticated HTTP subscription management and a bounded provider
+    worker with current-policy reauthorization and secret-free observability.
+  - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
+    pass Chromium/Firefox and real-provider activation/rollback gates.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes:

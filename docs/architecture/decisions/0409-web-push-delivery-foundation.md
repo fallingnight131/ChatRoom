@@ -1,0 +1,128 @@
+# ADR-0409: Web Push Delivery Foundation
+
+- Status: Accepted
+- Date: 2026-08-17
+- Owners: project maintainers
+- Related milestone: M6
+
+## Context
+
+ADR-0407 deliberately limits Web notifications to an open browser page. Closed-
+browser delivery needs a Service Worker, browser push subscriptions, a provider
+delivery protocol, durable asynchronous work, expiry handling, abuse controls,
+and operational ownership. Calling a push provider inline from message
+persistence or from a Netty event loop would couple chat availability to an
+external service and make retries unsafe.
+
+Push subscription endpoints and key material are credentials. Message text,
+sender names, conversation names, membership, and user identifiers must not be
+exposed to provider logs, lock screens, metrics labels, or operator evidence.
+Delivery is inherently at least once and can be delayed beyond membership or
+preference changes, so every asynchronous boundary needs reauthorization and a
+bounded lifetime.
+
+## Decision
+
+### Ownership and topology
+
+- Add Web Push under the target Notification module, outside the IM gateway.
+  The first deployment may share the modular-monolith process, but subscription
+  HTTP APIs, durable scheduling, and provider delivery remain explicit ports.
+- The authenticated HTTP API owns subscription create/replace/delete. Do not
+  send push endpoints or key material through chat envelopes. Activation waits
+  for a server-issued HTTP session/token, strict Origin policy, CSRF protection
+  where applicable, and account/device binding.
+- Message acceptance writes one bounded notification outbox event in the same
+  PostgreSQL transaction as durable message truth. It never calls a provider.
+  A bounded worker claims outbox rows, resolves current eligible recipients and
+  active subscriptions, rechecks membership/block/preference policy, and then
+  invokes a provider port. A broker may replace PostgreSQL polling only after an
+  observed scaling need and an operations plan.
+
+### Subscription and secret model
+
+- A subscription belongs to one authenticated account plus one opaque browser
+  installation ID. Endpoint uniqueness transfers only after authenticated
+  replacement; it must never reveal a previous owner.
+- Store endpoint, P-256 ECDH public key, and authentication secret encrypted at
+  rest through an injected key-management boundary. Logs, traces, metrics,
+  diagnostics, and retained evidence contain none of these values or their
+  hashes. VAPID private keys and encryption keys never enter the repository.
+- Bound endpoint/key sizes, canonical HTTPS shape, subscriptions per account,
+  replacements per installation, and mutation rate. Delete immediately on
+  explicit opt-out or provider `404`/`410`; quarantine repeated authentication
+  failures. Expire unused subscriptions after a documented maximum lifetime.
+
+### Event and delivery semantics
+
+- Only a newly persisted user-visible message can create an outbox event. ACKs,
+  history/sync repair, edits, recalls, reactions, self echoes, retries that find
+  an existing message, and cache activity do not.
+- Outbox identity is stable and unique per accepted message. Provider attempts
+  are bounded, exponentially delayed with jitter, and stop at event expiry.
+  Delivery is best effort and at least once; the Service Worker deduplicates the
+  opaque notification ID.
+- The encrypted payload contains a version, opaque notification ID, stable
+  conversation/message IDs for client navigation/deduplication, and a mention
+  boolean. It contains no message body, sender/account identity, display name,
+  conversation title, avatar URL, or attachment metadata. Visible title/body
+  remain localized generic copy, matching ADR-0407.
+- Before every provider attempt the worker rechecks that the recipient account
+  is enabled, remains an active conversation member, is not the sender, has an
+  enabled subscription/preference, and is not denied by current privacy policy.
+  Expired or ineligible events are terminal without delivery.
+- Fixed-cardinality telemetry records queued, claimed, delivered, transient,
+  expired, invalid-subscription, ineligible, and saturated outcomes plus bounded
+  latency/backlog gauges. No user, conversation, message, endpoint, provider
+  response body, or subscription label is allowed.
+
+### Client and activation
+
+- Service Worker registration, permission, subscription upload, and push event
+  handling use a separate exact-default-false Web build gate. A user gesture is
+  still required; browser permission alone never registers server delivery.
+- The Service Worker validates payload version and bounds, displays generic
+  copy, deduplicates notification IDs, and opens/focuses only the supported Web
+  origin with an opaque conversation route. The page reauthorizes and loads
+  current server truth; push payload data never becomes message truth.
+- Activate message outbox production first with delivery workers off, then a
+  provider canary, then the Web subscription UI. Roll back client subscription
+  creation first, stop workers second, and stop new outbox production last. Keep
+  schema and let bounded rows expire; never delete message truth as notification
+  rollback.
+
+## Consequences
+
+This adds PostgreSQL outbox and secret-bearing subscription data, so migrations,
+backup/restore, key rotation, retention, and erasure become release gates. Push
+cannot be implemented as a small extension to the existing in-page presenter.
+The provider may receive delivery metadata such as timing, endpoint, IP, and
+payload size even though the payload is encrypted; privacy documentation must
+state that limitation.
+
+Generic copy sacrifices previews but keeps lock-screen and provider exposure
+bounded. Reliable chat remains independent: provider outage, worker saturation,
+or invalid subscriptions may delay/drop push but cannot reject message
+acceptance, stall synchronization, or reduce gateway readiness.
+
+## Verification
+
+- application tests for eligibility, self/duplicate suppression, current-policy
+  reauthorization, expiry, stable outbox identity, and no inline provider call;
+- PostgreSQL migration/restart/constraint, concurrent claim, exact retry,
+  retention, erasure, and backup/restore rehearsal;
+- fake-provider tests for success, `404`/`410`, authentication failure,
+  transient retry/backoff, timeout, saturation, and secret-free diagnostics;
+- Chromium/Firefox Service Worker tests for explicit opt-in/out, payload bounds,
+  generic copy, duplicate delivery, notification click/open/focus, account
+  switch, revoked membership, and offline page startup;
+- a real-provider canary with exact revisions, sanitized configuration digests,
+  key-rotation/rollback evidence, and no message-capacity claim.
+
+## Rollback
+
+Disable new Web subscription creation and unregister/disable the Service Worker
+candidate. Stop provider workers, then disable new notification outbox events.
+Preserve subscriptions only according to the approved retention policy and keep
+the outbox schema; allow bounded pending events to expire or terminally cancel
+them. No chat message, cursor, membership, or client message cache is rewritten.
