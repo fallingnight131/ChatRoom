@@ -24,6 +24,7 @@ def main() -> int:
     assert run(
         "CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON",
         "CHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON",
+        "CHATROOM_ENABLE_WINDOWS_V2_SEARCH=ON",
         "CHATROOM_WINDOWS_V2_WSS_URL=wss://chat.example.test/v2/windows",
         "CHATROOM_WINDOWS_V2_FALLBACK_WSS_URL=wss://chat-secondary.example.test/v2/windows",
     ).returncode == 0
@@ -32,6 +33,7 @@ def main() -> int:
         ("CHATROOM_WINDOWS_V2_WSS_URL=wss://chat.example.test/v2/windows",),
         ("CHATROOM_WINDOWS_V2_FALLBACK_WSS_URL=wss://chat-secondary.example.test/v2/windows",),
         ("CHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON",),
+        ("CHATROOM_ENABLE_WINDOWS_V2_SEARCH=ON",),
         ("CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON",),
         ("CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON",
          "CHATROOM_WINDOWS_V2_WSS_URL=ws://chat.example.test/v2/windows"),

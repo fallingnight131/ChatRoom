@@ -48,7 +48,8 @@ public:
         std::string clientDeviceId,
         RequestIdFactory requestIdFactory = {},
         Clock clock = {},
-        bool enableMessageForwarding = false);
+        bool enableMessageForwarding = false,
+        bool enableMessageSearch = false);
     ~V2WindowsSessionProtocolClient();
 
     State state() const;
@@ -84,5 +85,6 @@ private:
     std::uint32_t m_expectedType = 0;
     std::size_t m_maximumFrameBytes = 1024U * 1024U + 1024U;
     bool m_messageForwardingEnabled = false;
+    bool m_messageSearchEnabled = false;
     Session m_session;
 };

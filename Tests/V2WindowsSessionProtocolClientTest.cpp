@@ -146,6 +146,38 @@ int main() {
     check(capableForwardingEvent.type
               == V2WindowsSessionProtocolClient::EventType::ServerHello,
           "enabled Windows forwarding must accept the exact five-capability hello");
+    Ids searchIds;
+    V2WindowsSessionProtocolClient searchClient(
+        "2.0.0-test", deviceId,
+        [&] { return searchIds.next(); }, [] { return 800; }, false, true);
+    const auto searchHello = searchClient.createClientHello();
+    chat::v2::Envelope searchHelloEnvelope;
+    chat::v2::ClientHello searchHelloPayload;
+    check(searchHelloEnvelope.ParseFromString(searchHello.bytes)
+              && searchHelloPayload.ParseFromString(searchHelloEnvelope.payload())
+              && searchHelloPayload.capabilities_size() == 5
+              && searchHelloPayload.capabilities(4)
+                  == chat::v2::CLIENT_CAPABILITY_MESSAGE_SEARCH,
+          "enabled Windows search must request capability 6 without forwarding");
+    checkThrows([&] {
+        searchClient.receive(response(
+            chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
+            searchHello.requestId, "", serverHello));
+    }, "enabled Windows search must fail closed when capability 6 is omitted");
+
+    Ids capableSearchIds;
+    V2WindowsSessionProtocolClient capableSearchClient(
+        "2.0.0-test", deviceId,
+        [&] { return capableSearchIds.next(); }, [] { return 800; }, true, true);
+    const auto capableSearchHello = capableSearchClient.createClientHello();
+    auto searchServerHello = forwardingServerHello;
+    searchServerHello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_SEARCH);
+    const auto capableSearchEvent = capableSearchClient.receive(response(
+        chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
+        capableSearchHello.requestId, "", searchServerHello));
+    check(capableSearchEvent.type
+              == V2WindowsSessionProtocolClient::EventType::ServerHello,
+          "enabled Windows forwarding and search must accept the exact six-capability hello");
     Ids downgradeIds;
     V2WindowsSessionProtocolClient downgradeClient(
         "2.0.0-test", deviceId,

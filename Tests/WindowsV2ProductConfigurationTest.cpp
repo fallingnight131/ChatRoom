@@ -19,6 +19,7 @@ int main(int argc, char *argv[]) {
         QStringLiteral("wss://chat-secondary.example.test/v2/windows"));
     if (!check(valid.enabled && valid.error.isEmpty()
                    && !valid.messageForwardingEnabled
+                   && !valid.messageSearchEnabled
                    && valid.fallbackEndpoints.size() == 1
                    && valid.fallbackEndpoints.first().host()
                        == QStringLiteral("chat-secondary.example.test")
@@ -26,6 +27,7 @@ int main(int argc, char *argv[]) {
                QStringLiteral("valid Windows V2 endpoint was rejected"))
             || !check(!Configuration::fromBuild().enabled
                           && !Configuration::fromBuild().messageForwardingEnabled
+                          && !Configuration::fromBuild().messageSearchEnabled
                           && Configuration::fromBuild().error.isEmpty(),
                       QStringLiteral("default build enabled Windows V2"))) return 1;
 

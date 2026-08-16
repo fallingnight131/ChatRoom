@@ -55,13 +55,15 @@ V2WindowsSessionProtocolClient::V2WindowsSessionProtocolClient(
         std::string clientDeviceId,
         RequestIdFactory requestIdFactory,
         Clock clock,
-        bool enableMessageForwarding)
+        bool enableMessageForwarding,
+        bool enableMessageSearch)
     : m_appVersion(std::move(appVersion)),
       m_clientDeviceId(std::move(clientDeviceId)),
       m_requestIdFactory(requestIdFactory ? std::move(requestIdFactory) : randomUuid),
       m_clock(clock ? std::move(clock) : systemTimeMs),
       m_devices(m_requestIdFactory, m_clock),
-      m_messageForwardingEnabled(enableMessageForwarding) {
+      m_messageForwardingEnabled(enableMessageForwarding),
+      m_messageSearchEnabled(enableMessageSearch) {
     if (!boundedText(m_appVersion, 64) || !canonicalUuid(m_clientDeviceId))
         throw std::invalid_argument("invalid Windows V2 client identity");
 }
@@ -94,6 +96,8 @@ V2WindowsSessionProtocolClient::createClientHello() {
     hello.add_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS);
     if (m_messageForwardingEnabled)
         hello.add_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_FORWARDING);
+    if (m_messageSearchEnabled)
+        hello.add_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_SEARCH);
     Command result = command(
         chat::v2::MESSAGE_TYPE_CLIENT_HELLO, serialize(hello),
         chat::v2::MESSAGE_TYPE_SERVER_HELLO);
@@ -212,23 +216,24 @@ V2WindowsSessionProtocolClient::receive(const std::string &bytes) {
         requireState(State::HelloSent);
         if (!envelope.session_id().empty()) throw std::runtime_error("hello carried session");
         const auto hello = parse<chat::v2::ServerHello>(envelope.payload());
+        std::vector<chat::v2::ClientCapability> expectedCapabilities{
+            chat::v2::CLIENT_CAPABILITY_MESSAGE_REACTIONS,
+            chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS,
+            chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS,
+            chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS};
+        if (m_messageForwardingEnabled)
+            expectedCapabilities.push_back(chat::v2::CLIENT_CAPABILITY_MESSAGE_FORWARDING);
+        if (m_messageSearchEnabled)
+            expectedCapabilities.push_back(chat::v2::CLIENT_CAPABILITY_MESSAGE_SEARCH);
         if (hello.selected_protocol_version() != 2
                 || !boundedText(hello.connection_id(), 128)
                 || hello.server_time_epoch_ms() <= 0
                 || hello.maximum_frame_bytes() < 1
                 || hello.maximum_frame_bytes() > maximumWireBytes
                 || hello.enabled_capabilities_size()
-                    != (m_messageForwardingEnabled ? 5 : 4)
-                || hello.enabled_capabilities(0)
-                    != chat::v2::CLIENT_CAPABILITY_MESSAGE_REACTIONS
-                || hello.enabled_capabilities(1)
-                    != chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS
-                || hello.enabled_capabilities(2)
-                    != chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS
-                || hello.enabled_capabilities(3)
-                    != chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS
-                || (m_messageForwardingEnabled && hello.enabled_capabilities(4)
-                    != chat::v2::CLIENT_CAPABILITY_MESSAGE_FORWARDING))
+                    != static_cast<int>(expectedCapabilities.size())
+                || !std::equal(expectedCapabilities.begin(), expectedCapabilities.end(),
+                    hello.enabled_capabilities().begin()))
             throw std::runtime_error("invalid server hello");
         m_maximumFrameBytes = hello.maximum_frame_bytes();
         m_state = State::Negotiated;

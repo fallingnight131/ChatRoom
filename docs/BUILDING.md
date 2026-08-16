@@ -2080,6 +2080,15 @@ callback before the UI can expose it. Because the CMake option remains `OFF`,
 ordinary preview builds preserve the four-capability behavior. A Windows
 Release build with the option enabled remains the product-platform gate; a
 macOS protocol build is development evidence only.
+Windows conversation search has its own immutable CMake gate,
+`CHATROOM_ENABLE_WINDOWS_V2_SEARCH=ON`. It is rejected without the Windows V2
+preview. Missing or `OFF` keeps capability 6 absent; an enabled session appends
+capability 6 after the independently optional forwarding capability and rejects
+any omitted, reordered, or additional capability. Binary configuration
+diagnostic schema 3 reports `messageSearchEnabled` so CI can prove the final
+ordinary executable is off and the isolated candidate is on. This establishes
+only the activation seam; search commands, state, Widgets interaction, and
+endpoint canary evidence are separate gates.
 CI compiles a separate, non-published forwarding-enabled `ChatClient` and runs
 the target-dialog Widgets test without replacing the ordinary default-off
 Windows verification payload. The Web baseline likewise compiles an enabled
@@ -2612,8 +2621,9 @@ make a local build appear successful.
 
 The default-off M6 conversation-search foundation allocates capability 6 and V2
 types 126/127. The gateway can register its PostgreSQL-backed handler only with
-exact `CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED=true`; Web and Windows still do
-not advertise the capability. Its protocol/application gate is:
+exact `CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED=true`; ordinary Web and Windows
+builds still do not advertise the capability, while explicit candidates can.
+Its protocol/application gate is:
 
 ```bash
 cd Backend

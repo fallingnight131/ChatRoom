@@ -15,12 +15,13 @@ WindowsDeviceManagementController::WindowsDeviceManagementController(
         WindowsV2MessagingController::RepositoryFactory messagingRepositoryFactory,
         QObject *parent,
         bool enableMessageForwarding,
-        QList<QUrl> fallbackEndpoints)
+        QList<QUrl> fallbackEndpoints,
+        bool enableMessageSearch)
     : QObject(parent) {
     m_transport = std::make_unique<V2WindowsDeviceManagementTransport>(
         std::move(endpoint), std::move(appVersion), std::move(deviceId),
         socket, std::move(hooks), nullptr, enableMessageForwarding,
-        std::move(fallbackEndpoints));
+        std::move(fallbackEndpoints), enableMessageSearch);
     m_viewModel = std::make_unique<DeviceManagementViewModel>(
         [this] { return m_transport->listDevices(); },
         [this](const QString &target) { return m_transport->revokeDevice(target); });

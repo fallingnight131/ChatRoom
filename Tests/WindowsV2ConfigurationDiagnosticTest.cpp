@@ -11,6 +11,7 @@ int main(int argc, char **argv) {
     WindowsV2ProductConfiguration::Value value;
     value.enabled = true;
     value.messageForwardingEnabled = true;
+    value.messageSearchEnabled = true;
     value.endpoint = QUrl(QStringLiteral("wss://preview-chat.example.test/v2/windows"));
     value.fallbackEndpoints = {
         QUrl(QStringLiteral("wss://preview-chat-secondary.example.test/v2/windows"))};
@@ -20,9 +21,10 @@ int main(int argc, char **argv) {
     const auto object = document.object();
     if (error.error != QJsonParseError::NoError || !document.isObject()
             || encoded != QJsonDocument(object).toJson(QJsonDocument::Compact) + '\n'
-            || object.size() != 5 || object.value(QStringLiteral("schemaVersion")).toInt() != 2
+            || object.size() != 6 || object.value(QStringLiteral("schemaVersion")).toInt() != 3
             || !object.value(QStringLiteral("enabled")).toBool()
             || !object.value(QStringLiteral("messageForwardingEnabled")).toBool()
+            || !object.value(QStringLiteral("messageSearchEnabled")).toBool()
             || object.value(QStringLiteral("endpoint")).toString()
                 != QStringLiteral("wss://preview-chat.example.test/v2/windows")
             || object.value(QStringLiteral("fallbackEndpoints")).toArray()
@@ -33,9 +35,10 @@ int main(int argc, char **argv) {
     const auto disabledDocument = QJsonDocument::fromJson(
         WindowsV2ConfigurationDiagnostic::canonicalJson({}));
     const auto disabled = disabledDocument.object();
-    if (disabled.size() != 5 || disabled.value(QStringLiteral("schemaVersion")).toInt() != 2
+    if (disabled.size() != 6 || disabled.value(QStringLiteral("schemaVersion")).toInt() != 3
             || disabled.value(QStringLiteral("enabled")).toBool()
             || disabled.value(QStringLiteral("messageForwardingEnabled")).toBool()
+            || disabled.value(QStringLiteral("messageSearchEnabled")).toBool()
             || !disabled.value(QStringLiteral("endpoint")).toString().isEmpty()
             || !disabled.value(QStringLiteral("fallbackEndpoints")).toArray().isEmpty()) {
         qCritical() << "disabled Windows V2 diagnostic exposed enabled state";

@@ -9,6 +9,7 @@ public:
     struct Value {
         bool enabled = false;
         bool messageForwardingEnabled = false;
+        bool messageSearchEnabled = false;
         QUrl endpoint;
         QList<QUrl> fallbackEndpoints;
         QString error;

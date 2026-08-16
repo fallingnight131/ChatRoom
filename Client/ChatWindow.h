@@ -55,7 +55,8 @@ public:
     bool configureDeviceManagement(
         const QUrl &endpoint, const QString &deviceId, QByteArray passwordUtf8,
         bool enableMessageForwarding = false,
-        QList<QUrl> fallbackEndpoints = {});
+        QList<QUrl> fallbackEndpoints = {},
+        bool enableMessageSearch = false);
 #endif
 
     /// 获取用户头像缓存

@@ -50,6 +50,9 @@ WindowsV2ProductConfiguration::Value WindowsV2ProductConfiguration::fromBuild() 
 #ifdef CHAT_WINDOWS_V2_FORWARDING_ENABLED
     value.messageForwardingEnabled = value.enabled;
 #endif
+#ifdef CHAT_WINDOWS_V2_SEARCH_ENABLED
+    value.messageSearchEnabled = value.enabled;
+#endif
     return value;
 #endif
 }

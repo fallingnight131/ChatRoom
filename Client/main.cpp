@@ -216,7 +216,8 @@ int main(int argc, char *argv[]) {
         if (!window->configureDeviceManagement(
                 v2Configuration.endpoint, v2DeviceId, std::move(password),
                 v2Configuration.messageForwardingEnabled,
-                v2Configuration.fallbackEndpoints)) {
+                v2Configuration.fallbackEndpoints,
+                v2Configuration.messageSearchEnabled)) {
             qWarning().noquote()
                 << "[WindowsV2] operation=device-management outcome=disabled";
         }

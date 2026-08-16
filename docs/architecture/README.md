@@ -856,6 +856,13 @@ sequence before the hit. Its single bounded response merges validated messages
 and mutation projections into page memory but never auto-pages, persists the
 partial window, or advances the ordinary sync cursor. Disconnect, conversation
 switch, denial, and late response paths abandon the context request safely.
+Windows now carries an independent default-off search activation value from
+CMake (`CHATROOM_ENABLE_WINDOWS_V2_SEARCH=ON`) through product configuration,
+the composition root, WSS transport, and exact session negotiation. Ordinary
+preview builds remain at capabilities 1–4. A search candidate appends capability
+6 in canonical order and fails closed if the server omits, reorders, or adds a
+capability. Binary diagnostic schema 3 exposes this immutable state; no Windows
+search command, state, or Widgets surface is activated by this seam alone.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

@@ -14,6 +14,8 @@ option(CHATROOM_ENABLE_WINDOWS_V2_PREVIEW
        "Compile the reviewed Windows V2 preview endpoint" OFF)
 option(CHATROOM_ENABLE_WINDOWS_V2_FORWARDING
        "Compile the default-off Windows V2 message forwarding feature" OFF)
+option(CHATROOM_ENABLE_WINDOWS_V2_SEARCH
+       "Compile the default-off Windows V2 conversation search feature" OFF)
 set(CHATROOM_WINDOWS_V2_WSS_URL "" CACHE STRING "Exact Windows V2 WSS endpoint")
 set(CHATROOM_WINDOWS_V2_FALLBACK_WSS_URL "" CACHE STRING "Optional Windows V2 fallback WSS endpoint")
 set(CHATROOM_UPDATE_CHANNEL "" CACHE STRING "Windows update channel")
@@ -46,6 +48,10 @@ endif()
 if(CHATROOM_ENABLE_WINDOWS_V2_FORWARDING AND NOT CHATROOM_ENABLE_WINDOWS_V2_PREVIEW)
     message(FATAL_ERROR
         "CHATROOM_ENABLE_WINDOWS_V2_FORWARDING requires CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON")
+endif()
+if(CHATROOM_ENABLE_WINDOWS_V2_SEARCH AND NOT CHATROOM_ENABLE_WINDOWS_V2_PREVIEW)
+    message(FATAL_ERROR
+        "CHATROOM_ENABLE_WINDOWS_V2_SEARCH requires CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON")
 endif()
 
 if(CHATROOM_BUILD_HEADLESS_SERVER)
@@ -248,6 +254,11 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             target_compile_definitions(
                 chatroom_windows_v2_configuration
                 PRIVATE CHAT_WINDOWS_V2_FORWARDING_ENABLED=1)
+        endif()
+        if(CHATROOM_ENABLE_WINDOWS_V2_SEARCH)
+            target_compile_definitions(
+                chatroom_windows_v2_configuration
+                PRIVATE CHAT_WINDOWS_V2_SEARCH_ENABLED=1)
         endif()
         set_target_properties(
             chatroom_client_local_data
@@ -830,6 +841,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             PRIVATE
                 CHAT_WINDOWS_V2_CONFIGURATION_ENABLED=1
                 CHAT_WINDOWS_V2_FORWARDING_ENABLED=1
+                CHAT_WINDOWS_V2_SEARCH_ENABLED=1
                 CHAT_WINDOWS_V2_WSS_URL="wss://chat.example.test/v2/windows"
                 CHAT_WINDOWS_V2_FALLBACK_WSS_URL="wss://chat-secondary.example.test/v2/windows")
         target_link_libraries(

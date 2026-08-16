@@ -15,7 +15,8 @@ QByteArray WindowsV2ConfigurationDiagnostic::canonicalJson(
         {QStringLiteral("fallbackEndpoints"), fallbackEndpoints},
         {QStringLiteral("messageForwardingEnabled"),
             configuration.messageForwardingEnabled},
-        {QStringLiteral("schemaVersion"), 2},
+        {QStringLiteral("messageSearchEnabled"), configuration.messageSearchEnabled},
+        {QStringLiteral("schemaVersion"), 3},
     };
     return QJsonDocument(value).toJson(QJsonDocument::Compact) + '\n';
 }

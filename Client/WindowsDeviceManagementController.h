@@ -26,7 +26,8 @@ public:
         WindowsV2MessagingController::RepositoryFactory messagingRepositoryFactory = {},
         QObject *parent = nullptr,
         bool enableMessageForwarding = false,
-        QList<QUrl> fallbackEndpoints = {});
+        QList<QUrl> fallbackEndpoints = {},
+        bool enableMessageSearch = false);
     ~WindowsDeviceManagementController() override;
 
     DeviceManagementViewModel *viewModel() const;

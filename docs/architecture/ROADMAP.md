@@ -2220,6 +2220,9 @@ Progress:
     - [ ] Add explicit Web endpoint activation and rollback evidence.
     - [ ] Add the equivalent Windows protocol, local state, accessible UI, and
       endpoint activation evidence.
+      - [x] Add the independent default-off Windows CMake/product/session gate,
+        exact capability-6 negotiation, composition plumbing, and binary
+        diagnostic evidence; query/state/UI remain off.
 
 Candidate slices:
 

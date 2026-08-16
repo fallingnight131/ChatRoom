@@ -33,7 +33,8 @@ V2WindowsDeviceManagementTransport::V2WindowsDeviceManagementTransport(
         SocketHooks hooks,
         QObject *parent,
         bool enableMessageForwarding,
-        QList<QUrl> fallbackEndpoints)
+        QList<QUrl> fallbackEndpoints,
+        bool enableMessageSearch)
     : QObject(parent),
       m_endpoints{std::move(endpoint)},
       m_appVersion(std::move(appVersion)),
@@ -42,7 +43,8 @@ V2WindowsDeviceManagementTransport::V2WindowsDeviceManagementTransport(
                       : new QWebSocket(QString(), QWebSocketProtocol::VersionLatest, this)),
       m_ownsSocket(!socket),
       m_hooks(std::move(hooks)),
-      m_messageForwardingEnabled(enableMessageForwarding) {
+      m_messageForwardingEnabled(enableMessageForwarding),
+      m_messageSearchEnabled(enableMessageSearch) {
     for (QUrl &fallback : fallbackEndpoints) m_endpoints.push_back(std::move(fallback));
     QSet<QUrl> uniqueEndpoints;
     for (const QUrl &candidate : m_endpoints) {
@@ -214,7 +216,7 @@ void V2WindowsDeviceManagementTransport::handleConnected() {
             standard(m_appVersion), standard(m_clientDeviceId),
             V2WindowsSessionProtocolClient::RequestIdFactory{},
             V2WindowsSessionProtocolClient::Clock{},
-            m_messageForwardingEnabled);
+            m_messageForwardingEnabled, m_messageSearchEnabled);
         transition(State::Negotiating);
         send(m_protocol->createClientHello());
         armPhaseTimeout(helloTimeoutMs, QStringLiteral("V2 协商超时"));

@@ -81,7 +81,11 @@ Implementation evidence now includes a strict default-false
 installs the PostgreSQL handler and permits capability 6 negotiation only for a
 requesting client. Disposable PostgreSQL verification drives that candidate
 through real TLS/WSS authentication and active-membership authorization; both
-product clients remain disabled.
+ordinary product-client builds remain disabled. Web and Windows now have
+independent immutable candidate gates. The Windows value is carried through
+the product composition into exact ordered session negotiation and is exposed
+by side-effect-free binary diagnostic schema 3; no query or UI is enabled by
+that seam alone.
 
 ## Rollback
 
