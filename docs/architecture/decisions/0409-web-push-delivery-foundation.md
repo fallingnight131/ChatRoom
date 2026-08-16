@@ -151,6 +151,12 @@ acceptance, stall synchronization, or reduce gateway readiness.
   click targets before focusing/navigating one same-origin client or opening a
   window. It installs no global listener until the future exact-gated entry is
   built, so registration and product behavior remain off.
+- The detached browser controller requires no key or installation identity while
+  disabled. Its explicit gesture path orders permission, worker registration,
+  existing-or-new subscription, and authenticated-port replacement; new local
+  state is rolled back on upload failure. Disable deletes server authority first
+  and only then unsubscribes locally. Fetch credentials, global entry, and UI
+  remain uncomposed.
 - PostgreSQL recipient resolution now starts from the exact committed message,
   rechecks current membership/account/bilateral-block/recall truth, and returns
   a complete ordered result or explicit saturation. Active subscription reads

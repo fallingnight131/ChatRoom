@@ -2067,6 +2067,16 @@ data is validated again, the notification is closed, and exactly one supported-
 origin window is navigated and focused before `openWindow` is considered.
 Cross-origin or malformed click data cannot navigate. The global worker entry,
 registration gate, PushManager and HTTP/UI composition remain absent.
+The detached browser subscription controller is exact-default-off: a disabled
+build needs neither installation identity nor VAPID public key and touches no
+permission, worker, PushManager, or server port. The enabled path requests
+permission only from its explicit user-gesture method, registers before reading
+or creating a subscription, supplies a defensive public-key copy, and uploads
+only through an authenticated API port. A failed upload best-effort rolls back
+a newly created browser subscription. Disable deletes server state before local
+unsubscribe, preserving the local subscription when server authority refuses
+the mutation. Operations are serialized and expose only fixed UI states. No
+credential provider, fetch adapter, global registration, or view is composed.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

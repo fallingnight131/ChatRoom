@@ -1530,6 +1530,12 @@ The same selector also covers the injectable Service Worker runtime: validated
 generic display, malformed-push silence, click-data revalidation, existing
 same-origin focus/navigation, and unsafe-origin refusal. These are deterministic
 port tests, not a registered browser Service Worker or host-notification gate.
+`npm test` now also proves the detached subscription controller: exact disabled-
+build zero touch/zero configuration, user-gesture permission, registration and
+subscription order, defensive VAPID key copying, authenticated-port upload,
+new-subscription rollback, serialized state, and server-first disable. The
+production build remains free of active Web Push composition until the separate
+gate and entry are added.
 The disposable PostgreSQL gate also verifies current Web Push recipient policy:
 complete ordered results or explicit saturation, sender/block/disabled-member
 exclusion, durable mention classification, recall suppression, active-only

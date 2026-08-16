@@ -2456,8 +2456,12 @@ Candidate slices:
     - [x] Add an injectable Service Worker push/click lifecycle that drops
       malformed input, shows only generic validated notifications, revalidates
       navigation, and focuses/navigates one same-origin window before opening.
-    - [ ] Add the gated global worker entry, subscription controller,
-      authenticated HTTP adapter, localized UI, and browser evidence.
+    - [x] Add an exact-default-off browser subscription controller with no
+      disabled-build key/installation requirement, user-gesture permission,
+      defensive VAPID key copies, server-upload rollback, server-first disable,
+      serialized mutations, and fixed UI states.
+    - [ ] Add the gated global worker entry, short-lived authenticated HTTP
+      adapter, localized UI, and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes:
