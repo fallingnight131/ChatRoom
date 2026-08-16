@@ -123,6 +123,8 @@ import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.MessageEditCommand;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
 import com.fallingnight.chat.application.notification.ProtectedWebPushSubscription;
+import com.fallingnight.chat.application.notification.WebPushCredentialProtectionPort;
+import com.fallingnight.chat.application.notification.WebPushCredentialUnprotectionPort;
 import com.fallingnight.chat.application.notification.WebPushHttpCredentialAuthenticationResult;
 import com.fallingnight.chat.application.notification.WebPushDeliveryPolicy;
 import com.fallingnight.chat.application.notification.WebPushNotificationIntent;
@@ -6017,6 +6019,82 @@ class PostgresMigratorTest {
 
     @Test
     @Order(101)
+    void transactionallyRewrapsWebPushEncryptionAndLookupKeysOrRollsBackAll()
+            throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID firstAccount = UUID.randomUUID(), secondAccount = UUID.randomUUID();
+        UUID firstInstall = UUID.randomUUID(), secondInstall = UUID.randomUUID();
+        seedAccount(firstAccount, "push-rotation-first");
+        seedAccount(secondAccount, "push-rotation-second");
+        var source = new FixtureWebPushProtector("enc-old", (byte) 11);
+        var target = new FixtureWebPushProtector("enc-new", (byte) 22);
+        var store = new PostgresWebPushSubscriptionAdapter(dataSource(), source);
+        byte[] p256dh = new byte[65]; p256dh[0] = 0x04;
+        byte[] auth = new byte[16]; Arrays.fill(auth, (byte) 7);
+        byte[] firstEndpoint = "https://push.example.test/send/rotation-first"
+                .getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        byte[] secondEndpoint = "https://push.example.test/send/rotation-second"
+                .getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        try (var first = WebPushSubscriptionRegistration.copyOf(
+                    firstAccount, firstInstall, Optional.empty(),
+                    firstEndpoint, p256dh, auth);
+                var second = WebPushSubscriptionRegistration.copyOf(
+                    secondAccount, secondInstall, Optional.empty(),
+                    secondEndpoint, p256dh, auth)) {
+            assertEquals(WebPushSubscriptionReplaceResult.REPLACED, store.replace(first));
+            assertEquals(WebPushSubscriptionReplaceResult.REPLACED, store.replace(second));
+        }
+
+        var rotation = new PostgresWebPushSubscriptionKeyRotation(
+                dataSource(), source, target, "enc-new");
+        assertThrows(IllegalStateException.class, () -> rotation.rotate(1, 1));
+        assertEquals(2, count("SELECT count(*) FROM chat.web_push_subscription "
+                + "WHERE encryption_key_id='enc-old'"));
+
+        WebPushSubscriptionKeyRotationReport report = rotation.rotate(1, 10);
+        assertEquals(2, report.rotatedSubscriptions());
+        assertEquals(Set.of("enc-old"), report.sourceEncryptionKeyIds());
+        assertEquals("enc-new", report.targetEncryptionKeyId());
+        assertEquals(2, count("SELECT count(*) FROM chat.web_push_subscription "
+                + "WHERE encryption_key_id='enc-new'"));
+        assertEquals(0, count("SELECT count(*) FROM chat.web_push_subscription "
+                + "WHERE endpoint_lookup_tag=decode('"
+                + source.lookupHex(firstEndpoint) + "','hex')"));
+        assertEquals(1, count("SELECT count(*) FROM chat.web_push_subscription "
+                + "WHERE endpoint_lookup_tag=decode('"
+                + target.lookupHex(firstEndpoint) + "','hex')"));
+
+        var targetStore = new PostgresWebPushSubscriptionAdapter(dataSource(), target);
+        try (var batch = targetStore.loadActive(firstAccount, Instant.now());
+                var restored = target.unprotect(batch.subscriptions().getFirst())) {
+            assertArrayEquals(firstEndpoint,
+                    restored.withEndpointCopy(bytes -> bytes.clone()));
+        }
+
+        var next = new FixtureWebPushProtector("enc-next", (byte) 33);
+        AtomicInteger calls = new AtomicInteger();
+        WebPushCredentialProtectionPort failingTarget = registration -> {
+            if (calls.incrementAndGet() == 2) {
+                throw new IllegalStateException("fixture target failure");
+            }
+            return next.protect(registration);
+        };
+        var failingRotation = new PostgresWebPushSubscriptionKeyRotation(
+                dataSource(), target, failingTarget, "enc-next");
+        assertThrows(IllegalStateException.class, () -> failingRotation.rotate(1, 10));
+        assertEquals(2, count("SELECT count(*) FROM chat.web_push_subscription "
+                + "WHERE encryption_key_id='enc-new'"));
+        assertEquals(0, count("SELECT count(*) FROM chat.web_push_subscription "
+                + "WHERE encryption_key_id='enc-next'"));
+
+        try (Connection connection = connect()) {
+            execute(connection, "DELETE FROM chat.account WHERE id=?", firstAccount);
+        }
+        assertEquals(1, count("SELECT count(*) FROM chat.web_push_subscription"));
+    }
+
+    @Test
+    @Order(102)
     void producesDefaultOffWebPushOutboxOnlyForNewMessagesInTheMessageTransaction()
             throws Exception {
         requireDatabase(); truncateApplicationData();
@@ -6083,7 +6161,7 @@ class PostgresMigratorTest {
     }
 
     @Test
-    @Order(102)
+    @Order(103)
     void fencesConcurrentWebPushClaimsAndBoundsExpiryAndRetention() throws Exception {
         requireDatabase(); truncateApplicationData();
         UUID account = UUID.randomUUID(), device = UUID.randomUUID();
@@ -6196,7 +6274,7 @@ class PostgresMigratorTest {
     }
 
     @Test
-    @Order(103)
+    @Order(104)
     void reauthorizesCurrentWebPushRecipientsAndLoadsOnlyActiveProtectedSubscriptions()
             throws Exception {
         requireDatabase(); truncateApplicationData();
@@ -6295,7 +6373,7 @@ class PostgresMigratorTest {
     }
 
     @Test
-    @Order(104)
+    @Order(105)
     void issuesOnlyHashedSessionBoundWebPushHttpCredentialsAndRechecksRevocation()
             throws Exception {
         requireDatabase(); truncateApplicationData();
@@ -6528,6 +6606,101 @@ class PostgresMigratorTest {
                 registration.accountId(), registration.installationId(),
                 registration.browserExpiresAt(), "fixture-key:v1",
                 endpointCiphertext, keyCiphertext, authCiphertext, lookupTag);
+    }
+
+    private static final class FixtureWebPushProtector
+            implements WebPushCredentialProtectionPort, WebPushCredentialUnprotectionPort {
+        private static final int HEADER_BYTES = 17;
+        private final String keyId;
+        private final byte mask;
+
+        private FixtureWebPushProtector(String keyId, byte mask) {
+            this.keyId = keyId;
+            this.mask = mask;
+        }
+
+        @Override
+        public ProtectedWebPushSubscription protect(
+                WebPushSubscriptionRegistration registration) {
+            return registration.withEndpointCopy(endpoint ->
+                    registration.withP256dhCopy(p256dh ->
+                            registration.withAuthSecretCopy(auth ->
+                                    ProtectedWebPushSubscription.copyOf(
+                                            registration.accountId(),
+                                            registration.installationId(),
+                                            registration.browserExpiresAt(), keyId,
+                                            encode(endpoint), encode(p256dh), encode(auth),
+                                            lookup(endpoint)))));
+        }
+
+        @Override
+        public WebPushSubscriptionRegistration unprotect(
+                ProtectedWebPushSubscription subscription) {
+            if (!keyId.equals(subscription.encryptionKeyId())) {
+                throw new IllegalArgumentException("fixture key ID mismatch");
+            }
+            return subscription.withCopies((endpoint, p256dh, auth, lookupTag) -> {
+                byte[] plainEndpoint = decode(endpoint);
+                byte[] plainP256dh = decode(p256dh);
+                byte[] plainAuth = decode(auth);
+                byte[] expectedLookup = lookup(plainEndpoint);
+                try {
+                    if (!MessageDigest.isEqual(expectedLookup, lookupTag)) {
+                        throw new IllegalArgumentException("fixture lookup tag mismatch");
+                    }
+                    return WebPushSubscriptionRegistration.copyOf(
+                            subscription.accountId(), subscription.installationId(),
+                            subscription.browserExpiresAt(), plainEndpoint,
+                            plainP256dh, plainAuth);
+                } finally {
+                    Arrays.fill(plainEndpoint, (byte) 0);
+                    Arrays.fill(plainP256dh, (byte) 0);
+                    Arrays.fill(plainAuth, (byte) 0);
+                    Arrays.fill(expectedLookup, (byte) 0);
+                }
+            });
+        }
+
+        private byte[] encode(byte[] plain) {
+            byte[] encoded = new byte[HEADER_BYTES + plain.length];
+            Arrays.fill(encoded, 0, HEADER_BYTES, mask);
+            for (int index = 0; index < plain.length; index++) {
+                encoded[HEADER_BYTES + index] = (byte) (plain[index] ^ mask);
+            }
+            return encoded;
+        }
+
+        private byte[] decode(byte[] encoded) {
+            if (encoded.length < HEADER_BYTES
+                    || encoded[0] != mask) {
+                throw new IllegalArgumentException("fixture ciphertext mismatch");
+            }
+            byte[] plain = new byte[encoded.length - HEADER_BYTES];
+            for (int index = 0; index < plain.length; index++) {
+                plain[index] = (byte) (encoded[HEADER_BYTES + index] ^ mask);
+            }
+            return plain;
+        }
+
+        private byte[] lookup(byte[] endpoint) {
+            byte[] input = new byte[endpoint.length + 1];
+            input[0] = mask;
+            System.arraycopy(endpoint, 0, input, 1, endpoint.length);
+            try {
+                return sha256(input);
+            } finally {
+                Arrays.fill(input, (byte) 0);
+            }
+        }
+
+        private String lookupHex(byte[] endpoint) {
+            byte[] tag = lookup(endpoint);
+            try {
+                return HexFormat.of().formatHex(tag);
+            } finally {
+                Arrays.fill(tag, (byte) 0);
+            }
+        }
     }
 
     private static PGSimpleDataSource dataSource() {

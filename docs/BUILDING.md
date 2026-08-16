@@ -1484,9 +1484,17 @@ AAD separation, HMAC-SHA256 endpoint-tag stability, ciphertext/context tamper
 rejection, and decrypt-by-old-key-ID behavior. It also proves the ADR-0411
 mounted-file custody rules: exact raw key length, strict POSIX permissions,
 symbolic-link refusal, active/prior encryption-key selection, independent lookup
-key, callback-copy clearing, and closed-state refusal. Runtime path configuration,
-external secret provisioning, lookup-key rotation, backup/restore, and
-operational erasure remain separate release evidence.
+key, callback-copy clearing, and closed-state refusal. Runtime path configuration
+and external secret provisioning remain separate release evidence. The
+disposable PostgreSQL gate now also exercises the detached offline key-rewrite
+primitive. It refuses more rows than the operator ceiling, holds
+`chat.web_push_subscription` under `ACCESS EXCLUSIVE`, authenticates every row
+with source custody, re-protects ciphertext and endpoint lookup tags with target
+custody, and commits all rows or none. A forced second-row protection failure
+proves rollback, and account deletion proves ciphertext cascade. This primitive
+does not stop a running gateway, provision/delete keys, or take and restore a
+backup; do not activate target keys until those operator steps have been
+composed and rehearsed.
 The authenticated subscription application boundary is covered by:
 
 ```bash

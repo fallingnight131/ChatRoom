@@ -2421,6 +2421,12 @@ Candidate slices:
         after the product listener/workers stop.
       - [ ] Rehearse encryption-key rollover, lookup-tag rewrite,
         backup/restore, and account erasure.
+        - [x] Add an offline, row-capped, whole-table PostgreSQL rewrite that
+          authenticates with source custody, re-protects encryption and lookup
+          values with target custody, commits all rows or none, and proves
+          account-deletion cascade in disposable PostgreSQL.
+        - [ ] Compose an operator command and rehearse backup, restore, forward
+          rotation, rollback, and old-key retirement with real mounted keys.
     - [x] Produce the outbox only under an explicit enabled policy in the
       new-message transaction; prove default-off behavior, stable message
       identity, mention metadata, idempotent replay, 24-hour expiry, and atomic

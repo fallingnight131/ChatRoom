@@ -1999,8 +1999,14 @@ adapter: raw keys never enter environment values, each file is a non-link exact
 the lookup key must be cryptographically distinct, and callback/owned copies are
 cleared. Path-only runtime configuration now selects a protected key directory,
 one active key ID and at most eight active/prior IDs without carrying secret
-values; custody is closed after listener and worker shutdown. Lookup-tag rewrite,
-backup/restore, and rotation rehearsal remain open.
+values; custody is closed after listener and worker shutdown. Lookup-tag rewrite
+now has an offline PostgreSQL primitive: while the gateway is stopped it takes
+an `ACCESS EXCLUSIVE` table lock, enforces an operator row ceiling, authenticates
+every value with source custody, rewrites encryption and lookup protection with
+target custody, and commits all rows or none. Disposable PostgreSQL proves
+undersized-limit refusal, successful rewrite, mid-stream rollback, and account-
+deletion cascade. Operator command composition plus database backup/restore and
+full rotation rehearsal remain open.
 The detached subscription mutation use case now consumes an account-free,
 zeroable request and binds identity only from its authenticated caller. Its exact
 default-off policy and account/install/action admission boundary run before
