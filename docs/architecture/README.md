@@ -950,6 +950,11 @@ newline behavior. In the V2 surface, Escape now cancels only an active reply or
 edit while focus remains in its text box; Escape on an ordinary draft is a
 no-op, so keyboard navigation cannot silently discard draft text. Visible
 control titles advertise the matching Enter and Escape shortcuts.
+The V1 message context menu now completes the keyboard path that already opens
+with the Context Menu key or Shift+F10. Focus enters the first available action,
+Arrow keys wrap, Home/End reach the boundaries, and Escape closes the overlay
+and restores focus to the invoking message. Pointer dismissal does not force a
+focus jump, and touch invocation retains no stale desktop focus target.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

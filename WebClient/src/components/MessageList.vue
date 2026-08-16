@@ -133,10 +133,11 @@
 
     <!-- 右键菜单 -->
     <Teleport to="body">
-      <div v-if="contextMenu.show" class="context-menu-overlay" @click="closeMenu" @contextmenu.prevent="closeMenu">
-        <div class="context-menu" role="menu" aria-label="消息操作"
+      <div v-if="contextMenu.show" class="context-menu-overlay"
+           @click="closeMenu()" @contextmenu.prevent="closeMenu()">
+        <div ref="contextMenuElement" class="context-menu" role="menu" aria-label="消息操作"
              :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
-             @click.stop>
+             @click.stop @keydown="onContextMenuKeydown">
           <!-- 复制可用的普通文本 -->
           <div class="context-menu-item" role="menuitem" tabindex="0"
                v-if="canCopyText(contextMenu.msg)"
@@ -235,6 +236,7 @@ const loadingMore = ref(false)
 const previewVisible = ref(false)
 const previewMsgData = ref(null)
 const contextMenu = ref({ show: false, x: 0, y: 0, msg: null })
+const contextMenuElement = ref(null)
 const copyAnnouncement = ref('')
 const copyFailed = ref(false)
 const forwardDialogVisible = ref(false)
@@ -542,18 +544,43 @@ function onContextMenu(e, msg) {
   const menuW = 200, menuH = 260
   let x = Math.min(e.clientX, window.innerWidth - menuW)
   let y = Math.min(e.clientY, window.innerHeight - menuH)
+  contextMenuTrigger = typeof e.currentTarget?.focus === 'function' ? e.currentTarget : null
   contextMenu.value = { show: true, x, y, msg }
+  nextTick(() => contextMenuElement.value?.querySelector('[role="menuitem"]')?.focus())
 }
 
 function onBubbleKeydown(event, msg) {
   if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
   event.preventDefault()
   const rect = event.currentTarget.getBoundingClientRect()
-  onContextMenu({ clientX: rect.left + 12, clientY: rect.bottom + 4 }, msg)
+  onContextMenu({
+    clientX: rect.left + 12,
+    clientY: rect.bottom + 4,
+    currentTarget: event.currentTarget
+  }, msg)
+}
+
+function onContextMenuKeydown(event) {
+  const items = Array.from(contextMenuElement.value?.querySelectorAll('[role="menuitem"]') || [])
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    closeMenu(true)
+    return
+  }
+  if (!items.length || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  const current = items.indexOf(document.activeElement)
+  const target = event.key === 'Home' ? 0
+    : event.key === 'End' ? items.length - 1
+      : event.key === 'ArrowDown' ? (current < 0 ? 0 : (current + 1) % items.length)
+        : (current < 0 ? items.length - 1 : (current - 1 + items.length) % items.length)
+  items[target].focus()
 }
 
 let longPressTimer = null
 let longPressTriggered = false
+let contextMenuTrigger = null
 
 function onTouchStart(e, msg) {
   longPressTriggered = false
@@ -563,7 +590,9 @@ function onTouchStart(e, msg) {
     const menuW = 200, menuH = 260
     const x = Math.min(touch.clientX, window.innerWidth - menuW)
     const y = Math.min(touch.clientY, window.innerHeight - menuH)
+    contextMenuTrigger = null
     contextMenu.value = { show: true, x, y, msg }
+    nextTick(() => contextMenuElement.value?.querySelector('[role="menuitem"]')?.focus())
   }, 500)
 }
 
@@ -647,8 +676,10 @@ watch(() => [chatStore.currentRoomId, chatStore.currentFriendUsername, props.fri
   scrollToBottom()
 })
 
-function closeMenu() {
+function closeMenu(restoreFocus = false) {
   contextMenu.value.show = false
+  if (restoreFocus && contextMenuTrigger) nextTick(() => contextMenuTrigger?.focus())
+  if (!restoreFocus) contextMenuTrigger = null
 }
 
 onMounted(() => {

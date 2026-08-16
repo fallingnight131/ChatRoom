@@ -2288,6 +2288,8 @@ Candidate slices:
     text semantics, Clipboard API fallback, and accessible success/failure feedback.
   - [x] Add Web V2 Escape cancellation for active reply/edit composition while
     preserving ordinary drafts and the browser-idiomatic Enter/Shift+Enter behavior.
+  - [x] Complete V1 Web message-menu focus entry, arrow/Home/End traversal, and
+    Escape dismissal with focus restoration to the invoking message.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
