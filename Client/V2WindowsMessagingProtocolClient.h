@@ -124,6 +124,7 @@ public:
                         const std::string &clientOperationId,
                         const std::vector<Mention> &mentions = {});
     Event receive(const std::string &bytes);
+    void abandon(const std::string &requestId);
     std::size_t pendingCount() const;
 
 private:

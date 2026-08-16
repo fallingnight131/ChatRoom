@@ -105,10 +105,18 @@ int main(int argc, char **argv) {
     }
     QString searchConversation;
     QString searchQuery;
+    QString contextMessageId;
+    quint64 contextSequence = 0;
     V2WindowsMessageSearchViewModel search(
         [&](const QString &selected, const QString &query, quint64, bool) {
             searchConversation = selected;
             searchQuery = query;
+            return true;
+        },
+        [&](const QString &selected, quint64 sequence, const QString &messageId) {
+            searchConversation = selected;
+            contextSequence = sequence;
+            contextMessageId = messageId;
             return true;
         });
     V2WindowsMessagingPanel panel(
@@ -148,6 +156,34 @@ int main(int argc, char **argv) {
         qCritical() << "keyboard search activation did not reveal a cached hit";
         return 1;
     }
+    auto context = message;
+    context.messageId = QStringLiteral("30000000-0000-4000-8000-000000000099");
+    context.clientMessageId = QStringLiteral("context-client-id");
+    context.conversationSequence = 99;
+    context.text = QStringLiteral("未缓存搜索结果");
+    search.applyPage(conversation, searchQuery,
+        {{context.messageId, 99, account, context.text, 990, 0, 0}},
+        false, 99, false);
+    app.processEvents();
+    panel.searchResultsForTest()->setCurrentRow(0);
+    emit panel.searchResultsForTest()->itemActivated(
+        panel.searchResultsForTest()->currentItem());
+    app.processEvents();
+    if (contextMessageId != context.messageId || contextSequence != 99) {
+        qCritical() << "uncached search activation did not request bounded context";
+        return 1;
+    }
+    model.applyTransientContext(conversation, {context});
+    search.applyContextAvailable(context.messageId);
+    app.processEvents();
+    if (!panel.messageListForTest()->currentItem()
+            || panel.messageListForTest()->currentItem()->data(Qt::UserRole).toString()
+                != context.messageId) {
+        qCritical() << "validated transient context did not reveal the uncached hit";
+        return 1;
+    }
+    model.clearTransientContext();
+    app.processEvents();
     const auto messageLabels = panel.findChildren<QLabel *>();
     const auto mentionedBody = std::find_if(
         messageLabels.cbegin(), messageLabels.cend(), [&](QLabel *label) {
@@ -173,7 +209,7 @@ int main(int argc, char **argv) {
     }
     auto replies = panel.findChildren<QPushButton *>(QString(), Qt::FindChildrenRecursively);
     auto reply = std::find_if(replies.cbegin(), replies.cend(), [](QPushButton *button) {
-        return button->text() == QStringLiteral("回复");
+        return button->isVisible() && button->text() == QStringLiteral("回复");
     });
     if (reply == replies.cend()) {
         qCritical() << "reply action missing";
@@ -181,10 +217,38 @@ int main(int argc, char **argv) {
     }
     const auto forward = std::find_if(
         replies.cbegin(), replies.cend(), [](QPushButton *button) {
-            return button->accessibleName() == QStringLiteral("转发此消息");
+            return button->isVisible()
+                && button->accessibleName() == QStringLiteral("转发此消息");
         });
     if (forward == replies.cend()) {
         qCritical() << "forward action missing from enabled panel";
+        return 1;
+    }
+    const auto reactionButtons = std::count_if(replies.cbegin(), replies.cend(),
+        [](QPushButton *button) {
+            return button->isVisible() && button->isCheckable()
+                && button->accessibleName().startsWith(QStringLiteral("消息反应"));
+        });
+    if (reactionButtons != 6) {
+        qCritical() << "reaction actions missing";
+        return 1;
+    }
+    const auto pinButtons = std::count_if(replies.cbegin(), replies.cend(),
+        [](QPushButton *button) {
+            return button->isVisible() && button->isCheckable()
+                && button->accessibleName() == QStringLiteral("置顶此消息");
+        });
+    if (pinButtons != 1) {
+        qCritical() << "pin action missing";
+        return 1;
+    }
+    const auto editButtons = std::count_if(replies.cbegin(), replies.cend(),
+        [](QPushButton *button) {
+            return button->isVisible()
+                && button->accessibleName() == QStringLiteral("编辑此消息");
+        });
+    if (editButtons != 1) {
+        qCritical() << "initial edit action missing";
         return 1;
     }
     QTimer::singleShot(0, [&] {
@@ -198,30 +262,6 @@ int main(int argc, char **argv) {
     if (forwardedSource != conversation || forwardedMessage != message.messageId
             || forwardedTarget != targetConversation) {
         qCritical() << "forward picker did not preserve exact message identities";
-        return 1;
-    }
-    const auto reactionButtons = std::count_if(replies.cbegin(), replies.cend(),
-        [](QPushButton *button) {
-            return button->isCheckable()
-                && button->accessibleName().startsWith(QStringLiteral("消息反应"));
-        });
-    if (reactionButtons != 6) {
-        qCritical() << "reaction actions missing";
-        return 1;
-    }
-    const auto pinButtons = std::count_if(replies.cbegin(), replies.cend(),
-        [](QPushButton *button) {
-            return button->isCheckable()
-                && button->accessibleName() == QStringLiteral("置顶此消息");
-        });
-    if (pinButtons != 1) {
-        qCritical() << "pin action missing";
-        return 1;
-    }
-    const auto editButtons = std::count_if(replies.cbegin(), replies.cend(),
-        [](QPushButton *button) { return button->accessibleName() == QStringLiteral("编辑此消息"); });
-    if (editButtons != 1) {
-        qCritical() << "initial edit action missing";
         return 1;
     }
     (*reply)->click();
@@ -247,7 +287,7 @@ int main(int argc, char **argv) {
         QString(), Qt::FindChildrenRecursively);
     const auto secondReply = std::find_if(
         refreshedButtons.cbegin(), refreshedButtons.cend(), [](QPushButton *button) {
-            return button->text() == QStringLiteral("回复");
+            return button->isVisible() && button->text() == QStringLiteral("回复");
         });
     if (secondReply == refreshedButtons.cend()) {
         qCritical() << "reply action was not rebuilt after cancellation";
@@ -290,7 +330,8 @@ int main(int argc, char **argv) {
         QString(), Qt::FindChildrenRecursively);
     const auto edit = std::find_if(
         currentButtons.cbegin(), currentButtons.cend(), [](QPushButton *button) {
-            return button->accessibleName() == QStringLiteral("编辑此消息");
+            return button->isVisible()
+                && button->accessibleName() == QStringLiteral("编辑此消息");
         });
     if (edit == currentButtons.cend()) {
         qCritical() << "edit action missing after reply refresh";

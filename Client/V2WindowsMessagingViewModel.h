@@ -71,6 +71,10 @@ public:
         QObject *parent = nullptr);
     bool openConversation(const QString &conversationId);
     bool refresh();
+    bool applyTransientContext(
+        const QString &conversationId,
+        QList<V2LocalMessageRepository::Message> messages);
+    void clearTransientContext();
     QVector<Row> rows() const { return m_rows; }
     QString draft() const { return m_draft; }
     QString replyTargetMessageId() const { return m_replyTargetMessageId; }
@@ -122,4 +126,5 @@ private:
     QString m_replyBanner;
     QString m_failure;
     QVector<Row> m_rows;
+    QList<V2LocalMessageRepository::Message> m_transientContext;
 };

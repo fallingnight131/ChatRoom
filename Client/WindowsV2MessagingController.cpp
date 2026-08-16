@@ -12,8 +12,101 @@
 #include "chat/v2/control.pb.h"
 #include "chat/v2/envelope.pb.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
+
+namespace {
+V2LocalMessageRepository::Message localMessage(
+        const V2WindowsMessagingProtocolClient::Message &source) {
+    V2LocalMessageRepository::Message result;
+    result.conversationId = QString::fromStdString(source.conversationId);
+    result.messageId = QString::fromStdString(source.messageId);
+    result.conversationSequence = static_cast<qint64>(source.conversationSequence);
+    result.senderAccountId = QString::fromStdString(source.senderAccountId);
+    result.senderDeviceId = QString::fromStdString(source.senderDeviceId);
+    result.clientMessageId = QString::fromStdString(source.clientMessageId);
+    result.text = QString::fromStdString(source.text);
+    result.acceptedAtEpochMs = source.acceptedAtEpochMs;
+    result.createdAtEpochMs = source.acceptedAtEpochMs;
+    result.state = V2LocalMessageRepository::DeliveryState::Accepted;
+    result.contentRevision = static_cast<int>(source.contentRevision);
+    result.editedAtEpochMs = source.editedAtEpochMs;
+    result.hasReply = source.hasReply;
+    result.reply = {QString::fromStdString(source.reply.targetMessageId),
+        static_cast<qint64>(source.reply.targetConversationSequence),
+        QString::fromStdString(source.reply.targetSenderAccountId)};
+    for (const auto &mention : source.mentions) {
+        result.mentions.append({QString::fromStdString(mention.targetAccountId),
+            static_cast<int>(mention.startUtf8Byte),
+            static_cast<int>(mention.lengthUtf8Bytes)});
+    }
+    result.forwarded = source.forwarded;
+    return result;
+}
+
+QList<V2LocalMessageRepository::Message> transientMessages(
+        const V2WindowsMessagingProtocolClient::Event &event) {
+    QList<V2LocalMessageRepository::Message> result;
+    for (const auto &message : event.messages) result.append(localMessage(message));
+    for (const auto &messageId : event.recalledMessageIds) {
+        const QString identity = QString::fromStdString(messageId);
+        const auto position = std::find_if(result.begin(), result.end(),
+            [&](const auto &message) { return message.messageId == identity; });
+        if (position != result.end()) {
+            position->recalled = true;
+            position->text.clear();
+            position->mentions.clear();
+        }
+    }
+    for (const auto &edit : event.editChanges) {
+        const QString identity = QString::fromStdString(edit.messageId);
+        const auto position = std::find_if(result.begin(), result.end(),
+            [&](const auto &message) { return message.messageId == identity; });
+        if (position == result.end() || position->recalled) continue;
+        position->text = QString::fromStdString(edit.text);
+        position->contentRevision = static_cast<int>(edit.contentRevision);
+        position->editedAtEpochMs = edit.occurredAtEpochMs;
+        position->mentions.clear();
+        for (const auto &mention : edit.mentions) {
+            position->mentions.append({QString::fromStdString(mention.targetAccountId),
+                static_cast<int>(mention.startUtf8Byte),
+                static_cast<int>(mention.lengthUtf8Bytes)});
+        }
+    }
+    for (const auto &pin : event.pinChanges) {
+        const QString identity = QString::fromStdString(pin.messageId);
+        const auto position = std::find_if(result.begin(), result.end(),
+            [&](const auto &message) { return message.messageId == identity; });
+        if (position != result.end()) position->pinned = pin.pinned;
+    }
+    for (const auto &reaction : event.reactionChanges) {
+        const QString identity = QString::fromStdString(reaction.messageId);
+        const auto position = std::find_if(result.begin(), result.end(),
+            [&](const auto &message) { return message.messageId == identity; });
+        if (position == result.end()) continue;
+        const auto kind = static_cast<V2LocalMessageRepository::ReactionKind>(
+            static_cast<int>(reaction.reaction));
+        auto aggregate = std::find_if(position->reactions.begin(), position->reactions.end(),
+            [&](const auto &item) { return item.reaction == kind; });
+        if (aggregate == position->reactions.end()) {
+            position->reactions.append({kind, {}});
+            aggregate = std::prev(position->reactions.end());
+        }
+        const QString actor = QString::fromStdString(reaction.actorAccountId);
+        if (reaction.active && !aggregate->actorAccountIds.contains(actor))
+            aggregate->actorAccountIds.append(actor);
+        else if (!reaction.active)
+            aggregate->actorAccountIds.removeAll(actor);
+    }
+    for (const auto &messageId : event.deletedMessageIds) {
+        const QString identity = QString::fromStdString(messageId);
+        result.erase(std::remove_if(result.begin(), result.end(),
+            [&](const auto &message) { return message.messageId == identity; }), result.end());
+    }
+    return result;
+}
+}
 
 WindowsV2MessagingController::WindowsV2MessagingController(
         V2WindowsDeviceManagementTransport *transport,
@@ -65,11 +158,20 @@ WindowsV2MessagingController::WindowsV2MessagingController(
             V2WindowsMessageSearchProtocolClient::RequestIdFactory{},
             V2WindowsMessageSearchProtocolClient::Clock{},
             m_messageForwardingEnabled);
+        m_searchContextProtocol = std::make_unique<V2WindowsMessagingProtocolClient>(
+            V2WindowsMessagingProtocolClient::RequestIdFactory{},
+            V2WindowsMessagingProtocolClient::Clock{},
+            m_messageForwardingEnabled);
         m_searchViewModel = std::make_unique<V2WindowsMessageSearchViewModel>(
             [this](const QString &conversationId, const QString &query,
                    quint64 beforeSequence, bool continuation) {
                 return requestSearch(
                     conversationId, query, beforeSequence, continuation);
+            },
+            [this](const QString &conversationId, quint64 conversationSequence,
+                   const QString &messageId) {
+                return requestSearchContext(
+                    conversationId, conversationSequence, messageId);
             });
     }
 }
@@ -203,6 +305,8 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
         m_directoryProtocol->bindSession(sessionId.toStdString());
         m_participantProtocol->bindSession(sessionId.toStdString());
         if (m_searchProtocol) m_searchProtocol->bindSession(sessionId.toStdString());
+        if (m_searchContextProtocol)
+            m_searchContextProtocol->bindSession(sessionId.toStdString());
     } catch (...) {
         m_transport->rejectMessagingProtocol();
         return;
@@ -224,6 +328,41 @@ void WindowsV2MessagingController::receiveFrame(const QByteArray &frame) {
         return;
     }
     const QString requestId = QString::fromStdString(envelope.request_id());
+    if (m_searchContextProtocol && m_searchContextRequests.contains(requestId)
+            && (envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE
+                || envelope.message_type() == chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR)) {
+        const SearchContextRequest context = m_searchContextRequests.take(requestId);
+        try {
+            const auto event = m_searchContextProtocol->receive(
+                std::string(frame.constData(), static_cast<std::size_t>(frame.size())));
+            if (event.type == V2WindowsMessagingProtocolClient::EventType::ProtocolError) {
+                m_searchViewModel->applyContextFailure(
+                    context.messageId, QStringLiteral("无法读取消息上下文"));
+                return;
+            }
+            auto messages = transientMessages(event);
+            const bool containsTarget = std::any_of(messages.cbegin(), messages.cend(),
+                [&](const auto &message) {
+                    return message.messageId == context.messageId;
+                });
+            if (!containsTarget) {
+                m_searchViewModel->applyContextFailure(
+                    context.messageId, QStringLiteral("该消息已不可用"));
+                return;
+            }
+            if (!m_viewModel->applyTransientContext(
+                    context.conversationId, std::move(messages))) {
+                m_searchViewModel->applyContextFailure(
+                    context.messageId, QStringLiteral("无法显示消息上下文"));
+            } else {
+                m_searchViewModel->applyContextAvailable(context.messageId);
+            }
+            return;
+        } catch (...) {
+            m_transport->rejectMessagingProtocol();
+            return;
+        }
+    }
     if (m_searchProtocol && (envelope.message_type()
             == chat::v2::MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE
             || (envelope.message_type() == chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR
@@ -364,7 +503,10 @@ void WindowsV2MessagingController::abandonSession() {
     m_participantRequests.clear();
     m_participantViewModel->setUnavailable();
     if (m_searchProtocol) m_searchProtocol->clearSession();
+    if (m_searchContextProtocol) m_searchContextProtocol->clearSession();
     m_searchRequests.clear();
+    m_searchContextRequests.clear();
+    if (m_viewModel) m_viewModel->clearTransientContext();
     if (m_searchViewModel) m_searchViewModel->setUnavailable();
 }
 
@@ -418,6 +560,26 @@ bool WindowsV2MessagingController::requestSearch(
             return true;
         }
         m_searchProtocol->abandon(command.requestId);
+    } catch (...) {}
+    return false;
+}
+
+bool WindowsV2MessagingController::requestSearchContext(
+        const QString &conversationId, quint64 conversationSequence,
+        const QString &messageId) {
+    if (!m_searchContextProtocol || !m_searchViewModel
+            || conversationSequence == 0)
+        return false;
+    try {
+        const auto command = m_searchContextProtocol->readHistory(
+            conversationId.toStdString(), conversationSequence - 1, 100);
+        if (m_transport->sendMessagingFrame(QByteArray(
+                command.bytes.data(), static_cast<qsizetype>(command.bytes.size())))) {
+            m_searchContextRequests.insert(QString::fromStdString(command.requestId),
+                {conversationId, messageId});
+            return true;
+        }
+        m_searchContextProtocol->abandon(command.requestId);
     } catch (...) {}
     return false;
 }

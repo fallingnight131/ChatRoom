@@ -886,9 +886,14 @@ correlations. Widgets presentation remains separate.
 The enabled Windows conversation panel now renders a keyboard-native search
 form, accessible status, bounded result list, pagination, and stable-ID reveal.
 The entire surface is absent when the search ViewModel is absent. Revealing a
-cached hit centers the ordinary message row; an uncached hit remains only a
-validated search projection and announces that bounded context repair is
-required. The latter network repair is still a separate slice.
+cached hit centers the ordinary message row. An uncached hit now uses a second,
+independently correlated ordinary-history protocol instance anchored one
+sequence before the hit. At most one 100-entry response is validated, folded
+with its mutation records, and merged into the current message ViewModel by
+stable message ID. It never calls the repository, persists the partial window,
+advances the durable synchronization cursor, or auto-pages. Missing/deleted
+targets fail generically; disconnect and conversation switch clear the
+temporary context and its correlation.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

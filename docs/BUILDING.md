@@ -2115,8 +2115,16 @@ The enabled Windows conversation panel now exposes a native, keyboard-operable
 search field, submit button, announced status, single-selection result list,
 and bounded pagination control. Ordinary panels hide the entire surface. A
 validated hit already present in the 500-row message window is centered and
-focused by stable message ID; an uncached hit reports that context repair is
-needed without treating the search projection as durable history.
+focused by stable message ID. An uncached hit issues a separately correlated
+ordinary type-102 history request with `after_sequence = hit.sequence - 1` and
+a fixed 100-entry limit. Its single validated response folds recall, deletion,
+edit, pin, and reaction records before stable-ID merging into the active
+message ViewModel. This path never calls `V2LocalMessageRepository`, never
+auto-pages, and never changes the ordinary synchronization cursor. Disconnect
+or conversation switch drops its correlation and at most 100 temporary
+messages. The controller test reopens the same SQLite database to prove the
+context page was not persisted; the offscreen Widgets test proves keyboard
+activation focuses the repaired row.
 CI compiles a separate, non-published forwarding-enabled `ChatClient` and runs
 the target-dialog Widgets test without replacing the ordinary default-off
 Windows verification payload. The Web baseline likewise compiles an enabled

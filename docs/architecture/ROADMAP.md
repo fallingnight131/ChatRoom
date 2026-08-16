@@ -2238,6 +2238,9 @@ Progress:
       - [x] Add the capability-gated accessible Windows Widgets search form,
         announced status, bounded paged result list, and keyboard activation
         that centers an already cached stable message hit.
+      - [x] Add separately correlated Windows context-history repair for an
+        uncached hit, merge one validated bounded page into message-view memory,
+        and prove it neither writes SQLite nor advances the durable sync cursor.
 
 Candidate slices:
 

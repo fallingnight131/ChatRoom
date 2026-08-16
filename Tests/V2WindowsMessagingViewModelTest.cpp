@@ -205,6 +205,22 @@ int main(int argc, char **argv) {
               && model.rows().first().replyPreview == QStringLiteral("引用的消息不可用"),
           QStringLiteral("deleted or absent target must render unavailable"));
 
+    auto context = reply;
+    context.messageId = QStringLiteral("30000000-0000-4000-8000-000000000099");
+    context.clientMessageId = QStringLiteral("remote-context");
+    context.senderAccountId = target.senderAccountId;
+    context.conversationSequence = 99;
+    context.text = QStringLiteral("仅用于搜索上下文");
+    context.hasReply = false;
+    check(model.applyTransientContext(conversation, {context})
+              && std::any_of(model.rows().cbegin(), model.rows().cend(),
+                    [&](const auto &row) { return row.messageId == context.messageId; })
+              && snapshot.messages.size() == 2,
+          QStringLiteral("transient context was not projected independently of durable data"));
+    model.clearTransientContext();
+    check(model.rows().size() == snapshot.messages.size(),
+          QStringLiteral("transient context survived explicit session cleanup"));
+
     if (failures) return 1;
     qInfo() << "[V2WindowsMessagingViewModelTest] PASS";
     return 0;

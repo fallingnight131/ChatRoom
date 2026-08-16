@@ -14,6 +14,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTextCursor>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <stdexcept>
 
@@ -165,6 +166,7 @@ void V2WindowsMessagingPanel::setConversation(const QString &conversationId) {
     m_composer->clear();
     m_updatingComposer = false;
     m_previousComposerText.clear();
+    m_pendingSearchRevealMessageId.clear();
     m_mention->setEnabled(false);
     if (m_searchViewModel) {
         m_searchViewModel->activate(conversationId);
@@ -364,6 +366,18 @@ void V2WindowsMessagingPanel::render() {
     m_mention->setEnabled(
         m_mentionsEnabled && composing && !m_conversationId.isEmpty());
     m_send->setEnabled(composing && !m_composer->toPlainText().trimmed().isEmpty());
+    if (!m_pendingSearchRevealMessageId.isEmpty()) {
+        const QString identity = m_pendingSearchRevealMessageId;
+        QTimer::singleShot(0, this, [this, identity] {
+            if (m_pendingSearchRevealMessageId != identity
+                    || !revealMessage(identity))
+                return;
+            m_pendingSearchRevealMessageId.clear();
+            m_searchStatus->setText(QStringLiteral("已定位到搜索结果"));
+            QAccessibleEvent announcement(m_searchStatus, QAccessible::Alert);
+            QAccessible::updateAccessibility(&announcement);
+        });
+    }
 }
 
 void V2WindowsMessagingPanel::startSearch() {
@@ -389,8 +403,12 @@ void V2WindowsMessagingPanel::renderSearch() {
     m_searchInput->setEnabled(!m_searchViewModel->busy());
     m_searchLoadMore->setEnabled(
         !m_searchViewModel->busy() && m_searchViewModel->hasMore());
-    if (!m_searchViewModel->failure().isEmpty())
+    if (!m_searchViewModel->failure().isEmpty()) {
+        if (!m_searchViewModel->contextBusy())
+            m_pendingSearchRevealMessageId.clear();
         m_searchStatus->setText(m_searchViewModel->failure());
+    } else if (m_searchViewModel->contextBusy())
+        m_searchStatus->setText(QStringLiteral("正在读取消息上下文…"));
     else if (m_searchViewModel->busy())
         m_searchStatus->setText(QStringLiteral("正在搜索…"));
     else if (!m_searchViewModel->query().isEmpty())
@@ -406,8 +424,13 @@ void V2WindowsMessagingPanel::renderSearch() {
 
 void V2WindowsMessagingPanel::revealSearchResult(QListWidgetItem *item) {
     if (!item) return;
-    if (!revealMessage(item->data(Qt::UserRole).toString()))
-        m_searchStatus->setText(QStringLiteral("正在请求该消息附近的上下文"));
+    const QString messageId = item->data(Qt::UserRole).toString();
+    if (revealMessage(messageId)) return;
+    m_pendingSearchRevealMessageId = messageId;
+    if (!m_searchViewModel || !m_searchViewModel->requestContext(messageId)) {
+        m_pendingSearchRevealMessageId.clear();
+        m_searchStatus->setText(QStringLiteral("无法读取该消息附近的上下文"));
+    }
 }
 
 bool V2WindowsMessagingPanel::revealMessage(const QString &messageId) {

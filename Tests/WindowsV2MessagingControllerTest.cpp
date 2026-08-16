@@ -209,17 +209,54 @@ int main(int argc, char **argv) {
     chat::v2::ConversationMessageSearchPage searchPage;
     searchPage.set_conversation_id(conversationId.toStdString());
     auto *searchHit = searchPage.add_hits();
-    *searchHit = *message;
-    searchPage.set_next_before_sequence(message->conversation_sequence());
+    searchHit->set_conversation_id(conversationId.toStdString());
+    searchHit->set_message_id("70000000-0000-4000-8000-000000000009");
+    searchHit->set_conversation_sequence(9);
+    searchHit->set_sender_account_id(accountId);
+    searchHit->set_sender_device_id(deviceId.toStdString());
+    searchHit->set_client_message_id("80000000-0000-4000-8000-000000000009");
+    searchHit->set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
+    searchHit->set_content("uncached context");
+    searchHit->set_accepted_at_epoch_ms(990);
+    searchPage.set_next_before_sequence(9);
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE,
         chat::v2::MESSAGE_KIND_RESPONSE, command.request_id(), sessionId,
         searchPage));
     check(controller.searchViewModel()->rows().size() == 1
               && controller.searchViewModel()->rows().first().messageId
-                  == QStringLiteral("70000000-0000-4000-8000-000000000001")
+                  == QStringLiteral("70000000-0000-4000-8000-000000000009")
               && !controller.searchViewModel()->busy(),
           QStringLiteral("correlated search page was not projected in memory"));
+    check(controller.searchViewModel()->requestContext(
+              QStringLiteral("70000000-0000-4000-8000-000000000009"))
+              && sent.size() == 1,
+          QStringLiteral("uncached search hit must request one correlated history page"));
+    command = parseEnvelope(sent.takeFirst());
+    check(command.message_type() == chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY
+              && historyRequest.ParseFromString(command.payload())
+              && historyRequest.after_sequence() == 8
+              && historyRequest.limit() == 100,
+          QStringLiteral("search context must anchor immediately before the hit"));
+    chat::v2::MessageHistoryPage contextPage;
+    contextPage.set_conversation_id(conversationId.toStdString());
+    *contextPage.add_messages() = *searchHit;
+    contextPage.set_next_sequence(9);
+    contextPage.set_latest_sequence(9);
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE, chat::v2::MESSAGE_KIND_RESPONSE,
+        command.request_id(), sessionId, contextPage));
+    check(controller.viewModel()->rows().size() == 2
+              && controller.viewModel()->rows().last().messageId
+                    == QStringLiteral("70000000-0000-4000-8000-000000000009")
+              && !controller.searchViewModel()->contextBusy(),
+          QStringLiteral("authorized context page was not merged into transient view state"));
+    V2LocalMessageRepository durableVerifier(
+        directory.filePath(QStringLiteral("messages.sqlite")));
+    check(durableVerifier.initialize()
+              && durableVerifier.loadSnapshot(accountId.c_str(), conversationId).messages.size()
+                    == 1,
+          QStringLiteral("search context must not persist or advance durable history"));
 
     const QString forwardTargetId =
         QStringLiteral("60000000-0000-4000-8000-000000000002");

@@ -78,6 +78,7 @@ private:
     QString m_conversationId;
     QString m_editTargetMessageId;
     QString m_previousComposerText;
+    QString m_pendingSearchRevealMessageId;
     QList<V2WindowsMentionComposer::Anchor> m_mentionAnchors;
     bool m_updatingComposer = false;
     bool m_mentionsEnabled = false;

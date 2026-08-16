@@ -59,6 +59,10 @@ void V2WindowsMessagingProtocolClient::clearSession() {
     m_pending.clear();
 }
 
+void V2WindowsMessagingProtocolClient::abandon(const std::string &requestId) {
+    m_pending.erase(requestId);
+}
+
 std::size_t V2WindowsMessagingProtocolClient::pendingCount() const {
     return m_pending.size();
 }

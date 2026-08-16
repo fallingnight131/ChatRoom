@@ -23,7 +23,10 @@ V2WindowsMessagingViewModel::V2WindowsMessagingViewModel(
 
 bool V2WindowsMessagingViewModel::openConversation(const QString &conversationId) {
     if (conversationId.isEmpty()) return false;
-    if (conversationId != m_conversationId) cancelReply();
+    if (conversationId != m_conversationId) {
+        cancelReply();
+        m_transientContext.clear();
+    }
     m_conversationId = conversationId;
     return refresh();
 }
@@ -31,7 +34,22 @@ bool V2WindowsMessagingViewModel::openConversation(const QString &conversationId
 bool V2WindowsMessagingViewModel::refresh() {
     if (m_conversationId.isEmpty()) return false;
     try {
-        project(m_loader(m_conversationId));
+        auto snapshot = m_loader(m_conversationId);
+        for (const auto &message : std::as_const(m_transientContext)) {
+            const bool durable = std::any_of(
+                snapshot.messages.cbegin(), snapshot.messages.cend(),
+                [&](const auto &candidate) {
+                    return candidate.messageId == message.messageId;
+                });
+            if (!durable) snapshot.messages.append(message);
+        }
+        std::stable_sort(snapshot.messages.begin(), snapshot.messages.end(),
+            [](const auto &left, const auto &right) {
+                if (left.conversationSequence == 0) return false;
+                if (right.conversationSequence == 0) return true;
+                return left.conversationSequence < right.conversationSequence;
+            });
+        project(snapshot);
     } catch (...) {
         m_failure = QStringLiteral("无法加载本地消息");
         emit changed();
@@ -40,6 +58,40 @@ bool V2WindowsMessagingViewModel::refresh() {
     m_failure.clear();
     emit changed();
     return true;
+}
+
+bool V2WindowsMessagingViewModel::applyTransientContext(
+        const QString &conversationId,
+        QList<V2LocalMessageRepository::Message> messages) {
+    if (conversationId != m_conversationId || messages.isEmpty()
+            || messages.size() > 100)
+        return false;
+    for (const auto &message : std::as_const(messages)) {
+        if (message.conversationId != m_conversationId
+                || message.messageId.isEmpty()
+                || message.conversationSequence <= 0
+                || message.state != V2LocalMessageRepository::DeliveryState::Accepted)
+            return false;
+    }
+    for (auto &message : messages) {
+        const auto existing = std::find_if(
+            m_transientContext.begin(), m_transientContext.end(),
+            [&](const auto &candidate) {
+                return candidate.messageId == message.messageId;
+            });
+        if (existing == m_transientContext.end())
+            m_transientContext.append(std::move(message));
+        else
+            *existing = std::move(message);
+    }
+    while (m_transientContext.size() > 100) m_transientContext.removeFirst();
+    return refresh();
+}
+
+void V2WindowsMessagingViewModel::clearTransientContext() {
+    if (m_transientContext.isEmpty()) return;
+    m_transientContext.clear();
+    if (!m_conversationId.isEmpty()) refresh();
 }
 
 bool V2WindowsMessagingViewModel::chooseReply(const QString &messageId) {
