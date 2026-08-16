@@ -2350,6 +2350,8 @@ Candidate slices:
     controls to an explicit server-sequence or local-failure accessible context.
   - [x] Run production-bundle Chromium/Firefox interaction gates for login Tab
     order, announced validation, conversation-tab arrows, and modal focus return.
+  - [x] Establish typed Chinese/English Web catalogs and migrate the complete
+    login/registration slice with bounded persistence and document-language sync.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

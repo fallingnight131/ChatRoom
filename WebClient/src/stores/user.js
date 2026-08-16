@@ -15,6 +15,11 @@ import {
   resolveBandwidthPreference,
   shouldAutoRequestAvatar
 } from '../preferences/webBandwidthPreference'
+import {
+  applyDocumentLocale,
+  persistWebLocale,
+  resolveWebLocale
+} from '../localization/webLocale'
 
 function resolveWebStorage() {
   try { return globalThis.localStorage || null } catch { return null }
@@ -25,6 +30,9 @@ function readDarkMode(storage) {
 }
 
 const webStorage = resolveWebStorage()
+const initialWebLocale = resolveWebLocale(webStorage)
+applyDocumentLocale(initialWebLocale,
+  typeof document === 'undefined' ? null : document.documentElement)
 purgeLegacyPersistedSession()
 purgeLegacyServerOverrides(webStorage)
 
@@ -45,6 +53,7 @@ export const useUserStore = defineStore('user', {
     displayName: '',   // 昵称
     avatarData: '',    // base64
     darkMode: readDarkMode(webStorage),
+    locale: initialWebLocale,
     lowBandwidthMode: bandwidthPreference.enabled,
     lowBandwidthPreferenceSource: bandwidthPreference.source,
     websocketUrl: endpointPolicy.usable ? endpointPolicy.websocketUrl : '',
@@ -58,6 +67,15 @@ export const useUserStore = defineStore('user', {
     toggleDarkMode() {
       this.darkMode = !this.darkMode
       try { webStorage?.setItem('darkMode', String(this.darkMode)) } catch { /* session only */ }
+    },
+
+    setLocale(locale) {
+      if (!['zh-CN', 'en-US'].includes(locale)) return false
+      this.locale = locale
+      persistWebLocale(webStorage, locale)
+      applyDocumentLocale(locale,
+        typeof document === 'undefined' ? null : document.documentElement)
+      return true
     },
 
     setLowBandwidthMode(enabled) {

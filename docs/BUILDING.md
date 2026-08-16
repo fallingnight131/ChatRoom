@@ -58,6 +58,13 @@ bundle: login username/password/submit order and announced empty validation,
 authenticated friend/room Arrow navigation, and profile Escape dismissal with
 trigger restoration. These checks are browser interaction evidence, not a
 screen-reader or branded-browser compatibility claim.
+The same Chromium/Firefox suite selects English on the production login bundle,
+checks localized labels/actions and `html lang`, reloads, and requires the
+supported preference to persist. `webLocale.test.ts` covers Chinese fallback,
+invalid/denied storage, the exact supported identifiers, catalog-key parity,
+and the document-language adapter. `loginLocalization.test.mjs` keeps the login
+slice on the typed catalog and keeps local error identity separate from raw
+server errors. The authenticated chat shell is not yet a completed catalog.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

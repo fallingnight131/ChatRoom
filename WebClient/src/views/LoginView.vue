@@ -5,32 +5,38 @@
       <div class="login-header">
         <div class="login-logo" aria-hidden="true">💬</div>
         <h1 id="login-title">ChatRoom</h1>
-        <p>{{ isRegister ? '注册新账号' : '登录到聊天室' }}</p>
+        <p>{{ isRegister ? messages.registerSubtitle : messages.loginSubtitle }}</p>
+        <label class="visually-hidden" for="login-locale">{{ messages.language }}</label>
+        <select id="login-locale" class="locale-select" :value="userStore.locale"
+                :aria-label="messages.language" @change="userStore.setLocale($event.target.value)">
+          <option value="zh-CN">简体中文</option>
+          <option value="en-US">English</option>
+        </select>
       </div>
 
       <div class="input-group">
-        <label for="login-username">用户ID (唯一标识)</label>
-        <input id="login-username" class="input" v-model="username" placeholder="输入唯一用户ID"
+        <label for="login-username">{{ messages.userId }}</label>
+        <input id="login-username" class="input" v-model="username" :placeholder="messages.userIdPlaceholder"
                autocomplete="username" :aria-describedby="errorMsg ? 'login-error' : undefined" />
       </div>
 
       <div class="input-group" v-if="isRegister">
-        <label for="register-display-name">昵称</label>
+        <label for="register-display-name">{{ messages.displayName }}</label>
         <input id="register-display-name" class="input" v-model="displayName"
-               placeholder="输入显示昵称" autocomplete="nickname" />
+               :placeholder="messages.displayNamePlaceholder" autocomplete="nickname" />
       </div>
 
       <div class="input-group">
-        <label for="login-password">密码</label>
-        <input id="login-password" class="input" v-model="password" type="password" placeholder="输入密码"
+        <label for="login-password">{{ messages.password }}</label>
+        <input id="login-password" class="input" v-model="password" type="password" :placeholder="messages.passwordPlaceholder"
                :autocomplete="isRegister ? 'new-password' : 'current-password'"
                :aria-describedby="errorMsg ? 'login-error' : undefined" />
       </div>
 
       <div class="input-group" v-if="isRegister">
-        <label for="register-password-confirmation">确认密码</label>
+        <label for="register-password-confirmation">{{ messages.confirmPassword }}</label>
         <input id="register-password-confirmation" class="input" v-model="confirmPassword"
-               type="password" placeholder="再次输入密码" autocomplete="new-password" />
+               type="password" :placeholder="messages.confirmPasswordPlaceholder" autocomplete="new-password" />
       </div>
 
       <div v-if="errorMsg" id="login-error" class="error-msg" role="alert" aria-live="assertive">
@@ -38,21 +44,21 @@
       </div>
 
       <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
-        {{ loading ? '连接中...' : (isRegister ? '注册' : '登录') }}
+        {{ loading ? messages.connecting : (isRegister ? messages.register : messages.login) }}
       </button>
 
       <div class="login-footer">
         <button type="button" @click="isRegister = !isRegister" class="switch-link">
-          {{ isRegister ? '已有账号？去登录' : '没有账号？注册' }}
+          {{ isRegister ? messages.switchToLogin : messages.switchToRegister }}
         </button>
         <router-link v-if="v2PreviewEnabled" to="/preview/v2" class="switch-link">
-          V2 工程预览
+          {{ messages.v2Preview }}
         </router-link>
       </div>
 
       <!-- 主题切换 -->
       <button type="button" class="btn-icon theme-toggle"
-              :aria-label="userStore.darkMode ? '切换到浅色主题' : '切换到深色主题'"
+              :aria-label="userStore.darkMode ? messages.lightTheme : messages.darkTheme"
               @click="userStore.toggleDarkMode()">
         {{ userStore.darkMode ? '☀️' : '🌙' }}
       </button>
@@ -61,11 +67,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs, MsgType } from '../services/websocket'
+import { loginMessages } from '../localization/webLocale'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -77,38 +84,42 @@ const password = ref('')
 const confirmPassword = ref('')
 const isRegister = ref(false)
 const loading = ref(false)
-const errorMsg = ref('')
 const v2PreviewEnabled = import.meta.env.VITE_CHAT_V2_PREVIEW === 'true'
-
+const messages = computed(() => loginMessages(userStore.locale))
+const localErrorKey = ref('')
+const remoteError = ref('')
+const errorMsg = computed(() => localErrorKey.value
+  ? messages.value[localErrorKey.value]
+  : remoteError.value)
 
 function doLogin() {
   if (!username.value || !password.value) {
-    errorMsg.value = '请输入用户ID和密码'
+    setLocalError('loginRequired')
     return
   }
   if (userStore.endpointPolicyError) {
-    errorMsg.value = userStore.endpointPolicyError
+    setRemoteError(userStore.endpointPolicyError)
     return
   }
-  errorMsg.value = ''
+  clearError()
   loading.value = true
   chatWs.connectUrl(userStore.websocketUrl)
 }
 
 function doRegister() {
   if (!username.value || !displayName.value || !password.value) {
-    errorMsg.value = '请填写所有字段'
+    setLocalError('registerRequired')
     return
   }
   if (password.value !== confirmPassword.value) {
-    errorMsg.value = '两次密码不一致'
+    setLocalError('passwordMismatch')
     return
   }
   if (userStore.endpointPolicyError) {
-    errorMsg.value = userStore.endpointPolicyError
+    setRemoteError(userStore.endpointPolicyError)
     return
   }
-  errorMsg.value = ''
+  clearError()
   loading.value = true
   chatWs.connectUrl(userStore.websocketUrl)
 }
@@ -125,7 +136,7 @@ function onConnected() {
 function onDisconnected() {
   if (loading.value) {
     loading.value = false
-    errorMsg.value = '无法连接到服务器'
+    setLocalError('connectionFailed')
   }
 }
 
@@ -134,12 +145,12 @@ function onOffline() {
   // explicit user action and must not retain an automatic login attempt.
   chatWs.disconnect()
   loading.value = false
-  errorMsg.value = '网络已断开，请在恢复连接后重试'
+  setLocalError('offline')
 }
 
 function onOnline() {
-  if (errorMsg.value === '网络已断开，请在恢复连接后重试') {
-    errorMsg.value = '网络已恢复，可以重新登录'
+  if (localErrorKey.value === 'offline') {
+    setLocalError('onlineAgain')
   }
 }
 
@@ -161,7 +172,8 @@ function onLoginRsp(msg) {
     router.push('/chat')
   } else {
     userStore.clearSessionCredentials()
-    errorMsg.value = msg.data.error || '登录失败'
+    if (msg.data.error) setRemoteError(msg.data.error)
+    else setLocalError('loginFailed')
   }
 }
 
@@ -170,12 +182,28 @@ function onRegisterRsp(msg) {
   if (msg.data.success) {
     // 注册成功，自动登录
     isRegister.value = false
-    errorMsg.value = ''
+    clearError()
     chatWs.login(username.value, password.value)
     loading.value = true
   } else {
-    errorMsg.value = msg.data.error || '注册失败'
+    if (msg.data.error) setRemoteError(msg.data.error)
+    else setLocalError('registerFailed')
   }
+}
+
+function clearError() {
+  localErrorKey.value = ''
+  remoteError.value = ''
+}
+
+function setLocalError(key) {
+  localErrorKey.value = key
+  remoteError.value = ''
+}
+
+function setRemoteError(message) {
+  localErrorKey.value = ''
+  remoteError.value = message
 }
 
 onMounted(() => {
@@ -216,6 +244,14 @@ onUnmounted(() => {
 .login-header {
   text-align: center;
   margin-bottom: 32px;
+}
+.locale-select {
+  margin-top: 12px;
+  padding: 6px 28px 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
 }
 .login-logo {
   font-size: 48px;

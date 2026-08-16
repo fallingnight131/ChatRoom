@@ -1967,6 +1967,13 @@ label carries state, so neither directory selection nor connectivity depends on
 color alone. This changes presentation only; directory identity and selection
 remain application-owned.
 
+Web localization now has a typed `zh-CN`/`en-US` catalog boundary and a bounded
+non-secret `chat.web.locale` preference. Invalid or denied storage defaults to
+Chinese, selection updates the document language, and the login/registration
+surface is the first completely migrated vertical slice. Local login failures
+retain stable catalog keys across language changes; server-provided errors stay
+verbatim. The authenticated shell remains Chinese until later catalog slices.
+
 ### Product consistency
 
 Share these across clients:

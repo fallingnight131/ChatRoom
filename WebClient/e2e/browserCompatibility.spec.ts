@@ -379,6 +379,17 @@ test("supports keyboard login order and announced validation", async ({ page }) 
   await exerciseKeyboardLogin(page);
 });
 
+test("persists the supported login locale and updates document language", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("界面语言").selectOption("en-US");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en-US");
+  await expect(page.getByLabel("User ID (unique)")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Interface language")).toHaveValue("en-US");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en-US");
+});
+
 test("supports authenticated tab navigation and modal focus restoration", async ({ page }) => {
   await installV1ClientFixture(page);
   await page.goto("/");
