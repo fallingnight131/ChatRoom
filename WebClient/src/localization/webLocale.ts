@@ -596,6 +596,25 @@ const v2PreviewTimelineCatalog = {
   },
 } as const;
 
+const v2PreviewBasicActionCatalog = {
+  "zh-CN": {
+    copy: "复制", copyLabel: (sequence: string) => `复制消息 ${sequence} 正文`,
+    reply: "回复", replyLabel: (sequence: string) => `回复消息 ${sequence}`,
+    retry: "重试", retryLabel: "重试这条发送失败的消息",
+    copied: (sequence: string) => `消息 ${sequence} 正文已复制`,
+    copyFailed: "无法复制消息正文，请检查浏览器权限",
+    retryUnavailable: "该消息暂时无法重试", retryFailed: "消息重试失败",
+  },
+  "en-US": {
+    copy: "Copy", copyLabel: (sequence: string) => `Copy message ${sequence} text`,
+    reply: "Reply", replyLabel: (sequence: string) => `Reply to message ${sequence}`,
+    retry: "Retry", retryLabel: "Retry this failed message",
+    copied: (sequence: string) => `Message ${sequence} text copied`,
+    copyFailed: "Unable to copy message text. Check browser permissions.",
+    retryUnavailable: "This message cannot be retried right now", retryFailed: "Message retry failed",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -702,6 +721,10 @@ export function v2PreviewSearchMessages(locale: WebLocale) {
 
 export function v2PreviewTimelineMessages(locale: WebLocale) {
   return v2PreviewTimelineCatalog[locale];
+}
+
+export function v2PreviewBasicActionMessages(locale: WebLocale) {
+  return v2PreviewBasicActionCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

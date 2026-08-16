@@ -153,6 +153,10 @@ The V2 read-only timeline slice additionally localizes the log landmark,
 immutable pinned/forwarded/reply/edit markers, delivery states, locale-aware
 timestamps, and bounded new-message announcements. Tail classification and
 focus restoration remain unchanged and continue to have source-level tests.
+The V2 basic-action slice localizes copy, reply entry, failed-send retry, and
+their browser feedback. Its source contract retains accepted/available guards,
+the shared clipboard helper, composer focus, and the original stable client
+message ID used by retry.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

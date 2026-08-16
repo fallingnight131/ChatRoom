@@ -217,13 +217,13 @@
                 </span>
                 <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
                         class="copy-link" type="button"
-                        :aria-label="`复制消息 ${message.sequence} 正文`" @click="copyMessage(message)">
-                  复制
+                        :aria-label="basicActionMessages.copyLabel(message.sequence)" @click="copyMessage(message)">
+                  {{ basicActionMessages.copy }}
                 </button>
                 <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
-                        class="reply-link" type="button" :aria-label="`回复消息 ${message.sequence}`"
+                        class="reply-link" type="button" :aria-label="basicActionMessages.replyLabel(message.sequence)"
                         @click="startReply(message)">
-                  回复
+                  {{ basicActionMessages.reply }}
                 </button>
                 <button v-if="canEdit(message)" class="edit-link" type="button"
                         :aria-label="`编辑消息 ${message.sequence}`"
@@ -234,9 +234,9 @@
                         :aria-label="`转发消息 ${message.sequence}`"
                         @click="openForwardPicker(message)">转发</button>
                 <button v-if="message.deliveryState === 'failed'" class="retry-link" type="button"
-                        aria-label="重试这条发送失败的消息"
+                        :aria-label="basicActionMessages.retryLabel"
                         @click="retryMessage(message.clientMessageId)">
-                  重试
+                  {{ basicActionMessages.retry }}
                 </button>
               </div>
             </li>
@@ -399,6 +399,7 @@ import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 import { useUserStore } from '../stores/user'
 import {
   messageTimelineMessages,
+  v2PreviewBasicActionMessages,
   v2PreviewSearchMessages,
   v2PreviewShellMessages,
   v2PreviewTimelineMessages,
@@ -417,6 +418,7 @@ const shellMessages = computed(() => v2PreviewShellMessages(userStore.locale))
 const searchMessages = computed(() => v2PreviewSearchMessages(userStore.locale))
 const timelineMessages = computed(() => messageTimelineMessages(userStore.locale))
 const v2TimelineMessages = computed(() => v2PreviewTimelineMessages(userStore.locale))
+const basicActionMessages = computed(() => v2PreviewBasicActionMessages(userStore.locale))
 const username = ref('')
 const password = ref('')
 const draft = ref('')
@@ -683,9 +685,9 @@ async function copyMessage(message) {
   copyAnnouncement.value = ''
   await nextTick()
   if (await copyMessageText(message.content)) {
-    copyAnnouncement.value = `消息 ${message.sequence} 正文已复制`
+    copyAnnouncement.value = basicActionMessages.value.copied(message.sequence)
   } else {
-    actionError.value = '无法复制消息正文，请检查浏览器权限'
+    actionError.value = basicActionMessages.value.copyFailed
   }
 }
 
@@ -698,9 +700,9 @@ function replyPreview(message) {
 function retryMessage(clientMessageId) {
   actionError.value = ''
   try {
-    if (!runtimeRef.value.application.retryMessage(clientMessageId)) actionError.value = '该消息暂时无法重试'
+    if (!runtimeRef.value.application.retryMessage(clientMessageId)) actionError.value = basicActionMessages.value.retryUnavailable
   } catch (error) {
-    actionError.value = error instanceof Error ? error.message : '消息重试失败'
+    actionError.value = error instanceof Error ? error.message : basicActionMessages.value.retryFailed
   }
 }
 

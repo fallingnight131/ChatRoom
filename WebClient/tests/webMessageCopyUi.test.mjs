@@ -17,10 +17,11 @@ test('guards V1 copy availability and announces its browser result', () => {
 
 test('exposes V2 copy only for accepted available messages with live feedback', () => {
   for (const marker of [
-    ':aria-label="`复制消息 ${message.sequence} 正文`"',
+    ':aria-label="basicActionMessages.copyLabel(message.sequence)"',
     "message.deliveryState === 'accepted' && message.availability === 'available'",
     '@click="copyMessage(message)"',
     'await copyMessageText(message.content)',
-    'aria-live="polite" aria-atomic="true"'
+    'aria-live="polite" aria-atomic="true"',
+    'basicActionMessages.value.copied(message.sequence)',
   ]) assert.ok(v2.includes(marker), `missing V2 copy UI marker: ${marker}`)
 })

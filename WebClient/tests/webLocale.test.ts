@@ -21,6 +21,7 @@ import {
   v2PreviewShellMessages,
   v2PreviewSearchMessages,
   v2PreviewTimelineMessages,
+  v2PreviewBasicActionMessages,
   persistWebLocale,
   profileMessages,
   roomListMessages,
@@ -133,6 +134,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(v2PreviewTimelineMessages("en-US")).sort(),
     Object.keys(v2PreviewTimelineMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(v2PreviewBasicActionMessages("en-US")).sort(),
+    Object.keys(v2PreviewBasicActionMessages("zh-CN")).sort(),
   );
 });
 

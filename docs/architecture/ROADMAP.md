@@ -2392,6 +2392,8 @@ Candidate slices:
     preserving byte validation, bounded results, context lookup, and focus.
   - [x] Migrate the Web V2 read-only timeline semantics and bounded new-message
     feedback while preserving live-tail classification and focus ownership.
+  - [x] Migrate Web V2 copy, reply entry, and failed-send retry feedback while
+    preserving availability guards, clipboard isolation, focus, and identity.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

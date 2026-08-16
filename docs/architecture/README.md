@@ -2056,8 +2056,11 @@ bounded retention, context loading and sync ownership to the V2 application;
 the view does not advance a sequence cursor. The read-only timeline slice now
 localizes its log landmark, immutable message markers, reply fallbacks,
 delivery state, locale-aware timestamps, and bounded new-message announcements
-without changing live-tail classification or focus restoration. V2 mutation
-actions, composition, member/forwarding, and device dialogs remain later slices.
+without changing live-tail classification or focus restoration. Basic copy,
+reply entry, and failed-send retry controls now also follow the active locale;
+their accepted/available guards, clipboard boundary, focus behavior, and stable
+retry identity are unchanged. V2 edit/reaction/pin/forward mutations,
+composition, member selection, and device dialogs remain later slices.
 
 ### Product consistency
 
