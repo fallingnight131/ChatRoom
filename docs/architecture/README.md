@@ -2118,8 +2118,12 @@ subscription, and passes `userVisibleOnly: true` with a defensive VAPID public-
 key copy. The entry installs the already-tested push/click runtime with generic
 fallback copy. Vite may emit the inert hashed worker asset in an ordinary build,
 but only the exact candidate resolves/registers it; the default product performs
-no Service Worker or PushManager action. Durable worker-locale propagation and
-Chromium/Firefox browser evidence remain open.
+no Service Worker or PushManager action. The candidate now bridges only a
+validated `zh-CN`/`en-US` identifier through a versioned same-origin Cache
+Storage entry. The worker resolves code-owned generic copy inside the push
+lifetime and falls back to Chinese when storage or content is unavailable; it
+never stores account, message, endpoint, or credential data in that bridge.
+Chromium/Firefox browser evidence remains open.
 
 ADR-0410 defines the missing Web Push HTTP credential issuance boundary without
 reusing the WSS resume proof. Capability 8 and permanent types 136/137 carry an

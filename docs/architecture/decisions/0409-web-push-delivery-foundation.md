@@ -153,9 +153,7 @@ resume proof or activate a gateway/client path.
   ADR-0410 owns the token implementation and bridge.
 - The Web pure payload boundary accepts only schema 1, three canonical UUIDs,
   and a mention boolean within 2 KiB. It derives generic-copy presentation and
-  exact-HTTPS-origin V2 navigation without accepting message content. Service
-  Worker events, registration, PushManager, HTTP upload, UI, and browser gates
-  remain open.
+  exact-HTTPS-origin V2 navigation without accepting message content.
 - An injectable worker runtime handles validated push display and revalidates
   click targets before focusing/navigating one same-origin client or opening a
   window. It installs no global listener until the future exact-gated entry is
@@ -181,6 +179,13 @@ resume proof or activate a gateway/client path.
   reuses current subscription state, and requests only user-visible push with a
   copied public key. Vite may emit its inert asset, but the default app never
   resolves/registers it or touches PushManager.
+- The exact candidate view now owns an explicit, localized opt-in/out control.
+  It starts locale persistence alongside the user-gesture permission request
+  and stores only a validated `zh-CN`/`en-US` identifier in versioned same-origin
+  Cache Storage. The worker resolves code-owned generic copy during each push
+  event and uses a generic Chinese fallback when storage is absent or invalid;
+  no identity, message, endpoint, subscription key, or credential enters this
+  presentation cache. Real-browser and provider gates remain open.
 - PostgreSQL recipient resolution now starts from the exact committed message,
   rechecks current membership/account/bilateral-block/recall truth, and returns
   a complete ordered result or explicit saturation. Active subscription reads

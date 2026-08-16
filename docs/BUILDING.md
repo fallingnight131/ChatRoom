@@ -1577,6 +1577,14 @@ on mount, keeps closed-page push separate from the page-only notification
 preference, disables mutations without an authenticated WSS session, and maps
 only fixed localized controller outcomes. This is not real-provider browser
 acceptance evidence.
+The candidate persists only the exact `zh-CN` or `en-US` identifier in a
+versioned same-origin Cache Storage entry. The Service Worker validates that
+identifier inside each push event lifetime and selects code-owned generic copy;
+missing, denied, malformed, or unsafe-origin cache state falls back to generic
+Chinese copy. No account, conversation, message, credential, endpoint, or
+notification payload is stored in this locale bridge. Locale persistence starts
+alongside (not before awaiting) the explicit enable action, so the native
+permission request retains its user-gesture boundary.
 The inactive HTTP-credential protocol and application boundary can be selected
 with:
 

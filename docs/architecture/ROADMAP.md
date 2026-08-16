@@ -2507,6 +2507,10 @@ Candidate slices:
       preference that requests permission only from an explicit user gesture,
       requires an authenticated WSS session for server mutations, announces
       pending/fixed failure states, and leaves the default build UI-free.
+    - [x] Persist only the validated Web locale identifier in versioned same-
+      origin Cache Storage and resolve code-owned generic worker copy inside
+      each push lifetime, with storage/malformed fallback and no identity,
+      endpoint, payload, or credential persistence.
     - [ ] Add the exact-gated Web lease bridge, localized durable worker copy/UI,
       and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key

@@ -46,7 +46,7 @@ const canonicalUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{
 
 export function installWebPushServiceWorker(
   scope: WebPushServiceWorkerScope,
-  copy: WebPushGenericCopy,
+  copy: WebPushGenericCopy | (() => Promise<WebPushGenericCopy>),
   supportedOrigin: string,
 ): void {
   const origin = requireOrigin(supportedOrigin);
@@ -55,9 +55,7 @@ export function installWebPushServiceWorker(
     try { wire = event.data?.text() ?? ""; } catch { return; }
     const payload = decodeWebPushPayload(wire);
     if (!payload) return;
-    const presentation = presentWebPushPayload(payload, copy, origin);
-    event.waitUntil(scope.registration.showNotification(
-      presentation.title, presentation.options));
+    event.waitUntil(showNotification(scope, payload, copy, origin));
   });
   scope.addEventListener("notificationclick", event => {
     let target: string | null = null;
@@ -73,6 +71,19 @@ export function installWebPushServiceWorker(
     event.notification.close();
     if (target) event.waitUntil(activate(scope, target, origin));
   });
+}
+
+async function showNotification(
+  scope: WebPushServiceWorkerScope,
+  payload: NonNullable<ReturnType<typeof decodeWebPushPayload>>,
+  copy: WebPushGenericCopy | (() => Promise<WebPushGenericCopy>),
+  origin: string,
+): Promise<void> {
+  let resolved: WebPushGenericCopy;
+  try { resolved = typeof copy === "function" ? await copy() : copy; }
+  catch { return; }
+  const presentation = presentWebPushPayload(payload, resolved, origin);
+  await scope.registration.showNotification(presentation.title, presentation.options);
 }
 
 async function activate(

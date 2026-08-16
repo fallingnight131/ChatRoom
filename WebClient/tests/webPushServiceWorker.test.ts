@@ -55,3 +55,17 @@ test("drops malformed push and unsafe click without opening a window", () => {
   }, close() { closed++; } }, waitUntil() { waits++; } });
   assert.equal(waits, 0); assert.equal(closed, 1);
 });
+
+test("resolves durable localized copy inside the push lifetime", async () => {
+  const listeners = new Map<string, (event: any) => void>(); const shown: string[] = [];
+  installWebPushServiceWorker({
+    registration: { async showNotification(title: string) { shown.push(title); } },
+    clients: { async matchAll() { return []; }, async openWindow() {} },
+    addEventListener(type: string, listener: (event: any) => void) { listeners.set(type, listener); },
+  }, async () => ({ messageTitle: "本地化消息", mentionTitle: "本地化提及", body: "打开应用" }),
+  "https://chat.example");
+  let pending: Promise<unknown> | undefined;
+  listeners.get("push")!({ data: { text: () => payload }, waitUntil(value: Promise<unknown>) { pending = value; } });
+  await pending;
+  assert.deepEqual(shown, ["本地化消息"]);
+});

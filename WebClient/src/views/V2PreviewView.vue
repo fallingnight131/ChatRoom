@@ -576,6 +576,7 @@ import { addPendingNewMessages } from '../messaging/newMessageIndicator.js'
 import { classifyV2TailUpdate } from '../messaging/v2TailActivity'
 import { WebMessageNotificationPresenter } from '../platform/webMessageNotification'
 import { WebNotificationPreferenceController } from '../platform/webNotificationPreference'
+import { persistWebPushLocale } from '../platform/webPushLocale'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 import { nextWrappingFocusIndex } from '../ui/linearFocusNavigation'
 import { useUserStore } from '../stores/user'
@@ -906,9 +907,13 @@ async function toggleWebPush() {
   const controller = webPushController
   if (!controller || !canManageWebPush.value) return
   webPushSubscription.value = { ...webPushSubscription.value, pending: true }
+  const localeWrite = webPushSubscription.value.enabled
+    ? Promise.resolve(false)
+    : persistWebPushLocale(userStore.locale)
   const result = webPushSubscription.value.enabled
     ? await controller.disable()
     : await controller.enableFromUserGesture()
+  await localeWrite
   if (webPushController === controller) webPushSubscription.value = result
 }
 
@@ -1028,7 +1033,8 @@ function setLowBandwidthMode(event) {
 }
 
 function setLocale(event) {
-  userStore.setLocale(event.target.value)
+  if (!userStore.setLocale(event.target.value)) return
+  if (webPushSubscription.value.enabled) void persistWebPushLocale(userStore.locale)
 }
 
 function moveConversationFocus(event) {
