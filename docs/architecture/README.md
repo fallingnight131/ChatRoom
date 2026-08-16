@@ -968,6 +968,14 @@ client message ID, and does not count the later authoritative ACK twice. Initial
 history and search-context repair are suppressed, while genuine reconnect tail
 additions above an existing cursor remain eligible. The count is local-only and
 does not mutate read state, cache contents, or synchronization cursors.
+The first explicit Web low-bandwidth policy now uses the browser `saveData` hint
+only when the user has not made a stored choice. When enabled, existing cached
+avatars remain visible but room-member, friend, message-row, login, and reconnect
+surfaces stop issuing automatic avatar requests. Opening a person's profile is
+an explicit action and may still fetch that avatar. The policy never disables
+message delivery, history repair, attachment commands, or user-initiated file
+access. A denied storage write leaves the choice effective for the page session
+and reports that limitation instead of claiming persistence.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

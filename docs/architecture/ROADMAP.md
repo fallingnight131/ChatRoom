@@ -2294,6 +2294,8 @@ Candidate slices:
     accessible new-message counter and keyboard-operable jump to the live tail.
   - [x] Add equivalent Web V2 tail following using stable message/client IDs and
     server sequences without counting initial history or search-context repair.
+  - [x] Add the first Web low-bandwidth slice with a browser-data-saver default,
+    persistent override, and suppression of automatic avatar fetches only.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

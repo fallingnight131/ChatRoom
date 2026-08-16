@@ -321,10 +321,7 @@ function isMine(msg) {
 function getAvatarSrc(username) {
   const data = userStore.getAvatar(username)
   if (data) return 'data:image/png;base64,' + data
-  if (username && !userStore.avatarCache[username]) {
-    userStore.avatarCache[username] = ''
-    chatWs.getAvatar(username)
-  }
+  userStore.requestAvatarIfAllowed(username)
   return ''
 }
 

@@ -2223,6 +2223,11 @@ The V2 TypeScript tail test covers stable-ID deduplication, optimistic-to-ACK
 convergence, malformed sequences, and context records below the existing tail.
 The V2 source gate separately requires initial-history/search-repair suppression,
 tail scrolling, bounded feedback, and keyboard focus restoration.
+The Web bandwidth-preference TypeScript test covers explicit override priority,
+the browser `saveData` default, malformed/denied storage, and session fallback.
+The UI/source gate requires every automatic avatar request to consult the same
+preference while retaining explicit profile loading. This is measured request
+suppression for avatars only, not a claim that V1 inline media bytes are saved.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

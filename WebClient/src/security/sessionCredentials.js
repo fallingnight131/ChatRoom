@@ -40,6 +40,6 @@ export function purgeLegacyPersistedSession(storage) {
     }
   }
   if (!storage || typeof storage.removeItem !== 'function') return
-  storage.removeItem('credentials')
-  storage.removeItem('user')
+  try { storage.removeItem('credentials') } catch { /* inaccessible legacy storage */ }
+  try { storage.removeItem('user') } catch { /* inaccessible legacy storage */ }
 }

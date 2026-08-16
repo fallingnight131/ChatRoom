@@ -10,13 +10,31 @@ import {
   setSessionCredentials as setInMemoryCredentials,
   stageSessionPasswordChange
 } from '../security/sessionCredentials'
+import {
+  persistBandwidthPreference,
+  resolveBandwidthPreference,
+  shouldAutoRequestAvatar
+} from '../preferences/webBandwidthPreference'
 
+function resolveWebStorage() {
+  try { return globalThis.localStorage || null } catch { return null }
+}
+
+function readDarkMode(storage) {
+  try { return storage?.getItem('darkMode') !== 'false' } catch { return true }
+}
+
+const webStorage = resolveWebStorage()
 purgeLegacyPersistedSession()
-purgeLegacyServerOverrides(typeof localStorage === 'undefined' ? null : localStorage)
+purgeLegacyServerOverrides(webStorage)
 
 const endpointPolicy = resolveWebEndpointPolicy(
   typeof location === 'undefined' ? null : location,
   import.meta.env
+)
+const bandwidthPreference = resolveBandwidthPreference(
+  webStorage,
+  typeof navigator === 'undefined' ? null : (navigator.connection || null)
 )
 
 export const useUserStore = defineStore('user', {
@@ -26,7 +44,9 @@ export const useUserStore = defineStore('user', {
     username: '',      // 唯一 ID
     displayName: '',   // 昵称
     avatarData: '',    // base64
-    darkMode: localStorage.getItem('darkMode') !== 'false',
+    darkMode: readDarkMode(webStorage),
+    lowBandwidthMode: bandwidthPreference.enabled,
+    lowBandwidthPreferenceSource: bandwidthPreference.source,
     websocketUrl: endpointPolicy.usable ? endpointPolicy.websocketUrl : '',
     endpointPolicyError: endpointPolicy.usable ? '' : endpointPolicy.reason,
     // 缓存其他用户头像
@@ -37,7 +57,26 @@ export const useUserStore = defineStore('user', {
   actions: {
     toggleDarkMode() {
       this.darkMode = !this.darkMode
-      localStorage.setItem('darkMode', String(this.darkMode))
+      try { webStorage?.setItem('darkMode', String(this.darkMode)) } catch { /* session only */ }
+    },
+
+    setLowBandwidthMode(enabled) {
+      this.lowBandwidthMode = Boolean(enabled)
+      this.lowBandwidthPreferenceSource = persistBandwidthPreference(
+        webStorage,
+        this.lowBandwidthMode
+      ) ? 'user' : 'session'
+    },
+
+    requestAvatarIfAllowed(username) {
+      if (!shouldAutoRequestAvatar(
+        username,
+        this.lowBandwidthMode,
+        Object.prototype.hasOwnProperty.call(this.avatarCache, username)
+      )) return false
+      this.avatarCache[username] = ''
+      chatWs.getAvatar(username)
+      return true
     },
 
     onLoginSuccess(data) {

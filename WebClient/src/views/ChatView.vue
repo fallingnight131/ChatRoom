@@ -205,7 +205,7 @@ function onReconnectLogin(msg) {
     userStore.initListeners()
     chatStore.initListeners()
     chatStore.beginAttachmentSession(msg.data.username)
-    chatWs.getAvatar(msg.data.username)
+    userStore.requestAvatarIfAllowed(msg.data.username)
     chatWs.requestRoomList()
     chatWs.requestFriendList()
     chatStore.resumeCurrentRoom()

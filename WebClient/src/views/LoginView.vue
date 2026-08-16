@@ -155,7 +155,7 @@ function onLoginRsp(msg) {
     chatStore.initListeners()
     chatStore.beginAttachmentSession(msg.data.username)
     // 请求头像和房间列表
-    chatWs.getAvatar(msg.data.username)
+    userStore.requestAvatarIfAllowed(msg.data.username)
     chatWs.requestRoomList()
     chatWs.requestFriendList()
     router.push('/chat')

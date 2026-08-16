@@ -64,6 +64,21 @@
         </div>
       </div>
 
+      <div class="bandwidth-section">
+        <label class="bandwidth-toggle">
+          <input type="checkbox" :checked="userStore.lowBandwidthMode"
+                 @change="userStore.setLowBandwidthMode($event.target.checked)" />
+          <span>省流量模式</span>
+        </label>
+        <p>开启后不再自动请求联系人和消息列表头像；消息、离线同步和您主动打开的资料仍正常工作。</p>
+        <small v-if="userStore.lowBandwidthPreferenceSource === 'browser'" role="status">
+          已根据浏览器的节省流量设置自动开启
+        </small>
+        <small v-else-if="userStore.lowBandwidthPreferenceSource === 'session'" role="status">
+          浏览器禁止保存设置，本次会话内有效
+        </small>
+      </div>
+
       <div class="modal-actions">
         <button class="btn btn-danger" @click="doLogout">退出登录</button>
         <button class="btn btn-secondary" @click="$emit('close')">关闭</button>
@@ -205,6 +220,9 @@ onUnmounted(() => {
   justify-content: center;
   margin-bottom: 20px;
 }
+.bandwidth-section { margin: 16px 0; padding: 12px; border: 1px solid var(--border-color); border-radius: 10px; }
+.bandwidth-toggle { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.bandwidth-section p, .bandwidth-section small { display: block; margin-top: 6px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
 .profile-avatar-wrap {
   position: relative;
   cursor: pointer;

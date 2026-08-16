@@ -57,7 +57,6 @@
 import { inject } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
-import { chatWs } from '../services/websocket'
 
 const chatStore = useChatStore()
 const userStore = useUserStore()
@@ -67,10 +66,7 @@ const hashColor = inject('hashColor')
 function getAvatarSrc(username) {
   const data = userStore.getAvatar(username)
   if (data) return 'data:image/png;base64,' + data
-  if (username && !userStore.avatarCache[username]) {
-    userStore.avatarCache[username] = ''
-    chatWs.getAvatar(username)
-  }
+  userStore.requestAvatarIfAllowed(username)
   return ''
 }
 </script>

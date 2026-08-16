@@ -66,6 +66,14 @@ test('removes plaintext credentials and stale identity from older web versions',
   assert.deepEqual(removed, ['credentials', 'user'])
 })
 
+test('contains denied legacy storage without blocking in-memory authentication', () => {
+  assert.doesNotThrow(() => purgeLegacyPersistedSession({
+    removeItem: () => { throw new Error('storage denied') }
+  }))
+  assert.equal(setSessionCredentials('alice_01', 'still available in memory'), true)
+  assert.equal(getSessionCredentials().username, 'alice_01')
+})
+
 test('web authentication sources never write session state or credential-like local storage', () => {
   const here = dirname(fileURLToPath(import.meta.url))
   const sourceFiles = [
