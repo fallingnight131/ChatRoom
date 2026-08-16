@@ -2435,8 +2435,11 @@ Candidate slices:
       with per-installation reauthorization, generic payload command, invalid-
       subscription erasure, fenced completion/retry, failure isolation, and a
       fixed-cardinality event-sink boundary.
+    - [x] Add identity-free fixed-cardinality worker counters, a label-free
+      Prometheus renderer, and expiry-clipped exponential retry with bounded
+      jitter; keep them detached from runtime composition.
     - [ ] Add the real provider adapter, bounded scheduler/worker pool,
-      Prometheus implementation, readiness/backlog policy, and failure canary.
+      readiness/backlog policy, and failure canary.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
 - end-to-end encryption only after a separate cryptographic design, device-key

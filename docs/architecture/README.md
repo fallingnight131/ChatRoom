@@ -2021,8 +2021,12 @@ registration only for that synchronous call, sends only versioned stable
 navigation IDs plus the mention boolean, deletes invalid installations, and
 fences terminal or retry mutations. Policy/storage/credential/provider failures
 become fixed failure codes and event-sink methods without exception text or
-identity labels. This is fake-provider application evidence: no real Web Push
-protocol adapter, scheduler/pool, Prometheus sink, readiness policy, or runtime
+identity labels. The gateway operations package now supplies lock-free,
+fixed-name worker counters, label-free Prometheus text, and exponential retry
+from 1 second to 15 minutes with bounded 50%--150% jitter. Retry is clipped
+strictly before the durable event expiry and rejects an already exhausted
+window. These pieces are detached operational policy only: no real Web Push
+protocol adapter, scheduler/pool, readiness policy, metrics endpoint, or runtime
 composition exists.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only

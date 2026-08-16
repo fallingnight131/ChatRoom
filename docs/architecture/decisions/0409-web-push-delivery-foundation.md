@@ -144,8 +144,10 @@ acceptance, stall synchronization, or reduce gateway readiness.
 - The detached worker application service is default-off, bounded by recipient/
   installation caps, reauthorizes each attempt, exposes only generic stable-ID
   provider commands, erases invalid installs, fences retry/completion, and emits
-  fixed-cardinality events. Real provider, scheduler, metrics, and runtime
-  composition remain open.
+  fixed-cardinality events. Detached lock-free counters render only fixed,
+  label-free Prometheus series, while exponential retry is jittered, capped at
+  15 minutes, and clipped before event expiry. Real provider, scheduler,
+  readiness policy, metrics endpoint, and runtime composition remain open.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

@@ -1509,6 +1509,17 @@ retry mapping, fence handling, ineligible completion, and post-call plaintext
 registration closing. The provider is a deterministic fake; this does not prove
 RFC Web Push encryption/VAPID, external delivery, scheduler saturation,
 Prometheus output, or production readiness.
+The detached fixed-cardinality worker telemetry and retry policy are covered by:
+
+```bash
+cd Backend
+./gradlew --no-daemon :im-gateway:test --tests '*WebPushWorkerOperations*'
+```
+
+This proves fixed identity-free metric names and label-free Prometheus text,
+plus 1-second-to-15-minute exponential retry with bounded jitter and strict
+event-expiry clipping. It does not expose a metrics endpoint, run a scheduler,
+contact a Web Push provider, or establish readiness/backlog thresholds.
 The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility
