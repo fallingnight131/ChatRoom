@@ -2412,6 +2412,8 @@ Candidate slices:
     legacy-failure adapters and a no-fixed-Chinese source guard.
   - [x] Expose the shared persisted Web low-bandwidth preference in V2 without
     gating connection, synchronization, conversation, or message operations.
+  - [x] Add non-activating Arrow/Home/End keyboard focus navigation to the Web
+    V2 conversation directory while preserving native button activation.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

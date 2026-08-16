@@ -72,6 +72,7 @@
             <button :class="['conversation-button', { active: conversation.conversationId === snapshot.activeConversationId }]"
                     type="button"
                     :aria-current="conversation.conversationId === snapshot.activeConversationId ? 'page' : undefined"
+                    @keydown="moveConversationFocus"
                     @click="openConversation(conversation.conversationId)">
               <strong>{{ conversation.displayName }}</strong>
               <span>{{ conversation.kind === 'direct' ? shellMessages.direct : shellMessages.group }} · #{{ conversation.latestSequence }}</span>
@@ -412,6 +413,7 @@ import { copyMessageText } from '../messaging/copyMessageText.js'
 import { addPendingNewMessages } from '../messaging/newMessageIndicator.js'
 import { classifyV2TailUpdate } from '../messaging/v2TailActivity'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
+import { nextWrappingFocusIndex } from '../ui/linearFocusNavigation'
 import { useUserStore } from '../stores/user'
 import {
   messageTimelineMessages,
@@ -688,6 +690,17 @@ function loadMoreDirectory() {
 
 function setLowBandwidthMode(event) {
   userStore.setLowBandwidthMode(event.target.checked)
+}
+
+function moveConversationFocus(event) {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+  const buttons = Array.from(event.currentTarget
+    ?.closest('.conversation-list')
+    ?.querySelectorAll('button:not(:disabled)') || [])
+  const next = nextWrappingFocusIndex(event.key, buttons.indexOf(event.currentTarget), buttons.length)
+  if (next === null) return
+  event.preventDefault()
+  buttons[next].focus()
 }
 
 function sendMessage() {

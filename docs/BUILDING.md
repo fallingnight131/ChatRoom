@@ -199,6 +199,10 @@ as V1. Its native checkbox exposes browser-data-saver and session-only storage
 status accessibly. The preference remains a presentation/network-fetch policy:
 it does not gate V2 startup, synchronization, conversation opening, or message
 submission; the current text-only V2 preview has no automatic avatar request.
+The V2 conversation directory also supports Arrow Up/Down and Home/End focus
+movement. Navigation changes focus only; Enter or Space on the native button is
+still required to open a conversation, so keyboard browsing cannot mutate the
+active server conversation accidentally.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

@@ -2101,6 +2101,11 @@ fetch policy: V2 connection startup, incremental synchronization, conversation
 opening, message submission, and user-initiated operations remain enabled. The
 current text-only preview issues no automatic avatar request, so this is an
 explicit policy/control boundary rather than a bandwidth-capacity claim.
+For keyboard users, the V2 conversation directory now adds wrapping Arrow
+Up/Down focus movement plus Home/End boundaries while retaining native buttons.
+Focus navigation is intentionally separate from activation: only the button's
+native Enter/Space action opens the stable conversation identity, and
+`aria-current` continues to describe the application-owned active conversation.
 
 ### Product consistency
 
