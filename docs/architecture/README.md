@@ -851,7 +851,11 @@ a labeled native search form, polite result count/failure announcements,
 keyboard-operable pagination, and focusable result reveal. Revealing a hit
 merges its already validated server projection into page memory without
 advancing or persisting the ordinary sync cursor. Adjacent context-history
-repair remains uncomposed.
+repair now uses a separately correlated ordinary-history command anchored one
+sequence before the hit. Its single bounded response merges validated messages
+and mutation projections into page memory but never auto-pages, persists the
+partial window, or advances the ordinary sync cursor. Disconnect, conversation
+switch, denial, and late response paths abandon the context request safely.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

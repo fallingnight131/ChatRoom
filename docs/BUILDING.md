@@ -2059,6 +2059,10 @@ capability state is true. Static accessibility tests lock its native search
 form, live status, result-list label, pagination, and keyboard-focusable reveal;
 the reveal uses the validated hit in page memory and does not alter the sync
 cursor. Adjacent context repair and deployment activation remain separate.
+Result reveal now sends a separately correlated history request anchored just
+before the hit. Tests prove the bounded context page merges into page memory,
+does not auto-page, and remains outside the durable synchronization cursor and
+IndexedDB snapshot. Deployment activation remains separate.
 Windows now has a separate CMake configuration seam,
 `CHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON`. It is rejected unless both the
 Windows client and `CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON` are selected. The

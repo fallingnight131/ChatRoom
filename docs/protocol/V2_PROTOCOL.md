@@ -130,6 +130,10 @@ The Web candidate correlates every search response with one active in-memory
 request and discards pages abandoned by disconnect or conversation change.
 Search query/result state is not persisted and does not advance the ordinary
 history synchronization cursor.
+Opening a Web search hit may issue one correlated `ReadMessageHistory` command
+from the preceding sequence. The client treats that response as a bounded
+ephemeral context projection: it does not follow `has_more`, persist the partial
+window, or update the normal incremental-sync cursor.
 
 After authentication, the gateway dispatches types 100 and 102 through the
 transport-independent application ports and PostgreSQL adapter. It uses only

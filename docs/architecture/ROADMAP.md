@@ -2214,8 +2214,10 @@ Progress:
       and no query/result persistence.
     - [x] Add the capability-gated accessible Web search form, live result
       status, bounded paged list, and keyboard-focusable local-hit reveal.
-    - [ ] Add context-history repair without advancing the sync cursor, plus
-      explicit endpoint activation evidence.
+    - [x] Add a separately correlated, bounded Web context-history request that
+      merges validated adjacent records in page memory without persistence,
+      auto-pagination, or sync-cursor advancement.
+    - [ ] Add explicit Web endpoint activation and rollback evidence.
     - [ ] Add the equivalent Windows protocol, local state, accessible UI, and
       endpoint activation evidence.
 

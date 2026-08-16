@@ -95,6 +95,7 @@
             </form>
             <p class="search-status" aria-live="polite" aria-atomic="true">
               <template v-if="snapshot.searchFailure">{{ snapshot.searchFailure }}</template>
+              <template v-else-if="snapshot.searchContextLoading">正在加载消息上下文…</template>
               <template v-else-if="snapshot.searchQuery && !snapshot.searchLoading">
                 已找到 {{ snapshot.searchResults.length }} 条结果
               </template>
@@ -370,7 +371,7 @@ const snapshot = ref({
   historyLoading: false, devices: [],
   devicesLoading: false, revokingDeviceId: null, deviceFailure: '', lastFailure: '',
   forwardingEnabled: false, searchEnabled: false, searchQuery: '', searchResults: [],
-  searchLoading: false, searchHasMore: false, searchFailure: ''
+  searchLoading: false, searchHasMore: false, searchFailure: '', searchContextLoading: false
 })
 let unsubscribe = null
 let startedApplication = null

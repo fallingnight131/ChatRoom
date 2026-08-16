@@ -176,6 +176,13 @@ export class V2WebSocketTransport {
     this.send(this.requireAuthenticated().readMessageHistory(conversationId, afterSequence, limit));
   }
 
+  readMessageContext(conversationId: string, afterSequence: bigint, limit: number): string {
+    const command = this.requireAuthenticated().readMessageContext(
+      conversationId, afterSequence, limit);
+    this.send(command.bytes);
+    return command.requestId;
+  }
+
   searchConversationMessages(
     conversationId: string,
     literalQuery: string,

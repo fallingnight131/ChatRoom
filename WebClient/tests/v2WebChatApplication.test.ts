@@ -71,6 +71,11 @@ class FakeTransport {
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): void {
     this.calls.push(["history", conversationId, afterSequence, limit]);
   }
+  readMessageContext(conversationId: string, afterSequence: bigint, limit: number): string {
+    const requestId = `context-${this.calls.length}`;
+    this.calls.push(["context", conversationId, afterSequence, limit, requestId]);
+    return requestId;
+  }
   searchConversationMessages(
     conversationId: string, literalQuery: string, beforeSequence: bigint, limit: number): string {
     const requestId = `search-${this.calls.length}`;
@@ -961,6 +966,25 @@ test("keeps bounded search results in memory and abandons stale pages on disconn
   assert.equal(application.snapshot.searchHasMore, true);
   assert.equal(application.revealSearchHit(MESSAGE_ID), true);
   assert.equal(application.snapshot.messages.some(message => message.id === MESSAGE_ID), true);
+  const context = transport.calls.at(-1)!;
+  assert.deepEqual(context.slice(0, 4), ["context", CONVERSATION_ID, 8n, 50]);
+  transport.emit({
+    type: "message-history-page",
+    requestId: context[4] as string,
+    clientMessageId: "",
+    value: create(MessageHistoryPageSchema, {
+      conversationId: CONVERSATION_ID,
+      messages: [hit, { ...hit, messageId: SECOND_MESSAGE_ID,
+        clientMessageId: "search-context-2", conversationSequence: 10n }],
+      nextSequence: 10n,
+      latestSequence: 20n,
+      hasMore: true,
+    }),
+  });
+  assert.equal(application.snapshot.searchContextLoading, false);
+  assert.equal(application.snapshot.messages.some(message => message.id === SECOND_MESSAGE_ID), true);
+  assert.equal(transport.calls.at(-1), context,
+    "context pages do not auto-page or enter the ordinary sync loop");
 
   assert.equal(application.loadMoreSearchResults(), true);
   assert.deepEqual(transport.calls.at(-1)?.slice(0, 5),

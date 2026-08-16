@@ -137,6 +137,8 @@ export interface V2ChatTransport {
   listConversationParticipants(
     conversationId: string, limit: number, afterAccountId?: string): string;
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): void;
+  readMessageContext?(
+    conversationId: string, afterSequence: bigint, limit: number): string;
   searchConversationMessages?(
     conversationId: string, literalQuery: string, beforeSequence: bigint, limit: number): string;
   submitText(conversationId: string, clientMessageId: string, text: string,
@@ -228,6 +230,7 @@ export interface V2WebChatSnapshot {
   searchLoading: boolean;
   searchHasMore: boolean;
   searchFailure: string;
+  searchContextLoading: boolean;
 }
 
 export interface V2WebChatApplicationOptions {
@@ -294,6 +297,7 @@ export class V2WebChatApplication {
   private participantRequest: { requestId: string; conversationId: string } | null = null;
   private searchState: SearchState = emptySearchState();
   private searchRequest: { requestId: string; conversationId: string; append: boolean } | null = null;
+  private searchContextRequest: { requestId: string; conversationId: string } | null = null;
   private selectionGeneration = 0;
   private sessionGeneration = 0;
   private readonly replayedAtGeneration = new Map<string, number>();
@@ -351,6 +355,7 @@ export class V2WebChatApplication {
       searchLoading: this.searchState.loading,
       searchHasMore: this.searchState.hasMore,
       searchFailure: this.searchState.failure,
+      searchContextLoading: this.searchContextRequest !== null,
     };
   }
 
@@ -500,6 +505,7 @@ export class V2WebChatApplication {
 
   clearSearch(): void {
     this.searchRequest = null;
+    this.searchContextRequest = null;
     this.searchState = emptySearchState();
     this.emit();
   }
@@ -511,6 +517,19 @@ export class V2WebChatApplication {
     const hit = this.searchState.results.find((message) => message.id === messageId);
     if (!conversationId || !state || !hit || hit.conversationId !== conversationId) return false;
     state.messages = mergeMessages(state.messages, [cloneMessage(hit)]);
+    const context = this.transport.readMessageContext;
+    if (context && this.connectionStateValue === "authenticated") {
+      try {
+        const sequence = BigInt(hit.sequence);
+        const requestId = context.call(
+          this.transport, conversationId, sequence > 1n ? sequence - 1n : 0n, 50);
+        this.searchContextRequest = { requestId, conversationId };
+        this.searchState.failure = "";
+      } catch {
+        this.searchContextRequest = null;
+        this.searchState.failure = "无法加载消息上下文";
+      }
+    }
     this.emit();
     return true;
   }
@@ -909,6 +928,7 @@ export class V2WebChatApplication {
     this.participants.clear();
     this.participantRequest = null;
     this.searchRequest = null;
+    this.searchContextRequest = null;
     this.searchState = emptySearchState();
     this.clearDeviceState();
     this.replayedAtGeneration.clear();
@@ -930,6 +950,7 @@ export class V2WebChatApplication {
     this.participants.clear();
     this.participantRequest = null;
     this.searchRequest = null;
+    this.searchContextRequest = null;
     this.searchState = emptySearchState();
     this.clearDeviceState();
   }
@@ -945,6 +966,7 @@ export class V2WebChatApplication {
       this.resetDeviceRequests();
       this.abandonParticipantRequest();
       this.abandonSearchRequest();
+      this.searchContextRequest = null;
     }
     this.emit();
   }
@@ -1012,9 +1034,13 @@ export class V2WebChatApplication {
         this.applySearchPage(event);
         break;
       case "message-history-page":
-        this.applyHistoryPage(event.value.conversationId, event.value.messages,
-          event.value.entries,
-          event.value.nextSequence, event.value.hasMore);
+        if (event.requestId === this.searchContextRequest?.requestId) {
+          this.applySearchContextPage(event);
+        } else {
+          this.applyHistoryPage(event.value.conversationId, event.value.messages,
+            event.value.entries,
+            event.value.nextSequence, event.value.hasMore);
+        }
         break;
       case "message-published":
         this.applyPublishedMessage(event.value);
@@ -1325,6 +1351,11 @@ export class V2WebChatApplication {
   }
 
   private applyProtocolError(event: Extract<V2WebProtocolEvent, { type: "protocol-error" }>): void {
+    if (event.requestId === this.searchContextRequest?.requestId) {
+      this.searchContextRequest = null;
+      this.searchState.failure = "无法加载消息上下文";
+      return;
+    }
     if (event.requestId === this.searchRequest?.requestId) {
       this.searchRequest = null;
       this.searchState.loading = false;
@@ -1624,6 +1655,49 @@ export class V2WebChatApplication {
     this.searchState.hasMore = event.value.hasMore
       && this.searchState.results.length < MAX_RETAINED_SEARCH_HITS;
     this.searchState.loading = false;
+    this.searchState.failure = "";
+  }
+
+  private applySearchContextPage(
+    event: Extract<V2WebProtocolEvent, { type: "message-history-page" }>,
+  ): void {
+    const pending = this.searchContextRequest;
+    if (!pending || event.requestId !== pending.requestId
+        || event.value.conversationId !== pending.conversationId
+        || this.activeConversationIdValue !== pending.conversationId) return;
+    this.searchContextRequest = null;
+    const state = this.conversations.get(pending.conversationId);
+    if (!state) return;
+    if (event.value.entries.length === 0) {
+      state.messages = mergeMessages(
+        state.messages, event.value.messages.map(mapMessageRecord));
+    } else {
+      for (const entry of event.value.entries) {
+        if (entry.detail.case === "message") {
+          state.messages = mergeMessages(
+            state.messages, [mapMessageRecord(entry.detail.value)]);
+        } else if (entry.detail.case === "recall") {
+          const recall = entry.detail.value;
+          const recalled = state.messages.find(
+            (message) => message.id === recall.messageId);
+          if (recalled) {
+            recalled.content = "此消息已被撤回";
+            recalled.mentions = [];
+            recalled.availability = "recalled";
+            recalled.pinned = false;
+          }
+        } else if (entry.detail.case === "deletion") {
+          const deleted = new Set(entry.detail.value.messageIds);
+          state.messages = state.messages.filter((message) => !deleted.has(message.id));
+        } else if (entry.detail.case === "reaction") {
+          this.applyReactionToState(state, entry.detail.value);
+        } else if (entry.detail.case === "pin") {
+          this.applyPinToState(state, entry.detail.value);
+        } else if (entry.detail.case === "edit") {
+          this.applyEditToState(state, entry.detail.value);
+        }
+      }
+    }
     this.searchState.failure = "";
   }
 

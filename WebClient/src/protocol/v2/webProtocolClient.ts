@@ -318,6 +318,26 @@ export class V2WebProtocolClient {
     );
   }
 
+  readMessageContext(
+    conversationId: string,
+    afterSequence: bigint,
+    limit: number,
+  ): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    requireUuid("conversationId", conversationId);
+    if (afterSequence < 0n || afterSequence > MAX_SIGNED_SEQUENCE) {
+      throw new Error("afterSequence must be in the signed server range");
+    }
+    requirePageSize(limit);
+    return correlated(this.command(
+      MessageType.READ_MESSAGE_HISTORY,
+      toBinary(ReadMessageHistorySchema, create(ReadMessageHistorySchema, {
+        conversationId, afterSequence, limit,
+      })),
+      new Set([MessageType.MESSAGE_HISTORY_PAGE]),
+    ));
+  }
+
   searchConversationMessages(
     conversationId: string,
     literalQuery: string,

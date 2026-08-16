@@ -279,6 +279,14 @@ test("encodes authenticated directory, history, and idempotent text commands", (
     { conversationId: history.conversationId, afterSequence: history.afterSequence, limit: history.limit },
     { conversationId: CONVERSATION_ID, afterSequence: 8n, limit: 50 },
   );
+  const contextCommand = client.readMessageContext(CONVERSATION_ID, 7n, 50);
+  const contextEnvelope = decodeEnvelope(contextCommand.bytes);
+  const context = fromBinary(ReadMessageHistorySchema, contextEnvelope.payload);
+  assert.equal(contextCommand.requestId, contextEnvelope.requestId);
+  assert.deepEqual(
+    { conversationId: context.conversationId, afterSequence: context.afterSequence, limit: context.limit },
+    { conversationId: CONVERSATION_ID, afterSequence: 7n, limit: 50 },
+  );
 
   const submitEnvelope = decodeEnvelope(client.submitText(CONVERSATION_ID, CLIENT_MESSAGE_ID, "hello V2"));
   assert.equal(submitEnvelope.clientMessageId, CLIENT_MESSAGE_ID);
