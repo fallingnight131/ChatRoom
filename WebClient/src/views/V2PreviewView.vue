@@ -155,7 +155,9 @@
                   </small>
                   <div>
                     <button class="btn btn-text" type="button"
-                            @click="openMentionPicker('edit')">@ 提及成员</button>
+                            aria-controls="v2-mention-picker" aria-haspopup="dialog"
+                            :aria-expanded="mentionPickerMode === 'edit'"
+                            @click="openMentionPicker('edit', $event)">@ 提及成员</button>
                     <button class="btn btn-primary" type="submit"
                             :disabled="!editDraft.trim() || !editBudget.withinBudget">保存</button>
                     <button class="btn btn-text" type="button" title="取消编辑（Esc）"
@@ -257,25 +259,31 @@
               {{ draftBudgetLabel }}
             </small>
             <button class="btn btn-text" type="button"
-                    aria-haspopup="dialog" @click="openMentionPicker('draft')">@ 提及成员</button>
+                    aria-controls="v2-mention-picker" aria-haspopup="dialog"
+                    :aria-expanded="mentionPickerMode === 'draft'"
+                    @click="openMentionPicker('draft', $event)">@ 提及成员</button>
             <button class="btn btn-primary" type="submit" title="发送（Enter）"
                     :disabled="!draft.trim() || !draftBudget.withinBudget">发送</button>
           </form>
-          <section v-if="mentionPickerOpen" class="mention-picker" role="dialog"
+          <section v-if="mentionPickerOpen" id="v2-mention-picker" ref="mentionPickerRef"
+                   class="mention-picker" role="dialog"
                    aria-modal="false" aria-labelledby="mention-picker-title"
-                   @keydown.esc="closeMentionPicker">
+                   @keydown.esc="closeMentionPicker()">
             <header>
               <strong id="mention-picker-title">选择要提及的成员</strong>
-              <button class="icon-button" type="button" aria-label="关闭成员选择器"
-                      @click="closeMentionPicker">×</button>
+              <button class="icon-button" type="button" data-mention-close
+                      aria-label="关闭成员选择器"
+                      @click="closeMentionPicker()">×</button>
             </header>
             <p v-if="snapshot.participantFailure" role="alert">
               {{ snapshot.participantFailure }}
               <button class="retry-link" type="button" @click="refreshParticipants">重试</button>
             </p>
-            <ul role="listbox" aria-label="会话成员" :aria-busy="snapshot.participantsLoading">
+            <ul ref="mentionListRef" role="listbox" aria-label="会话成员"
+                :aria-busy="snapshot.participantsLoading" @keydown="onMentionListKeydown">
               <li v-for="participant in snapshot.participants" :key="participant.accountId">
-                <button type="button" role="option" @click="chooseMention(participant)">
+                <button type="button" role="option" aria-selected="false"
+                        @click="chooseMention(participant)">
                   <strong>{{ participant.displayName }}</strong>
                   <span>{{ participant.role === 'owner' ? '群主' : participant.role === 'admin' ? '管理员' : '成员' }}</span>
                 </button>
@@ -409,6 +417,9 @@ const editBudgetLabel = computed(() => messageTextBudgetLabel(editDraft.value))
 const draftMentionAnchors = ref([])
 const editMentionAnchors = ref([])
 const mentionPickerMode = ref(null)
+const mentionPickerRef = ref(null)
+const mentionListRef = ref(null)
+let mentionPickerTrigger = null
 const forwardSource = ref(null)
 const forwardPending = ref(false)
 const authenticationPending = ref(false)
@@ -542,7 +553,7 @@ async function openConversation(conversationId) {
   actionError.value = ''
   replyTarget.value = null
   cancelEdit()
-  closeMentionPicker()
+  closeMentionPicker(false)
   closeForwardPicker()
   draftMentionAnchors.value = []
   searchOpen.value = false
@@ -612,7 +623,7 @@ function sendMessage() {
     }
     draft.value = ''
     draftMentionAnchors.value = []
-    closeMentionPicker()
+    closeMentionPicker(false)
     replyTarget.value = null
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : '消息发送失败'
@@ -782,7 +793,7 @@ function cancelEdit() {
   editingMessageId.value = null
   editDraft.value = ''
   editMentionAnchors.value = []
-  if (mentionPickerMode.value === 'edit') closeMentionPicker()
+  if (mentionPickerMode.value === 'edit') closeMentionPicker(false)
 }
 
 function cancelEditFromKeyboard(event) {
@@ -819,13 +830,21 @@ function updateEditDraft(event) {
   editDraft.value = next
 }
 
-function openMentionPicker(mode) {
+function openMentionPicker(mode, event) {
+  mentionPickerTrigger = event?.currentTarget || null
   mentionPickerMode.value = mode
   if (snapshot.value.participants.length === 0) refreshParticipants()
+  nextTick(() => {
+    const firstOption = mentionListRef.value?.querySelector('[role="option"]')
+    ;(firstOption || mentionPickerRef.value?.querySelector('[data-mention-close]'))?.focus()
+  })
 }
 
-function closeMentionPicker() {
+function closeMentionPicker(restoreFocus = true) {
   mentionPickerMode.value = null
+  const trigger = mentionPickerTrigger
+  mentionPickerTrigger = null
+  if (restoreFocus) nextTick(() => trigger?.focus())
 }
 
 const mentionPickerOpen = computed(() => Boolean(mentionPickerMode.value))
@@ -840,6 +859,20 @@ function loadMoreParticipants() {
   catch (error) { actionError.value = error instanceof Error ? error.message : '无法加载更多成员' }
 }
 
+function onMentionListKeydown(event) {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+  const options = Array.from(mentionListRef.value?.querySelectorAll('[role="option"]') || [])
+  if (options.length === 0) return
+  event.preventDefault()
+  const current = options.indexOf(document.activeElement)
+  let next = current
+  if (event.key === 'Home') next = 0
+  else if (event.key === 'End') next = options.length - 1
+  else if (event.key === 'ArrowDown') next = (current + 1 + options.length) % options.length
+  else next = current <= 0 ? options.length - 1 : current - 1
+  options[next]?.focus()
+}
+
 function chooseMention(participant) {
   const edit = mentionPickerMode.value === 'edit'
   const element = document.getElementById(edit ? `edit-${editingMessageId.value}` : 'v2-message')
@@ -851,7 +884,7 @@ function chooseMention(participant) {
     const next = insertMention(text, anchors, start, end, participant)
     if (edit) { editDraft.value = next.text; editMentionAnchors.value = next.anchors }
     else { draft.value = next.text; draftMentionAnchors.value = next.anchors }
-    closeMentionPicker()
+    closeMentionPicker(false)
     nextTick(() => {
       element?.focus()
       element?.setSelectionRange(next.caretUtf16, next.caretUtf16)

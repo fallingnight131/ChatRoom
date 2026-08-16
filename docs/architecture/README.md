@@ -1049,7 +1049,11 @@ boundary instead of one-time manual close-button focus. Both contain Tab and
 restore their invoking control; forwarding rejects overlay, Escape, and close
 actions while its durable operation is pending, while device management remains
 exit-safe during connectivity changes. The adjacent mention picker deliberately
-remains non-modal because it supplements an active composer.
+remains non-modal because it supplements an active composer. It now enters its
+first option (or Close while empty), wraps Arrow Up/Down and Home/End through
+the member options, and returns to the invoking draft/edit trigger on Escape or
+explicit close. Selecting a member still returns to the original editor caret,
+so identity-backed span composition and focus restoration do not conflict.
 Web friend rows are now native buttons rather than pointer-only containers. The
 active conversation is exposed through `aria-current`; Context Menu or
 Shift+F10 opens a named native-action menu whose arrows and Home/End wrap,

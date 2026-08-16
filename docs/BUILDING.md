@@ -2267,7 +2267,10 @@ dialog, direct re-login focus, bounded Tab behavior, and attachment/credential
 cleanup ordering before navigation.
 The existing V2 preview and forwarding source gates also require the shared
 modal boundary for device management and forwarding, including trigger return
-and pending-forward dismissal rejection. The mention picker remains non-modal.
+and pending-forward dismissal rejection. The mention picker remains non-modal;
+`v2MentionUi.test.mjs` locks trigger relationships, first-option/empty focus,
+wrapped Arrow/Home/End navigation, Escape/close trigger return, and selection
+return to the original draft/edit caret.
 `v2DirectoryAccessibility.test.mjs` locks the preview's named conversation
 navigation/list structure, native selection actions, explicit current item, and
 textual connection status independent of the decorative color dot.
