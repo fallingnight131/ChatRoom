@@ -1946,6 +1946,12 @@ remain visible cutover blockers. A stable random device hint may use the isolate
 `chat.v2.device-id` browser key, while credentials and resume proofs remain in
 memory. Deployment and rollback rules are in
 [`WEB_V2_PREVIEW.md`](../deployment/WEB_V2_PREVIEW.md).
+The preview directory now renders as a named navigation list with native
+conversation actions and an explicit `aria-current` marker for the active
+conversation. Connection color remains decorative and the existing live text
+label carries state, so neither directory selection nor connectivity depends on
+color alone. This changes presentation only; directory identity and selection
+remain application-owned.
 
 ### Product consistency
 

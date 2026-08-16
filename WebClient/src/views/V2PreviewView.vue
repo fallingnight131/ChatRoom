@@ -6,7 +6,7 @@
         <h1>ChatRoom V2</h1>
       </div>
       <div class="connection" role="status" aria-live="polite">
-        <span :class="['status-dot', connectionTone]"></span>
+        <span :class="['status-dot', connectionTone]" aria-hidden="true"></span>
         {{ connectionLabel }}
       </div>
     </header>
@@ -41,7 +41,7 @@
     </section>
 
     <section v-else class="chat-shell">
-      <aside class="conversation-panel" aria-label="会话列表">
+      <nav class="conversation-panel" aria-label="V2 会话导航">
         <div class="account-block">
           <strong>{{ snapshot.session.displayName }}</strong>
           <span>{{ snapshot.session.accountId }}</span>
@@ -51,17 +51,22 @@
             <span v-if="snapshot.devices.length">{{ snapshot.devices.length }}</span>
           </button>
         </div>
-        <button v-for="conversation in snapshot.directory" :key="conversation.conversationId"
-                :class="['conversation-button', { active: conversation.conversationId === snapshot.activeConversationId }]"
-                type="button" @click="openConversation(conversation.conversationId)">
-          <strong>{{ conversation.displayName }}</strong>
-          <span>{{ conversation.kind === 'direct' ? '私聊' : '群聊' }} · #{{ conversation.latestSequence }}</span>
-        </button>
+        <ul class="conversation-list" aria-label="可用会话">
+          <li v-for="conversation in snapshot.directory" :key="conversation.conversationId">
+            <button :class="['conversation-button', { active: conversation.conversationId === snapshot.activeConversationId }]"
+                    type="button"
+                    :aria-current="conversation.conversationId === snapshot.activeConversationId ? 'page' : undefined"
+                    @click="openConversation(conversation.conversationId)">
+              <strong>{{ conversation.displayName }}</strong>
+              <span>{{ conversation.kind === 'direct' ? '私聊' : '群聊' }} · #{{ conversation.latestSequence }}</span>
+            </button>
+          </li>
+        </ul>
         <p v-if="snapshot.directory.length === 0" class="empty-copy">当前没有可用会话</p>
         <button v-if="snapshot.directoryHasMore" class="btn btn-text" type="button" @click="loadMoreDirectory">
           加载更多会话
         </button>
-      </aside>
+      </nav>
 
       <section class="message-panel" aria-label="消息区域">
         <div v-if="!snapshot.activeConversationId" class="empty-state">
@@ -948,6 +953,7 @@ onUnmounted(() => {
 .back-link { text-align: center; color: var(--text-link); text-decoration: none; }
 .chat-shell { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 300px) 1fr; }
 .conversation-panel { overflow-y: auto; border-right: 1px solid var(--border-color); background: var(--bg-secondary); }
+.conversation-list { margin: 0; padding: 0; list-style: none; }
 .account-block { display: grid; gap: 4px; padding: 18px; border-bottom: 1px solid var(--border-color); }
 .account-block span { overflow: hidden; color: var(--text-secondary); font-size: 11px; text-overflow: ellipsis; }
 .device-entry { margin-top: 8px; padding: 7px 9px; display: flex; justify-content: space-between; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); background: var(--bg-primary); cursor: pointer; }

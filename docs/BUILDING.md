@@ -2268,6 +2268,9 @@ cleanup ordering before navigation.
 The existing V2 preview and forwarding source gates also require the shared
 modal boundary for device management and forwarding, including trigger return
 and pending-forward dismissal rejection. The mention picker remains non-modal.
+`v2DirectoryAccessibility.test.mjs` locks the preview's named conversation
+navigation/list structure, native selection actions, explicit current item, and
+textual connection status independent of the decorative color dot.
 `friendListKeyboardNavigation.test.mjs` locks native friend rows, current-item
 state, keyboard context-menu invocation, wrapped arrow/Home/End navigation,
 Escape dismissal, and focus return.

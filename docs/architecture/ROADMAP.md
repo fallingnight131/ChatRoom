@@ -2342,6 +2342,8 @@ Candidate slices:
     roving focus, and Left/Right/Home/End navigation while retaining submit locks.
   - [x] Add named, bounded zoom-out/reset/zoom-in controls to V1 Web image
     preview while preserving its existing local transform and byte lifecycle.
+  - [x] Expose the Web V2 directory as a named navigation list with an explicit
+    current conversation and keep connection state independent of its color dot.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
