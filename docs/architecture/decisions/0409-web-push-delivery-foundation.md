@@ -162,6 +162,11 @@ acceptance, stall synchronization, or reduce gateway readiness.
   credential-omitting, no-redirect/no-cache/no-referrer request to the exact
   HTTPS product origin. It exposes fixed outcomes, discards response bodies, and
   has no credential issuer or product composition.
+- A Vite module-worker entry installs the validated event runtime, while a
+  detached browser adapter requires secure Notification/ServiceWorker/
+  PushManager capabilities, validates local URL/scope, registers explicitly,
+  reuses current subscription state, and requests only user-visible push with a
+  copied public key. The default app does not import or register it.
 - PostgreSQL recipient resolution now starts from the exact committed message,
   rechecks current membership/account/bilateral-block/recall truth, and returns
   a complete ordered result or explicit saturation. Active subscription reads

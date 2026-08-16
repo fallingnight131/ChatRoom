@@ -2086,6 +2086,15 @@ credentials, same-origin mode, no redirects, no cache, and no referrer. Only
 fixed HTTP outcomes and bounded Retry-After metadata escape; response bodies are
 cancelled and never reflected. The HTTP credential issuer remains absent, so
 this adapter cannot be composed in the product yet.
+The Web platform now has a Vite module-worker entry and a detached browser
+adapter. Capability requires a secure context plus Notification, ServiceWorker,
+and PushManager support. Registration accepts only a fixed local worker asset
+path and reviewed local scope, uses module mode, reuses an existing registration
+subscription, and passes `userVisibleOnly: true` with a defensive VAPID public-
+key copy. The entry installs the already-tested push/click runtime with generic
+fallback copy. Nothing imports or registers this entry in the default product;
+the exact build gate, locale persistence, HTTP credential issuer, and UI remain
+open.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

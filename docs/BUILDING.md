@@ -1542,6 +1542,12 @@ ambient credentials, redirect/cache/referrer denial, canonical endpoint and key
 validation before fetch, account-free JSON, fixed status/Retry-After mapping,
 and response-body suppression. Fixture bearer/CSRF values are not a token issuer
 or production authentication claim.
+The TypeScript suite also drives the detached browser adapter with fake browser
+ports. It proves secure-context capability failure, exact local worker path and
+scope, module registration, existing-subscription lookup, `userVisibleOnly`,
+and defensive VAPID-key copying. The worker URL entry is not imported by the
+default app graph, so the ordinary production build neither emits an active
+registration path nor registers it.
 The disposable PostgreSQL gate also verifies current Web Push recipient policy:
 complete ordered results or explicit saturation, sender/block/disabled-member
 exclusion, durable mention classification, recall suppression, active-only

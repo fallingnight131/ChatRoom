@@ -2464,8 +2464,12 @@ Candidate slices:
       lived bearer/CSRF credential lease per mutation, local subscription/key
       validation, hardened fetch options, fixed status mapping, retry metadata,
       and response-body disposal without diagnostic reflection.
-    - [ ] Add the gated global worker entry, HTTP credential issuer/runtime
-      composition, localized UI, and browser evidence.
+    - [x] Add a Vite module-worker entry plus browser adapter with secure-context
+      capability checks, fixed path/scope validation, explicit module
+      registration, existing-subscription lookup, and user-visible PushManager
+      subscription using a defensive VAPID-key copy.
+    - [ ] Add the exact-gated product composition, HTTP credential issuer,
+      localized durable worker copy/UI, and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes:
