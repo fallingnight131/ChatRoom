@@ -2421,6 +2421,9 @@ Candidate slices:
     authentication rejection, authenticated directory/device/history sync,
     optimistic text send and acceptance; keep it explicitly below real
     TLS/gateway/PostgreSQL and deployment compatibility evidence.
+  - [x] Extend the V2 browser fixture through a controlled socket restart,
+    memory-only same-session resume, and sequence-based active-history repair
+    without treating the deterministic route as real network/failover evidence.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

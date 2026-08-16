@@ -10,6 +10,7 @@ import {
   AuthenticateSchema,
   AuthenticationRejectedSchema,
   AuthenticationRejectionReason,
+  ResumeSessionSchema,
   SessionEstablishedSchema,
 } from "../../src/protocol/v2/generated/authentication_pb";
 import {
@@ -52,6 +53,7 @@ const INCOMING_MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 const OUTGOING_MESSAGE_ID = "60000000-0000-4000-8000-000000000002";
 const EXPECTED_USERNAME = "browser_v2_user";
 const EXPECTED_PASSWORD = "non-secret-test-value";
+const RESUME_TOKEN = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
 
 export type V2ProtocolFixtureMode = "accept" | "reject";
 
@@ -63,6 +65,7 @@ export interface V2ProtocolFixture {
 export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2ProtocolFixture {
   const receivedTypes: MessageType[] = [];
   let clientDeviceId = "";
+  let resumed = false;
 
   return {
     receivedTypes,
@@ -105,15 +108,16 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
               || !clientDeviceId) {
             throw new Error("unexpected V2 fixture credentials");
           }
-          return response(request, MessageType.SESSION_ESTABLISHED,
-            SessionEstablishedSchema, {
-              accountId: ACCOUNT_ID,
-              deviceId: clientDeviceId,
-              sessionId: SESSION_ID,
-              resumeToken: Uint8Array.from({ length: 32 }, (_, index) => index + 1),
-              expiresAtEpochMs: NOW + 60_000n,
-              displayName: "Browser V2 User",
-            }, { sessionId: SESSION_ID });
+          return establishedSession(request, clientDeviceId);
+        }
+        case MessageType.RESUME_SESSION: {
+          const resume = fromBinary(ResumeSessionSchema, request.payload);
+          if (resume.sessionId !== SESSION_ID || !equalBytes(resume.resumeToken, RESUME_TOKEN)
+              || !clientDeviceId) {
+            throw new Error("unexpected V2 fixture resume proof");
+          }
+          resumed = true;
+          return establishedSession(request, clientDeviceId);
         }
         case MessageType.LIST_CONVERSATIONS:
           fromBinary(ListConversationsSchema, request.payload);
@@ -125,7 +129,7 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
                 kind: ConversationKind.DIRECT,
                 displayName: "Browser Fixture Conversation",
                 role: ConversationRole.MEMBER,
-                latestSequence: 1n,
+                latestSequence: resumed ? 2n : 1n,
                 lastReadSequence: 0n,
                 updatedAtEpochMs: NOW,
               }],
@@ -148,8 +152,30 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
           const history = fromBinary(ReadMessageHistorySchema, request.payload);
           requireSession(request);
           if (history.conversationId !== FIXTURE_CONVERSATION_ID
-              || history.afterSequence !== 0n) {
+              || (history.afterSequence !== 0n && history.afterSequence !== 1n)) {
             throw new Error("unexpected V2 fixture history cursor");
+          }
+          if (history.afterSequence === 1n) {
+            if (!resumed) throw new Error("history repair requires a resumed fixture session");
+            const repaired = create(MessageRecordSchema, {
+              conversationId: FIXTURE_CONVERSATION_ID,
+              messageId: OUTGOING_MESSAGE_ID,
+              conversationSequence: 2n,
+              senderAccountId: PEER_ACCOUNT_ID,
+              senderDeviceId: PEER_DEVICE_ID,
+              clientMessageId: "browser-fixture-repaired",
+              contentType: MessageContentType.TEXT_UTF8,
+              content: new TextEncoder().encode("Fixture repaired message"),
+              acceptedAtEpochMs: NOW + 1_000n,
+            });
+            return response(request, MessageType.MESSAGE_HISTORY_PAGE,
+              MessageHistoryPageSchema, {
+                conversationId: FIXTURE_CONVERSATION_ID,
+                messages: [repaired],
+                nextSequence: 2n,
+                latestSequence: 2n,
+                hasMore: false,
+              }, { sessionId: SESSION_ID });
           }
           const message = create(MessageRecordSchema, {
             conversationId: FIXTURE_CONVERSATION_ID,
@@ -194,6 +220,22 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
       }
     },
   };
+}
+
+function establishedSession(request: Envelope, clientDeviceId: string): number[] {
+  return response(request, MessageType.SESSION_ESTABLISHED, SessionEstablishedSchema, {
+    accountId: ACCOUNT_ID,
+    deviceId: clientDeviceId,
+    sessionId: SESSION_ID,
+    resumeToken: RESUME_TOKEN,
+    expiresAtEpochMs: NOW + 60_000n,
+    displayName: "Browser V2 User",
+  }, { sessionId: SESSION_ID });
+}
+
+function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
+  return left.byteLength === right.byteLength
+    && left.every((value, index) => value === right[index]);
 }
 
 function requireSession(request: Envelope): void {

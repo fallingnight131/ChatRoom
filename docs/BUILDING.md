@@ -223,9 +223,12 @@ Firefox they verify the exact configured WSS URL, generated-Protobuf hello and
 authentication exchange, safe authentication rejection without credential
 persistence, directory/device synchronization, history rendering and accessible
 message actions, optimistic text submission, and server acceptance. Playwright
-routes the socket to an in-process deterministic protocol fixture: this is real
-browser/application-state-machine evidence, but not TLS, gateway, PostgreSQL,
-deployment compatibility, or capacity evidence.
+also closes the first routed socket, verifies automatic same-session resume with
+the memory-only proof, and repairs the active conversation from sequence 1 to 2
+without clearing the visible session. It routes the socket to an in-process
+deterministic protocol fixture: this is real browser/application-state-machine
+evidence, but not TLS, gateway, PostgreSQL, real network/failover, deployment
+compatibility, or capacity evidence.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

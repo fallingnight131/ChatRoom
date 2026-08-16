@@ -2116,10 +2116,13 @@ configured WSS authority to a deterministic responder built from the generated
 Protobuf schemas, then drives the production view, application, transport, and
 protocol client through rejection, negotiation, authentication, directory and
 device synchronization, history rendering, optimistic text submission, and
-acceptance. This browser boundary exposed and now guards two composition defects:
-deep-readonly proxying of mutable application instances and unbound browser timer
-functions. The fixture is skipped for the default-off bundle and is not real
-TLS/gateway/PostgreSQL, deployment-compatibility, or capacity evidence.
+acceptance. A controlled socket restart additionally verifies memory-only session
+resume and sequence-based active-history repair while keeping the authenticated
+shell available. This browser boundary exposed and now guards two composition
+defects: deep-readonly proxying of mutable application instances and unbound
+browser timer functions. The fixture is skipped for the default-off bundle and
+is not real TLS/gateway/PostgreSQL, network/failover, deployment-compatibility,
+or capacity evidence.
 
 ### Product consistency
 
