@@ -30,7 +30,12 @@ an M2 foundation, not a claim of formal WCAG conformance.
 ## Verification
 
 Automated source gates protect semantic landmarks, names, progress state,
-keyboard entry points, visible focus, and reduced-motion behavior. M4 release
-gates must add browser keyboard walkthroughs and screen-reader smoke tests for
-send, retry, attachment preview/download, and conversation switching. Native
-Windows UI Automation checks remain a separate Windows release gate.
+keyboard entry points, visible focus, and reduced-motion behavior. The opt-in V2
+browser journey also reads the browser-computed accessibility tree after
+authentication and verifies the localized conversation-navigation, message-log,
+message-content, copy, and reply semantics. This is stronger than DOM source
+inspection but remains automation evidence, not a screen-reader compatibility
+claim. M4 release gates must add browser keyboard walkthroughs and manual
+screen-reader smoke tests for send, retry, attachment preview/download, and
+conversation switching. Native Windows UI Automation and Narrator checks remain
+a separate Windows release gate.

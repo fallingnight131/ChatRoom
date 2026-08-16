@@ -2445,6 +2445,10 @@ Candidate slices:
   - [x] Record the first revision-bound local Web V2 client-only baseline with
     raw samples, host/browser identity, reproducible commands, and an explicit
     non-capacity claim boundary.
+  - [x] Verify the authenticated V2 browser-computed accessibility tree exposes
+    localized conversation navigation, live history, message content, and
+    copy/reply actions in Chromium and Firefox without claiming manual
+    screen-reader compatibility.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

@@ -81,6 +81,10 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
   const primaryConversation = page.getByRole("button", { name: /Browser Fixture Conversation/ });
   const keyboardConversation = page.getByRole("button", { name: /Keyboard Target Conversation/ });
   await expect(primaryConversation).toBeVisible();
+  const navigationAccessibilityTree = await navigation.ariaSnapshot();
+  expect(navigationAccessibilityTree).toContain('- navigation "V2 会话导航"');
+  expect(navigationAccessibilityTree).toContain('button "Browser Fixture Conversation');
+  expect(navigationAccessibilityTree).toContain('button "Keyboard Target Conversation');
   await primaryConversation.focus();
   await primaryConversation.press("ArrowDown");
   await expect(keyboardConversation).toBeFocused();
@@ -95,6 +99,11 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
   await expect(log.getByText("Fixture incoming message")).toBeVisible();
   await expect(page.getByRole("button", { name: "复制消息 1 正文" })).toBeVisible();
   await expect(page.getByRole("button", { name: "回复消息 1" })).toBeVisible();
+  const timelineAccessibilityTree = await log.ariaSnapshot();
+  expect(timelineAccessibilityTree).toContain('- log "消息记录"');
+  expect(timelineAccessibilityTree).toContain("Fixture incoming message");
+  expect(timelineAccessibilityTree).toContain('button "复制消息 1 正文"');
+  expect(timelineAccessibilityTree).toContain('button "回复消息 1"');
 
   const lowBandwidth = page.getByLabel("省流量模式");
   await expect(lowBandwidth).not.toBeChecked();
@@ -126,6 +135,10 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
   await expect(page.getByRole("navigation", { name: "V2 conversation navigation" })).toBeVisible();
   await expect(page.getByRole("log", { name: "Message history" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Copy message 1 text" })).toBeVisible();
+  const localizedAccessibilityTree = await page.getByRole("log", { name: "Message history" }).ariaSnapshot();
+  expect(localizedAccessibilityTree).toContain('- log "Message history"');
+  expect(localizedAccessibilityTree).toContain('button "Copy message 1 text"');
+  expect(localizedAccessibilityTree).not.toContain("复制消息 1 正文");
   expect(fixture.receivedTypes).toHaveLength(receivedBeforeLocaleChange);
 
   expect(fixture.receivedTypes).toEqual(expect.arrayContaining([

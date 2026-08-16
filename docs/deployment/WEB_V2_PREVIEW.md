@@ -97,7 +97,10 @@ offline/online simulation with a single explicit optimistic-message retry. The
 authenticated path also persists low-bandwidth mode and proves text submission
 remains available after enablement. It also verifies multi-conversation keyboard
 focus is non-activating and that navigation/log landmarks reach the browser
-accessibility tree. The device modal additionally verifies contained focus,
+accessibility tree. The authenticated journey reads that browser-computed tree
+and verifies localized conversation names, message content, and copy/reply
+actions in Chinese and English; it is not a manual screen-reader compatibility
+claim. The device modal additionally verifies contained focus,
 Escape restoration, and current-device protection. Route disposal verifies a
 normal socket close and no background retry after returning to V1. Authenticated
 locale switching changes browser semantics without additional protocol traffic.
