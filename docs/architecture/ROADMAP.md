@@ -2304,6 +2304,8 @@ Candidate slices:
     profile and V1 forwarding, including pending-forward close/submit guards.
   - [x] Apply the shared boundary to room-password entry with direct input
     focus, native required submission, empty rejection, and pre-emit clearing.
+  - [x] Apply the shared boundary to user information and its nested avatar
+    preview, replacing pointer-only activation and containing top-layer Escape.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

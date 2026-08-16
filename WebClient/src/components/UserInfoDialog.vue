@@ -1,12 +1,17 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal" style="min-width: 340px;">
-      <div class="modal-title">用户信息</div>
+  <div class="modal-overlay" @click.self="closeDialog">
+    <div ref="dialogRef" class="modal user-info-modal" role="dialog" aria-modal="true"
+         aria-labelledby="user-info-title" tabindex="-1" @keydown="onDialogKeydown">
+      <div id="user-info-title" class="modal-title">用户信息</div>
 
       <div class="user-info-card">
         <!-- 头像 -->
         <div class="user-info-avatar">
-          <img v-if="avatarSrc" :src="avatarSrc" class="avatar avatar-large-preview" @click="showAvatarPreview = true" />
+          <button v-if="avatarSrc" type="button" class="avatar-preview-trigger"
+                  :aria-label="`预览 ${userDisplayName} 的头像`" @click="showAvatarPreview = true">
+            <img :src="avatarSrc" class="avatar avatar-large-preview"
+                 :alt="`${userDisplayName} 的头像`" />
+          </button>
           <div v-else class="avatar avatar-large-preview avatar-placeholder"
                :style="{ background: hashColor(props.user.username) }">
             {{ (props.user.displayName || props.user.username).charAt(0) }}
@@ -43,39 +48,36 @@
       <div v-if="showAdminActions" class="admin-actions">
         <div class="admin-actions-title">管理员操作</div>
         <div class="admin-actions-btns">
-          <button v-if="!props.user.isAdmin" class="btn btn-secondary" @click="setAdmin">
+          <button v-if="!props.user.isAdmin" class="btn btn-secondary" type="button" @click="setAdmin">
             设为管理员
           </button>
-          <button v-else class="btn btn-secondary" @click="unsetAdmin">
+          <button v-else class="btn btn-secondary" type="button" @click="unsetAdmin">
             取消管理员
           </button>
-          <button v-if="!isSelf" class="btn btn-danger" @click="kickUser">
+          <button v-if="!isSelf" class="btn btn-danger" type="button" @click="kickUser">
             踢出聊天室
           </button>
         </div>
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-secondary" @click="$emit('close')">关闭</button>
+        <button class="btn btn-secondary" type="button" @click="closeDialog">关闭</button>
       </div>
     </div>
 
-    <div v-if="showAvatarPreview && avatarSrc" class="avatar-preview-overlay" @click="showAvatarPreview = false">
-      <div class="avatar-preview-card" @click.stop>
-        <img :src="avatarSrc" class="avatar-preview-image" />
-        <div class="avatar-preview-actions">
-          <button class="btn btn-secondary" @click="showAvatarPreview = false">关闭</button>
-        </div>
-      </div>
-    </div>
+    <AvatarPreviewDialog v-if="showAvatarPreview && avatarSrc" :src="avatarSrc"
+                         :alt="`${userDisplayName} 的头像大图`"
+                         @close="showAvatarPreview = false" />
   </div>
 </template>
 
 <script setup>
 import { computed, inject, onMounted, ref } from 'vue'
+import AvatarPreviewDialog from './AvatarPreviewDialog.vue'
 import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs } from '../services/websocket'
+import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 
 const props = defineProps({
   user: { type: Object, required: true }
@@ -85,6 +87,12 @@ const hashColor = inject('hashColor')
 const userStore = useUserStore()
 const chatStore = useChatStore()
 const showAvatarPreview = ref(false)
+const { dialogRef, closeDialog, onDialogKeydown } = useModalKeyboardBoundary({
+  onClose: () => emit('close'),
+  canClose: () => !showAvatarPreview.value
+})
+
+const userDisplayName = computed(() => props.user.displayName || props.user.username)
 
 const avatarSrc = computed(() => {
   const data = userStore.getAvatar(props.user.username)
@@ -126,6 +134,9 @@ onMounted(() => {
 .user-info-card {
   text-align: center;
 }
+.user-info-modal {
+  width: min(420px, calc(100vw - 32px));
+}
 .user-info-avatar {
   display: flex;
   justify-content: center;
@@ -136,7 +147,18 @@ onMounted(() => {
   height: 112px;
   border-radius: 16px;
   object-fit: cover;
+  display: block;
+}
+.avatar-preview-trigger {
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
   cursor: pointer;
+}
+.avatar-preview-trigger:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
 }
 .user-detail {
   text-align: left;
@@ -191,32 +213,6 @@ onMounted(() => {
 .admin-actions-btns .btn {
   flex: 1;
   min-width: 100px;
-}
-
-.avatar-preview-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.72);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-.avatar-preview-card {
-  max-width: 92vw;
-  max-height: 92vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-.avatar-preview-image {
-  max-width: 88vw;
-  max-height: 78vh;
-  border-radius: 14px;
-  object-fit: contain;
-  background: #111;
 }
 
 @media (max-width: 768px) {

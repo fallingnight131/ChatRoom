@@ -999,6 +999,12 @@ required form submission, and disables account-credential autofill because a
 room secret is not the user's login password. It rejects empty values and clears
 component-owned plaintext before emitting it to the existing join flow. The
 server remains authoritative for password verification and room membership.
+User-information and avatar-preview dialogs also use the shared boundary. The
+avatar is a named native button instead of a pointer-only image, while the
+preview is a separate nested dialog whose Escape event is contained and whose
+close restores focus to that button. Opening the preview remains an explicit
+user action; role changes and room removal remain server-authoritative even
+though their controls are exposed in this client dialog.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

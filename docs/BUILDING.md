@@ -2243,6 +2243,9 @@ state, and pending-operation close/duplicate-submit rejection.
 `roomPasswordDialogAccessibility.test.mjs` locks the shared modal boundary,
 direct input focus, label/description associations, native required submission,
 empty rejection, and component plaintext clearing before the join event.
+`userInfoDialogAccessibility.test.mjs` locks the shared keyboard boundary for
+user information and its nested avatar preview, native avatar activation,
+accessible image naming, top-layer Escape containment, and focus restoration.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable
