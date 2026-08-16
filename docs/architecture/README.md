@@ -2060,6 +2060,13 @@ copy and a stable opaque tag. Click targets are constructed beneath one exact
 HTTPS product origin and carry only conversation/message/notification identity
 to the V2 hash route. No global Service Worker event, registration, PushManager
 subscription, HTTP upload, or UI composition exists yet.
+An injectable Service Worker runtime now owns `push` and `notificationclick`
+semantics without installing global listeners by default. Invalid pushes are
+dropped without notification; valid pushes use the generic presentation. Click
+data is validated again, the notification is closed, and exactly one supported-
+origin window is navigated and focused before `openWindow` is considered.
+Cross-origin or malformed click data cannot navigate. The global worker entry,
+registration gate, PushManager and HTTP/UI composition remain absent.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

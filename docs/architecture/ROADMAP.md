@@ -2453,7 +2453,10 @@ Candidate slices:
     - [x] Add the pure Service Worker payload boundary with exact version/field/
       UUID/2 KiB validation, identity-only generic presentation, stable tag,
       and exact-HTTPS-origin V2 navigation construction.
-    - [ ] Add the gated Service Worker event lifecycle, subscription controller,
+    - [x] Add an injectable Service Worker push/click lifecycle that drops
+      malformed input, shows only generic validated notifications, revalidates
+      navigation, and focuses/navigates one same-origin window before opening.
+    - [ ] Add the gated global worker entry, subscription controller,
       authenticated HTTP adapter, localized UI, and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;

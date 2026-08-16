@@ -1526,6 +1526,10 @@ It proves the exact identity-only schema, 2 KiB bound, unknown/text rejection,
 generic presentation, stable tag, and exact-HTTPS-origin V2 navigation. It does
 not register a Service Worker, call PushManager or the HTTP API, display a host
 notification, or provide Chromium/Firefox activation evidence.
+The same selector also covers the injectable Service Worker runtime: validated
+generic display, malformed-push silence, click-data revalidation, existing
+same-origin focus/navigation, and unsafe-origin refusal. These are deterministic
+port tests, not a registered browser Service Worker or host-notification gate.
 The disposable PostgreSQL gate also verifies current Web Push recipient policy:
 complete ordered results or explicit saturation, sender/block/disabled-member
 exclusion, durable mention classification, recall suppression, active-only
