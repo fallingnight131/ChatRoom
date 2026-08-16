@@ -60,6 +60,7 @@ class GatewayRuntimeConfigTest {
         assertFalse(config.messageSearchEnabled());
         assertFalse(config.accountBlockingEnabled());
         assertFalse(config.webPushEnabled());
+        assertFalse(config.webPushSubscriptions().enabled());
         assertFalse(config.distributedRouting().enabled());
         assertEquals("development", config.releaseIdentity().releaseVersion());
         assertEquals("unknown", config.releaseIdentity().sourceRevision());
@@ -100,6 +101,37 @@ class GatewayRuntimeConfigTest {
                         .decision());
         assertFalse(config.toString().contains("tls-secret"));
         assertFalse(config.toString().contains("database-secret"));
+    }
+
+    @Test
+    void requiresParentGateAndPathOnlyKeyRingForWebPushSubscriptions() throws Exception {
+        Path directory = Files.createDirectory(temporary.resolve("web-push-keys"));
+        Map<String, String> enabled = requiredEnvironment();
+        enabled.put("CHATROOM_GATEWAY_WEB_PUSH_ENABLED", "true");
+        enabled.put(WebPushSubscriptionRuntimeConfig.ENABLED, "true");
+        enabled.put(WebPushSubscriptionRuntimeConfig.KEY_DIRECTORY, directory.toString());
+        enabled.put(WebPushSubscriptionRuntimeConfig.ACTIVE_KEY_ID, "enc-v2");
+        enabled.put(WebPushSubscriptionRuntimeConfig.KEY_IDS, "enc-v1,enc-v2");
+        WebPushSubscriptionRuntimeConfig config = GatewayRuntimeConfig.fromEnvironment(enabled)
+                .webPushSubscriptions();
+        assertTrue(config.enabled());
+        assertEquals(directory.resolve("encryption-enc-v2.key").toAbsolutePath(),
+                config.encryptionKeyFiles().get("enc-v2"));
+        assertEquals(directory.resolve("endpoint-lookup.key").toAbsolutePath(),
+                config.endpointLookupKeyFile());
+
+        Map<String, String> missingParent = new HashMap<>(enabled);
+        missingParent.remove("CHATROOM_GATEWAY_WEB_PUSH_ENABLED");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(missingParent));
+        Map<String, String> nonExact = new HashMap<>(enabled);
+        nonExact.put(WebPushSubscriptionRuntimeConfig.ENABLED, "TRUE");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(nonExact));
+        Map<String, String> duplicate = new HashMap<>(enabled);
+        duplicate.put(WebPushSubscriptionRuntimeConfig.KEY_IDS, "enc-v2,enc-v2");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(duplicate));
     }
 
     @Test

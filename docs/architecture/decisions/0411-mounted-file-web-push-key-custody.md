@@ -36,6 +36,11 @@ unversioned encryption key would make safe rotation impossible.
 - External secret provisioning, backup, restore, and access audit remain the
   deployment system's responsibility. Lookup-key rotation still requires a
   separately implemented transactional endpoint-tag rewrite before activation.
+- Runtime enables subscription mutation only when the WSS credential issuer and
+  the independent subscription gate are exactly true. Configuration supplies a
+  protected directory, one active ID, and a comma-separated ring of at most
+  eight IDs; files use fixed `encryption-<id>.key` and `endpoint-lookup.key`
+  names. Custody closes after the product listener and bounded workers stop.
 
 ## Consequences
 
@@ -45,8 +50,9 @@ for now, and overly broad permissions fail startup. Kubernetes/Docker secret
 mount defaults must be hardened to the documented POSIX policy rather than
 silently accepted.
 
-This adapter alone does not compose subscription writes, expose an HTTP route,
-activate outbox production, or prove backup/restore and lookup-key rotation.
+The runtime can now compose subscription writes and the HTTP route under both
+exact gates. This does not activate a default Web client, outbox production, or
+provider delivery, and does not prove backup/restore or lookup-key rotation.
 
 ## Verification and rollback
 
@@ -55,5 +61,9 @@ activate outbox production, or prove backup/restore and lookup-key rotation.
   refusal, exact length, permission rejection, and symbolic-link rejection.
 - The existing AES-GCM/HMAC suite continues to prove cryptographic shape and
   old-key resolution through the custody port.
+- Runtime configuration tests prove the parent-gate dependency, exact boolean,
+  bounded key IDs, fixed derived paths, and secret-free configuration. Real
+  TLS/WSS, HTTPS and disposable-PostgreSQL integration proves a server-issued
+  lease can produce one encrypted subscription row and fixed route telemetry.
 - Rollback removes runtime references before removing this additive adapter.
   Existing ciphertext and key files remain untouched.

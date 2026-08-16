@@ -135,8 +135,9 @@ resume proof or activate a gateway/client path.
 - The detached crypto adapter uses AES-256-GCM with fresh nonces and context/
   purpose/key-ID AAD, plus a separately keyed HMAC-SHA256 endpoint tag. It can
   resolve old encryption key IDs for rotation. ADR-0411 adds strict mounted-file
-  custody with clearable callback copies, but runtime path composition, lookup-
-  key rewrite, backup/restore, and rotation rehearsal remain open gates.
+  custody with clearable callback copies. Runtime path-only composition now
+  selects an active/prior key ring; lookup-key rewrite, backup/restore, and
+  rotation rehearsal remain open gates.
 - The subscription application use case consumes an account-free, zeroable
   request, binds only its authenticated caller, applies exact default-off and
   admission before protection, returns fixed outcomes, and closes secrets on
@@ -146,9 +147,10 @@ resume proof or activate a gateway/client path.
   Netty handler now enforces that contract, allows one
   bounded request per connection, moves session/CSRF/decode/mutation work off
   the event loop, clears transport secrets, and maps only fixed statuses and
-  identity-free outcomes. It is not installed in the gateway pipeline and has
-  no runtime-composed credential-authentication bridge or owned production
-  worker pool. ADR-0410 now owns the detached token implementation and bridge.
+  identity-free outcomes. A second exact runtime gate now installs it before
+  WebSocket upgrade with the PostgreSQL credential bridge, mounted-file custody,
+  bounded per-process mutation admission, and the shared bounded messaging pool.
+  ADR-0410 owns the token implementation and bridge.
 - The Web pure payload boundary accepts only schema 1, three canonical UUIDs,
   and a mention boolean within 2 KiB. It derives generic-copy presentation and
   exact-HTTPS-origin V2 navigation without accepting message content. Service
@@ -168,8 +170,9 @@ resume proof or activate a gateway/client path.
   lease per mutation, validates the subscription before that lease, and pins a
   credential-omitting, no-redirect/no-cache/no-referrer request to the exact
   HTTPS product origin. It exposes fixed outcomes and discards response bodies.
-  ADR-0410 now composes the exact-gated WSS issuer, while the Web lease bridge,
-  subscription HTTP route, and product composition remain absent.
+  ADR-0410 now composes the exact-gated WSS issuer, and the second server gate
+  composes the subscription route. The Web lease bridge and product composition
+  remain absent.
 - A Vite module-worker entry installs the validated event runtime, while a
   detached browser adapter requires secure Notification/ServiceWorker/
   PushManager capabilities, validates local URL/scope, registers explicitly,

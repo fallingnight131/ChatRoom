@@ -1459,8 +1459,8 @@ rolls back endpoint transfer. This is not production AEAD/KMS correctness or key
 rotation. The same real-database gate proves the message adapter's default-
 off path, explicit enabled transaction outbox, stable message identity, exact
 idempotent replay, bounded mention metadata, 24-hour expiry, and forced-insert
-rollback. No gateway enables this policy, and no HTTP caller or claim worker is
-composed. PostgreSQL tests also race two detached claim adapters, assert
+rollback. No gateway enables outbox production and no claim worker is composed.
+PostgreSQL tests also race two detached claim adapters, assert
 non-overlapping bounded ownership and attempt increments, reject stale/out-of-
 lease completion, gate retry availability, terminally expire old rows, and
 purge completed rows in capped batches without deleting their messages. This is
@@ -1587,8 +1587,31 @@ requesting Web V2 connection; missing, false, and non-exact values keep the
 handler absent. `JAVA_HOME=/opt/homebrew/opt/openjdk@21 python3
 tools/verify_m0.py --postgres` additionally proves the enabled path over real
 TLS/WSS against disposable PostgreSQL, including hash-only persistence and the
-issued counter. The subscription HTTP route and default Web lease bridge remain
-absent, so this flag alone does not activate browser subscription or delivery.
+issued counter. The default Web lease bridge remains absent, so this flag alone
+does not activate browser subscription or delivery.
+
+The subscription route has a separate exact gate. It requires the issuer gate
+and path-only mounted-key configuration; raw keys are 32-byte file contents, not
+environment values:
+
+```text
+CHATROOM_GATEWAY_WEB_PUSH_ENABLED=true
+CHATROOM_GATEWAY_WEB_PUSH_SUBSCRIPTIONS_ENABLED=true
+CHATROOM_WEB_PUSH_KEY_DIRECTORY=/run/secrets/chat-room/web-push
+CHATROOM_WEB_PUSH_ACTIVE_ENCRYPTION_KEY_ID=enc-v2
+CHATROOM_WEB_PUSH_ENCRYPTION_KEY_IDS=enc-v1,enc-v2
+```
+
+The directory contains `encryption-<id>.key` and `endpoint-lookup.key`. Every
+file must be a non-link regular file with exactly 32 raw bytes, owner read access,
+and no group/other permissions. At most eight encryption IDs are accepted. The
+active ID encrypts new rows while listed prior IDs remain decryptable. The
+lookup key must differ from every encryption key. Default admission is 10
+mutations per account/installation/action per 60 seconds with 10,000 tracked
+keys; the bounded overrides are `CHATROOM_WEB_PUSH_MUTATION_WINDOW_SECONDS`,
+`CHATROOM_WEB_PUSH_MUTATION_ATTEMPTS`, and
+`CHATROOM_WEB_PUSH_MUTATION_MAX_KEYS`. The limit is per gateway process, so
+distributed enforcement remains an activation review item.
 The TypeScript suite also drives the detached browser adapter with fake browser
 ports. It proves secure-context capability failure, exact local worker path and
 scope, module registration, existing-subscription lookup, `userVisibleOnly`,

@@ -2417,8 +2417,10 @@ Candidate slices:
         encryption key IDs, a cryptographically separate lookup key, POSIX
         permission/symlink/length validation, callback-copy clearing, and
         closed-state refusal (ADR-0411).
-      - [ ] Compose path-only runtime configuration and rehearse encryption-key
-        rollover, lookup-tag rewrite, backup/restore, and account erasure.
+      - [x] Compose path-only runtime key-ring configuration and close custody
+        after the product listener/workers stop.
+      - [ ] Rehearse encryption-key rollover, lookup-tag rewrite,
+        backup/restore, and account erasure.
     - [x] Produce the outbox only under an explicit enabled policy in the
       new-message transaction; prove default-off behavior, stable message
       identity, mention metadata, idempotent replay, 24-hour expiry, and atomic
@@ -2437,6 +2439,11 @@ Candidate slices:
     - [x] Add the Netty HTTP route with off-event-loop session/token and mutation
       work, one request per connection, method/body bounds, fixed status mapping,
       transport-byte clearing, and secret-free telemetry.
+    - [x] Compose that route before WebSocket upgrade only under exact
+      `CHATROOM_GATEWAY_WEB_PUSH_SUBSCRIPTIONS_ENABLED=true`, require the WSS
+      issuer gate and protected key ring, add bounded per-process mutation
+      admission and fixed metrics, and prove WSS lease to HTTPS ciphertext write
+      against disposable PostgreSQL.
     - [x] Add complete, ordered, limit+1 current-policy recipient resolution
       from committed non-recalled messages, rechecking membership, disabled
       accounts, bilateral block policy, mention classification, and explicit
@@ -2488,8 +2495,8 @@ Candidate slices:
       only under exact `CHATROOM_GATEWAY_WEB_PUSH_ENABLED=true`, retain the
       default-off path, and expose identity-free issuance counters; prove the
       path through real TLS/WSS and disposable PostgreSQL.
-    - [ ] Add the exact-gated Web lease bridge and subscription HTTP route,
-      localized durable worker copy/UI, and browser evidence.
+    - [ ] Add the exact-gated Web lease bridge, localized durable worker copy/UI,
+      and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes:

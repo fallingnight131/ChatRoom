@@ -1978,8 +1978,7 @@ ciphertext plus a keyed endpoint tag, clears protected working copies, and
 transfers endpoint ownership or erases one account/install atomically. Account-
 row locking serializes quota decisions, disabled/missing accounts fail closed,
 and the server caps each account at 10 installations while allowing an existing
-installation to rotate credentials. No
-production key-custody implementation, HTTP caller, or worker is composed. The
+    installation to rotate credentials. No provider worker is composed. The
 message adapter now has an explicit enabled-policy constructor that inserts one
 payload-free notification row inside the new-message
 transaction. Its ordinary constructor remains disabled; exact idempotent replay
@@ -1998,15 +1997,18 @@ short-lived callback custody port. ADR-0411 adds a detached mounted-file custody
 adapter: raw keys never enter environment values, each file is a non-link exact
 32-byte POSIX-protected file, one active key coexists with prior decryption keys,
 the lookup key must be cryptographically distinct, and callback/owned copies are
-cleared. Path-only runtime configuration, lookup-tag rewrite, backup/restore,
-rotation rehearsal, and runtime composition remain open.
+cleared. Path-only runtime configuration now selects a protected key directory,
+one active key ID and at most eight active/prior IDs without carrying secret
+values; custody is closed after listener and worker shutdown. Lookup-tag rewrite,
+backup/restore, and rotation rehearsal remain open.
 The detached subscription mutation use case now consumes an account-free,
 zeroable request and binds identity only from its authenticated caller. Its exact
 default-off policy and account/install/action admission boundary run before
 protection or persistence; fixed results represent disabled, rate-limited,
 quota, unavailable-account, replace, delete, and unchanged outcomes. Success,
-rejection, and exceptions all close request and registration secrets. No HTTP
-route, token store, or rate-limiter adapter is composed yet.
+rejection, and exceptions all close request and registration secrets. Exact
+runtime composition now supplies the PostgreSQL token store and a bounded
+per-process account/installation/action fixed-window admission adapter.
 The detached HTTP transport contract is exact-default-off and accepts only one
 exact member of a bounded canonical-HTTPS Origin allowlist. Its synchronous
 server-issued session boundary returns only a fixed session/CSRF decision and
@@ -2022,10 +2024,13 @@ precede copying any credential. Server session/CSRF verification, strict decode,
 admission, protection, and PostgreSQL mutation execute through an injected
 worker rather than the event loop. Bearer, CSRF, body, and decoded-key working
 bytes are cleared; responses use only fixed status mappings and fixed outcome
-counters, and telemetry failure cannot fail the request. The handler is not in
-the gateway pipeline, and no WSS issuer handler, application-to-transport
-authentication bridge, or owned bounded HTTP worker is configured, so product
-behavior remains off. ADR-0410 owns the detached token issuer/store.
+counters, and telemetry failure cannot fail the request. Under exact
+`CHATROOM_GATEWAY_WEB_PUSH_SUBSCRIPTIONS_ENABLED=true`, and only while the parent
+WSS issuer gate is also true, runtime installs the handler before WebSocket
+endpoint processing, adapts the PostgreSQL HTTP credential authority, encrypts
+through mounted-file custody, and uses the shared bounded messaging pool. The
+ordinary configuration installs none of this; the provider worker and Web
+client lease bridge remain off. ADR-0410 owns the token issuer/store.
 The PostgreSQL notification read boundary now resolves only a committed,
 non-deleted, non-recalled source message and rechecks current active membership,
 enabled accounts, sender exclusion, and bilateral block policy. Results are
@@ -2089,8 +2094,9 @@ key and 16-byte auth secret before acquiring credentials. Fetch is pinned to the
 exact HTTPS origin and stable installation path with omitted ambient
 credentials, same-origin mode, no redirects, no cache, and no referrer. Only
 fixed HTTP outcomes and bounded Retry-After metadata escape; response bodies are
-cancelled and never reflected. The Web protocol lease bridge and subscription
-HTTP route remain absent, so this adapter cannot be composed in the product yet.
+cancelled and never reflected. The subscription HTTP route is now available
+behind its exact server gate, but the Web protocol lease bridge remains absent,
+so no default product client can call it yet.
 The Web platform now has a Vite module-worker entry and a detached browser
 adapter. Capability requires a secure context plus Notification, ServiceWorker,
 and PushManager support. Registration accepts only a fixed local worker asset
@@ -2131,9 +2137,10 @@ transport contract and retains no token. Runtime composition now places the
 type-136 handler on the Web WSS pipeline only under the exact-default-off flag,
 using the shared bounded messaging executor and PostgreSQL authority. Fixed,
 identity-free issuance/denial/saturation/failure counters are exposed on the
-admin metrics endpoint. The subscription HTTP handler, Web credential lease
-bridge, and default client capability remain absent, so enabling this server
-flag alone cannot register or deliver Web Push.
+admin metrics endpoint. A second exact gate can install the subscription HTTP
+handler only with protected key custody and the issuer enabled. The Web
+credential lease bridge and default client capability remain absent, so enabling
+the server flags alone cannot register or deliver Web Push.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

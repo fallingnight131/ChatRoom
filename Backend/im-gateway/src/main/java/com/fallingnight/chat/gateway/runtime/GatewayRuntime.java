@@ -7,6 +7,7 @@ import com.fallingnight.chat.application.identity.SessionResumeService;
 import com.fallingnight.chat.application.identity.DeviceManagementService;
 import com.fallingnight.chat.application.notification.WebPushDeliveryPolicy;
 import com.fallingnight.chat.application.notification.WebPushHttpCredentialIssueService;
+import com.fallingnight.chat.application.notification.WebPushSubscriptionMutationService;
 import com.fallingnight.chat.gateway.operations.AttachmentCleanupTelemetry;
 import com.fallingnight.chat.gateway.operations.GatewayAdminServer;
 import com.fallingnight.chat.gateway.operations.GatewayProcessResources;
@@ -14,10 +15,12 @@ import com.fallingnight.chat.gateway.operations.ResidentMemorySampler;
 import com.fallingnight.chat.gateway.operations.PrometheusConversationEventOutboxMetrics;
 import com.fallingnight.chat.gateway.operations.PrometheusGatewayRoutingMetrics;
 import com.fallingnight.chat.gateway.operations.PrometheusWebPushHttpCredentialMetrics;
+import com.fallingnight.chat.gateway.operations.PrometheusWebPushSubscriptionHttpMetrics;
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
 import com.fallingnight.chat.gateway.transport.AuthenticationWorkerPool;
 import com.fallingnight.chat.gateway.transport.InMemoryAuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.InMemoryMessageForwardAdmissionPort;
+import com.fallingnight.chat.gateway.transport.InMemoryWebPushSubscriptionAdmission;
 import com.fallingnight.chat.gateway.transport.MessagingWorkerPool;
 import com.fallingnight.chat.gateway.transport.MessagingTelemetry;
 import com.fallingnight.chat.gateway.transport.DeviceConnectionRegistry;
@@ -26,6 +29,11 @@ import com.fallingnight.chat.gateway.transport.SingleGatewayConversationLiveRout
 import com.fallingnight.chat.gateway.transport.ConversationLiveRouter;
 import com.fallingnight.chat.gateway.transport.WebPushHttpCredentialGatewayComponent;
 import com.fallingnight.chat.gateway.transport.WebPushHttpCredentialTelemetry;
+import com.fallingnight.chat.gateway.transport.WebPushHttpTelemetry;
+import com.fallingnight.chat.gateway.transport.WebPushSubscriptionHttpGatewayComponent;
+import com.fallingnight.chat.gateway.transport.ApplicationWebPushHttpSessionAdapter;
+import com.fallingnight.chat.identity.crypto.AesGcmWebPushCredentialProtector;
+import com.fallingnight.chat.identity.crypto.FileWebPushKeyCustody;
 import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
@@ -41,6 +49,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresAccountBlockAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresAccountBlockDirectoryAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresDeviceManagementAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresWebPushHttpCredentialAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresWebPushSubscriptionAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.zaxxer.hikari.HikariDataSource;
 import java.time.Clock;
@@ -62,6 +71,7 @@ public final class GatewayRuntime implements AutoCloseable {
     private final AutoCloseable authenticationWorkers;
     private final AutoCloseable messagingWorkers;
     private final AutoCloseable dataSource;
+    private final AutoCloseable webPushResources;
     private final ManagedDependency distributedRouting;
     private final AutoCloseable residentMemorySampler;
     private final Duration drainTimeout;
@@ -76,6 +86,7 @@ public final class GatewayRuntime implements AutoCloseable {
             AutoCloseable authenticationWorkers,
             AutoCloseable messagingWorkers,
             AutoCloseable dataSource,
+            AutoCloseable webPushResources,
             ManagedDependency distributedRouting,
             AutoCloseable residentMemorySampler,
             BooleanSupplier dependencyReadiness,
@@ -87,6 +98,7 @@ public final class GatewayRuntime implements AutoCloseable {
                 authenticationWorkers, "authenticationWorkers");
         this.messagingWorkers = Objects.requireNonNull(messagingWorkers, "messagingWorkers");
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
+        this.webPushResources = Objects.requireNonNull(webPushResources, "webPushResources");
         this.distributedRouting = Objects.requireNonNull(distributedRouting, "distributedRouting");
         this.residentMemorySampler = Objects.requireNonNull(
                 residentMemorySampler, "residentMemorySampler");
@@ -110,6 +122,7 @@ public final class GatewayRuntime implements AutoCloseable {
         V2GatewayServer productServer = null;
         ManagedDependency distributedRouting = null;
         ResidentMemorySampler residentMemorySampler = null;
+        FileWebPushKeyCustody webPushKeyCustody = null;
         try {
             dataSource = GatewayPostgresDataSource.create(config);
             PostgresIdentityAdapter identity = new PostgresIdentityAdapter(dataSource);
@@ -135,15 +148,42 @@ public final class GatewayRuntime implements AutoCloseable {
             Clock clock = Clock.systemUTC();
             WebPushHttpCredentialTelemetry webPushCredentialTelemetry =
                     new WebPushHttpCredentialTelemetry();
+            PostgresWebPushHttpCredentialAdapter webPushCredentialStore =
+                    config.webPushEnabled()
+                            ? new PostgresWebPushHttpCredentialAdapter(dataSource) : null;
             WebPushHttpCredentialGatewayComponent webPushHttpCredentials =
                     config.webPushEnabled()
                             ? WebPushHttpCredentialGatewayComponent.enabled(
                                     new WebPushHttpCredentialIssueService(
                                             new WebPushDeliveryPolicy(true),
-                                            new PostgresWebPushHttpCredentialAdapter(dataSource),
+                                            webPushCredentialStore,
                                             clock),
                                     webPushCredentialTelemetry)
                             : WebPushHttpCredentialGatewayComponent.disabled();
+            WebPushHttpTelemetry webPushSubscriptionTelemetry = new WebPushHttpTelemetry();
+            WebPushSubscriptionHttpGatewayComponent webPushSubscriptions =
+                    WebPushSubscriptionHttpGatewayComponent.disabled();
+            if (config.webPushSubscriptions().enabled()) {
+                WebPushSubscriptionRuntimeConfig subscriptionConfig =
+                        config.webPushSubscriptions();
+                webPushKeyCustody = FileWebPushKeyCustody.load(
+                        subscriptionConfig.activeEncryptionKeyId(),
+                        subscriptionConfig.encryptionKeyFiles(),
+                        subscriptionConfig.endpointLookupKeyFile());
+                var protector = new AesGcmWebPushCredentialProtector(webPushKeyCustody);
+                var mutationService = new WebPushSubscriptionMutationService(
+                        new WebPushDeliveryPolicy(true),
+                        new InMemoryWebPushSubscriptionAdmission(
+                                subscriptionConfig.admissionLimits()),
+                        new PostgresWebPushSubscriptionAdapter(dataSource, protector),
+                        clock);
+                webPushSubscriptions = WebPushSubscriptionHttpGatewayComponent.enabled(
+                        subscriptionConfig.httpPolicy(),
+                        new ApplicationWebPushHttpSessionAdapter(webPushCredentialStore),
+                        mutationService,
+                        clock,
+                        webPushSubscriptionTelemetry);
+            }
             AuthenticationService authentication = new AuthenticationService(
                     identity,
                     new CompatibleCredentialVerifier(),
@@ -217,7 +257,8 @@ public final class GatewayRuntime implements AutoCloseable {
                     deviceConnections,
                     productLiveRouter,
                     publicReadiness,
-                    webPushHttpCredentials);
+                    webPushHttpCredentials,
+                    webPushSubscriptions);
             V2GatewayServer eventLoopMetricsServer = productServer;
             residentMemorySampler = ResidentMemorySampler.startDefault(Duration.ofMillis(250));
             ResidentMemorySampler residentMemoryMetricsSampler = residentMemorySampler;
@@ -240,6 +281,8 @@ public final class GatewayRuntime implements AutoCloseable {
                     publicReadiness,
                     () -> PrometheusWebPushHttpCredentialMetrics.render(
                             webPushCredentialTelemetry.snapshot())
+                            + PrometheusWebPushSubscriptionHttpMetrics.render(
+                                    webPushSubscriptionTelemetry)
                             + distributedMetrics.get(),
                     config.releaseIdentity());
             return new GatewayRuntime(
@@ -249,6 +292,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     workers,
                     messagingWorkers,
                     dataSource,
+                    webPushKeyCustody == null ? () -> { } : webPushKeyCustody,
                     distributedRouting,
                     residentMemorySampler,
                     dependencyReadiness,
@@ -260,6 +304,7 @@ public final class GatewayRuntime implements AutoCloseable {
             closeQuietly(residentMemorySampler);
             closeQuietly(messagingWorkers);
             closeQuietly(workers);
+            closeQuietly(webPushKeyCustody);
             closeQuietly(dataSource);
             throw exception;
         }
@@ -274,7 +319,7 @@ public final class GatewayRuntime implements AutoCloseable {
             AutoCloseable dataSource) {
         return new GatewayRuntime(
                 readiness, admin, product, authenticationWorkers, messagingWorkers, dataSource,
-                disabledDependency(), () -> { }, () -> true, Duration.ZERO);
+                () -> { }, disabledDependency(), () -> { }, () -> true, Duration.ZERO);
     }
 
     static GatewayRuntime forTest(
@@ -282,7 +327,7 @@ public final class GatewayRuntime implements AutoCloseable {
             AutoCloseable authenticationWorkers, AutoCloseable messagingWorkers,
             AutoCloseable dataSource, ManagedDependency distributedRouting) {
         return new GatewayRuntime(readiness, admin, product, authenticationWorkers,
-                messagingWorkers, dataSource, distributedRouting,
+                messagingWorkers, dataSource, () -> { }, distributedRouting,
                 () -> { }, distributedRouting::ready, Duration.ZERO);
     }
 
@@ -330,6 +375,7 @@ public final class GatewayRuntime implements AutoCloseable {
         closeQuietly(residentMemorySampler);
         closeQuietly(messagingWorkers);
         closeQuietly(authenticationWorkers);
+        closeQuietly(webPushResources);
         closeQuietly(dataSource);
     }
 

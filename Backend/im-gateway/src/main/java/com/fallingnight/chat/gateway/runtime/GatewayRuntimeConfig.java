@@ -61,6 +61,7 @@ public final class GatewayRuntimeConfig {
     private final boolean messageSearchEnabled;
     private final boolean accountBlockingEnabled;
     private final boolean webPushEnabled;
+    private final WebPushSubscriptionRuntimeConfig webPushSubscriptions;
     private final DistributedGatewayRoutingConfig distributedRouting;
     private final GatewayReleaseIdentity releaseIdentity;
 
@@ -100,6 +101,7 @@ public final class GatewayRuntimeConfig {
             boolean messageSearchEnabled,
             boolean accountBlockingEnabled,
             boolean webPushEnabled,
+            WebPushSubscriptionRuntimeConfig webPushSubscriptions,
             DistributedGatewayRoutingConfig distributedRouting,
             GatewayReleaseIdentity releaseIdentity) {
         this.listenerAddress = listenerAddress;
@@ -137,6 +139,8 @@ public final class GatewayRuntimeConfig {
         this.messageSearchEnabled = messageSearchEnabled;
         this.accountBlockingEnabled = accountBlockingEnabled;
         this.webPushEnabled = webPushEnabled;
+        this.webPushSubscriptions = Objects.requireNonNull(
+                webPushSubscriptions, "webPushSubscriptions");
         this.distributedRouting = Objects.requireNonNull(distributedRouting, "distributedRouting");
         this.releaseIdentity = Objects.requireNonNull(releaseIdentity, "releaseIdentity");
     }
@@ -283,6 +287,8 @@ public final class GatewayRuntimeConfig {
                 messageSearchEnabled,
                 accountBlockingEnabled,
                 webPushEnabled,
+                WebPushSubscriptionRuntimeConfig.fromEnvironment(
+                        environment, webPushEnabled, origins),
                 DistributedGatewayRoutingConfig.fromEnvironment(environment),
                 GatewayReleaseIdentity.fromEnvironment(environment));
     }
@@ -429,6 +435,10 @@ public final class GatewayRuntimeConfig {
 
     public boolean webPushEnabled() {
         return webPushEnabled;
+    }
+
+    public WebPushSubscriptionRuntimeConfig webPushSubscriptions() {
+        return webPushSubscriptions;
     }
 
     public DistributedGatewayRoutingConfig distributedRouting() {

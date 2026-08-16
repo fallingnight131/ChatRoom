@@ -92,8 +92,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
@@ -107,6 +109,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -477,7 +480,7 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     @Test
-    void issuesWebPushHttpCredentialOnlyForNegotiatedWebRuntime() throws Exception {
+    void issuesCredentialAndPersistsSubscriptionOnlyForNegotiatedWebRuntime() throws Exception {
         String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
         String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
         String password = System.getenv().getOrDefault("CHATROOM_TEST_POSTGRES_PASSWORD", "");
@@ -495,6 +498,11 @@ class GatewayRuntimePostgresIntegrationTest {
         int gatewayPort = availablePort();
         int adminPort = availablePort();
         SelfSignedCertificate certificate = new SelfSignedCertificate("localhost");
+        Path keyDirectory = Files.createTempDirectory("chat-web-push-keys-");
+        Path encryptionKey = writeProtectedKey(
+                keyDirectory.resolve("encryption-enc-v1.key"), 1);
+        Path lookupKey = writeProtectedKey(
+                keyDirectory.resolve("endpoint-lookup.key"), 2);
         GatewayRuntime runtime = null;
         WebSocket socket = null;
         try {
@@ -512,6 +520,11 @@ class GatewayRuntimePostgresIntegrationTest {
             environment.put("CHATROOM_POSTGRES_PASSWORD", "test-trust-password");
             environment.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
             environment.put("CHATROOM_GATEWAY_WEB_PUSH_ENABLED", "true");
+            environment.put(WebPushSubscriptionRuntimeConfig.ENABLED, "true");
+            environment.put(WebPushSubscriptionRuntimeConfig.KEY_DIRECTORY,
+                    keyDirectory.toString());
+            environment.put(WebPushSubscriptionRuntimeConfig.ACTIVE_KEY_ID, "enc-v1");
+            environment.put(WebPushSubscriptionRuntimeConfig.KEY_IDS, "enc-v1");
 
             runtime = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(environment));
             runtime.start();
@@ -548,12 +561,44 @@ class GatewayRuntimePostgresIntegrationTest {
                             + session.getSessionId()
                             + "' AND octet_length(bearer_sha256)=32"
                             + " AND octet_length(csrf_sha256)=32"));
-            assertTrue(adminMetrics(adminPort).contains(
+            UUID installationId = UUID.randomUUID();
+            HttpResponse<String> put = HttpClient.newBuilder()
+                    .sslContext(trustAllTls())
+                    .connectTimeout(Duration.ofSeconds(2))
+                    .build()
+                    .send(HttpRequest.newBuilder(URI.create(
+                                    "https://localhost:" + gatewayPort
+                                            + "/api/v2/web-push/subscriptions/"
+                                            + installationId))
+                            .header("Origin", "https://chat.example.com")
+                            .header("Authorization", "Bearer "
+                                    + issued.getBearerTokenAscii().toStringUtf8())
+                            .header("X-CSRF-Token",
+                                    issued.getCsrfTokenAscii().toStringUtf8())
+                            .header("Content-Type", "application/json")
+                            .PUT(HttpRequest.BodyPublishers.ofByteArray(
+                                    webPushSubscriptionJson()))
+                            .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(204, put.statusCode());
+            assertEquals("", put.body());
+            assertEquals(1, countQuery(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.web_push_subscription"
+                            + " WHERE account_id='" + accountId
+                            + "' AND installation_id='" + installationId
+                            + "' AND encryption_key_id='enc-v1'"
+                            + " AND octet_length(endpoint_lookup_tag)=32"));
+            String metrics = adminMetrics(adminPort);
+            assertTrue(metrics.contains(
                     "chat_gateway_web_push_http_credentials_issued_total 1\n"));
+            assertTrue(metrics.contains(
+                    "chat_gateway_web_push_subscription_http_replaced_total 1\n"));
         } finally {
             if (socket != null) socket.abort();
             if (runtime != null) runtime.close();
             certificate.delete();
+            Files.deleteIfExists(encryptionKey);
+            Files.deleteIfExists(lookupKey);
+            Files.deleteIfExists(keyDirectory);
         }
     }
 
@@ -5860,6 +5905,33 @@ class GatewayRuntimePostgresIntegrationTest {
     private static Envelope issueWebPushHttpCredential(String sessionId) {
         return command(MessageType.MESSAGE_TYPE_ISSUE_WEB_PUSH_HTTP_CREDENTIAL,
                 "issue-web-push-http-credential-1", sessionId, "", ByteString.EMPTY);
+    }
+
+    private static Path writeProtectedKey(Path path, int fill) throws Exception {
+        byte[] value = new byte[32];
+        Arrays.fill(value, (byte) fill);
+        try {
+            Files.write(path, value);
+            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
+            return path;
+        } finally {
+            Arrays.fill(value, (byte) 0);
+        }
+    }
+
+    private static byte[] webPushSubscriptionJson() {
+        byte[] p256dh = new byte[65];
+        p256dh[0] = 0x04;
+        byte[] auth = new byte[16];
+        Arrays.fill(auth, (byte) 7);
+        String json = "{\"endpoint\":\"https://push.example/sub/opaque\","
+                + "\"expirationTime\":null,\"keys\":{\"p256dh\":\""
+                + Base64.getUrlEncoder().withoutPadding().encodeToString(p256dh)
+                + "\",\"auth\":\""
+                + Base64.getUrlEncoder().withoutPadding().encodeToString(auth) + "\"}}";
+        Arrays.fill(p256dh, (byte) 0);
+        Arrays.fill(auth, (byte) 0);
+        return json.getBytes(StandardCharsets.UTF_8);
     }
 
     private static Envelope authenticate(String login) {

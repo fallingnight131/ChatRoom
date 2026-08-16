@@ -39,6 +39,7 @@ import com.fallingnight.chat.gateway.transport.V2WebSocketUpgradeHandler;
 import com.fallingnight.chat.gateway.transport.WebSocketEndpointPolicy;
 import com.fallingnight.chat.gateway.transport.WebSocketEndpointPolicyHandler;
 import com.fallingnight.chat.gateway.transport.WebPushHttpCredentialGatewayComponent;
+import com.fallingnight.chat.gateway.transport.WebPushSubscriptionHttpGatewayComponent;
 import com.fallingnight.chat.gateway.operations.EventLoopSnapshot;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -97,6 +98,8 @@ public final class V2GatewayServer implements AutoCloseable {
             (actor, request) -> AccountBlockDirectoryResult.Rejected.NOT_AUTHORIZED;
     private WebPushHttpCredentialGatewayComponent webPushHttpCredentials =
             WebPushHttpCredentialGatewayComponent.disabled();
+    private WebPushSubscriptionHttpGatewayComponent webPushSubscriptions =
+            WebPushSubscriptionHttpGatewayComponent.disabled();
     private final DeviceManagementService deviceManagement;
     private final Executor authenticationExecutor;
     private final Executor messagingExecutor;
@@ -326,9 +329,46 @@ public final class V2GatewayServer implements AutoCloseable {
                 participants, reactions, pins, edits, forwards, search, accountBlocks,
                 accountBlockDirectory, deviceManagement, authenticationExecutor,
                 messagingExecutor, admission, events, messagingEvents, deviceEvents,
+                deviceConnections, liveRouter, productReadiness, webPushHttpCredentials,
+                WebPushSubscriptionHttpGatewayComponent.disabled());
+    }
+
+    V2GatewayServer(
+            GatewayRuntimeConfig config,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            MessageSearchPort search,
+            AccountBlockUseCase accountBlocks,
+            AccountBlockDirectoryUseCase accountBlockDirectory,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            BooleanSupplier productReadiness,
+            WebPushHttpCredentialGatewayComponent webPushHttpCredentials,
+            WebPushSubscriptionHttpGatewayComponent webPushSubscriptions) {
+        this(config, authentication, sessionResume, submissions, history, directory,
+                participants, reactions, pins, edits, forwards, search, accountBlocks,
+                accountBlockDirectory, deviceManagement, authenticationExecutor,
+                messagingExecutor, admission, events, messagingEvents, deviceEvents,
                 deviceConnections, liveRouter, productReadiness);
         this.webPushHttpCredentials = Objects.requireNonNull(
                 webPushHttpCredentials, "webPushHttpCredentials");
+        this.webPushSubscriptions = Objects.requireNonNull(
+                webPushSubscriptions, "webPushSubscriptions");
     }
 
     V2GatewayServer(
@@ -728,6 +768,7 @@ public final class V2GatewayServer implements AutoCloseable {
         pipeline.addLast("proxy-policy", new TrustedProxyHttpHandler(config.proxyPolicy()));
         pipeline.addLast("product-readiness",
                 new ProductReadinessHttpHandler(productReadiness));
+        webPushSubscriptions.install(pipeline, messagingExecutor);
         pipeline.addLast(
                 "endpoint-policy", new WebSocketEndpointPolicyHandler(config.endpointPolicy()));
         pipeline.addLast("websocket", new WebSocketServerProtocolHandler(webSocketConfig()));

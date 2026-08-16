@@ -57,8 +57,9 @@ one immediately before each mutation and surface fixed retry behavior.
 
 This adds two permanent wire identities and a secret-verifier table. Exact
 server activation installs the issuer handler and capability on the Web WSS
-pipeline, but does not expose the subscription HTTP route, add capability 8 to
-a default client, or activate Web Push delivery. A future distributed credential cache may
+pipeline. A second exact gate may expose the subscription HTTP route with
+ADR-0411 custody, but neither gate adds capability 8 to a default client or
+activates Web Push delivery. A future distributed credential cache may
 optimize lookup only as rebuildable state; PostgreSQL remains authoritative.
 
 ## Verification and rollback
@@ -81,7 +82,8 @@ optimize lookup only as rebuildable state; PostgreSQL remains authoritative.
   and emits only fixed errors/events. A separate adapter maps the application
   authenticator to the HTTP handler's fixed actor/decision contract without
   retaining tokens. Runtime composition installs only the WSS issuer under the
-  exact gate; the HTTP bridge and subscription route remain detached.
+  exact gate. The HTTP bridge and subscription route are composed only under the
+  second exact subscription gate and protected key configuration.
 - Runtime configuration tests prove absent/false and non-exact values remain
   disabled. Real TLS/WSS plus disposable-PostgreSQL integration proves Web-only
   negotiation, authenticated issuance, hash-only persistence, server-bound
