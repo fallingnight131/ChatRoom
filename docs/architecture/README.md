@@ -2161,6 +2161,12 @@ The mention fixture also drops the first acceptance only after recording the
 submission, closes the socket, and returns that same `client_message_id`, target,
 and span through post-resume authoritative history. Both browsers converge the
 optimistic row without another type-25 command or loss of identity rendering.
+Participant selection now owns its asynchronous focus transition explicitly.
+An empty picker first focuses its always-available close action; when the first
+authorized page arrives it advances to the first option only if focus is still
+on that initial action. A user move, close, or stale response cancels the pending
+transition. Delayed-response Chromium and Firefox paths verify both the automatic
+advance and the no-focus-steal branch.
 
 ### Product consistency
 

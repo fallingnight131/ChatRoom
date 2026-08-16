@@ -35,7 +35,13 @@ async function installV2SocketFixture(
         throw new Error("V2 fixture received a text WebSocket frame");
       }
       const response = fixture.respond(Array.from(message));
-      if (response !== null) socket.send(Buffer.from(response));
+      if (response === null) return;
+      if (options.participantResponseDelayMs
+          && fixture.receivedTypes.at(-1) === MessageType.LIST_CONVERSATION_PARTICIPANTS) {
+        setTimeout(() => socket.send(Buffer.from(response)), options.participantResponseDelayMs);
+      } else {
+        socket.send(Buffer.from(response));
+      }
     });
   });
   return { fixture, socketUrls, sockets, clientCloses };
@@ -174,7 +180,9 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
 test("selects a non-self participant and sends one identity-backed Unicode mention", async ({ page }) => {
   test.skip(!enabled || !mentionsCandidate,
     "requires the explicit V2 structured-mention browser candidate");
-  const { fixture } = await installV2SocketFixture(page, "accept");
+  const { fixture } = await installV2SocketFixture(page, "accept", {
+    participantResponseDelayMs: 400,
+  });
 
   await page.goto("/#/preview/v2");
   await expect(page.getByText("可登录", { exact: true })).toBeVisible();
@@ -188,9 +196,12 @@ test("selects a non-self participant and sends one identity-backed Unicode menti
   await trigger.press("Enter");
   const picker = page.getByRole("dialog", { name: "选择要提及的成员" });
   await expect(picker).toBeVisible();
+  await expect(picker.getByRole("button", { name: "关闭成员选择器" }))
+    .toBeFocused({ timeout: 250 });
   const participants = picker.getByRole("listbox", { name: "会话成员" });
   const peer = participants.getByRole("option", { name: /李雷/ });
   await expect(peer).toBeVisible();
+  await expect(peer).toBeFocused();
   await expect(participants.getByRole("option", { name: /Browser V2 User/ })).toHaveCount(0);
   const participantTree = await participants.ariaSnapshot();
   expect(participantTree).toContain('- listbox "会话成员"');
@@ -225,6 +236,32 @@ test("selects a non-self participant and sends one identity-backed Unicode menti
   expect(fixture.receivedTypes.filter(
     type => type === MessageType.LIST_CONVERSATION_PARTICIPANTS)).toHaveLength(1);
   expect(fixture.receivedTypes.filter(type => type === MessageType.SUBMIT_MESSAGE)).toHaveLength(1);
+});
+
+test("does not steal focus after the user leaves a loading mention picker", async ({ page }) => {
+  test.skip(!enabled || !mentionsCandidate,
+    "requires the explicit V2 structured-mention browser candidate");
+  const { fixture } = await installV2SocketFixture(page, "accept", {
+    participantResponseDelayMs: 400,
+  });
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+
+  const trigger = page.getByRole("button", { name: "@ 提及成员" });
+  await trigger.click();
+  const picker = page.getByRole("dialog", { name: "选择要提及的成员" });
+  await expect(picker.getByRole("button", { name: "关闭成员选择器" }))
+    .toBeFocused({ timeout: 250 });
+  await trigger.focus();
+  await expect(trigger).toBeFocused();
+  await expect(picker.getByRole("option", { name: /李雷/ })).toBeVisible();
+  await expect(trigger).toBeFocused();
+  expect(fixture.participantRequests).toHaveLength(1);
 });
 
 test("repairs an ACK-lost mention from history without duplicate submission", async ({ page }) => {

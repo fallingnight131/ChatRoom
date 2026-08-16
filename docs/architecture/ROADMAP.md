@@ -2063,6 +2063,10 @@ Progress:
         history after same-session resume by stable client-message identity,
         preserving the target/span projection without a duplicate type-25
         submission in Chromium and Firefox.
+      - [x] Make delayed participant pages keyboard-continuous: focus begins on
+        the available close control, advances to the first authorized candidate
+        when it arrives, and never overrides focus the user already moved;
+        verify both branches in Chromium and Firefox.
     - [ ] Add the equivalent Windows protocol, SQLite, composition, rendering,
       accessibility, reconnect convergence, and capability activation gates.
       - [x] Extend the default-off Windows messaging protocol boundary with

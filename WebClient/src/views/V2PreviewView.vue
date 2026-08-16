@@ -497,6 +497,7 @@ const mentionPickerMode = ref(null)
 const mentionPickerRef = ref(null)
 const mentionListRef = ref(null)
 let mentionPickerTrigger = null
+let mentionPickerShouldFocusFirstOption = false
 const forwardSource = ref(null)
 const forwardPending = ref(false)
 const authenticationPending = ref(false)
@@ -939,21 +940,45 @@ function updateEditDraft(event) {
 function openMentionPicker(mode, event) {
   mentionPickerTrigger = event?.currentTarget || null
   mentionPickerMode.value = mode
+  mentionPickerShouldFocusFirstOption = true
   if (snapshot.value.participants.length === 0) refreshParticipants()
   nextTick(() => {
     const firstOption = mentionListRef.value?.querySelector('[role="option"]')
-    ;(firstOption || mentionPickerRef.value?.querySelector('[data-mention-close]'))?.focus()
+    if (firstOption) {
+      firstOption.focus()
+      mentionPickerShouldFocusFirstOption = false
+    } else {
+      mentionPickerRef.value?.querySelector('[data-mention-close]')?.focus()
+    }
   })
 }
 
 function closeMentionPicker(restoreFocus = true) {
   mentionPickerMode.value = null
+  mentionPickerShouldFocusFirstOption = false
   const trigger = mentionPickerTrigger
   mentionPickerTrigger = null
   if (restoreFocus) nextTick(() => trigger?.focus())
 }
 
 const mentionPickerOpen = computed(() => Boolean(mentionPickerMode.value))
+
+const stopMentionParticipantWatch = watch(
+  () => snapshot.value.participants.length,
+  (count, previousCount) => {
+    if (!mentionPickerOpen.value || !mentionPickerShouldFocusFirstOption
+        || count <= 0 || previousCount > 0) return
+    nextTick(() => {
+      const close = mentionPickerRef.value?.querySelector('[data-mention-close]')
+      if (!close || document.activeElement !== close) {
+        mentionPickerShouldFocusFirstOption = false
+        return
+      }
+      mentionListRef.value?.querySelector('[role="option"]')?.focus()
+      mentionPickerShouldFocusFirstOption = false
+    })
+  },
+)
 
 function refreshParticipants() {
   try { runtimeRef.value.application.refreshParticipants() }
@@ -1072,6 +1097,7 @@ onMounted(() => attachRuntime(runtimeRef?.value))
 const stopRuntimeWatch = watch(() => runtimeRef?.value, attachRuntime)
 onUnmounted(() => {
   stopRuntimeWatch()
+  stopMentionParticipantWatch()
   unsubscribe?.()
   if (startedApplication) {
     try { startedApplication.stop() } catch { /* page disposal may already own shutdown */ }

@@ -67,6 +67,7 @@ export type V2ProtocolFixtureMode = "accept" | "reject";
 export interface V2ProtocolFixtureOptions {
   dropFirstForwardAcceptance?: boolean;
   dropFirstMentionAcceptance?: boolean;
+  participantResponseDelayMs?: number;
 }
 
 export interface V2ProtocolFixture {

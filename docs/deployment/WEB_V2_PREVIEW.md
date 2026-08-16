@@ -127,6 +127,10 @@ An ACK-loss variant records the mention submission, suppresses its acceptance,
 restarts the socket, and returns the accepted record through sequence repair.
 The browser must converge by the stable client-message identity, retain the
 target/span projection, and emit no second type-25 command.
+The participant fixture can also delay type 118. During that delay the close
+action owns focus; the first option receives focus after arrival only while that
+initial ownership remains. Chromium and Firefox separately verify automatic
+advancement and that a user-moved focus target is not overridden.
 The fixture does not satisfy the real TLS, Origin/Host, gateway, database,
 physical network, edge-failover, or deployment checks above and must not be
 reported as release or capacity evidence.
