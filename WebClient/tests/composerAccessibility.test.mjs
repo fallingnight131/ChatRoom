@@ -44,6 +44,15 @@ test('provides one-entry keyboard navigation through the emoji grid', () => {
   ]) assert.ok(picker.includes(marker), `missing emoji-grid marker: ${marker}`)
 })
 
+test('renders the emoji dialog, grid, and actions from the live locale catalog', () => {
+  for (const marker of [
+    'emojiPickerMessages(userStore.locale)',
+    ':aria-label="messages.dialog"',
+    ':aria-label="messages.grid"',
+    ':aria-label="`${messages.sendPrefix}${emoji}`"',
+  ]) assert.ok(picker.includes(marker), `missing emoji locale marker: ${marker}`)
+})
+
 test('restores a useful focus target when the picker closes', () => {
   assert.match(input, /@close="closeEmojiPicker\(true\)"/)
   assert.match(input, /nextTick\(\(\) => emojiButton\.value\?\.focus\(\)\)/)

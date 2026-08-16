@@ -295,6 +295,19 @@ const composerCatalog = {
   },
 } as const;
 
+const emojiPickerCatalog = {
+  "zh-CN": {
+    dialog: "选择要发送的表情",
+    grid: "表情",
+    sendPrefix: "发送表情 ",
+  },
+  "en-US": {
+    dialog: "Choose an emoji to send",
+    grid: "Emoji",
+    sendPrefix: "Send emoji ",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -345,6 +358,10 @@ export function memberListMessages(locale: WebLocale) {
 
 export function composerMessages(locale: WebLocale) {
   return composerCatalog[locale];
+}
+
+export function emojiPickerMessages(locale: WebLocale) {
+  return emojiPickerCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

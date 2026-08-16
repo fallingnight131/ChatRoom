@@ -446,6 +446,10 @@ test("switches the authenticated shell locale from profile and persists it", asy
   await expect(page.getByRole("toolbar", { name: "Message tools" })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Message content" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
+  await page.getByRole("button", { name: "Choose emoji" }).click();
+  await expect(page.getByRole("dialog", { name: "Choose an emoji to send" })).toBeVisible();
+  await expect(page.getByRole("grid", { name: "Emoji" })).toBeVisible();
+  await page.keyboard.press("Escape");
 });
 
 test("pauses an offline login attempt and requires explicit retry after recovery", async ({ context, page }) => {

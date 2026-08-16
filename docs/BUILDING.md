@@ -81,7 +81,9 @@ used as desktop evidence. Room administration/file dialogs and message tools
 remain outside these slices except for the V1 composer. The browser journey
 verifies its localized toolbar, textbox, and send-button accessible names;
 source tests additionally lock upload/recovery actions and local size errors to
-the catalog without changing byte-budget or transport behavior.
+the catalog without changing byte-budget or transport behavior. The same
+browser journey opens the localized emoji dialog, verifies its named grid, and
+closes it with Escape; source tests retain the existing roving-focus contract.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

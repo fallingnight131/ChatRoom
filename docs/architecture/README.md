@@ -1993,7 +1993,10 @@ claim complete product localization. The V1 message composer is the seventh
 migrated slice: toolbar/input/send semantics, UTF-8 byte-budget presentation,
 upload/recovery state, and local file-limit feedback use the catalog while the
 existing draft, attachment, and transport state machines remain unchanged.
-The emoji picker and message timeline remain later slices.
+The emoji picker is the eighth migrated slice: its dialog, grid, and per-emoji
+action names follow the live preference while the shared 96-emoji ordering and
+roving keyboard behavior stay unchanged. The message timeline remains a later
+slice.
 
 ### Product consistency
 

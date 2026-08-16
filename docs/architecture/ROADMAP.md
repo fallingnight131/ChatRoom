@@ -2364,6 +2364,8 @@ Candidate slices:
     avatar descriptions, and accessible member actions to the live catalog.
   - [x] Migrate the Web V1 composer toolbar, text/send controls, UTF-8 budget,
     upload recovery, progress actions, and local file-limit feedback.
+  - [x] Migrate the Web emoji dialog, grid, and per-emoji action names while
+    preserving the shared ordering and roving keyboard interaction.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

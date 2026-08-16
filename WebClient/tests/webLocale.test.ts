@@ -4,6 +4,7 @@ import {
   applyDocumentLocale,
   chatShellMessages,
   composerMessages,
+  emojiPickerMessages,
   friendListMessages,
   loginMessages,
   memberListMessages,
@@ -63,6 +64,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(composerMessages("en-US")).sort(),
     Object.keys(composerMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(emojiPickerMessages("en-US")).sort(),
+    Object.keys(emojiPickerMessages("zh-CN")).sort(),
   );
 });
 

@@ -1,14 +1,14 @@
 <template>
   <div id="emoji-picker" class="emoji-picker" role="dialog"
-       aria-label="选择要发送的表情" @click.stop @keydown.esc.stop.prevent="emit('close')">
-    <div class="emoji-grid" role="grid" aria-label="表情">
+       :aria-label="messages.dialog" @click.stop @keydown.esc.stop.prevent="emit('close')">
+    <div class="emoji-grid" role="grid" :aria-label="messages.grid">
       <div v-for="(row, rowIndex) in emojiRows" :key="rowIndex"
            class="emoji-row" role="row">
         <button v-for="(emoji, columnIndex) in row" :key="columnIndex"
                 :ref="element => setEmojiButton(element, emojiIndex(rowIndex, columnIndex))"
                 type="button" role="gridcell" class="emoji-item"
                 :tabindex="emojiIndex(rowIndex, columnIndex) === activeIndex ? 0 : -1"
-                :aria-label="`发送表情 ${emoji}`"
+                :aria-label="`${messages.sendPrefix}${emoji}`"
                 @focus="activeIndex = emojiIndex(rowIndex, columnIndex)"
                 @keydown="onEmojiKeydown($event, emojiIndex(rowIndex, columnIndex))"
                 @click="emit('select', emoji)">
@@ -20,9 +20,13 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { useUserStore } from '../stores/user'
+import { emojiPickerMessages } from '../localization/webLocale'
 
 const emit = defineEmits(['select', 'close'])
+const userStore = useUserStore()
+const messages = computed(() => emojiPickerMessages(userStore.locale))
 const activeIndex = ref(0)
 const emojiButtons = []
 const COLUMN_COUNT = 8
