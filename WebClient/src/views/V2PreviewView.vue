@@ -44,12 +44,28 @@
       <nav class="conversation-panel" :aria-label="shellMessages.conversationNavigation">
         <div class="account-block">
           <strong>{{ snapshot.session.displayName }}</strong>
-          <span>{{ snapshot.session.accountId }}</span>
+          <span class="account-id">{{ snapshot.session.accountId }}</span>
           <button class="device-entry" type="button" aria-haspopup="dialog"
                   :aria-expanded="devicesOpen" @click="openDevices">
             {{ shellMessages.loginDevices }}
             <span v-if="snapshot.devices.length">{{ snapshot.devices.length }}</span>
           </button>
+          <div class="low-bandwidth-control">
+            <label for="v2-low-bandwidth">
+              <input id="v2-low-bandwidth" type="checkbox"
+                     :checked="userStore.lowBandwidthMode"
+                     aria-describedby="v2-low-bandwidth-description"
+                     @change="setLowBandwidthMode" />
+              <span>{{ bandwidthMessages.lowBandwidth }}</span>
+            </label>
+            <small id="v2-low-bandwidth-description">{{ bandwidthMessages.lowBandwidthDescription }}</small>
+            <small v-if="userStore.lowBandwidthPreferenceSource === 'browser'" role="status">
+              {{ bandwidthMessages.browserDataSaver }}
+            </small>
+            <small v-else-if="userStore.lowBandwidthPreferenceSource === 'session'" role="status">
+              {{ bandwidthMessages.sessionOnly }}
+            </small>
+          </div>
         </div>
         <ul class="conversation-list" :aria-label="shellMessages.availableConversations">
           <li v-for="conversation in snapshot.directory" :key="conversation.conversationId">
@@ -403,6 +419,7 @@ import {
   localizeV2PreviewDeviceFailure,
   localizeV2PreviewParticipantFailure,
   localizeV2PreviewSearchFailure,
+  profileMessages,
   v2PreviewBasicActionMessages,
   v2PreviewComposerMessages,
   v2PreviewDeviceMessages,
@@ -426,6 +443,7 @@ import {
 const runtimeRef = inject(V2_RUNTIME_KEY)
 const userStore = useUserStore()
 const shellMessages = computed(() => v2PreviewShellMessages(userStore.locale))
+const bandwidthMessages = computed(() => profileMessages(userStore.locale))
 const searchMessages = computed(() => v2PreviewSearchMessages(userStore.locale))
 const timelineMessages = computed(() => messageTimelineMessages(userStore.locale))
 const v2TimelineMessages = computed(() => v2PreviewTimelineMessages(userStore.locale))
@@ -666,6 +684,10 @@ function locateSearchHit(hit) {
 function loadMoreDirectory() {
   try { runtimeRef.value.application.loadMoreDirectory() }
   catch (error) { actionError.value = error instanceof Error ? error.message : shellMessages.value.loadConversationsFailed }
+}
+
+function setLowBandwidthMode(event) {
+  userStore.setLowBandwidthMode(event.target.checked)
 }
 
 function sendMessage() {
@@ -1047,9 +1069,13 @@ onUnmounted(() => {
 .conversation-panel { overflow-y: auto; border-right: 1px solid var(--border-color); background: var(--bg-secondary); }
 .conversation-list { margin: 0; padding: 0; list-style: none; }
 .account-block { display: grid; gap: 4px; padding: 18px; border-bottom: 1px solid var(--border-color); }
-.account-block span { overflow: hidden; color: var(--text-secondary); font-size: 11px; text-overflow: ellipsis; }
+.account-id { overflow: hidden; color: var(--text-secondary); font-size: 11px; text-overflow: ellipsis; }
 .device-entry { margin-top: 8px; padding: 7px 9px; display: flex; justify-content: space-between; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); background: var(--bg-primary); cursor: pointer; }
 .device-entry:hover { background: var(--bg-hover); }.device-entry span { font-size: 12px; }
+.low-bandwidth-control { margin-top: 8px; display: grid; gap: 4px; color: var(--text-secondary); }
+.low-bandwidth-control label { display: flex; gap: 8px; align-items: center; color: var(--text-primary); font-size: 12px; cursor: pointer; }
+.low-bandwidth-control input { margin: 0; }
+.low-bandwidth-control small { font-size: 10px; line-height: 1.35; }
 .conversation-button { width: 100%; display: grid; gap: 4px; padding: 14px 18px; border: 0; border-bottom: 1px solid var(--border-light); text-align: left; color: var(--text-primary); background: transparent; cursor: pointer; }
 .conversation-button:hover { background: var(--bg-hover); }.conversation-button.active { background: var(--bg-active); }
 .reply-reference { margin-bottom: 6px; padding: 6px 8px; display: grid; gap: 2px; border-left: 3px solid var(--accent); border-radius: 4px; color: var(--text-secondary); background: var(--bg-primary); font-size: 12px; }
@@ -1108,5 +1134,5 @@ onUnmounted(() => {
 .device-icon { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 10px; color: var(--accent); background: var(--bg-active); font-size: 20px; }.device-copy { min-width: 0; flex: 1; display: grid; gap: 3px; }.device-copy span, .device-copy small { color: var(--text-secondary); font-size: 12px; }.current-device { padding: 4px 8px; border-radius: 999px; color: var(--success); background: var(--bg-primary); font-size: 12px; }
 .revoke-confirm { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; font-size: 12px; }.btn-danger, .btn-danger-outline { padding: 7px 10px; }.btn-danger { color: white; background: var(--danger); }.btn-danger-outline { border: 1px solid var(--danger); color: var(--danger); background: transparent; }
 .device-dialog-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border-color); }
-@media (max-width: 720px) { .preview-header { padding: 10px 14px; }.chat-shell { grid-template-columns: 112px 1fr; }.account-block { padding: 12px; }.account-block span { display: none; }.conversation-button { padding: 12px 10px; }.conversation-button span { display: none; }.bubble { max-width: 88%; }.composer { padding: 10px; } }
+@media (max-width: 720px) { .preview-header { padding: 10px 14px; }.chat-shell { grid-template-columns: 112px 1fr; }.account-block { padding: 12px; }.account-id { display: none; }.low-bandwidth-control label { align-items: flex-start; }.conversation-button { padding: 12px 10px; }.conversation-button span { display: none; }.bubble { max-width: 88%; }.composer { padding: 10px; } }
 </style>

@@ -2094,6 +2094,13 @@ verbatim, and a source guard prevents presentation literals from returning to
 the view. This completes catalog migration of the current default-off V2
 surface; it does not remove its product-cutover blockers or constitute an
 authenticated V2 browser run.
+The V2 authenticated sidebar now also exposes the shared persisted
+low-bandwidth preference with a native checkbox and localized browser-default
+or session-only status. It deliberately changes only optional automatic media
+fetch policy: V2 connection startup, incremental synchronization, conversation
+opening, message submission, and user-initiated operations remain enabled. The
+current text-only preview issues no automatic avatar request, so this is an
+explicit policy/control boundary rather than a bandwidth-capacity claim.
 
 ### Product consistency
 

@@ -2410,6 +2410,8 @@ Candidate slices:
     author gates, revision overlays, structured mentions, and operation IDs.
   - [x] Close the current Web V2 preview over the locale boundary, with known
     legacy-failure adapters and a no-fixed-Chinese source guard.
+  - [x] Expose the shared persisted Web low-bandwidth preference in V2 without
+    gating connection, synchronization, conversation, or message operations.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

@@ -5,6 +5,7 @@ import test from 'node:test'
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8')
 const store = read('../src/stores/user.js')
 const profile = read('../src/components/ProfileDialog.vue')
+const v2Preview = read('../src/views/V2PreviewView.vue')
 
 test('exposes a persistent, accessible Web low-bandwidth preference', () => {
   for (const marker of [
@@ -21,6 +22,14 @@ test('exposes a persistent, accessible Web low-bandwidth preference', () => {
     '{{ messages.lowBandwidth }}',
     '{{ messages.sessionOnly }}',
   ]) assert.ok(profile.includes(marker), `missing bandwidth UI marker: ${marker}`)
+  for (const marker of [
+    'id="v2-low-bandwidth" type="checkbox"',
+    ':checked="userStore.lowBandwidthMode"',
+    'aria-describedby="v2-low-bandwidth-description"',
+    '@change="setLowBandwidthMode"',
+    'userStore.lowBandwidthPreferenceSource === \'browser\'',
+    'userStore.lowBandwidthPreferenceSource === \'session\'',
+  ]) assert.ok(v2Preview.includes(marker), `missing V2 bandwidth UI marker: ${marker}`)
 })
 
 test('suppresses automatic avatar requests without blocking explicit profile loading', () => {
@@ -36,4 +45,9 @@ test('suppresses automatic avatar requests without blocking explicit profile loa
   }
   assert.ok(read('../src/components/UserInfoDialog.vue').includes('chatWs.getAvatar(props.user.username)'),
     'explicit user-profile avatar loading must remain available')
+})
+
+test('keeps V2 messaging and synchronization outside the presentation preference boundary', () => {
+  assert.ok(v2Preview.includes('userStore.setLowBandwidthMode(event.target.checked)'))
+  assert.doesNotMatch(v2Preview, /lowBandwidthMode[^\n]*(sendText|openConversation|loadMoreDirectory|start)/)
 })

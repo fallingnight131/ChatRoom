@@ -194,6 +194,11 @@ guard rejects fixed Chinese literals in the Vue file. Known legacy application
 failure strings are translated inside `webLocale.ts`; unknown runtime/server
 diagnostics remain verbatim. Authentication, directory-open, and directory-page
 fallbacks also use catalog keys.
+The authenticated V2 sidebar reuses the same persisted low-bandwidth preference
+as V1. Its native checkbox exposes browser-data-saver and session-only storage
+status accessibly. The preference remains a presentation/network-fetch policy:
+it does not gate V2 startup, synchronization, conversation opening, or message
+submission; the current text-only V2 preview has no automatic avatar request.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and
