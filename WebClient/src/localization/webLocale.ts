@@ -378,6 +378,26 @@ const messageActionCatalog = {
   },
 } as const;
 
+const filePreviewCatalog = {
+  "zh-CN": {
+    zoomOut: "缩小图片", resetZoomPrefix: "重置图片缩放，当前 ", resetZoomSuffix: "%", zoomIn: "放大图片",
+    downloadTitle: "下载", downloadPrefix: "下载 ", closeTitle: "关闭", close: "关闭文件预览",
+    loading: "加载中...", imagePreviewSuffix: " 预览", videoPlayerSuffix: " 视频播放器",
+    audioPlayerSuffix: " 音频播放器", pdfPreviewSuffix: " PDF 预览", textPreviewSuffix: " 文本预览",
+    unsupportedHint: "该文件类型不支持在线预览", downloadFile: "下载文件", unknownFile: "未知文件",
+    cannotDownload: "文件已过期或被清除，无法下载", cannotPreview: "文件已过期或被清除，无法预览",
+  },
+  "en-US": {
+    zoomOut: "Zoom out", resetZoomPrefix: "Reset image zoom; currently ", resetZoomSuffix: "%", zoomIn: "Zoom in",
+    downloadTitle: "Download", downloadPrefix: "Download ", closeTitle: "Close", close: "Close file preview",
+    loading: "Loading...", imagePreviewSuffix: " preview", videoPlayerSuffix: " video player",
+    audioPlayerSuffix: " audio player", pdfPreviewSuffix: " PDF preview", textPreviewSuffix: " text preview",
+    unsupportedHint: "This file type cannot be previewed online", downloadFile: "Download file", unknownFile: "Unknown file",
+    cannotDownload: "This file expired or was removed and cannot be downloaded.",
+    cannotPreview: "This file expired or was removed and cannot be previewed.",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -444,6 +464,10 @@ export function messageAttachmentMessages(locale: WebLocale) {
 
 export function messageActionMessages(locale: WebLocale) {
   return messageActionCatalog[locale];
+}
+
+export function filePreviewMessages(locale: WebLocale) {
+  return filePreviewCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

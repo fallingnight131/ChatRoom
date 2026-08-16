@@ -2372,6 +2372,8 @@ Candidate slices:
     and local expired-file preview/download/forward denials.
   - [x] Migrate the Web V1 message action menu and its forwarding and
     administrator confirmation/validation feedback without changing commands.
+  - [x] Migrate the Web V1 file-preview dialog and embedded-player language
+    without changing download, fallback, chunking, or Blob lifecycle behavior.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

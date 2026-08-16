@@ -94,8 +94,12 @@ The V1 message-action slice also binds the copy, preview, download, forward,
 recall, and administrator deletion menu to the active locale, including local
 confirmation and validation feedback. Its English browser journey opens a real
 fixture message's named menu and verifies forwarding and copy actions in both
-Chromium and Firefox. The forwarding picker and file-preview dialog remain
-separate localization slices.
+Chromium and Firefox. The file-preview slice separately binds zoom, download,
+close, loading, media-region, unsupported-file, and local expiry feedback to
+the active locale, and selects the matching DPlayer language. Source tests
+preserve the HTTP/WebSocket fallback, chunk, and Blob cleanup markers; the
+browser fixture still does not claim attachment-byte end-to-end coverage. The
+forwarding picker remains a separate localization slice.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

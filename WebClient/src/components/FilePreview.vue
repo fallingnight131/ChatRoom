@@ -8,17 +8,17 @@
         <span id="file-preview-title" class="preview-filename text-ellipsis">{{ fileName }}</span>
         <div class="preview-actions">
           <template v-if="!loading && previewType === 'image'">
-            <button type="button" class="preview-btn" aria-label="缩小图片"
+            <button type="button" class="preview-btn" :aria-label="messages.zoomOut"
                     :disabled="scale <= MIN_IMAGE_SCALE" @click="adjustZoom(-IMAGE_SCALE_STEP)">−</button>
             <button type="button" class="preview-zoom-reset" @click="resetZoom"
-                    :aria-label="`重置图片缩放，当前 ${imageScalePercent}%`">
+                    :aria-label="`${messages.resetZoomPrefix}${imageScalePercent}${messages.resetZoomSuffix}`">
               {{ imageScalePercent }}%
             </button>
-            <button type="button" class="preview-btn" aria-label="放大图片"
+            <button type="button" class="preview-btn" :aria-label="messages.zoomIn"
                     :disabled="scale >= MAX_IMAGE_SCALE" @click="adjustZoom(IMAGE_SCALE_STEP)">＋</button>
           </template>
-          <button type="button" class="preview-btn" @click="download" title="下载"
-                  :aria-label="`下载 ${fileName}`">
+          <button type="button" class="preview-btn" @click="download" :title="messages.downloadTitle"
+                  :aria-label="`${messages.downloadPrefix}${fileName}`">
             <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
@@ -26,7 +26,7 @@
             </svg>
           </button>
           <button type="button" class="preview-btn" data-preview-close
-                  @click="closeDialog" title="关闭" aria-label="关闭文件预览">
+                  @click="closeDialog" :title="messages.closeTitle" :aria-label="messages.close">
             <svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"/>
               <line x1="6" y1="6" x2="18" y2="18"/>
@@ -38,14 +38,14 @@
       <!-- 加载动画 -->
       <div v-if="loading" class="preview-spinner" role="status" aria-live="polite">
         <div class="spinner" aria-hidden="true"></div>
-        <span>加载中... {{ loadPercent }}</span>
+        <span>{{ messages.loading }} {{ loadPercent }}</span>
       </div>
 
       <!-- 图片预览 -->
       <div v-else-if="previewType === 'image'" class="preview-content preview-image-wrap"
            @click.self="closeDialog">
         <img :src="blobUrl" class="preview-image"
-             :alt="`${fileName} 预览`"
+             :alt="`${fileName}${messages.imagePreviewSuffix}`"
              :style="imageStyle"
              @wheel.prevent="onWheel"
              @mousedown="onDragStart"
@@ -56,7 +56,7 @@
       <div v-else-if="previewType === 'video'" class="preview-content preview-video-wrap"
            @click.self="closeDialog">
         <div ref="dplayerRef" class="dplayer-container" role="region"
-             :aria-label="`${fileName} 视频播放器`"></div>
+             :aria-label="`${fileName}${messages.videoPlayerSuffix}`"></div>
       </div>
 
       <!-- 音频播放 -->
@@ -66,21 +66,21 @@
           <div class="audio-icon">🎵</div>
           <div class="audio-name">{{ fileName }}</div>
           <audio :src="blobUrl" controls autoplay class="audio-player"
-                 :aria-label="`${fileName} 音频播放器`"></audio>
+                 :aria-label="`${fileName}${messages.audioPlayerSuffix}`"></audio>
         </div>
       </div>
 
       <!-- PDF 预览 -->
       <div v-else-if="previewType === 'pdf'" class="preview-content preview-pdf-wrap"
            @click.self="closeDialog">
-        <iframe :src="blobUrl" class="preview-pdf" :title="`${fileName} PDF 预览`"></iframe>
+        <iframe :src="blobUrl" class="preview-pdf" :title="`${fileName}${messages.pdfPreviewSuffix}`"></iframe>
       </div>
 
       <!-- 文本预览 -->
       <div v-else-if="previewType === 'text'" class="preview-content preview-text-wrap"
            @click.self="closeDialog">
         <pre class="preview-text-content" tabindex="0"
-             :aria-label="`${fileName} 文本预览`">{{ textContent }}</pre>
+             :aria-label="`${fileName}${messages.textPreviewSuffix}`">{{ textContent }}</pre>
       </div>
 
       <!-- 不支持预览 -->
@@ -90,9 +90,9 @@
           <div class="unsupported-icon">📄</div>
           <div class="unsupported-name">{{ fileName }}</div>
           <div class="unsupported-size">{{ formatSize(fileSize) }}</div>
-          <div class="unsupported-hint">该文件类型不支持在线预览</div>
+          <div class="unsupported-hint">{{ messages.unsupportedHint }}</div>
           <button type="button" class="unsupported-download-btn" @click="download"
-                  :aria-label="`下载 ${fileName}`">⬇ 下载文件</button>
+                  :aria-label="`${messages.downloadPrefix}${fileName}`">⬇ {{ messages.downloadFile }}</button>
         </div>
       </div>
     </div>
@@ -102,7 +102,9 @@
 <script setup>
 import { ref, watch, onUnmounted, nextTick, computed } from 'vue'
 import { useChatStore } from '../stores/chat'
+import { useUserStore } from '../stores/user'
 import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE, getHttpDownloadUrl } from '../services/websocket'
+import { filePreviewMessages } from '../localization/webLocale'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 
 const props = defineProps({
@@ -112,6 +114,8 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const chatStore = useChatStore()
+const userStore = useUserStore()
+const messages = computed(() => filePreviewMessages(userStore.locale))
 
 const loading = ref(false)
 const loadPercent = ref('')
@@ -244,7 +248,7 @@ function download() {
   const msg = props.msg
   if (!msg) return
   if (msg.fileCleared) {
-    alert('文件已过期或被清除，无法下载')
+    alert(messages.value.cannotDownload)
     return
   }
   if (msg.fileId) {
@@ -311,7 +315,7 @@ async function initDPlayer(url) {
     screenshot: true,
     hotkey: true,
     preload: 'auto',
-    lang: 'zh-cn',
+    lang: userStore.locale === 'zh-CN' ? 'zh-cn' : 'en',
   })
 }
 
@@ -320,10 +324,10 @@ async function openPreview(msg) {
   cleanup()
   if (!msg) return
   if (msg.fileCleared) {
-    alert('文件已过期或被清除，无法预览')
+    alert(messages.value.cannotPreview)
     return
   }
-  fileName.value = msg.fileName || '未知文件'
+  fileName.value = msg.fileName || messages.value.unknownFile
   fileSize.value = msg.fileSize || 0
 
   const type = detectType(fileName.value)

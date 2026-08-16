@@ -11,6 +11,7 @@ import {
   messageTimelineMessages,
   messageAttachmentMessages,
   messageActionMessages,
+  filePreviewMessages,
   persistWebLocale,
   profileMessages,
   roomListMessages,
@@ -83,6 +84,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(messageActionMessages("en-US")).sort(),
     Object.keys(messageActionMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(filePreviewMessages("en-US")).sort(),
+    Object.keys(filePreviewMessages("zh-CN")).sort(),
   );
 });
 

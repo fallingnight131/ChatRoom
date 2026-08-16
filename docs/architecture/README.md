@@ -2006,8 +2006,12 @@ authorization, byte lifecycle, and transport behavior are unchanged; the action
 menu's copy, preview, download, forward, recall, and administrator deletion
 labels plus local confirmation/validation feedback now also use catalog keys.
 The existing server-authoritative commands, private-conversation restrictions,
-and menu keyboard behavior are unchanged. The forwarding picker and file-preview
-dialog remain separate slices.
+and menu keyboard behavior are unchanged. The file-preview dialog is migrated
+as its own slice: zoom, download, close, loading, embedded-media descriptions,
+unsupported-file state,
+expiry feedback, and the DPlayer language follow the active locale. Its HTTP/
+WebSocket fallback, chunking, timeout, and Blob lifecycle are unchanged. The
+forwarding picker remains a later slice.
 
 ### Product consistency
 
