@@ -2289,7 +2289,15 @@ Candidate slices:
     and direct upload only after the real-provider gate passes.
   - [ ] Add the accessible attachment picker/progress/retry experience behind
     explicit capability and Windows product gates.
-- group roles, invitations, join approval, mute, block, and moderation;
+- group roles, invitations, join approval, mute, block, and moderation:
+  - [x] Define asymmetric V2 account blocking, authenticated actor binding,
+    idempotent desired-state operations, pairwise direct/contact-request denial,
+    and history/group non-effects in a detached Java application boundary
+    (ADR-0408); persistence, wire, runtime, and clients remain off.
+  - [ ] Add the durable PostgreSQL block graph and operation ledger, then enforce
+    generic pairwise denial in direct submission and contact-request creation.
+  - [ ] Add a default-off V2 capability/wire surface and accessible Web/Windows
+    block management only after migration and authorization gates pass.
 - Windows native notifications;
   - [x] Add a persisted-live-only notification candidate boundary and a bounded,
     privacy-safe policy that suppresses duplicates, self echoes, and the active
