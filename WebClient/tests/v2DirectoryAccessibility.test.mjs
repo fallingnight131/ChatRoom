@@ -6,8 +6,8 @@ const source = readFileSync(new URL('../src/views/V2PreviewView.vue', import.met
 
 test('exposes the V2 directory as a named navigation list', () => {
   for (const marker of [
-    '<nav class="conversation-panel" aria-label="V2 会话导航">',
-    '<ul class="conversation-list" aria-label="可用会话">',
+    '<nav class="conversation-panel" :aria-label="shellMessages.conversationNavigation">',
+    '<ul class="conversation-list" :aria-label="shellMessages.availableConversations">',
     '<li v-for="conversation in snapshot.directory"',
     'type="button"',
     ":aria-current=\"conversation.conversationId === snapshot.activeConversationId ? 'page' : undefined\"",

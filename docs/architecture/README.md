@@ -2043,6 +2043,14 @@ Passwords and developer keys remain component memory only and are cleared on
 send/unmount; pending guards still reject duplicate writes. Room, user, and
 operation identities plus all authoritative permission and mutation decisions
 remain on the existing server boundary.
+The default-off V2 preview now starts its own localization migration. Its first
+slice covers the engineering/runtime state, transient authentication form,
+connection-state text, account conversation navigation, directory kinds and
+empty/pagination state, plus the no-conversation message panel. It consumes the
+same bounded locale preference without changing the exact preview build gate,
+WSS configuration, runtime lifecycle, in-memory credential handling, directory
+identity, or V1 initial asset graph. V2 search, timeline actions, composition,
+member/forwarding, and device dialogs remain later slices.
 
 ### Product consistency
 

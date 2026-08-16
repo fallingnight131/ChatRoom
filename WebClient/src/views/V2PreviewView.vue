@@ -2,7 +2,7 @@
   <main class="v2-preview">
     <header class="preview-header">
       <div>
-        <span class="preview-badge">V2 工程预览</span>
+        <span class="preview-badge">{{ shellMessages.engineeringPreview }}</span>
         <h1>ChatRoom V2</h1>
       </div>
       <div class="connection" role="status" aria-live="polite">
@@ -12,72 +12,72 @@
     </header>
 
     <section v-if="!runtimeReady" class="state-card" aria-live="polite">
-      <h2>正在加载安全连接组件</h2>
+      <h2>{{ shellMessages.loadingSecure }}</h2>
       <p>{{ runtimeReason }}</p>
-      <router-link class="btn btn-secondary" to="/login">返回 V1 登录</router-link>
+      <router-link class="btn btn-secondary" to="/login">{{ shellMessages.backV1Login }}</router-link>
     </section>
 
     <section v-else-if="!snapshot.session" class="login-shell" aria-labelledby="v2-login-title">
       <form class="login-card" @submit.prevent="login">
-        <span class="preview-badge">独立测试环境</span>
-        <h2 id="v2-login-title">登录 V2</h2>
-        <p class="muted">凭据仅用于本次认证请求，不写入浏览器存储。</p>
+        <span class="preview-badge">{{ shellMessages.isolatedTest }}</span>
+        <h2 id="v2-login-title">{{ shellMessages.loginTitle }}</h2>
+        <p class="muted">{{ shellMessages.credentialsMemory }}</p>
 
-        <label for="v2-username">用户 ID</label>
+        <label for="v2-username">{{ shellMessages.userId }}</label>
         <input id="v2-username" v-model.trim="username" class="input" maxlength="128"
                autocomplete="username" required :disabled="authenticating" />
 
-        <label for="v2-password">密码</label>
+        <label for="v2-password">{{ shellMessages.password }}</label>
         <input id="v2-password" v-model="password" class="input" type="password"
                maxlength="1024" autocomplete="current-password" required
                :disabled="authenticating" />
 
         <p v-if="visibleFailure" class="error-msg" role="alert">{{ visibleFailure }}</p>
         <button class="btn btn-primary" type="submit" :disabled="!canAuthenticate">
-          {{ authenticating ? '正在验证…' : connectionReady ? '登录' : '正在建立安全连接…' }}
+          {{ authenticating ? shellMessages.authenticating : connectionReady ? shellMessages.login : shellMessages.connectingSecure }}
         </button>
-        <router-link class="back-link" to="/login">返回稳定版 V1</router-link>
+        <router-link class="back-link" to="/login">{{ shellMessages.backStableV1 }}</router-link>
       </form>
     </section>
 
     <section v-else class="chat-shell">
-      <nav class="conversation-panel" aria-label="V2 会话导航">
+      <nav class="conversation-panel" :aria-label="shellMessages.conversationNavigation">
         <div class="account-block">
           <strong>{{ snapshot.session.displayName }}</strong>
           <span>{{ snapshot.session.accountId }}</span>
           <button class="device-entry" type="button" aria-haspopup="dialog"
                   :aria-expanded="devicesOpen" @click="openDevices">
-            登录设备
+            {{ shellMessages.loginDevices }}
             <span v-if="snapshot.devices.length">{{ snapshot.devices.length }}</span>
           </button>
         </div>
-        <ul class="conversation-list" aria-label="可用会话">
+        <ul class="conversation-list" :aria-label="shellMessages.availableConversations">
           <li v-for="conversation in snapshot.directory" :key="conversation.conversationId">
             <button :class="['conversation-button', { active: conversation.conversationId === snapshot.activeConversationId }]"
                     type="button"
                     :aria-current="conversation.conversationId === snapshot.activeConversationId ? 'page' : undefined"
                     @click="openConversation(conversation.conversationId)">
               <strong>{{ conversation.displayName }}</strong>
-              <span>{{ conversation.kind === 'direct' ? '私聊' : '群聊' }} · #{{ conversation.latestSequence }}</span>
+              <span>{{ conversation.kind === 'direct' ? shellMessages.direct : shellMessages.group }} · #{{ conversation.latestSequence }}</span>
             </button>
           </li>
         </ul>
-        <p v-if="snapshot.directory.length === 0" class="empty-copy">当前没有可用会话</p>
+        <p v-if="snapshot.directory.length === 0" class="empty-copy">{{ shellMessages.noConversations }}</p>
         <button v-if="snapshot.directoryHasMore" class="btn btn-text" type="button" @click="loadMoreDirectory">
-          加载更多会话
+          {{ shellMessages.loadMoreConversations }}
         </button>
       </nav>
 
-      <section class="message-panel" aria-label="消息区域">
+      <section class="message-panel" :aria-label="shellMessages.messageRegion">
         <div v-if="!snapshot.activeConversationId" class="empty-state">
-          <h2>选择一个会话</h2>
-          <p>缓存消息会先显示，然后按服务器序列增量同步。</p>
+          <h2>{{ shellMessages.selectConversation }}</h2>
+          <p>{{ shellMessages.cacheSync }}</p>
         </div>
         <template v-else>
           <div class="message-header">
             <strong>{{ activeConversationName }}</strong>
             <div class="message-header-actions">
-              <span v-if="snapshot.historyLoading">同步中…</span>
+              <span v-if="snapshot.historyLoading">{{ shellMessages.syncing }}</span>
               <button v-if="snapshot.searchEnabled" class="btn btn-text" type="button"
                       aria-controls="v2-message-search" :aria-expanded="searchOpen"
                       @click="toggleSearch">
@@ -396,6 +396,8 @@ import { copyMessageText } from '../messaging/copyMessageText.js'
 import { addPendingNewMessages, pendingNewMessageLabel } from '../messaging/newMessageIndicator.js'
 import { classifyV2TailUpdate } from '../messaging/v2TailActivity'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
+import { useUserStore } from '../stores/user'
+import { v2PreviewShellMessages } from '../localization/webLocale'
 import {
   anchorsFromMentionSpans,
   insertMention,
@@ -405,6 +407,8 @@ import {
 } from '../application/v2MentionComposer'
 
 const runtimeRef = inject(V2_RUNTIME_KEY)
+const userStore = useUserStore()
+const shellMessages = computed(() => v2PreviewShellMessages(userStore.locale))
 const username = ref('')
 const password = ref('')
 const draft = ref('')
@@ -467,7 +471,7 @@ let unsubscribe = null
 let startedApplication = null
 
 const runtimeReady = computed(() => runtimeRef?.value?.enabled === true)
-const runtimeReason = computed(() => runtimeRef?.value?.reason || 'V2 预览未启用')
+const runtimeReason = computed(() => runtimeRef?.value?.reason || shellMessages.value.runtimeUnavailable)
 const connectionReady = computed(() => snapshot.value.connectionState === 'connected')
 const authenticating = computed(() => authenticationPending.value
   || ['connecting', 'negotiating', 'resuming'].includes(snapshot.value.connectionState))
@@ -475,12 +479,14 @@ const canAuthenticate = computed(() => Boolean(connectionReady.value && username
 const visibleFailure = computed(() => actionError.value || snapshot.value.lastFailure)
 const activeConversationName = computed(() => snapshot.value.directory.find(
   item => item.conversationId === snapshot.value.activeConversationId
-)?.displayName || '会话')
+)?.displayName || shellMessages.value.conversation)
 const connectionLabel = computed(() => ({
-  idle: '尚未连接', connecting: '连接中', negotiating: '协商协议中', connected: '可登录',
-  resuming: '恢复会话中', authenticated: '已安全连接', offline: '网络离线',
-  'reconnect-wait': '等待重连', stopped: '已停止'
-}[snapshot.value.connectionState] || '未知状态'))
+  idle: shellMessages.value.idle, connecting: shellMessages.value.connecting,
+  negotiating: shellMessages.value.negotiating, connected: shellMessages.value.connected,
+  resuming: shellMessages.value.resuming, authenticated: shellMessages.value.authenticated,
+  offline: shellMessages.value.offline, 'reconnect-wait': shellMessages.value.reconnectWait,
+  stopped: shellMessages.value.stopped,
+}[snapshot.value.connectionState] || shellMessages.value.unknownState))
 const connectionTone = computed(() => snapshot.value.connectionState === 'authenticated'
   ? 'ok' : ['offline', 'reconnect-wait'].includes(snapshot.value.connectionState) ? 'warn' : '')
 const canManageDevices = computed(() => snapshot.value.connectionState === 'authenticated')

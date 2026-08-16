@@ -18,6 +18,7 @@ import {
   roomPasswordMessages,
   roomFileManagerMessages,
   roomSettingsMessages,
+  v2PreviewShellMessages,
   persistWebLocale,
   profileMessages,
   roomListMessages,
@@ -118,6 +119,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(roomSettingsMessages("en-US")).sort(),
     Object.keys(roomSettingsMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(v2PreviewShellMessages("en-US")).sort(),
+    Object.keys(v2PreviewShellMessages("zh-CN")).sort(),
   );
 });
 

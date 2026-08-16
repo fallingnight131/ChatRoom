@@ -2386,6 +2386,8 @@ Candidate slices:
     destructive confirmation, and operation-ID response correlation.
   - [x] Migrate the complete Web V1 room-settings surface while preserving
     secret clearing, duplicate-write guards, confirmations, and command IDs.
+  - [x] Migrate the first Web V2 preview slice: runtime/authentication,
+    connection state, conversation directory, and empty message panel.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

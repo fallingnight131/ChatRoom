@@ -529,6 +529,37 @@ const roomSettingsCatalog = {
   },
 } as const;
 
+const v2PreviewShellCatalog = {
+  "zh-CN": {
+    engineeringPreview: "V2 工程预览", loadingSecure: "正在加载安全连接组件", backV1Login: "返回 V1 登录",
+    isolatedTest: "独立测试环境", loginTitle: "登录 V2", credentialsMemory: "凭据仅用于本次认证请求，不写入浏览器存储。",
+    userId: "用户 ID", password: "密码", authenticating: "正在验证…", login: "登录", connectingSecure: "正在建立安全连接…",
+    backStableV1: "返回稳定版 V1", conversationNavigation: "V2 会话导航", loginDevices: "登录设备",
+    availableConversations: "可用会话", direct: "私聊", group: "群聊", noConversations: "当前没有可用会话",
+    loadMoreConversations: "加载更多会话", messageRegion: "消息区域", selectConversation: "选择一个会话",
+    cacheSync: "缓存消息会先显示，然后按服务器序列增量同步。", conversation: "会话", runtimeUnavailable: "V2 预览未启用",
+    idle: "尚未连接", connecting: "连接中", negotiating: "协商协议中", connected: "可登录",
+    resuming: "恢复会话中", authenticated: "已安全连接", offline: "网络离线", reconnectWait: "等待重连",
+    stopped: "已停止", unknownState: "未知状态", syncing: "同步中…",
+  },
+  "en-US": {
+    engineeringPreview: "V2 engineering preview", loadingSecure: "Loading secure connection components", backV1Login: "Back to V1 login",
+    isolatedTest: "Isolated test environment", loginTitle: "Sign in to V2",
+    credentialsMemory: "Credentials are used only for this authentication request and are not stored in the browser.",
+    userId: "User ID", password: "Password", authenticating: "Authenticating…", login: "Sign in",
+    connectingSecure: "Establishing a secure connection…", backStableV1: "Back to stable V1",
+    conversationNavigation: "V2 conversation navigation", loginDevices: "Signed-in devices",
+    availableConversations: "Available conversations", direct: "Direct", group: "Group",
+    noConversations: "No conversations are available", loadMoreConversations: "Load more conversations",
+    messageRegion: "Message area", selectConversation: "Select a conversation",
+    cacheSync: "Cached messages appear first, followed by incremental server-sequence synchronization.",
+    conversation: "Conversation", runtimeUnavailable: "V2 preview is unavailable", idle: "Not connected",
+    connecting: "Connecting", negotiating: "Negotiating protocol", connected: "Ready to sign in",
+    resuming: "Resuming session", authenticated: "Securely connected", offline: "Network offline",
+    reconnectWait: "Waiting to reconnect", stopped: "Stopped", unknownState: "Unknown state", syncing: "Syncing…",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -623,6 +654,10 @@ export function roomFileManagerMessages(locale: WebLocale) {
 
 export function roomSettingsMessages(locale: WebLocale) {
   return roomSettingsCatalog[locale];
+}
+
+export function v2PreviewShellMessages(locale: WebLocale) {
+  return v2PreviewShellCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

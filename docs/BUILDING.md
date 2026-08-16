@@ -130,6 +130,20 @@ retaining autofill denial, secret clearing, duplicate-write guards, and exact
 server command identities. The English browser journey opens the administrator
 dialog and verifies its room ID, password/developer-key fields, and delete-room
 action in Chromium and Firefox, then closes without issuing a mutation.
+The first default-off V2 localization slice binds runtime/authentication,
+connection states, directory navigation, and the empty message panel to the
+same locale. In addition to ordinary tests/build, compile the gated chunk with
+non-production configuration evidence using:
+
+```bash
+env VITE_CHAT_V2_PREVIEW=true \
+  VITE_CHAT_V2_WSS_URL=wss://preview.invalid/ws \
+  VITE_CHAT_APP_VERSION=0.0.0-local npm run build
+```
+
+This proves only that the gated bundle compiles. The `.invalid` endpoint is not
+contacted as a successful gateway, and the ordinary Chromium/Firefox journey
+remains V1 regression evidence rather than V2 authentication evidence.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and
