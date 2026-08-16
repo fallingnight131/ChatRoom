@@ -61,7 +61,11 @@ server candidate without activating an incomplete client product path.
   an empty or server-returned target cursor and a limit of 1..100. Rows are
   unique and target-ID ordered, carry a bounded current display-name projection
   plus the authoritative block time, and expose no inbound block relationship.
-  This expand slice installs no handler and changes no client behavior.
+  The application port correlates every page to the authenticated actor. Its
+  PostgreSQL adapter reauthorizes an enabled actor and reads current outgoing
+  edges plus current target display names in one repeatable-read transaction.
+  It fetches one look-ahead row to derive continuation and never queries inbound
+  blockers. No handler is installed and no client behavior changes.
 - The handler binds the actor from authenticated connection state, validates
   canonical payload identities, serializes at most eight pending mutations on
   the bounded messaging executor, and clears pending work at disconnect.
@@ -143,6 +147,11 @@ bounds, strict ordering, duplicate rejection, UTF-8 display-name limits, and
 continuation consistency. Generated Java, TypeScript, and C++ bindings parse and
 re-emit the same list request bytes. Runtime and product clients remain absent,
 so this is protocol compatibility evidence rather than a block-list feature.
+Application tests reject oversized, unordered, duplicate, malformed-Unicode,
+and inconsistent-continuation projections. The disposable PostgreSQL gate proves
+target-ordered pagination independent of insertion order, current display-name
+projection, outbound-only isolation, positive authoritative block time, and
+generic rejection for disabled or unknown actors in a repeatable-read snapshot.
 TypeScript protocol and application tests additionally prove the default-off
 flag, strict actor/target/desired/operation correlation, authoritative unique
 DIRECT target, disconnect failure containment, and same-operation retry.

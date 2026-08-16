@@ -2307,6 +2307,10 @@ Candidate slices:
   - [x] Reserve permanent types 134/135 for a server-bound, bounded outgoing
     block-list read model with canonical target pagination and cross-language
     golden bytes; keep persistence queries, runtime, and clients uncomposed.
+  - [x] Add the actor-correlated application query and repeatable-read
+    PostgreSQL outgoing-block directory with enabled-actor authorization,
+    current display-name projection, stable target pagination, and real database
+    evidence; keep the gateway and clients uncomposed.
   - [x] Add an exact-default-off V2 gateway handler, negotiated capability,
     bounded execution, privacy-safe errors and metrics, plus real TLS/WSS and
     PostgreSQL mutation/direct-denial evidence.

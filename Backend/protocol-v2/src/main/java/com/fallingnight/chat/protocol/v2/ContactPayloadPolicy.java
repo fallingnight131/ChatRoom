@@ -1,5 +1,8 @@
 package com.fallingnight.chat.protocol.v2;
 
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.UUID;
@@ -7,7 +10,7 @@ import java.util.UUID;
 /** Structural validation for the authenticated account-block wire contract. */
 public final class ContactPayloadPolicy {
     public static final int MAX_ACCOUNT_BLOCK_PAGE_SIZE = 100;
-    public static final int MAX_DISPLAY_NAME_UTF8_BYTES = 256;
+    public static final int MAX_DISPLAY_NAME_UTF8_BYTES = 400;
 
     private ContactPayloadPolicy() { }
 
@@ -36,9 +39,11 @@ public final class ContactPayloadPolicy {
 
     public static void requireValid(AccountBlockSummary summary) {
         requireUuid(summary.getTargetAccountId(), "targetAccountId");
-        int displayNameBytes = summary.getTargetDisplayName()
-                .getBytes(StandardCharsets.UTF_8).length;
-        if (displayNameBytes < 1 || displayNameBytes > MAX_DISPLAY_NAME_UTF8_BYTES) {
+        int displayNameBytes = utf8Bytes(summary.getTargetDisplayName());
+        int displayNameCodePoints = summary.getTargetDisplayName()
+                .codePointCount(0, summary.getTargetDisplayName().length());
+        if (summary.getTargetDisplayName().isBlank() || displayNameCodePoints > 100
+                || displayNameBytes < 1 || displayNameBytes > MAX_DISPLAY_NAME_UTF8_BYTES) {
             throw new IllegalArgumentException("invalid target display name");
         }
         if (summary.getBlockedAtEpochMs() <= 0) {
@@ -78,6 +83,17 @@ public final class ContactPayloadPolicy {
             }
         } catch (RuntimeException exception) {
             throw new IllegalArgumentException(name + " is not a UUID", exception);
+        }
+    }
+
+    private static int utf8Bytes(String value) {
+        try {
+            return StandardCharsets.UTF_8.newEncoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .encode(CharBuffer.wrap(value)).remaining();
+        } catch (CharacterCodingException exception) {
+            throw new IllegalArgumentException("display name must be valid UTF-8", exception);
         }
     }
 }

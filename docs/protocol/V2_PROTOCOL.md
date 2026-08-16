@@ -161,7 +161,8 @@ is still supplied only by the authenticated session. `ListAccountBlocks` accepts
 an empty first-page cursor or one canonical target UUID returned by the prior
 page, plus a limit of 1..100. `AccountBlockDirectoryPage` contains at most 100
 unique target UUIDs in strict ascending order, each with a server-authored
-current display name of 1..256 UTF-8 bytes and a positive database block time.
+current nonblank display name of at most 100 code points and 400 UTF-8 bytes,
+plus a positive database block time.
 A non-terminal page repeats its last target UUID as the next cursor; a terminal
 page carries no cursor. The cursor is a bounded traversal position, not a
 snapshot token: clients must refresh after concurrent block/unblock mutations.

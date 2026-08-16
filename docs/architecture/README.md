@@ -143,8 +143,10 @@ private denials to a generic result, and exports fixed-cardinality outcomes.
 Default Web and Windows clients still omit capability 7. Explicit Web and
 Windows candidates can request it and expose accessible DIRECT-account
 management; real endpoint activation remains a later gate. Types 134/135 now
-reserve a bounded outgoing-block directory contract, but its PostgreSQL query,
-gateway handler, and client views remain uncomposed.
+reserve a bounded outgoing-block directory contract. The application query and
+repeatable-read PostgreSQL adapter now reauthorize the enabled actor and return
+only target-ordered outgoing edges with current display names; the gateway
+handler and client views remain uncomposed.
 
 Keep module calls in-process at first. Split a deployable service only for one of
 these reasons:

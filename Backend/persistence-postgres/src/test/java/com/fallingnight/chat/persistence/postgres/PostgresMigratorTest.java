@@ -95,6 +95,10 @@ import com.fallingnight.chat.application.conversation.ConversationParticipantPag
 import com.fallingnight.chat.application.conversation.ConversationParticipantQuery;
 import com.fallingnight.chat.application.conversation.ConversationParticipantResult;
 import com.fallingnight.chat.application.contact.AccountBlockIntent;
+import com.fallingnight.chat.application.contact.AccountBlockDirectoryPage;
+import com.fallingnight.chat.application.contact.AccountBlockDirectoryRequest;
+import com.fallingnight.chat.application.contact.AccountBlockDirectoryResult;
+import com.fallingnight.chat.application.contact.AccountBlockDirectoryService;
 import com.fallingnight.chat.application.contact.AccountBlockResult;
 import com.fallingnight.chat.application.contact.AccountBlockService;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
@@ -484,6 +488,86 @@ class PostgresMigratorTest {
         assertEquals(1, accountBlockCount(target, actor));
         assertEquals(6, accountBlockOperationCount(actor));
         assertAccountBlockSelfConstraint(actor);
+    }
+
+    @Test
+    @Order(98)
+    void readsOnlyAuthenticatedActorsOutgoingBlocksWithStableTargetPages()
+            throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID actor = UUID.fromString("f0000000-0000-4000-8000-000000000001");
+        UUID firstTarget = UUID.fromString("10000000-0000-4000-8000-000000000001");
+        UUID secondTarget = UUID.fromString("20000000-0000-4000-8000-000000000001");
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id,username_key,display_name,password_hash) "
+                            + "VALUES (?,'directory-actor','Directory Actor',"
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'),"
+                            + "(?,'directory-first','Directory First',"
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'),"
+                            + "(?,'directory-second','Directory Second',"
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    actor, firstTarget, secondTarget);
+        }
+        var mutations = new AccountBlockService(
+                new PostgresAccountBlockAdapter(dataSource()));
+        assertInstanceOf(AccountBlockResult.Applied.class,
+                mutations.apply(actor, new AccountBlockIntent(
+                        secondTarget, true, UUID.randomUUID())));
+        assertInstanceOf(AccountBlockResult.Applied.class,
+                mutations.apply(actor, new AccountBlockIntent(
+                        firstTarget, true, UUID.randomUUID())));
+        assertInstanceOf(AccountBlockResult.Applied.class,
+                mutations.apply(firstTarget, new AccountBlockIntent(
+                        actor, true, UUID.randomUUID())));
+
+        var directory = new AccountBlockDirectoryService(
+                new PostgresAccountBlockDirectoryAdapter(dataSource()));
+        AccountBlockDirectoryPage first = assertInstanceOf(
+                AccountBlockDirectoryResult.Found.class,
+                directory.list(actor, new AccountBlockDirectoryRequest(
+                        Optional.empty(), 1))).page();
+        assertEquals(actor, first.accountId());
+        assertEquals(List.of(firstTarget), first.blocks().stream()
+                .map(block -> block.targetAccountId()).toList());
+        assertEquals("Directory First", first.blocks().getFirst().targetDisplayName());
+        assertTrue(first.hasMore());
+        assertEquals(firstTarget, first.nextAfterTargetAccountId().orElseThrow());
+
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.account SET display_name='Renamed Second' WHERE id=?",
+                    secondTarget);
+        }
+        AccountBlockDirectoryPage second = assertInstanceOf(
+                AccountBlockDirectoryResult.Found.class,
+                directory.list(actor, new AccountBlockDirectoryRequest(
+                        Optional.of(firstTarget), 1))).page();
+        assertEquals(List.of(secondTarget), second.blocks().stream()
+                .map(block -> block.targetAccountId()).toList());
+        assertEquals("Renamed Second", second.blocks().getFirst().targetDisplayName());
+        assertFalse(second.hasMore());
+        assertTrue(second.nextAfterTargetAccountId().isEmpty());
+        assertTrue(second.blocks().getFirst().blockedAt().isAfter(Instant.EPOCH));
+
+        AccountBlockDirectoryPage reverse = assertInstanceOf(
+                AccountBlockDirectoryResult.Found.class,
+                directory.list(firstTarget, new AccountBlockDirectoryRequest(
+                        Optional.empty(), 100))).page();
+        assertEquals(List.of(actor), reverse.blocks().stream()
+                .map(block -> block.targetAccountId()).toList());
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.account SET disabled_at=transaction_timestamp() WHERE id=?",
+                    actor);
+        }
+        assertEquals(AccountBlockDirectoryResult.Rejected.NOT_AUTHORIZED,
+                directory.list(actor, new AccountBlockDirectoryRequest(
+                        Optional.empty(), 100)));
+        assertEquals(AccountBlockDirectoryResult.Rejected.NOT_AUTHORIZED,
+                directory.list(UUID.randomUUID(), new AccountBlockDirectoryRequest(
+                        Optional.empty(), 100)));
     }
 
     @Test

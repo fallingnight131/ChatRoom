@@ -694,6 +694,14 @@ new V2 submit/reply/forward, V1 direct message, contact-request insertion, or
 pending-request acceptance. Those locks conflict with mutation's pairwise
 `FOR UPDATE`, closing the check/insert race. Existing exact retries are resolved
 before the new-write policy; GROUP writes never query pairwise blocking.
+The detached outgoing-block directory adapter reads this same graph in a
+read-only repeatable-read transaction. It first confirms that the querying actor
+still exists and is enabled, then joins only that actor's `blocker_account_id`
+edges to the current target account display name. Pages are ordered by
+`blocked_account_id`, fetch at most the requested 1..100 rows plus one look-ahead
+row, and expose `created_at` as the authoritative block time. Inbound blockers
+are never selected. This requires no schema change and remains outside the
+gateway runtime until its separately gated handler is implemented.
 
 At the current additive stage, rollback means disabling/removing the unused Java
 route while V1 SQLite remains authoritative. Once PostgreSQL owns a slice,

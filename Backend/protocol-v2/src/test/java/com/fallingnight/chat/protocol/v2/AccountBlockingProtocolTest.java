@@ -96,9 +96,15 @@ class AccountBlockingProtocolTest {
                 () -> ContactPayloadPolicy.requireValid(AccountBlockDirectoryPage.newBuilder()
                         .addBlocks(first).setHasMore(true)
                         .setNextAfterTargetAccountId(TARGET_TWO).build()));
-        String oversized = "界".repeat(86);
+        String oversized = "界".repeat(134);
         assertThrows(IllegalArgumentException.class,
                 () -> ContactPayloadPolicy.requireValid(first.toBuilder()
                         .setTargetDisplayName(oversized).build()));
+        assertThrows(IllegalArgumentException.class,
+                () -> ContactPayloadPolicy.requireValid(first.toBuilder()
+                        .setTargetDisplayName("   ").build()));
+        assertThrows(IllegalArgumentException.class,
+                () -> ContactPayloadPolicy.requireValid(first.toBuilder()
+                        .setTargetDisplayName("\ud800").build()));
     }
 }

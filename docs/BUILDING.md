@@ -1631,6 +1631,13 @@ disabled-target denial, unblock, and the database self-edge constraint. Direct
 messaging and contact-request adapters enforce the graph transactionally. The
 gateway mutation route is independently default-off and requires capability 7;
 ordinary clients still do not consume it (ADR-0408).
+The detached account-block directory uses the same V052 graph without another
+migration. The application boundary enforces actor correlation, 1..100-row
+bounds, strict target ordering, UTF-8 display-name limits, and continuation
+consistency. The PostgreSQL gate additionally proves enabled-actor authorization,
+repeatable-read current-name projection, insertion-order-independent pagination,
+outbound-only isolation, and disabled/unknown actor denial. No gateway handler
+or client list view consumes it yet.
 The application module also tests the scheduler-neutral relay pass: fixed
 publication outcomes, unexpected-exception redaction, capped exponential retry,
 duplicate-claim rejection, and fenced ownership loss. This class is not yet
