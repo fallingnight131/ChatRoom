@@ -2326,6 +2326,9 @@ Candidate slices:
     the mobile chat-shell icon controls without changing layout behavior.
   - [x] Replace pointer-only Web member rows with named online/offline lists and
     native profile actions that expose presence and role textually.
+  - [x] Make Web composer/upload actions explicitly named native controls and
+    replace the pointer-only emoji palette with a roving keyboard grid whose
+    close and selection paths restore useful focus.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

@@ -2276,6 +2276,11 @@ settings, close, and theme controls.
 `memberListAccessibility.test.mjs` locks named online/offline member groups,
 live online counts, native profile actions, avatar alternatives, and textual
 online/admin state independent of colored dots.
+`composerAccessibility.test.mjs` locks explicit button types and filename-
+specific names for upload pause/resume/cancel and progress, plus the one-entry
+emoji grid's Arrow/Home/End navigation, Escape trigger restoration, and post-
+selection composer focus. It is a presentation gate and does not replace file
+authorization, size, or message-delivery tests.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

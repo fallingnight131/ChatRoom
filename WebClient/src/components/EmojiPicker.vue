@@ -1,16 +1,31 @@
 <template>
-  <div class="emoji-picker" @click.stop>
-    <div class="emoji-grid">
-      <span v-for="(emoji, idx) in emojis" :key="idx"
-            class="emoji-item" @click="$emit('select', emoji)">
-        {{ emoji }}
-      </span>
+  <div id="emoji-picker" class="emoji-picker" role="dialog"
+       aria-label="选择要发送的表情" @click.stop @keydown.esc.stop.prevent="emit('close')">
+    <div class="emoji-grid" role="grid" aria-label="表情">
+      <div v-for="(row, rowIndex) in emojiRows" :key="rowIndex"
+           class="emoji-row" role="row">
+        <button v-for="(emoji, columnIndex) in row" :key="columnIndex"
+                :ref="element => setEmojiButton(element, emojiIndex(rowIndex, columnIndex))"
+                type="button" role="gridcell" class="emoji-item"
+                :tabindex="emojiIndex(rowIndex, columnIndex) === activeIndex ? 0 : -1"
+                :aria-label="`发送表情 ${emoji}`"
+                @focus="activeIndex = emojiIndex(rowIndex, columnIndex)"
+                @keydown="onEmojiKeydown($event, emojiIndex(rowIndex, columnIndex))"
+                @click="emit('select', emoji)">
+          {{ emoji }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-defineEmits(['select', 'close'])
+import { nextTick, onMounted, ref } from 'vue'
+
+const emit = defineEmits(['select', 'close'])
+const activeIndex = ref(0)
+const emojiButtons = []
+const COLUMN_COUNT = 8
 
 // 96个表情 (8×12), 与Qt客户端完全一致
 const emojis = [
@@ -39,6 +54,42 @@ const emojis = [
   // 行12：天气/自然
   '🌞', '🌝', '🌚', '⭐', '🌈', '💧', '❄️', '🍂',
 ]
+const emojiRows = Array.from(
+  { length: Math.ceil(emojis.length / COLUMN_COUNT) },
+  (_, rowIndex) => emojis.slice(rowIndex * COLUMN_COUNT, (rowIndex + 1) * COLUMN_COUNT),
+)
+
+function emojiIndex(rowIndex, columnIndex) {
+  return rowIndex * COLUMN_COUNT + columnIndex
+}
+
+function setEmojiButton(element, index) {
+  if (element) emojiButtons[index] = element
+}
+
+function focusEmoji(index) {
+  const boundedIndex = Math.max(0, Math.min(index, emojis.length - 1))
+  activeIndex.value = boundedIndex
+  nextTick(() => emojiButtons[boundedIndex]?.focus())
+}
+
+function onEmojiKeydown(event, index) {
+  const rowStart = Math.floor(index / COLUMN_COUNT) * COLUMN_COUNT
+  const rowEnd = Math.min(rowStart + COLUMN_COUNT - 1, emojis.length - 1)
+  const destinations = {
+    ArrowRight: index === rowEnd ? rowStart : index + 1,
+    ArrowLeft: index === rowStart ? rowEnd : index - 1,
+    ArrowDown: Math.min(index + COLUMN_COUNT, emojis.length - 1),
+    ArrowUp: Math.max(index - COLUMN_COUNT, 0),
+    Home: event.ctrlKey ? 0 : rowStart,
+    End: event.ctrlKey ? emojis.length - 1 : rowEnd,
+  }
+  if (!(event.key in destinations)) return
+  event.preventDefault()
+  focusEmoji(destinations[event.key])
+}
+
+onMounted(() => focusEmoji(0))
 </script>
 
 <style scoped>
@@ -56,6 +107,10 @@ const emojis = [
 }
 .emoji-grid {
   display: grid;
+  gap: 2px;
+}
+.emoji-row {
+  display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 2px;
 }
@@ -67,10 +122,13 @@ const emojis = [
   justify-content: center;
   font-size: 22px;
   cursor: pointer;
+  border: 0;
+  background: transparent;
   border-radius: 6px;
   transition: background 0.15s;
 }
-.emoji-item:hover {
+.emoji-item:hover,
+.emoji-item:focus-visible {
   background: var(--bg-hover);
   transform: scale(1.2);
 }
@@ -93,7 +151,9 @@ const emojis = [
     z-index: 200;
   }
   .emoji-grid {
-    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+  }
+  .emoji-row {
     gap: 4px;
   }
   .emoji-item {
@@ -110,9 +170,4 @@ const emojis = [
   }
 }
 
-@media (max-width: 480px) {
-  .emoji-grid {
-    grid-template-columns: repeat(7, 1fr);
-  }
-}
 </style>

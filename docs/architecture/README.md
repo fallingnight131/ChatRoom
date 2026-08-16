@@ -1061,6 +1061,12 @@ native profile buttons. Each action has explicit identity, presence, and
 administrator text plus a named avatar, so status does not depend on pointer
 activation or colored dots. The opened profile still consumes server-projected
 membership and role data; this presentation adds no authority.
+The V1 Web composer now gives every upload action a native button and a filename-
+specific accessible name, and labels each progress meter with the matching
+file. Its emoji popover is a non-modal, named grid with one Tab stop plus
+Arrow/Home/End navigation. Escape returns focus to the trigger, while choosing
+an emoji returns focus to the composer after using the existing submission path;
+file policy and message semantics are unchanged.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

@@ -2,9 +2,11 @@
   <div class="input-area">
     <!-- 工具栏 -->
     <div class="input-toolbar" role="toolbar" aria-label="消息工具">
-      <button class="btn-icon" @click="showEmoji = !showEmoji" title="表情"
+      <button ref="emojiButton" type="button" class="btn-icon"
+              aria-controls="emoji-picker" aria-haspopup="dialog"
+              @click="toggleEmojiPicker" title="表情"
               aria-label="选择表情" :aria-expanded="showEmoji">😊</button>
-      <button class="btn-icon" @click="triggerFileInput" title="发送文件"
+      <button type="button" class="btn-icon" @click="triggerFileInput" title="发送文件"
               aria-label="选择要发送的文件">📎</button>
       <input ref="fileInput" type="file" class="visually-hidden" tabindex="-1"
              aria-label="选择要发送的文件" @change="onFileSelected" />
@@ -17,15 +19,20 @@
         <div v-for="(u, uid) in chatStore.uploads" :key="uid" class="upload-item">
           <span class="text-ellipsis" style="max-width:120px">{{ u.fileName }}</span>
           <div class="progress-bar" style="width:80px" role="progressbar"
-               aria-label="文件上传进度" aria-valuemin="0" aria-valuemax="100"
+               :aria-label="`${u.fileName} 上传进度`" aria-valuemin="0" aria-valuemax="100"
                :aria-valuenow="uploadPercent(u)">
             <div class="progress-fill" :style="{ width: uploadPercent(u) + '%' }"></div>
           </div>
           <span class="upload-pct">{{ uploadPercent(u) }}%</span>
           <span v-if="u.status === 'cos_uploading'" class="upload-phase">☁同步中</span>
-          <button v-if="u.status === 'uploading'" class="btn-icon" @click="chatStore.pauseUpload(uid)" title="暂停">⏸</button>
-          <button v-if="u.status === 'paused'" class="btn-icon" @click="chatStore.resumeUpload(uid)" title="继续">▶</button>
-          <button class="btn-icon" @click="chatStore.cancelUpload(uid)" title="取消">✖</button>
+          <button v-if="u.status === 'uploading'" type="button" class="btn-icon"
+                  :aria-label="`暂停上传 ${u.fileName}`"
+                  @click="chatStore.pauseUpload(uid)" title="暂停">⏸</button>
+          <button v-if="u.status === 'paused'" type="button" class="btn-icon"
+                  :aria-label="`继续上传 ${u.fileName}`"
+                  @click="chatStore.resumeUpload(uid)" title="继续">▶</button>
+          <button type="button" class="btn-icon" :aria-label="`取消上传 ${u.fileName}`"
+                  @click="chatStore.cancelUpload(uid)" title="取消">✖</button>
         </div>
       </div>
 
@@ -49,8 +56,10 @@
     </div>
 
     <!-- 表情选择器 -->
-    <div v-if="showEmoji" class="emoji-overlay" @click="showEmoji = false"></div>
-    <EmojiPicker v-if="showEmoji" @select="onEmojiSelect" @close="showEmoji = false" />
+    <div v-if="showEmoji" class="emoji-overlay" aria-hidden="true"
+         @click="closeEmojiPicker(false)"></div>
+    <EmojiPicker v-if="showEmoji" @select="onEmojiSelect"
+                 @close="closeEmojiPicker(true)" />
 
     <!-- 文本输入 -->
     <div class="input-row">
@@ -60,7 +69,8 @@
                 @keydown.enter.exact="sendMessage"
                 @keydown.enter.shift.exact.prevent="text += '\n'"
                 rows="1"></textarea>
-      <button class="btn btn-primary send-btn" @click="sendMessage" :disabled="!canSendText"
+      <button type="button" class="btn btn-primary send-btn" @click="sendMessage"
+              :disabled="!canSendText"
               aria-label="发送消息">
         发送
       </button>
@@ -73,7 +83,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs, MAX_SMALL_FILE } from '../services/websocket'
@@ -93,6 +103,7 @@ const showEmoji = ref(false)
 const fileInput = ref(null)
 const recoveryFileInput = ref(null)
 const textareaRef = ref(null)
+const emojiButton = ref(null)
 const replacementCommand = ref(null)
 const textBudget = computed(() => messageTextBudget(text.value))
 const textBudgetLabel = computed(() => messageTextBudgetLabel(text.value))
@@ -184,6 +195,20 @@ function onEmojiSelect(emoji) {
     chatStore.sendCurrentRoomMessage(emoji, 'emoji')
   }
   showEmoji.value = false
+  nextTick(() => textareaRef.value?.focus())
+}
+
+function toggleEmojiPicker() {
+  if (showEmoji.value) {
+    closeEmojiPicker(true)
+    return
+  }
+  showEmoji.value = true
+}
+
+function closeEmojiPicker(restoreFocus) {
+  showEmoji.value = false
+  if (restoreFocus) nextTick(() => emojiButton.value?.focus())
 }
 
 function triggerFileInput() {
