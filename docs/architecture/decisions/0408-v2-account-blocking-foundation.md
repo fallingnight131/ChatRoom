@@ -80,6 +80,11 @@ server candidate without activating an incomplete client product path.
   transport route for types 128/129 and their correlated errors. It remains
   default-off and exposes no Widgets action yet; diagnostic schema 5 makes that
   absence or candidate presence observable without account or session data.
+- A detached Windows ViewModel accepts only a complete two-member participant
+  projection for the active DIRECT conversation, derives the sole non-self
+  target from the authenticated actor, labels initial state unknown, and keeps
+  the operation UUID only for explicit same-desired-state retry. It has no
+  database dependency and is not yet exposed by Widgets.
 - The Web candidate keeps the latest operation result in page memory only. It
   does not infer durable state before a result, persist a block graph, or expose
   a block-list read model. A fresh page labels state unknown and can issue an
@@ -133,6 +138,9 @@ portable session/transport tests prove exact seven-capability negotiation,
 default-independent capability selection, isolated command routing, correlated
 response routing, and disconnect cleanup. Native Windows Release evidence is
 still required before activation.
+The ViewModel test proves incomplete pagination, duplicate/self-only identity,
+target substitution, invented initial state, and disconnect cleanup fail
+closed, while a same-desired-state retry preserves the operation UUID.
 
 ## Rollback
 

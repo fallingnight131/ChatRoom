@@ -2433,6 +2433,13 @@ inexact `ServerHello`. Account commands and correlated type-129/error responses
 use a dedicated bounded transport route, so the messaging controller cannot
 misinterpret contact-policy payloads. This seam does not expose a Widgets action
 or persist a block graph; accessible management remains a separate gate.
+The detached Windows account-block ViewModel additionally accepts only an
+authoritative DIRECT marker plus a complete, non-paginated two-member projection
+for the same active conversation. It derives the unique non-self target from the
+authenticated actor, reports initial state as unknown, and retains one operation
+UUID solely for explicit same-desired-state retry after disconnect. Target
+changes, session changes, and invalid projections clear that page-memory state;
+there is no SQLite block graph or inferred durable status.
 CI compiles a separate, non-published
 forwarding/search/notification/account-blocking-enabled `ChatClient`. It runs
 transport, forwarding-dialog, search-state,

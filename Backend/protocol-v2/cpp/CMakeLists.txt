@@ -88,6 +88,20 @@ target_include_directories(v2_windows_account_block_protocol_test PRIVATE
 target_link_libraries(v2_windows_account_block_protocol_test PRIVATE protobuf::libprotobuf)
 
 add_executable(
+  v2_windows_account_block_view_model_test
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsAccountBlockViewModelTest.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsAccountBlockViewModel.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsAccountBlockViewModel.h"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsConversationParticipantViewModel.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsConversationParticipantViewModel.h"
+)
+set_target_properties(v2_windows_account_block_view_model_test PROPERTIES AUTOMOC ON)
+target_compile_features(v2_windows_account_block_view_model_test PRIVATE cxx_std_17)
+target_include_directories(v2_windows_account_block_view_model_test PRIVATE
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client")
+target_link_libraries(v2_windows_account_block_view_model_test PRIVATE Qt6::Core)
+
+add_executable(
   v2_windows_conversation_directory_protocol_test
   "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsConversationDirectoryProtocolClientTest.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsConversationDirectoryProtocolClient.cpp"
@@ -373,6 +387,7 @@ if(MSVC)
   target_compile_options(v2_windows_messaging_protocol_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_message_search_protocol_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_account_block_protocol_test PRIVATE /W4 /WX)
+  target_compile_options(v2_windows_account_block_view_model_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_conversation_directory_protocol_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_conversation_participant_protocol_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_conversation_participant_view_model_test PRIVATE /W4 /WX)
@@ -384,6 +399,7 @@ else()
   target_compile_options(v2_windows_messaging_protocol_test PRIVATE -Wall -Wextra -Werror)
   target_compile_options(v2_windows_message_search_protocol_test PRIVATE -Wall -Wextra -Werror)
   target_compile_options(v2_windows_account_block_protocol_test PRIVATE -Wall -Wextra -Werror)
+  target_compile_options(v2_windows_account_block_view_model_test PRIVATE -Wall -Wextra -Werror)
   target_compile_options(
     v2_windows_conversation_directory_protocol_test PRIVATE -Wall -Wextra -Werror)
   target_compile_options(
@@ -426,6 +442,7 @@ add_test(
 add_test(NAME v2_windows_messaging_protocol COMMAND v2_windows_messaging_protocol_test)
 add_test(NAME v2_windows_message_search_protocol COMMAND v2_windows_message_search_protocol_test)
 add_test(NAME v2_windows_account_block_protocol COMMAND v2_windows_account_block_protocol_test)
+add_test(NAME v2_windows_account_block_view_model COMMAND v2_windows_account_block_view_model_test)
 add_test(
   NAME v2_windows_conversation_directory_protocol
   COMMAND v2_windows_conversation_directory_protocol_test)

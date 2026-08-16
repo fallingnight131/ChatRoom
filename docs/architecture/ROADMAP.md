@@ -2319,6 +2319,9 @@ Candidate slices:
   - [x] Carry an independent default-off Windows capability 7 gate through
     diagnostic schema 5, exact session negotiation, and an isolated bounded Qt
     transport route; do not expose a Widgets action yet.
+  - [x] Add a detached Windows account-block ViewModel that resolves exactly
+    one non-self target from a complete two-member DIRECT projection, keeps
+    state in memory only, and preserves operation identity for explicit retry.
   - [ ] Add accessible Windows block management behind its independent product
     gate, then complete real endpoint activation/rollback evidence for both
     supported clients.
