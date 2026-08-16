@@ -2306,6 +2306,8 @@ Candidate slices:
     focus, native required submission, empty rejection, and pre-emit clearing.
   - [x] Apply the shared boundary to user information and its nested avatar
     preview, replacing pointer-only activation and containing top-layer Escape.
+  - [x] Apply the shared boundary and labeled, duplicate-safe controls to room
+    settings while hiding operator-only controls from non-admin users.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

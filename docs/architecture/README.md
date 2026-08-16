@@ -1005,6 +1005,12 @@ preview is a separate nested dialog whose Escape event is contained and whose
 close restores focus to that button. Opening the preview remains an explicit
 user action; role changes and room removal remain server-authoritative even
 though their controls are exposed in this client dialog.
+Room settings use the same keyboard boundary and expose associated form labels,
+busy state, and duplicate-write guards. Operator-limit controls are shown only
+to current room admins, matching the existing server policy, while the server
+continues to recheck both current administration and the operator key. Room
+passwords and operator keys disable account autofill; the UI clears their
+component state after capture, response, cancellation, and unmount.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

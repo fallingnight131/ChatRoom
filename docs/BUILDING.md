@@ -2246,6 +2246,9 @@ empty rejection, and component plaintext clearing before the join event.
 `userInfoDialogAccessibility.test.mjs` locks the shared keyboard boundary for
 user information and its nested avatar preview, native avatar activation,
 accessible image naming, top-layer Escape containment, and focus restoration.
+`roomSettingsDialogAccessibility.test.mjs` locks modal semantics, associated
+setting labels, admin-only operator controls, duplicate-write guards, and
+component-state clearing for room passwords and developer keys.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable
