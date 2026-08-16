@@ -27,6 +27,7 @@ public:
     QPushButton *refreshForTest() const { return m_refresh; }
     QPushButton *loadMoreForTest() const { return m_loadMore; }
     V2WindowsMessagingPanel *messagingPanelForTest() const { return m_messagingPanel; }
+    QString selectedConversationId() const { return m_selectedConversationId; }
 
 private:
     void renderDirectory();

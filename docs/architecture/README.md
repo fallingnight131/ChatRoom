@@ -861,8 +861,9 @@ CMake (`CHATROOM_ENABLE_WINDOWS_V2_SEARCH=ON`) through product configuration,
 the composition root, WSS transport, and exact session negotiation. Ordinary
 preview builds remain at capabilities 1–4. A search candidate appends capability
 6 in canonical order and fails closed if the server omits, reorders, or adds a
-capability. Binary diagnostic schema 3 exposes this immutable state; no Windows
-search command, state, or Widgets surface is activated by this seam alone.
+capability. Binary diagnostic schema 4 exposes this immutable state together
+with the independent notification gate. Reading the diagnostic has no network,
+storage, or UI side effects.
 The independent Windows search codec now validates bounded Unicode-stripped
 queries before type 126 encoding and validates session/request correlation,
 same-conversation descending current-text hits, optional negotiated markers,
@@ -1656,12 +1657,17 @@ locally persisted remote live publication becomes a notification candidate;
 ACK, history/repair, mutation, search, and self-echo paths remain silent. A
 portable policy remembers a bounded stable-message set, suppresses the currently
 visible conversation, and emits only a generic privacy-safe summary with an
-optional structured-mention title. Native Windows presentation and activation
-routing remain a separate default-off adapter and Windows Release gate. The
-disconnected presenter now consumes those decisions through injected platform
-and navigation ports. The tray adapter retains only the newest activation
-identity and consumes it once on a notification click, preventing a stale click
-from reopening an older conversation; product composition remains off.
+optional structured-mention title. The presenter consumes those decisions
+through injected platform and navigation ports. The tray adapter retains only
+the newest activation identity and consumes it once on a notification click,
+preventing a stale click from reopening an older conversation. Exact
+`CHATROOM_ENABLE_WINDOWS_V2_NOTIFICATIONS=ON` now composes this path only inside
+an enabled V2 preview build. Ordinary builds keep it absent; binary diagnostic
+schema 4 exposes the immutable state. Native Windows Release presentation and
+activation evidence remains open. Transient reconnect retains the bounded
+process-local duplicate set; only the active V2 conversation window suppresses
+its exact conversation, so another foreground dialog cannot hide new-message
+feedback.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

@@ -41,6 +41,9 @@ WindowsDeviceManagementController::WindowsDeviceManagementController(
             this, &WindowsDeviceManagementController::messagingUnavailable);
     connect(m_messagingController.get(), &WindowsV2MessagingController::failure,
             this, &WindowsDeviceManagementController::messagingFailure);
+    connect(m_messagingController.get(),
+            &WindowsV2MessagingController::remoteMessagePublished,
+            this, &WindowsDeviceManagementController::remoteMessagePublished);
 
     connect(m_transport.get(), &V2WindowsDeviceManagementTransport::stateChanged,
             this, [this](V2WindowsDeviceManagementTransport::State state) {

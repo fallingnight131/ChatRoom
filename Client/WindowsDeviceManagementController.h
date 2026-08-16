@@ -43,6 +43,10 @@ signals:
     void messagingReady();
     void messagingUnavailable();
     void messagingFailure(const QString &safeReason);
+    void remoteMessagePublished(
+        const QString &conversationId, const QString &messageId,
+        const QString &senderAccountId,
+        bool authenticatedAccountMentioned);
 
 private:
     std::unique_ptr<V2WindowsDeviceManagementTransport> m_transport;

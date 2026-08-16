@@ -53,6 +53,9 @@ WindowsV2ProductConfiguration::Value WindowsV2ProductConfiguration::fromBuild() 
 #ifdef CHAT_WINDOWS_V2_SEARCH_ENABLED
     value.messageSearchEnabled = value.enabled;
 #endif
+#ifdef CHAT_WINDOWS_V2_NOTIFICATIONS_ENABLED
+    value.notificationsEnabled = value.enabled;
+#endif
     return value;
 #endif
 }

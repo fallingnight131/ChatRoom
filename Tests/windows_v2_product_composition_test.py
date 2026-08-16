@@ -42,6 +42,7 @@ def main() -> int:
         "configureDeviceManagement(",
         "v2Configuration.messageForwardingEnabled",
         "v2Configuration.messageSearchEnabled",
+        "v2Configuration.notificationsEnabled",
         "password.fill('\\0')",
     ), "Client/main.cpp")
     require(login, ("QByteArray LoginDialog::takePasswordUtf8()", "m_loginPass->clear()"),
@@ -54,6 +55,8 @@ def main() -> int:
         "DeviceManagementDialog",
         "m_v2MessageForwardingEnabled,",
         "messageSearchViewModel());",
+        "WindowsMessageNotificationPresenter",
+        "TrayManager::notificationActivated",
     ), "Client/ChatWindow.cpp")
     require(controller, (
         "ReadyForAuthentication",

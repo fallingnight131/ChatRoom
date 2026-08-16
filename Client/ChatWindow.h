@@ -39,6 +39,7 @@ class LocalConversationRepository;
 class WindowsDeviceManagementController;
 class DeviceManagementDialog;
 class V2WindowsConversationDialog;
+class WindowsMessageNotificationPresenter;
 #endif
 
 /// 主聊天窗口 —— MVC 架构的 View/Controller 层
@@ -56,7 +57,8 @@ public:
         const QUrl &endpoint, const QString &deviceId, QByteArray passwordUtf8,
         bool enableMessageForwarding = false,
         QList<QUrl> fallbackEndpoints = {},
-        bool enableMessageSearch = false);
+        bool enableMessageSearch = false,
+        bool enableNotifications = false);
 #endif
 
     /// 获取用户头像缓存
@@ -340,6 +342,7 @@ private:
     QAction *m_v2ConversationAction = nullptr;
     bool m_v2MessagingWasReady = false;
     bool m_v2MessageForwardingEnabled = false;
+    std::unique_ptr<WindowsMessageNotificationPresenter> m_v2NotificationPresenter;
 #endif
     RoomFileManagerDialog *m_roomFileManagerDialog = nullptr;
     QLabel       *m_avatarPreview  = nullptr;

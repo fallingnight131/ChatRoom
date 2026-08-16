@@ -2256,8 +2256,10 @@ Candidate slices:
   - [x] Add a disconnected Windows platform presenter, extend the tray adapter
     with one-shot stable-conversation activation, and prove routing without
     activating product behavior.
-  - [ ] Compose the presenter behind a default-off product gate and retain
-    native Windows Release presentation and activation evidence.
+  - [x] Compose the presenter behind a default-off product gate, carry the gate
+    through binary diagnostic schema 4, and compile it in the isolated Windows
+    feature candidate.
+  - [ ] Retain native Windows Release presentation and activation evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes;

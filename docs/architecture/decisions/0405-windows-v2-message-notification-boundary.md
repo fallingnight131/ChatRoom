@@ -44,16 +44,24 @@ replaceable and must fail without affecting chat delivery.
 The next disconnected slice adds that presenter boundary and extends the
 existing tray adapter with a single one-shot activation identity. A newer
 notification replaces the older activation target, and a click consumes the
-target before routing. It is deliberately not composed into the V2 controller
-or product configuration until the default-off gate and Windows Release
-interaction test exist.
+target before routing. That preparatory slice deliberately left it out of the
+V2 controller and product configuration.
+
+The product composition now exists behind exact CMake gate
+`CHATROOM_ENABLE_WINDOWS_V2_NOTIFICATIONS=ON`, which is invalid without the V2
+preview. The build value crosses the immutable product configuration and binary
+diagnostic into `ChatWindow`; no writable setting can enable or redirect it.
+Ordinary Windows builds do not instantiate the presenter. The isolated feature
+candidate compiles the enabled path, but native notification presentation and
+click activation still require Windows Release interaction evidence.
 
 ## Consequences
 
 The notification decision is deterministic and testable on a macOS development
 host, while native Windows behavior still requires a Windows Release interaction
-gate. The in-memory duplicate bound resets with the client process or explicit
-session reset; durable message history remains the source of truth. Generic
+gate. The in-memory duplicate bound survives transient reconnect and resets with
+the client process or explicit account teardown; durable message history remains
+the source of truth. Generic
 notification text is less informative than a content preview, but avoids making
 private content exposure the default before notification preferences and Windows
 privacy behavior are implemented.

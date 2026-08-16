@@ -23,7 +23,9 @@
 #include "DeviceManagementDialog.h"
 #include "DeviceManagementViewModel.h"
 #include "V2WindowsConversationDialog.h"
+#include "V2WindowsConversationDirectoryViewModel.h"
 #include "WindowsDeviceManagementController.h"
+#include "WindowsMessageNotificationPresenter.h"
 #endif
 
 #include <QVBoxLayout>
@@ -175,7 +177,7 @@ void ChatWindow::requestApplicationQuit() {
 bool ChatWindow::configureDeviceManagement(
         const QUrl &endpoint, const QString &deviceId, QByteArray passwordUtf8,
         bool enableMessageForwarding, QList<QUrl> fallbackEndpoints,
-        bool enableMessageSearch) {
+        bool enableMessageSearch, bool enableNotifications) {
     if (m_deviceManagementController || passwordUtf8.isEmpty()) {
         passwordUtf8.fill('\0');
         return false;
@@ -205,6 +207,53 @@ bool ChatWindow::configureDeviceManagement(
                     if (m_v2ConversationAction)
                         m_v2ConversationAction->setEnabled(m_v2MessagingWasReady);
                 });
+        if (enableNotifications) {
+            m_v2NotificationPresenter =
+                std::make_unique<WindowsMessageNotificationPresenter>(
+                    [this](const QString &title, const QString &body,
+                           const QString &conversationId) {
+                        if (!m_trayManager || !m_trayManager->isAvailable())
+                            return false;
+                        m_trayManager->showNotification(
+                            title, body, conversationId);
+                        return true;
+                    },
+                    [this](const QString &conversationId) {
+                        show();
+                        raise();
+                        activateWindow();
+                        showV2Conversations();
+                        return m_deviceManagementController
+                            && m_deviceManagementController
+                                ->conversationDirectoryViewModel()
+                                ->openConversation(conversationId);
+                    });
+            connect(m_deviceManagementController.get(),
+                    &WindowsDeviceManagementController::remoteMessagePublished,
+                    this,
+                    [this](const QString &conversationId,
+                           const QString &messageId,
+                           const QString &senderAccountId,
+                           bool authenticatedAccountMentioned) {
+                        if (!m_v2NotificationPresenter) return;
+                        WindowsMessageNotificationPolicy::Visibility visibility;
+                        if (m_v2ConversationDialog
+                                && m_v2ConversationDialog->isActiveWindow()) {
+                            visibility.applicationActive = true;
+                            visibility.visibleConversationId =
+                                m_v2ConversationDialog->selectedConversationId();
+                        }
+                        m_v2NotificationPresenter->present(
+                            {messageId, conversationId, senderAccountId,
+                             authenticatedAccountMentioned},
+                            visibility);
+                    });
+            connect(m_trayManager, &TrayManager::notificationActivated,
+                    this, [this](const QString &conversationId) {
+                        if (m_v2NotificationPresenter)
+                            m_v2NotificationPresenter->activate(conversationId);
+                    });
+        }
         connect(m_deviceManagementController.get(),
                 &WindowsDeviceManagementController::messagingFailure,
                 this, [this](const QString &) {
@@ -214,10 +263,12 @@ bool ChatWindow::configureDeviceManagement(
                     }
                 });
     } catch (...) {
+        m_v2NotificationPresenter.reset();
         passwordUtf8.fill('\0');
         return false;
     }
     if (!m_deviceManagementController->start()) {
+        m_v2NotificationPresenter.reset();
         m_deviceManagementController.reset();
         return false;
     }

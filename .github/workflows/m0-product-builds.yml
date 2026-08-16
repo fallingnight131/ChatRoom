@@ -163,9 +163,10 @@ jobs:
           }
           $v2 = (& $cmakeClient.FullName --chatroom-print-v2-configuration-json) |
             ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or $v2.schemaVersion -ne 3 `
+          if ($LASTEXITCODE -ne 0 -or $v2.schemaVersion -ne 4 `
               -or $v2.enabled -ne $false -or $v2.messageForwardingEnabled -ne $false `
               -or $v2.messageSearchEnabled -ne $false `
+              -or $v2.notificationsEnabled -ne $false `
               -or $v2.endpoint -ne "" -or $v2.fallbackEndpoints.Count -ne 0) {
             throw "Ordinary Windows client did not retain default-off V2 configuration"
           }
@@ -226,6 +227,7 @@ jobs:
             -DCHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON `
             -DCHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON `
             -DCHATROOM_ENABLE_WINDOWS_V2_SEARCH=ON `
+            -DCHATROOM_ENABLE_WINDOWS_V2_NOTIFICATIONS=ON `
             -DCHATROOM_WINDOWS_V2_WSS_URL=wss://preview-chat.example.test/v2/windows `
             -DCHATROOM_WINDOWS_V2_FALLBACK_WSS_URL=wss://preview-chat-secondary.example.test/v2/windows `
             -DBUILD_TESTING=ON `
@@ -237,18 +239,21 @@ jobs:
               V2WindowsMessageSearchViewModelTest `
               WindowsV2MessagingControllerTest `
               V2WindowsMessagingPanelTest `
+              WindowsMessageNotificationPolicyTest `
+              WindowsMessageNotificationPresenterTest `
               WindowsV2ConfigurationDiagnosticTest --parallel 4
           if ($LASTEXITCODE -ne 0) { throw "Forwarding Windows build failed" }
           ctest --test-dir build/m6/windows-forwarding-gate -C Release `
-            -R "^m6_windows_v2_(device_management_transport|forward_target_dialog|message_search_view_model|messaging_controller|messaging_panel)$" `
+            -R "^m6_windows_(v2_(device_management_transport|forward_target_dialog|message_search_view_model|messaging_controller|messaging_panel)|message_notification_(policy|presenter))$" `
             --output-on-failure
           if ($LASTEXITCODE -ne 0) { throw "Windows feature candidate tests failed" }
           $client = Get-Item build/m6/windows-forwarding-gate/Release/ChatClient.exe
           $v2 = (& $client.FullName --chatroom-print-v2-configuration-json) |
             ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or $v2.schemaVersion -ne 3 `
+          if ($LASTEXITCODE -ne 0 -or $v2.schemaVersion -ne 4 `
               -or $v2.enabled -ne $true -or $v2.messageForwardingEnabled -ne $true `
               -or $v2.messageSearchEnabled -ne $true `
+              -or $v2.notificationsEnabled -ne $true `
               -or $v2.endpoint -ne "wss://preview-chat.example.test/v2/windows" `
               -or $v2.fallbackEndpoints.Count -ne 1 `
               -or $v2.fallbackEndpoints[0] -ne "wss://preview-chat-secondary.example.test/v2/windows") {

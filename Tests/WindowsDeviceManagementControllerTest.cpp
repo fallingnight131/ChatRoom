@@ -6,6 +6,7 @@
 #include "chat/v2/control.pb.h"
 #include "chat/v2/device_management.pb.h"
 #include "chat/v2/envelope.pb.h"
+#include "chat/v2/messaging.pb.h"
 #include <QCoreApplication>
 #include <QDebug>
 #include <QTemporaryDir>
@@ -34,10 +35,11 @@ chat::v2::Envelope parse(const QByteArray &bytes) {
 
 template <typename Payload>
 QByteArray response(int type, const std::string &requestId,
-                    const std::string &sessionId, const Payload &payload) {
+                    const std::string &sessionId, const Payload &payload,
+                    chat::v2::MessageKind kind = chat::v2::MESSAGE_KIND_RESPONSE) {
     chat::v2::Envelope envelope;
     envelope.set_protocol_version(2);
-    envelope.set_kind(chat::v2::MESSAGE_KIND_RESPONSE);
+    envelope.set_kind(kind);
     envelope.set_message_type(type);
     envelope.set_request_id(requestId);
     envelope.set_session_id(sessionId);
@@ -73,12 +75,18 @@ int main(int argc, char **argv) {
         });
     bool messagingReady = false;
     bool messagingUnavailable = false;
+    QString notifiedMessageId;
     QObject::connect(&controller,
         &WindowsDeviceManagementController::messagingReady,
         [&] { messagingReady = true; });
     QObject::connect(&controller,
         &WindowsDeviceManagementController::messagingUnavailable,
         [&] { messagingUnavailable = true; });
+    QObject::connect(&controller,
+        &WindowsDeviceManagementController::remoteMessagePublished,
+        [&](const QString &, const QString &messageId, const QString &, bool) {
+            notifiedMessageId = messageId;
+        });
     if (!check(controller.start(), QStringLiteral("controller did not start"))) return 1;
     socket.connected();
     const auto clientHello = parse(sent.takeFirst());
@@ -135,6 +143,24 @@ int main(int argc, char **argv) {
     if (!check(controller.viewModel()->devices().size() == 1
                    && controller.viewModel()->devices().first().current,
                QStringLiteral("controller did not project the device directory"))) return 1;
+
+    chat::v2::MessageRecord published;
+    published.set_conversation_id("60000000-0000-4000-8000-000000000001");
+    published.set_message_id("70000000-0000-4000-8000-000000000001");
+    published.set_conversation_sequence(1);
+    published.set_sender_account_id("10000000-0000-4000-8000-000000000002");
+    published.set_sender_device_id("20000000-0000-4000-8000-000000000002");
+    published.set_client_message_id("80000000-0000-4000-8000-000000000001");
+    published.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
+    published.set_content("remote live");
+    published.set_accepted_at_epoch_ms(300);
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_MESSAGE_PUBLISHED, {}, sessionId, published,
+        chat::v2::MESSAGE_KIND_EVENT));
+    if (!check(notifiedMessageId
+                   == QStringLiteral("70000000-0000-4000-8000-000000000001"),
+               QStringLiteral("device controller did not forward the persisted live notification candidate")))
+        return 1;
     controller.stop();
     if (!check(!controller.viewModel()->authenticated() && messagingUnavailable,
                QStringLiteral("controller stop retained authenticated UI state"))) return 1;
