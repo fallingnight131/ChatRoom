@@ -2186,6 +2186,10 @@ destruction, and clears it after the message reaches the SQLite outbox. Existing
 message editing preserves that draft in memory and never persists edit text as a
 new-message draft. Restart restoration intentionally carries text only: mention
 account identity must be selected again through the participant picker.
+Keyboard coverage sends an ordinary message with Ctrl+Enter, proves modified
+Enter still inserts a newline without dispatch, and cancels an active reply with
+Escape. These keys route through the same enabled buttons and ViewModel methods;
+they do not create a second submission or cancellation path.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

@@ -2253,8 +2253,10 @@ Candidate slices:
     and reconnect replay; reply/edit behavior and the V1 path remain unchanged.
   - [x] Add conversation-scoped Windows draft persistence and restore without
     storing mention display text as identity.
-  - [ ] Add the remaining attachment and keyboard composition experience behind
-    explicit capability and Windows product gates.
+  - [x] Add Windows keyboard composition behavior: Ctrl+Enter sends, modified or
+    plain Enter remains editor input, and Escape cancels reply/edit state.
+  - [ ] Add the remaining attachment composition experience behind explicit
+    capability and Windows product gates.
 - group roles, invitations, join approval, mute, block, and moderation;
 - Windows native notifications;
   - [x] Add a persisted-live-only notification candidate boundary and a bounded,

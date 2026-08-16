@@ -5,8 +5,10 @@
 #include "V2WindowsMessagingViewModel.h"
 #include "V2WindowsMessageSearchViewModel.h"
 
-#include <QHBoxLayout>
 #include <QAccessible>
+#include <QEvent>
+#include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QListWidget>
 #include <QLineEdit>
@@ -79,6 +81,7 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     m_composer->setAccessibleName(QStringLiteral("消息内容"));
     m_composer->setPlaceholderText(QStringLiteral("输入消息"));
     m_composer->setMaximumBlockCount(1000);
+    m_composer->installEventFilter(this);
     m_participantPane->setAccessibleName(QStringLiteral("会话成员选择器"));
     m_participantStatus->setAccessibleName(QStringLiteral("成员列表状态"));
     m_participantStatus->setWordWrap(true);
@@ -90,7 +93,9 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     m_mention->setAccessibleName(QStringLiteral("打开会话成员选择器"));
     m_mention->setVisible(m_mentionsEnabled);
     m_cancelReply->setAccessibleName(QStringLiteral("取消当前回复"));
+    m_cancelReply->setToolTip(QStringLiteral("Esc"));
     m_send->setAccessibleName(QStringLiteral("发送当前消息"));
+    m_send->setToolTip(QStringLiteral("Ctrl+Enter"));
     m_draftSaveTimer->setSingleShot(true);
     m_draftSaveTimer->setInterval(400);
 
@@ -164,6 +169,24 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
 
 V2WindowsMessagingPanel::~V2WindowsMessagingPanel() {
     flushDraft();
+}
+
+bool V2WindowsMessagingPanel::eventFilter(QObject *watched, QEvent *event) {
+    if (watched != m_composer || event->type() != QEvent::KeyPress)
+        return QWidget::eventFilter(watched, event);
+    const auto *key = static_cast<QKeyEvent *>(event);
+    const bool enter = key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter;
+    if (enter && key->modifiers() == Qt::ControlModifier) {
+        if (m_send->isEnabled()) sendComposition();
+        return true;
+    }
+    if (key->key() == Qt::Key_Escape
+            && (!m_editTargetMessageId.isEmpty()
+                || !m_viewModel->replyTargetMessageId().isEmpty())) {
+        cancelComposition();
+        return true;
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void V2WindowsMessagingPanel::setConversation(const QString &conversationId) {

@@ -8,6 +8,7 @@
 #include <QApplication>
 #include <QEventLoop>
 #include <QLabel>
+#include <QKeyEvent>
 #include <QListWidget>
 #include <QLineEdit>
 #include <QPlainTextEdit>
@@ -165,6 +166,15 @@ int main(int argc, char **argv) {
         qCritical() << "core messaging controls lack accessible names";
         return 1;
     }
+    panel.composerForTest()->setPlainText(QStringLiteral("line one"));
+    QKeyEvent newline(
+        QEvent::KeyPress, Qt::Key_Return, Qt::ShiftModifier, QStringLiteral("\n"));
+    QApplication::sendEvent(panel.composerForTest(), &newline);
+    if (!panel.composerForTest()->toPlainText().contains(QLatin1Char('\n'))
+            || ordinarySubmitCount != 0) {
+        qCritical() << "modified Enter must remain a newline";
+        return 1;
+    }
     panel.composerForTest()->setPlainText(QStringLiteral("ordinary text"));
     app.processEvents();
     if (!panel.sendForTest()->isEnabled()
@@ -172,7 +182,9 @@ int main(int argc, char **argv) {
         qCritical() << "ordinary conversation text was not sendable";
         return 1;
     }
-    panel.sendForTest()->click();
+    QKeyEvent send(
+        QEvent::KeyPress, Qt::Key_Return, Qt::ControlModifier, QStringLiteral("\r"));
+    QApplication::sendEvent(panel.composerForTest(), &send);
     app.processEvents();
     if (ordinarySubmitCount != 1
             || submittedText != QStringLiteral("ordinary text")
@@ -326,7 +338,8 @@ int main(int argc, char **argv) {
         qCritical() << "non-empty reply was not sendable";
         return 1;
     }
-    panel.cancelReplyForTest()->click();
+    QKeyEvent cancel(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QApplication::sendEvent(panel.composerForTest(), &cancel);
     app.processEvents();
     if (!model.replyTargetMessageId().isEmpty()) {
         qCritical() << "reply cancellation did not clear target";

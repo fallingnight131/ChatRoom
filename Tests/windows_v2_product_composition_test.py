@@ -85,6 +85,8 @@ def main() -> int:
         "m_viewModel->sendText(",
         "m_draftSaveTimer->setInterval(400)",
         "m_viewModel->persistDraft(",
+        "key->modifiers() == Qt::ControlModifier",
+        "key->key() == Qt::Key_Escape",
         "m_mentionsEnabled && !m_conversationId.isEmpty()",
         "V2WindowsMentionComposer::serialize",
         'setProperty("mentionTargetAccountIds"',

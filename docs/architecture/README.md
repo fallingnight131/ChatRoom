@@ -921,6 +921,11 @@ preserves the ordinary draft instead of overwriting it. Once a send is durably
 accepted into the local outbox, the draft is cleared even if immediate view
 refresh fails; a local clear failure is surfaced without retracting the already
 accepted send.
+The composer also provides a Windows keyboard contract without changing ordinary
+text editing: `Ctrl+Enter` sends only when the existing send action is enabled,
+Enter and modified Enter continue through `QPlainTextEdit`, and `Escape` cancels
+only active reply/edit composition. Visible button tooltips expose the two
+shortcuts, while mouse and assistive-technology actions remain unchanged.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

@@ -4,6 +4,7 @@
 
 #include <QWidget>
 
+class QEvent;
 class QLabel;
 class QListWidget;
 class QListWidgetItem;
@@ -37,6 +38,9 @@ public:
     QLineEdit *searchInputForTest() const { return m_searchInput; }
     QPushButton *searchButtonForTest() const { return m_searchButton; }
     QListWidget *searchResultsForTest() const { return m_searchResults; }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void render();
