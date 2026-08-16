@@ -81,33 +81,33 @@
               <button v-if="snapshot.searchEnabled" class="btn btn-text" type="button"
                       aria-controls="v2-message-search" :aria-expanded="searchOpen"
                       @click="toggleSearch">
-                {{ searchOpen ? '关闭搜索' : '搜索消息' }}
+                {{ searchOpen ? searchMessages.closeSearch : searchMessages.openSearch }}
               </button>
             </div>
           </div>
           <section v-if="snapshot.searchEnabled && searchOpen" id="v2-message-search"
                    class="message-search" aria-labelledby="v2-message-search-title">
             <form @submit.prevent="submitSearch">
-              <label id="v2-message-search-title" for="v2-message-search-query">搜索当前会话</label>
+              <label id="v2-message-search-title" for="v2-message-search-query">{{ searchMessages.searchConversation }}</label>
               <div>
                 <input id="v2-message-search-query" v-model="searchDraft" class="input"
                        type="search" maxlength="128" autocomplete="off"
-                       placeholder="输入精确文字" :disabled="snapshot.searchLoading" />
+                       :placeholder="searchMessages.exactText" :disabled="snapshot.searchLoading" />
                 <button class="btn btn-primary" type="submit"
                         :disabled="!searchDraft.trim() || snapshot.searchLoading">
-                  {{ snapshot.searchLoading ? '搜索中…' : '搜索' }}
+                  {{ snapshot.searchLoading ? searchMessages.searching : searchMessages.search }}
                 </button>
               </div>
             </form>
             <p class="search-status" aria-live="polite" aria-atomic="true">
-              <template v-if="snapshot.searchFailure">{{ snapshot.searchFailure }}</template>
-              <template v-else-if="snapshot.searchContextLoading">正在加载消息上下文…</template>
+              <template v-if="snapshot.searchFailure">{{ visibleSearchFailure }}</template>
+              <template v-else-if="snapshot.searchContextLoading">{{ searchMessages.loadingContext }}</template>
               <template v-else-if="snapshot.searchQuery && !snapshot.searchLoading">
-                已找到 {{ snapshot.searchResults.length }} 条结果
+                {{ searchMessages.resultCount(snapshot.searchResults.length) }}
               </template>
             </p>
             <ol v-if="snapshot.searchResults.length" class="search-results"
-                aria-label="消息搜索结果" :aria-busy="snapshot.searchLoading">
+                :aria-label="searchMessages.resultsLabel" :aria-busy="snapshot.searchLoading">
               <li v-for="hit in snapshot.searchResults" :key="hit.id">
                 <button type="button" @click="locateSearchHit(hit)">
                   <span>{{ hit.content }}</span>
@@ -117,7 +117,7 @@
             </ol>
             <button v-if="snapshot.searchHasMore" class="btn btn-text" type="button"
                     :disabled="snapshot.searchLoading" @click="loadMoreSearchResults">
-              加载更多结果
+              {{ searchMessages.loadMore }}
             </button>
           </section>
           <div class="message-timeline">
@@ -397,7 +397,7 @@ import { addPendingNewMessages, pendingNewMessageLabel } from '../messaging/newM
 import { classifyV2TailUpdate } from '../messaging/v2TailActivity'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 import { useUserStore } from '../stores/user'
-import { v2PreviewShellMessages } from '../localization/webLocale'
+import { v2PreviewSearchMessages, v2PreviewShellMessages } from '../localization/webLocale'
 import {
   anchorsFromMentionSpans,
   insertMention,
@@ -409,6 +409,7 @@ import {
 const runtimeRef = inject(V2_RUNTIME_KEY)
 const userStore = useUserStore()
 const shellMessages = computed(() => v2PreviewShellMessages(userStore.locale))
+const searchMessages = computed(() => v2PreviewSearchMessages(userStore.locale))
 const username = ref('')
 const password = ref('')
 const draft = ref('')
@@ -477,6 +478,11 @@ const authenticating = computed(() => authenticationPending.value
   || ['connecting', 'negotiating', 'resuming'].includes(snapshot.value.connectionState))
 const canAuthenticate = computed(() => Boolean(connectionReady.value && username.value && password.value && !authenticating.value))
 const visibleFailure = computed(() => actionError.value || snapshot.value.lastFailure)
+const visibleSearchFailure = computed(() => ({
+  '无法加载消息上下文': searchMessages.value.contextFailed,
+  '无法搜索当前会话': searchMessages.value.searchFailed,
+  '搜索暂不可用': searchMessages.value.unavailable,
+}[snapshot.value.searchFailure] || snapshot.value.searchFailure))
 const activeConversationName = computed(() => snapshot.value.directory.find(
   item => item.conversationId === snapshot.value.activeConversationId
 )?.displayName || shellMessages.value.conversation)
@@ -591,23 +597,23 @@ function submitSearch() {
   actionError.value = ''
   try {
     if (!runtimeRef.value.application.searchMessages(searchDraft.value)) {
-      actionError.value = '请输入 1–128 字节的搜索文字'
+      actionError.value = searchMessages.value.invalidQuery
     }
   } catch (error) {
-    actionError.value = error instanceof Error ? error.message : '无法搜索当前会话'
+    actionError.value = error instanceof Error ? error.message : searchMessages.value.searchFailed
   }
 }
 
 function loadMoreSearchResults() {
   try { runtimeRef.value.application.loadMoreSearchResults() }
-  catch (error) { actionError.value = error instanceof Error ? error.message : '无法加载更多结果' }
+  catch (error) { actionError.value = error instanceof Error ? error.message : searchMessages.value.loadMoreFailed }
 }
 
 function locateSearchHit(hit) {
   actionError.value = ''
   try {
     if (!runtimeRef.value.application.revealSearchHit(hit.id)) {
-      actionError.value = '该消息上下文暂不可用'
+      actionError.value = searchMessages.value.contextUnavailable
       return
     }
     nextTick(() => {
@@ -616,7 +622,7 @@ function locateSearchHit(hit) {
       element?.focus({ preventScroll: true })
     })
   } catch (error) {
-    actionError.value = error instanceof Error ? error.message : '无法打开搜索结果'
+    actionError.value = error instanceof Error ? error.message : searchMessages.value.openResultFailed
   }
 }
 

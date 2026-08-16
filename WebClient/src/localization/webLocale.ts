@@ -560,6 +560,25 @@ const v2PreviewShellCatalog = {
   },
 } as const;
 
+const v2PreviewSearchCatalog = {
+  "zh-CN": {
+    openSearch: "搜索消息", closeSearch: "关闭搜索", searchConversation: "搜索当前会话",
+    exactText: "输入精确文字", searching: "搜索中…", search: "搜索", loadingContext: "正在加载消息上下文…",
+    resultCount: (count: number) => `已找到 ${count} 条结果`, resultsLabel: "消息搜索结果", loadMore: "加载更多结果",
+    invalidQuery: "请输入 1–128 字节的搜索文字", searchFailed: "无法搜索当前会话",
+    loadMoreFailed: "无法加载更多结果", contextUnavailable: "该消息上下文暂不可用",
+    contextFailed: "无法加载消息上下文", openResultFailed: "无法打开搜索结果", unavailable: "搜索暂不可用",
+  },
+  "en-US": {
+    openSearch: "Search messages", closeSearch: "Close search", searchConversation: "Search this conversation",
+    exactText: "Enter exact text", searching: "Searching…", search: "Search", loadingContext: "Loading message context…",
+    resultCount: (count: number) => `${count} result${count === 1 ? "" : "s"} found`, resultsLabel: "Message search results",
+    loadMore: "Load more results", invalidQuery: "Enter 1–128 bytes of search text", searchFailed: "Unable to search this conversation",
+    loadMoreFailed: "Unable to load more results", contextUnavailable: "This message context is temporarily unavailable",
+    contextFailed: "Unable to load message context", openResultFailed: "Unable to open the search result", unavailable: "Search is temporarily unavailable",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -658,6 +677,10 @@ export function roomSettingsMessages(locale: WebLocale) {
 
 export function v2PreviewShellMessages(locale: WebLocale) {
   return v2PreviewShellCatalog[locale];
+}
+
+export function v2PreviewSearchMessages(locale: WebLocale) {
+  return v2PreviewSearchCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

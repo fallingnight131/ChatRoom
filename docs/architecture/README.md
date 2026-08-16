@@ -2049,7 +2049,11 @@ connection-state text, account conversation navigation, directory kinds and
 empty/pagination state, plus the no-conversation message panel. It consumes the
 same bounded locale preference without changing the exact preview build gate,
 WSS configuration, runtime lifecycle, in-memory credential handling, directory
-identity, or V1 initial asset graph. V2 search, timeline actions, composition,
+identity, or V1 initial asset graph. The capability-gated search slice now also
+localizes its controls, live status, result count/list and paging plus a bounded
+adapter for known application failures. Search still delegates byte validation,
+bounded retention, context loading and sync ownership to the V2 application;
+the view does not advance a sequence cursor. V2 timeline actions, composition,
 member/forwarding, and device dialogs remain later slices.
 
 ### Product consistency

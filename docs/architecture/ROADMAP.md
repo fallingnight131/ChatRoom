@@ -2388,6 +2388,8 @@ Candidate slices:
     secret clearing, duplicate-write guards, confirmations, and command IDs.
   - [x] Migrate the first Web V2 preview slice: runtime/authentication,
     connection state, conversation directory, and empty message panel.
+  - [x] Migrate the capability-gated Web V2 conversation-search surface while
+    preserving byte validation, bounded results, context lookup, and focus.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

@@ -144,6 +144,11 @@ env VITE_CHAT_V2_PREVIEW=true \
 This proves only that the gated bundle compiles. The `.invalid` endpoint is not
 contacted as a successful gateway, and the ordinary Chromium/Firefox journey
 remains V1 regression evidence rather than V2 authentication evidence.
+The next slice localizes the capability-gated in-conversation search controls,
+status/results, paging, and known application failure adapters. It preserves
+the 128-byte application validation, bounded result retention, context lookup,
+and keyboard focus behavior; the same enabled-build command is required as
+compile evidence until an authenticated V2 browser fixture exists.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and
