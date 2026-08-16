@@ -2255,8 +2255,13 @@ Candidate slices:
     storing mention display text as identity.
   - [x] Add Windows keyboard composition behavior: Ctrl+Enter sends, modified or
     plain Enter remains editor input, and Escape cancels reply/edit state.
-  - [ ] Add the remaining attachment composition experience behind explicit
-    capability and Windows product gates.
+  - [x] Add a detached Windows V2 attachment protocol client for existing types
+    120--125 with bounded correlations, strict metadata/HTTPS grant validation,
+    and disconnect cleanup; keep it absent from product composition (ADR-0406).
+  - [ ] Add durable Windows attachment intent/source reselection, bounded hashing
+    and direct upload only after the real-provider gate passes.
+  - [ ] Add the accessible attachment picker/progress/retry experience behind
+    explicit capability and Windows product gates.
 - group roles, invitations, join approval, mute, block, and moderation;
 - Windows native notifications;
   - [x] Add a persisted-live-only notification candidate boundary and a bounded,

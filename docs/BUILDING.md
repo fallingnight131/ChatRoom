@@ -2244,6 +2244,12 @@ Web V2 tests also exercise the inactive attachment register/authorize/direct-
 PUT/complete coordinator. They use injected transports and fetch responses, do
 not contact object storage, and prove transient grant/byte cleanup rather than a
 real-provider acceptance result.
+`v2_windows_attachment_protocol_test` exercises the matching detached Windows
+metadata protocol. It validates types 120--125, request/lifecycle correlation,
+unsafe filename/MIME/HTTPS/header rejection, transient grant return, abandonment,
+and disconnect cleanup. The source is deliberately absent from root product
+CMake and all Windows runtime/UI composition; this test is not provider or
+upload evidence (ADR-0406).
 Loopback administration tests also verify fixed-cardinality accepted, duplicate,
 history, denial, conflict, saturation, and failure counters plus message worker
 active/queue gauges; no identity or conversation value is a metric label.

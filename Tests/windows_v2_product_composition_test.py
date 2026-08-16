@@ -27,8 +27,24 @@ def main() -> int:
     session_protocol = (ROOT / "Client/V2WindowsSessionProtocolClient.cpp").read_text(
         encoding="utf-8"
     )
+    v2_transport = (ROOT / "Client/V2WindowsDeviceManagementTransport.cpp").read_text(
+        encoding="utf-8"
+    )
     panel = (ROOT / "Client/V2WindowsMessagingPanel.cpp").read_text(encoding="utf-8")
     qmake = (ROOT / "Client/Client.pro").read_text(encoding="utf-8")
+
+    for source, text in (
+        ("CMakeLists.txt", cmake),
+        ("Client/ChatWindow.cpp", window),
+        ("Client/WindowsV2MessagingController.cpp", messaging_controller),
+        ("Client/V2WindowsMessagingPanel.cpp", panel),
+        ("Client/V2WindowsDeviceManagementTransport.cpp", v2_transport),
+        ("Client/Client.pro", qmake),
+    ):
+        if "V2WindowsAttachmentProtocolClient" in text:
+            raise AssertionError(
+                f"{source} must not activate Windows V2 attachments before provider gates"
+            )
 
     require(cmake, (
         "CHAT_WINDOWS_V2_PRODUCT_AVAILABLE=1",

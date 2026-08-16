@@ -74,6 +74,12 @@ reused:
 | 113 | `MessagePinChanged` | event | future ordered pin projection change |
 | 110 | `ListConversations` | command | authenticated client to server; bounded directory page |
 | 111 | `ConversationDirectoryPage` | response | server to authenticated active member |
+| 120 | `RegisterAttachment` | command | inactive authenticated attachment metadata registration |
+| 121 | `AttachmentRegistered` | response | inactive stable attachment identity result |
+| 122 | `AuthorizeAttachmentUpload` | command | inactive fresh transient upload-grant request |
+| 123 | `AttachmentUploadAuthorized` | response | inactive HTTPS URI/header grant; never durable client state |
+| 124 | `CompleteAttachmentUpload` | command | inactive object-verification request |
+| 125 | `AttachmentReady` | response | inactive stable READY lifecycle result |
 | 126 | `SearchConversationMessages` | command | future capable authenticated client; literal per-conversation search |
 | 127 | `ConversationMessageSearchPage` | response | future correlated descending current-state results |
 
@@ -130,10 +136,19 @@ The Web candidate correlates every search response with one active in-memory
 request and discards pages abandoned by disconnect or conversation change.
 Search query/result state is not persisted and does not advance the ordinary
 history synchronization cursor.
+
 Opening a Web search hit may issue one correlated `ReadMessageHistory` command
 from the preceding sequence. The client treats that response as a bounded
 ephemeral context projection: it does not follow `has_more`, persist the partial
 window, or update the normal incremental-sync cursor.
+
+The detached Windows attachment protocol client now parses the same permanent
+types 120 through 125 with at most eight in-memory command/lifecycle correlations.
+It validates exact identity, basename, MIME, size/hash, HTTPS authority, and
+required-header bounds; disconnect erases every correlation. It retains no file
+bytes, path, checksum input, signed URI, or required header after returning an
+event. Root product CMake, WSS routing, capability negotiation, SQLite, and
+Widgets do not reference it (ADR-0406).
 
 After authentication, the gateway dispatches types 100 and 102 through the
 transport-independent application ports and PostgreSQL adapter. It uses only

@@ -1654,6 +1654,13 @@ whole-buffer simple-PUT preview is capped at 100 MiB pending a restartable
 multipart/incremental-hash design; it is not connected to Vue routes or durable
 storage and does not change the default-off V2 runtime.
 
+ADR-0406 adds the matching detached Windows protocol client without activating
+an upload path. It bounds and correlates types 120--125, validates metadata and
+HTTPS grants, returns signed authorization only as transient event data, and
+clears all state on disconnect. It is compiled only by its protocol test; root
+product CMake, WSS routing, handshake capabilities, SQLite, and Widgets remain
+unchanged until provider and supported-client gates are complete.
+
 ## 11. Client Architecture
 
 ### Windows desktop

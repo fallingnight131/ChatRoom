@@ -158,6 +158,20 @@ target_link_libraries(
   PRIVATE Qt6::Core Qt6::Sql protobuf::libprotobuf)
 
 add_executable(
+  v2_windows_attachment_protocol_test
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsAttachmentProtocolClientTest.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsAttachmentProtocolClient.cpp"
+  "${GENERATED_ROOT}/chat/v2/attachment.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/control.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"
+)
+target_compile_features(v2_windows_attachment_protocol_test PRIVATE cxx_std_17)
+target_include_directories(
+  v2_windows_attachment_protocol_test
+  PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../../Client" "${GENERATED_ROOT}")
+target_link_libraries(v2_windows_attachment_protocol_test PRIVATE protobuf::libprotobuf)
+
+add_executable(
   v2_windows_session_protocol_test
   "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsSessionProtocolClientTest.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsSessionProtocolClient.cpp"
@@ -350,6 +364,7 @@ if(MSVC)
   target_compile_options(v2_windows_message_search_view_model_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_mention_composer_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_messaging_application_test PRIVATE /W4 /WX)
+  target_compile_options(v2_windows_attachment_protocol_test PRIVATE /W4 /WX)
 else()
   target_compile_options(v2_windows_messaging_protocol_test PRIVATE -Wall -Wextra -Werror)
   target_compile_options(v2_windows_message_search_protocol_test PRIVATE -Wall -Wextra -Werror)
@@ -375,9 +390,12 @@ else()
       PRIVATE -Wno-nullability-extension)
   endif()
   target_compile_options(v2_windows_messaging_application_test PRIVATE -Wall -Wextra -Werror)
+  target_compile_options(v2_windows_attachment_protocol_test PRIVATE -Wall -Wextra -Werror)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(
       v2_windows_messaging_application_test PRIVATE -Wno-nullability-extension)
+    target_compile_options(
+      v2_windows_attachment_protocol_test PRIVATE -Wno-nullability-extension)
   endif()
 endif()
 
@@ -403,6 +421,7 @@ add_test(
   COMMAND v2_windows_message_search_view_model_test)
 add_test(NAME v2_windows_mention_composer COMMAND v2_windows_mention_composer_test)
 add_test(NAME v2_windows_messaging_application COMMAND v2_windows_messaging_application_test)
+add_test(NAME v2_windows_attachment_protocol COMMAND v2_windows_attachment_protocol_test)
 add_test(NAME v2_windows_session_protocol COMMAND v2_windows_session_protocol_test)
 add_test(
   NAME v2_windows_device_management_transport
