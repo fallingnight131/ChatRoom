@@ -125,6 +125,10 @@ acceptance, stall synchronization, or reduce gateway readiness.
 - The detached outbox adapter uses bounded `SKIP LOCKED` claims fenced by owner,
   claim ID, and lease expiry. Retry, terminal completion, expiry, and retention
   are bounded and tested concurrently; no scheduler or provider is composed.
+- The detached crypto adapter uses AES-256-GCM with fresh nonces and context/
+  purpose/key-ID AAD, plus a separately keyed HMAC-SHA256 endpoint tag. It can
+  resolve old encryption key IDs for rotation, but production custody, lookup-
+  key rewrite, backup/restore, and rotation rehearsal remain open gates.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

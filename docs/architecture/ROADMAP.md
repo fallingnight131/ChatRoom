@@ -2407,8 +2407,11 @@ Candidate slices:
     - [x] Add protected subscription replacement/erasure adapters with
       account/install binding, single-transaction endpoint ownership transfer,
       ciphertext-only writes, and post-use protected-byte zeroing.
-    - [ ] Add explicit production key-custody, AEAD context, keyed lookup-tag,
-      rotation, backup/restore, and erasure composition.
+    - [x] Add an injected AES-256-GCM/HMAC-SHA256 protection adapter with
+      account/install/purpose AAD, fresh nonces, separate endpoint lookup key,
+      authenticated decryption, and old encryption key-ID resolution.
+    - [ ] Add production key-custody configuration plus lookup/encryption-key
+      rotation, backup/restore, and erasure composition/rehearsal.
     - [x] Produce the outbox only under an explicit enabled policy in the
       new-message transaction; prove default-off behavior, stable message
       identity, mention metadata, idempotent replay, 24-hour expiry, and atomic

@@ -1463,6 +1463,18 @@ non-overlapping bounded ownership and attempt increments, reject stale/out-of-
 lease completion, gate retry availability, terminally expire old rows, and
 purge completed rows in capped batches without deleting their messages. This is
 storage lifecycle evidence, not provider delivery or scheduler readiness.
+The detached credential crypto adapter is covered by:
+
+```bash
+cd Backend
+./gradlew --no-daemon :identity-crypto:test --tests '*WebPush*'
+```
+
+It proves AES-256-GCM round-trip, fresh nonce/ciphertext, account/install/purpose
+AAD separation, HMAC-SHA256 endpoint-tag stability, ciphertext/context tamper
+rejection, and decrypt-by-old-key-ID behavior. Fixture key custody uses cleared
+in-memory copies; this is not production KMS, secret provisioning, lookup-key
+rotation, backup/restore, or operational erasure evidence.
 The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility

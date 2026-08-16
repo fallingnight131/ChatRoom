@@ -1986,7 +1986,13 @@ selects the enabled constructor. The detached PostgreSQL lifecycle adapter now
 uses bounded `SKIP LOCKED` batches and owner/claim/expiry fencing for claims,
 lease-bound terminal or retry transitions, idempotent expiry, and capped
 retention deletion. It has no scheduler, recipient resolver, provider caller, or
-runtime composition.
+runtime composition. The identity-crypto module now supplies an injected
+AES-256-GCM protector: every field has a fresh 96-bit nonce and account/install/
+purpose/key-ID AAD, while endpoint uniqueness uses a separate HMAC-SHA256 key.
+Authenticated unprotection resolves the stored encryption key ID, so an old key
+can remain decryptable during rotation. Key material is supplied only through a
+short-lived callback custody port. No production KMS/secret source, lookup-key
+rewrite, backup/restore, rotation rehearsal, or runtime composition exists yet.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables
