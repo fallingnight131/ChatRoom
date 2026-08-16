@@ -1560,8 +1560,10 @@ limit 1..100, unique strictly ordered rows, bounded UTF-8 display names, positiv
 block times, and an exact continuation cursor. Java, TypeScript, and C++ pin the
 same type-134 request bytes. No gateway handler or client route is composed by
 this protocol-only expand step. The later gateway slice composes the request/page
-behind the existing exact-default-off capability-7 boundary; client list routes
-remain uncomposed (ADR-0408).
+behind the existing exact-default-off capability-7 boundary. The exact-gated Web
+protocol client now encodes type 134 and rejects uncorrelated, oversized,
+unordered, malformed-name, invalid-time, or inconsistent-cursor type-135 pages;
+application and UI list state remain uncomposed (ADR-0408).
 Web reaction tests additionally verify account-scoped IndexedDB persistence,
 stable optimistic replay after reconnect history, ACK/history/live convergence,
 bounded fixed-kind aggregates, keyboard-native controls, pressed state, and

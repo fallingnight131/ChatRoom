@@ -65,6 +65,8 @@ import {
 } from "../src/protocol/v2/generated/device_management_pb";
 import {
   AccountBlockAppliedSchema,
+  AccountBlockDirectoryPageSchema,
+  ListAccountBlocksSchema,
   SetAccountBlockSchema,
 } from "../src/protocol/v2/generated/contact_pb";
 
@@ -495,6 +497,7 @@ test("keeps account blocking default-off and validates server-bound correlated r
   authenticate(disabled);
   assert.throws(() => disabled.setAccountBlock(
     SECOND_ACCOUNT_ID, true, "70000000-0000-4000-8000-000000000001"), /not enabled/);
+  assert.throws(() => disabled.listAccountBlocks(), /not enabled/);
 
   const capabilities = [
     ClientCapability.MESSAGE_REACTIONS,
@@ -544,6 +547,75 @@ test("keeps account blocking default-off and validates server-bound correlated r
     })),
     { sessionId: SESSION_ID },
   )), /does not match the authenticated request/);
+});
+
+test("encodes and strictly validates the capability-gated account block directory", () => {
+  const capabilities = [
+    ClientCapability.MESSAGE_REACTIONS,
+    ClientCapability.MESSAGE_PINS,
+    ClientCapability.ACCOUNT_BLOCKING,
+  ];
+  const client = newClient(false, false, false, false, true);
+  authenticate(client, capabilities);
+  assert.throws(() => client.listAccountBlocks("bad", 10), /canonical UUID/);
+  assert.throws(() => client.listAccountBlocks("", 101), /integer in 1\.\.100/);
+
+  const command = client.listAccountBlocks(SECOND_ACCOUNT_ID, 2);
+  const request = decodeEnvelope(command.bytes);
+  assert.equal(request.messageType, MessageType.LIST_ACCOUNT_BLOCKS);
+  assert.equal(request.clientMessageId, "");
+  assert.deepEqual(fromBinary(ListAccountBlocksSchema, request.payload),
+    create(ListAccountBlocksSchema, {
+      afterTargetAccountId: SECOND_ACCOUNT_ID,
+      limit: 2,
+    }));
+  const thirdAccountId = "20000000-0000-4000-8000-000000000003";
+  const event = client.receive(response(
+    request,
+    MessageType.ACCOUNT_BLOCK_DIRECTORY_PAGE,
+    toBinary(AccountBlockDirectoryPageSchema, create(AccountBlockDirectoryPageSchema, {
+      blocks: [{
+        targetAccountId: thirdAccountId,
+        targetDisplayName: "Blocked user",
+        blockedAtEpochMs: BigInt(NOW),
+      }],
+      nextAfterTargetAccountId: thirdAccountId,
+      hasMore: true,
+    })),
+    { sessionId: SESSION_ID },
+  ));
+  assert.equal(event.type, "account-block-directory-page");
+
+  const oversized = client.listAccountBlocks("", 1);
+  const oversizedRequest = decodeEnvelope(oversized.bytes);
+  assert.throws(() => client.receive(response(
+    oversizedRequest,
+    MessageType.ACCOUNT_BLOCK_DIRECTORY_PAGE,
+    toBinary(AccountBlockDirectoryPageSchema, create(AccountBlockDirectoryPageSchema, {
+      blocks: [
+        { targetAccountId: SECOND_ACCOUNT_ID, targetDisplayName: "Two", blockedAtEpochMs: 1n },
+        { targetAccountId: thirdAccountId, targetDisplayName: "Three", blockedAtEpochMs: 2n },
+      ],
+    })),
+    { sessionId: SESSION_ID },
+  )), /directory bounds/);
+
+  const invalidCursor = client.listAccountBlocks("", 2);
+  const invalidCursorRequest = decodeEnvelope(invalidCursor.bytes);
+  assert.throws(() => client.receive(response(
+    invalidCursorRequest,
+    MessageType.ACCOUNT_BLOCK_DIRECTORY_PAGE,
+    toBinary(AccountBlockDirectoryPageSchema, create(AccountBlockDirectoryPageSchema, {
+      blocks: [{
+        targetAccountId: SECOND_ACCOUNT_ID,
+        targetDisplayName: "Two",
+        blockedAtEpochMs: 1n,
+      }],
+      nextAfterTargetAccountId: thirdAccountId,
+      hasMore: true,
+    })),
+    { sessionId: SESSION_ID },
+  )), /cursor must identify the last row/);
 });
 
 test("encodes and strictly validates the capability-gated participant directory", () => {

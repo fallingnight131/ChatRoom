@@ -169,7 +169,10 @@ snapshot token: clients must refresh after concurrent block/unblock mutations.
 The exact-default-off capability-7 gateway handler now consumes type 134 and
 returns type 135 through the same connection-serialized bounded executor as
 mutation. It rebinds the actor from authentication; client list routes remain
-uncomposed, so ordinary clients and rollback behavior are unchanged.
+uncomposed except for an exact-gated Web protocol/transport primitive that
+strictly validates correlation, rows, ordering, timestamps, and continuation.
+No Web application or UI state consumes it yet, so ordinary clients and rollback
+behavior are unchanged.
 
 The Web candidate correlates every search response with one active in-memory
 request and discards pages abandoned by disconnect or conversation change.

@@ -204,6 +204,12 @@ export class V2WebSocketTransport {
     return command.requestId;
   }
 
+  listAccountBlocks(afterTargetAccountId = "", limit = 100): string {
+    const command = this.requireAuthenticated().listAccountBlocks(afterTargetAccountId, limit);
+    this.send(command.bytes);
+    return command.requestId;
+  }
+
   submitText(
     conversationId: string,
     clientMessageId: string,

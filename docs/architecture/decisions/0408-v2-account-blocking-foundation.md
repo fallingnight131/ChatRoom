@@ -67,7 +67,10 @@ server candidate without activating an incomplete client product path.
   It fetches one look-ahead row to derive continuation and never queries inbound
   blockers. The exact-default-off capability-7 gateway handler serves the
   directory through the same connection-serialized bounded executor as mutation;
-  no client list behavior changes.
+  no ordinary client list behavior changes. The exact-gated Web protocol client
+  now exposes a correlated request primitive and strictly validates the returned
+  bound, target order, display-name encoding, block time, and continuation before
+  application state can observe it.
 - The handler binds the actor from authenticated connection state, validates
   canonical payload identities, serializes at most eight pending mutations on
   the bounded messaging executor, and clears pending work at disconnect.
@@ -154,6 +157,10 @@ and page/row telemetry. The real TLS/WSS PostgreSQL gate returns the durable
 outgoing edge with its current display name through type 135. Product client
 list views remain absent, so this is server-candidate rather than product
 block-list evidence.
+TypeScript protocol tests additionally prove the list primitive is default-off,
+encodes only a canonical optional cursor and bound, correlates type 135 to the
+pending request, and rejects oversized or inconsistent pages. No Web application
+or UI list projection is composed by this transport-only step.
 Application tests reject oversized, unordered, duplicate, malformed-Unicode,
 and inconsistent-continuation projections. The disposable PostgreSQL gate proves
 target-ordered pagination independent of insertion order, current display-name

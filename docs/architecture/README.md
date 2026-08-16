@@ -148,7 +148,9 @@ repeatable-read PostgreSQL adapter now reauthorize the enabled actor and return
 only target-ordered outgoing edges with current display names. The same
 exact-default-off gateway boundary now serves types 134/135 through its
 connection-serialized bounded executor and fixed page/row telemetry; Web and
-Windows list views remain uncomposed.
+Windows list views remain uncomposed. The exact-gated Web protocol client can
+now request and strictly validate a correlated page, but no application state or
+UI consumes it yet.
 
 Keep module calls in-process at first. Split a deployable service only for one of
 these reasons:

@@ -2316,6 +2316,9 @@ Candidate slices:
     gateway boundary, reuse its connection-serialized bounded executor, export
     fixed page/row telemetry, and prove the outgoing-only page over real TLS/WSS
     and PostgreSQL; keep client list views uncomposed.
+  - [x] Add the exact-gated Web type-134 transport command and strict correlated
+    type-135 validation for bounded rows, current display names, ordering, block
+    times, and continuation; keep application state and UI uncomposed.
   - [x] Add an exact-default-off V2 gateway handler, negotiated capability,
     bounded execution, privacy-safe errors and metrics, plus real TLS/WSS and
     PostgreSQL mutation/direct-denial evidence.

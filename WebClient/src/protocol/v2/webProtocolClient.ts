@@ -83,8 +83,11 @@ import {
 } from "./generated/device_management_pb";
 import {
   AccountBlockAppliedSchema,
+  AccountBlockDirectoryPageSchema,
+  ListAccountBlocksSchema,
   SetAccountBlockSchema,
   type AccountBlockApplied,
+  type AccountBlockDirectoryPage,
 } from "./generated/contact_pb";
 
 const PROTOCOL_VERSION = 2;
@@ -138,6 +141,7 @@ export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "device-directory"; value: DeviceDirectory }
   | { type: "device-revoked"; value: DeviceRevoked }
   | { type: "account-block-applied"; value: AccountBlockApplied }
+  | { type: "account-block-directory-page"; value: AccountBlockDirectoryPage }
   | { type: "cancelled-response"; value: undefined }
 );
 
@@ -150,6 +154,7 @@ type PendingRequest = {
     blocked: boolean;
     clientOperationId: string;
   }>;
+  accountBlockDirectory?: Readonly<{ afterTargetAccountId: string; limit: number }>;
 };
 export type V2CorrelatedCommand = { requestId: string; bytes: Uint8Array };
 
@@ -401,6 +406,27 @@ export class V2WebProtocolClient {
       new Set([MessageType.ACCOUNT_BLOCK_APPLIED]),
       clientOperationId,
       { targetAccountId, blocked, clientOperationId },
+    ));
+  }
+
+  listAccountBlocks(afterTargetAccountId = "", limit = 100): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    if (!this.accountBlockingEnabled()) {
+      throw new Error("account blocking was not enabled for this client");
+    }
+    if (afterTargetAccountId) requireUuid("afterTargetAccountId", afterTargetAccountId);
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_PAGE_SIZE) {
+      throw new Error("account block directory limit must be an integer in 1..100");
+    }
+    return correlated(this.command(
+      MessageType.LIST_ACCOUNT_BLOCKS,
+      toBinary(ListAccountBlocksSchema, create(ListAccountBlocksSchema, {
+        afterTargetAccountId, limit,
+      })),
+      new Set([MessageType.ACCOUNT_BLOCK_DIRECTORY_PAGE]),
+      "",
+      undefined,
+      { afterTargetAccountId, limit },
     ));
   }
 
@@ -722,6 +748,11 @@ export class V2WebProtocolClient {
         throw new Error("account block result does not match the authenticated request");
       }
     }
+    if (event.type === "account-block-directory-page") {
+      const expected = pending?.accountBlockDirectory;
+      if (!expected) throw new Error("account block directory does not match a pending request");
+      validateAccountBlockDirectoryPage(event.value, expected.limit);
+    }
     if (event.type === "session-established" && envelope.sessionId !== event.value.sessionId) {
       throw new Error("established session does not match its envelope");
     }
@@ -744,6 +775,7 @@ export class V2WebProtocolClient {
     expected: ReadonlySet<MessageType>,
     clientMessageId = "",
     accountBlock?: PendingRequest["accountBlock"],
+    accountBlockDirectory?: PendingRequest["accountBlockDirectory"],
   ): Uint8Array {
     if (payload.byteLength > MAX_PAYLOAD_BYTES) throw new Error("V2 payload exceeds the limit");
     const requestId = this.createRequestId();
@@ -767,7 +799,9 @@ export class V2WebProtocolClient {
     if (bytes.byteLength > Math.min(MAX_WIRE_BYTES, this.negotiatedMaximumFrameBytes)) {
       throw new Error("V2 frame exceeds the negotiated limit");
     }
-    this.pending.set(requestId, { expected, clientMessageId, cancelled: false, accountBlock });
+    this.pending.set(requestId, {
+      expected, clientMessageId, cancelled: false, accountBlock, accountBlockDirectory,
+    });
     return bytes;
   }
 
@@ -850,6 +884,8 @@ export class V2WebProtocolClient {
           return { ...correlation, type: "device-revoked", value: fromBinary(DeviceRevokedSchema, envelope.payload) };
         case MessageType.ACCOUNT_BLOCK_APPLIED:
           return { ...correlation, type: "account-block-applied", value: fromBinary(AccountBlockAppliedSchema, envelope.payload) };
+        case MessageType.ACCOUNT_BLOCK_DIRECTORY_PAGE:
+          return { ...correlation, type: "account-block-directory-page", value: fromBinary(AccountBlockDirectoryPageSchema, envelope.payload) };
         default:
           throw new Error("unsupported inbound message type");
       }
@@ -996,6 +1032,11 @@ export class V2WebProtocolClient {
         requireUuid("clientOperationId", event.value.clientOperationId);
         if (event.value.actorAccountId === event.value.targetAccountId) {
           throw new Error("invalid account block result");
+        }
+        break;
+      case "account-block-directory-page":
+        if (!this.accountBlockingEnabled()) {
+          throw new Error("account block directory requires negotiated account blocking");
         }
         break;
       case "cancelled-response":
@@ -1163,6 +1204,41 @@ function validateMessageSearchPage(
   }
   if (page.nextBeforeSequence !== previous) {
     throw new Error("message search cursor must identify the last hit");
+  }
+}
+
+function validateAccountBlockDirectoryPage(
+  page: AccountBlockDirectoryPage,
+  requestedLimit: number,
+): void {
+  if (page.blocks.length > requestedLimit
+      || (page.hasMore && page.blocks.length === 0)) {
+    throw new Error("invalid account block directory bounds");
+  }
+  let previous = "";
+  const targets = new Set<string>();
+  for (const block of page.blocks) {
+    requireUuid("accountBlock.targetAccountId", block.targetAccountId);
+    requireUtf8("accountBlock.targetDisplayName", block.targetDisplayName, 1, 400);
+    if (strictDecoder.decode(encoder.encode(block.targetDisplayName))
+          !== block.targetDisplayName
+        || block.targetDisplayName.trim().length === 0
+        || [...block.targetDisplayName].length > 100
+        || block.blockedAtEpochMs <= 0n
+        || targets.has(block.targetAccountId)
+        || (previous && block.targetAccountId <= previous)) {
+      throw new Error("invalid account block directory row");
+    }
+    targets.add(block.targetAccountId);
+    previous = block.targetAccountId;
+  }
+  if (page.hasMore) {
+    requireUuid("nextAfterTargetAccountId", page.nextAfterTargetAccountId);
+    if (page.nextAfterTargetAccountId !== previous) {
+      throw new Error("account block directory cursor must identify the last row");
+    }
+  } else if (page.nextAfterTargetAccountId !== "") {
+    throw new Error("terminal account block directory must not carry a cursor");
   }
 }
 
