@@ -2362,6 +2362,8 @@ Candidate slices:
     accessible actions, and contextual administration to the live catalog.
   - [x] Migrate Web room-member counts, group landmarks, role/presence text,
     avatar descriptions, and accessible member actions to the live catalog.
+  - [x] Migrate the Web V1 composer toolbar, text/send controls, UTF-8 budget,
+    upload recovery, progress actions, and local file-limit feedback.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

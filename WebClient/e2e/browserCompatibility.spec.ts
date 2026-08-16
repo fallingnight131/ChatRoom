@@ -443,6 +443,9 @@ test("switches the authenticated shell locale from profile and persists it", asy
   await page.getByText("Browser Gate Room", { exact: true }).click();
   await expect(page.getByText("0 online", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Online members" })).toBeVisible();
+  await expect(page.getByRole("toolbar", { name: "Message tools" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Message content" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
 });
 
 test("pauses an offline login attempt and requires explicit retry after recovery", async ({ context, page }) => {

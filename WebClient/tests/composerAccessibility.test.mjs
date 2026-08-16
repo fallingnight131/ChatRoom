@@ -9,12 +9,23 @@ test('names native composer and file-upload controls', () => {
   for (const marker of [
     'ref="emojiButton" type="button"',
     'aria-controls="emoji-picker" aria-haspopup="dialog"',
-    ':aria-label="`${u.fileName} 上传进度`"',
-    ':aria-label="`暂停上传 ${u.fileName}`"',
-    ':aria-label="`继续上传 ${u.fileName}`"',
-    ':aria-label="`取消上传 ${u.fileName}`"',
+    ':aria-label="`${u.fileName}${messages.uploadProgressSuffix}`"',
+    ':aria-label="`${messages.pauseUploadPrefix}${u.fileName}`"',
+    ':aria-label="`${messages.resumeUploadPrefix}${u.fileName}`"',
+    ':aria-label="`${messages.cancelUploadPrefix}${u.fileName}`"',
     'type="button" class="btn btn-primary send-btn"',
   ]) assert.ok(input.includes(marker), `missing composer marker: ${marker}`)
+})
+
+test('renders composer controls, recovery, and local limits from the live catalog', () => {
+  for (const marker of [
+    'composerMessages(userStore.locale)',
+    ':placeholder="messages.messagePlaceholder"',
+    '{{ messages.send }}',
+    'messages.value.needsSource',
+    'messages.value.friendFileTooLarge',
+    'messages.value.roomFileTooLargePrefix',
+  ]) assert.ok(input.includes(marker), `missing composer locale marker: ${marker}`)
 })
 
 test('provides one-entry keyboard navigation through the emoji grid', () => {

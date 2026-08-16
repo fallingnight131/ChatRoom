@@ -1,56 +1,56 @@
 <template>
   <div class="input-area">
     <!-- 工具栏 -->
-    <div class="input-toolbar" role="toolbar" aria-label="消息工具">
+    <div class="input-toolbar" role="toolbar" :aria-label="messages.toolbar">
       <button ref="emojiButton" type="button" class="btn-icon"
               aria-controls="emoji-picker" aria-haspopup="dialog"
-              @click="toggleEmojiPicker" title="表情"
-              aria-label="选择表情" :aria-expanded="showEmoji">😊</button>
-      <button type="button" class="btn-icon" @click="triggerFileInput" title="发送文件"
-              aria-label="选择要发送的文件">📎</button>
+              @click="toggleEmojiPicker" :title="messages.emoji"
+              :aria-label="messages.selectEmoji" :aria-expanded="showEmoji">😊</button>
+      <button type="button" class="btn-icon" @click="triggerFileInput" :title="messages.sendFile"
+              :aria-label="messages.selectFile">📎</button>
       <input ref="fileInput" type="file" class="visually-hidden" tabindex="-1"
-             aria-label="选择要发送的文件" @change="onFileSelected" />
+             :aria-label="messages.selectFile" @change="onFileSelected" />
       <input ref="recoveryFileInput" type="file" class="visually-hidden" tabindex="-1"
-             aria-label="重新选择待发送文件" @change="onRecoveryFileSelected" />
+             :aria-label="messages.reselectFileInput" @change="onRecoveryFileSelected" />
 
       <!-- 上传进度 -->
       <div v-if="Object.keys(chatStore.uploads).length > 0" class="upload-status"
-           role="status" aria-live="polite" aria-label="文件上传状态">
+           role="status" aria-live="polite" :aria-label="messages.uploadStatus">
         <div v-for="(u, uid) in chatStore.uploads" :key="uid" class="upload-item">
           <span class="text-ellipsis" style="max-width:120px">{{ u.fileName }}</span>
           <div class="progress-bar" style="width:80px" role="progressbar"
-               :aria-label="`${u.fileName} 上传进度`" aria-valuemin="0" aria-valuemax="100"
+               :aria-label="`${u.fileName}${messages.uploadProgressSuffix}`" aria-valuemin="0" aria-valuemax="100"
                :aria-valuenow="uploadPercent(u)">
             <div class="progress-fill" :style="{ width: uploadPercent(u) + '%' }"></div>
           </div>
           <span class="upload-pct">{{ uploadPercent(u) }}%</span>
-          <span v-if="u.status === 'cos_uploading'" class="upload-phase">☁同步中</span>
+          <span v-if="u.status === 'cos_uploading'" class="upload-phase">{{ messages.syncing }}</span>
           <button v-if="u.status === 'uploading'" type="button" class="btn-icon"
-                  :aria-label="`暂停上传 ${u.fileName}`"
-                  @click="chatStore.pauseUpload(uid)" title="暂停">⏸</button>
+                  :aria-label="`${messages.pauseUploadPrefix}${u.fileName}`"
+                  @click="chatStore.pauseUpload(uid)" :title="messages.pause">⏸</button>
           <button v-if="u.status === 'paused'" type="button" class="btn-icon"
-                  :aria-label="`继续上传 ${u.fileName}`"
-                  @click="chatStore.resumeUpload(uid)" title="继续">▶</button>
-          <button type="button" class="btn-icon" :aria-label="`取消上传 ${u.fileName}`"
-                  @click="chatStore.cancelUpload(uid)" title="取消">✖</button>
+                  :aria-label="`${messages.resumeUploadPrefix}${u.fileName}`"
+                  @click="chatStore.resumeUpload(uid)" :title="messages.resume">▶</button>
+          <button type="button" class="btn-icon" :aria-label="`${messages.cancelUploadPrefix}${u.fileName}`"
+                  @click="chatStore.cancelUpload(uid)" :title="messages.cancel">✖</button>
         </div>
       </div>
 
       <div v-if="recoverableAttachmentCommands.length" class="attachment-recovery"
-           role="status" aria-live="polite" aria-label="待恢复的文件发送">
+           role="status" aria-live="polite" :aria-label="messages.recoveryStatus">
         <div v-for="command in recoverableAttachmentCommands"
              :key="command.clientMessageId" class="upload-item recovery-item">
           <span class="text-ellipsis recovery-name">{{ command.fileName }}</span>
           <span class="recovery-state">{{ attachmentStateLabel(command) }}</span>
           <button v-if="command.state === 'needs_source'" type="button" class="btn-link"
-                  :aria-label="`重新选择 ${command.fileName}`"
-                  @click="chooseReplacement(command)">重新选择</button>
+                  :aria-label="`${messages.reselectPrefix}${command.fileName}`"
+                  @click="chooseReplacement(command)">{{ messages.reselect }}</button>
           <button v-else type="button" class="btn-link"
-                  :aria-label="`重试发送 ${command.fileName}`"
-                  @click="chatStore.retryAttachmentCommand(command)">重试</button>
+                  :aria-label="`${messages.retrySendPrefix}${command.fileName}`"
+                  @click="chatStore.retryAttachmentCommand(command)">{{ messages.retry }}</button>
           <button type="button" class="btn-link btn-link-danger"
-                  :aria-label="`取消发送 ${command.fileName}`"
-                  @click="chatStore.cancelAttachmentCommand(command)">取消</button>
+                  :aria-label="`${messages.cancelSendPrefix}${command.fileName}`"
+                  @click="chatStore.cancelAttachmentCommand(command)">{{ messages.cancel }}</button>
         </div>
       </div>
     </div>
@@ -64,19 +64,19 @@
     <!-- 文本输入 -->
     <div class="input-row">
       <textarea ref="textareaRef" class="input chat-input" v-model="text"
-                placeholder="输入消息..."
-                aria-label="消息内容"
+                :placeholder="messages.messagePlaceholder"
+                :aria-label="messages.messageContent"
                 @keydown.enter.exact="sendMessage"
                 @keydown.enter.shift.exact.prevent="text += '\n'"
                 rows="1"></textarea>
       <button type="button" class="btn btn-primary send-btn" @click="sendMessage"
               :disabled="!canSendText"
-              aria-label="发送消息">
-        发送
+              :aria-label="messages.sendMessage">
+        {{ messages.send }}
       </button>
     </div>
     <p class="message-budget" :class="{ 'over-budget': !textBudget.withinBudget }"
-       role="status" aria-live="polite" aria-label="消息字节数">
+       role="status" aria-live="polite" :aria-label="messages.messageBytes">
       {{ textBudgetLabel }}
     </p>
   </div>
@@ -88,7 +88,8 @@ import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs, MAX_SMALL_FILE } from '../services/websocket'
 import { conversationCache } from '../persistence/conversationCache'
-import { messageTextBudget, messageTextBudgetLabel } from '../messaging/messageTextBudget.js'
+import { messageTextBudget } from '../messaging/messageTextBudget.js'
+import { composerMessages } from '../localization/webLocale'
 import EmojiPicker from './EmojiPicker.vue'
 
 const props = defineProps({
@@ -97,6 +98,7 @@ const props = defineProps({
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
+const messages = computed(() => composerMessages(userStore.locale))
 
 const text = ref('')
 const showEmoji = ref(false)
@@ -106,7 +108,10 @@ const textareaRef = ref(null)
 const emojiButton = ref(null)
 const replacementCommand = ref(null)
 const textBudget = computed(() => messageTextBudget(text.value))
-const textBudgetLabel = computed(() => messageTextBudgetLabel(text.value))
+const textBudgetLabel = computed(() => textBudget.value.withinBudget
+  ? `${textBudget.value.bytes} / ${textBudget.value.maximum} ${messages.value.bytes}`
+  : `${messages.value.overLimitPrefix}${textBudget.value.overage} ${messages.value.bytes}`
+    + `${messages.value.maximumPrefix}${textBudget.value.maximum}${messages.value.maximumSuffix}`)
 const canSendText = computed(() => Boolean(text.value.trim()) && textBudget.value.withinBudget)
 let activeDraftIdentity = null
 let draftSaveTimer = null
@@ -227,7 +232,7 @@ const recoverableAttachmentCommands = computed(() => {
 })
 
 function attachmentStateLabel(command) {
-  return command.state === 'needs_source' ? '需要重新选择原文件' : '发送失败'
+  return command.state === 'needs_source' ? messages.value.needsSource : messages.value.sendFailed
 }
 
 function chooseReplacement(command) {
@@ -253,7 +258,7 @@ async function onFileSelected(e) {
     if (!chatStore.currentFriendUsername) return
     const MAX_FRIEND_FILE = 100 * 1024 * 1024 // 100MB
     if (file.size > MAX_FRIEND_FILE) {
-      alert('私聊单文件不能超过 100MB')
+      alert(messages.value.friendFileTooLarge)
       return
     }
     if (file.size <= MAX_SMALL_FILE) {
@@ -265,7 +270,7 @@ async function onFileSelected(e) {
     const s = chatStore.roomSettings[chatStore.currentRoomId]
     const maxRoomFile = s?.maxFileSize || 10 * 1024 * 1024 * 1024
     if (file.size > maxRoomFile) {
-      alert(`文件大小超过房间上限（${Math.round(maxRoomFile / 1024 / 1024)}MB）`)
+      alert(`${messages.value.roomFileTooLargePrefix}${Math.round(maxRoomFile / 1024 / 1024)}${messages.value.roomFileTooLargeSuffix}`)
       return
     }
     if (file.size <= MAX_SMALL_FILE) {

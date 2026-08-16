@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   applyDocumentLocale,
   chatShellMessages,
+  composerMessages,
   friendListMessages,
   loginMessages,
   memberListMessages,
@@ -58,6 +59,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(memberListMessages("en-US")).sort(),
     Object.keys(memberListMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(composerMessages("en-US")).sort(),
+    Object.keys(composerMessages("zh-CN")).sort(),
   );
 });
 

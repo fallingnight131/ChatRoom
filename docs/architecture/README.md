@@ -1989,7 +1989,11 @@ Chinese. The room member sidebar is the sixth migrated slice: live group
 counts, online/offline landmarks, administrator roles, avatar descriptions,
 and compound member action names all derive from the locale catalog without
 altering server-authoritative identity or role state. This boundary does not
-claim complete product localization.
+claim complete product localization. The V1 message composer is the seventh
+migrated slice: toolbar/input/send semantics, UTF-8 byte-budget presentation,
+upload/recovery state, and local file-limit feedback use the catalog while the
+existing draft, attachment, and transport state machines remain unchanged.
+The emoji picker and message timeline remain later slices.
 
 ### Product consistency
 

@@ -264,6 +264,37 @@ const memberListCatalog = {
   },
 } as const;
 
+const composerCatalog = {
+  "zh-CN": {
+    toolbar: "消息工具", emoji: "表情", selectEmoji: "选择表情", sendFile: "发送文件",
+    selectFile: "选择要发送的文件", reselectFileInput: "重新选择待发送文件",
+    uploadStatus: "文件上传状态", uploadProgressSuffix: " 上传进度", syncing: "☁同步中",
+    pauseUploadPrefix: "暂停上传 ", resumeUploadPrefix: "继续上传 ", cancelUploadPrefix: "取消上传 ",
+    pause: "暂停", resume: "继续", cancel: "取消", recoveryStatus: "待恢复的文件发送",
+    needsSource: "需要重新选择原文件", sendFailed: "发送失败", reselectPrefix: "重新选择 ",
+    retrySendPrefix: "重试发送 ", cancelSendPrefix: "取消发送 ", reselect: "重新选择",
+    retry: "重试", messagePlaceholder: "输入消息...", messageContent: "消息内容",
+    sendMessage: "发送消息", send: "发送", messageBytes: "消息字节数", bytes: "字节",
+    overLimitPrefix: "超过上限 ", maximumPrefix: "（最多 ", maximumSuffix: " 字节）",
+    friendFileTooLarge: "私聊单文件不能超过 100MB", roomFileTooLargePrefix: "文件大小超过房间上限（",
+    roomFileTooLargeSuffix: "MB）",
+  },
+  "en-US": {
+    toolbar: "Message tools", emoji: "Emoji", selectEmoji: "Choose emoji", sendFile: "Send file",
+    selectFile: "Choose a file to send", reselectFileInput: "Choose the original file again",
+    uploadStatus: "File upload status", uploadProgressSuffix: " upload progress", syncing: "☁Syncing",
+    pauseUploadPrefix: "Pause upload: ", resumeUploadPrefix: "Resume upload: ", cancelUploadPrefix: "Cancel upload: ",
+    pause: "Pause", resume: "Resume", cancel: "Cancel", recoveryStatus: "Recoverable file sends",
+    needsSource: "Original file required", sendFailed: "Send failed", reselectPrefix: "Choose again: ",
+    retrySendPrefix: "Retry send: ", cancelSendPrefix: "Cancel send: ", reselect: "Choose again",
+    retry: "Retry", messagePlaceholder: "Type a message...", messageContent: "Message content",
+    sendMessage: "Send message", send: "Send", messageBytes: "Message byte count", bytes: "bytes",
+    overLimitPrefix: "Over limit by ", maximumPrefix: " (maximum ", maximumSuffix: " bytes)",
+    friendFileTooLarge: "Direct-message files cannot exceed 100 MB", roomFileTooLargePrefix: "File exceeds the room limit (",
+    roomFileTooLargeSuffix: " MB)",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -310,6 +341,10 @@ export function roomListMessages(locale: WebLocale) {
 
 export function memberListMessages(locale: WebLocale) {
   return memberListCatalog[locale];
+}
+
+export function composerMessages(locale: WebLocale) {
+  return composerCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {
