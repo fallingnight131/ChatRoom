@@ -1514,6 +1514,18 @@ dispatch, fixed status/telemetry outcomes, and token-copy clearing. It uses a
 direct deterministic executor and fake session/subscription ports; no route is
 installed in startup, no token is issued, and no production bounded pool or
 PostgreSQL call is exercised.
+The pure Web Service Worker payload policy is included in `npm run test:v2` and
+can be selected with:
+
+```bash
+cd WebClient
+npm run test:v2 -- --test-name-pattern='Web Push payload|identity-only|generic same-origin'
+```
+
+It proves the exact identity-only schema, 2 KiB bound, unknown/text rejection,
+generic presentation, stable tag, and exact-HTTPS-origin V2 navigation. It does
+not register a Service Worker, call PushManager or the HTTP API, display a host
+notification, or provide Chromium/Firefox activation evidence.
 The disposable PostgreSQL gate also verifies current Web Push recipient policy:
 complete ordered results or explicit saturation, sender/block/disabled-member
 exclusion, durable mention classification, recall suppression, active-only

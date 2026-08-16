@@ -2450,6 +2450,11 @@ Candidate slices:
       readiness/backlog policy, and failure canary.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
+    - [x] Add the pure Service Worker payload boundary with exact version/field/
+      UUID/2 KiB validation, identity-only generic presentation, stable tag,
+      and exact-HTTPS-origin V2 navigation construction.
+    - [ ] Add the gated Service Worker event lifecycle, subscription controller,
+      authenticated HTTP adapter, localized UI, and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes:

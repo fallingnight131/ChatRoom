@@ -2052,6 +2052,14 @@ cancels pending schedules on close. Its counters and scheduling gauges are
 fixed-name and label-free. These pieces are detached operational policy only:
 no real Web Push protocol adapter, owned scheduler/worker pool, readiness
 policy, metrics endpoint, or runtime composition exists.
+The Web client now has a pure Service Worker payload boundary. It accepts only
+schema version 1, three canonical stable UUIDs, and the structural mention
+boolean within 2 KiB; unknown fields, message text, malformed identity, and
+future versions fail closed. Presentation uses only injected generic localized
+copy and a stable opaque tag. Click targets are constructed beneath one exact
+HTTPS product origin and carry only conversation/message/notification identity
+to the V2 hash route. No global Service Worker event, registration, PushManager
+subscription, HTTP upload, or UI composition exists yet.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

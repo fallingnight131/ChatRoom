@@ -142,6 +142,11 @@ acceptance, stall synchronization, or reduce gateway readiness.
   the event loop, clears transport secrets, and maps only fixed statuses and
   identity-free outcomes. It is not installed in the gateway pipeline and has
   no token implementation or owned production worker pool.
+- The Web pure payload boundary accepts only schema 1, three canonical UUIDs,
+  and a mention boolean within 2 KiB. It derives generic-copy presentation and
+  exact-HTTPS-origin V2 navigation without accepting message content. Service
+  Worker events, registration, PushManager, HTTP upload, UI, and browser gates
+  remain open.
 - PostgreSQL recipient resolution now starts from the exact committed message,
   rechecks current membership/account/bilateral-block/recall truth, and returns
   a complete ordered result or explicit saturation. Active subscription reads
