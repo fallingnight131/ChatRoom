@@ -62,14 +62,16 @@ The same Chromium/Firefox suite selects English on the production login bundle,
 checks localized labels/actions and `html lang`, reloads, and requires the
 supported preference to persist. It also authenticates with the V1 fixture,
 switches language from the profile dialog, and requires the navigation tabs,
-profile action name, document language, and stored preference to change without
-a reload. `webLocale.test.ts` covers Chinese fallback, invalid/denied storage,
-the exact supported identifiers, login/shell catalog-key parity, and the
+profile action/name, low-bandwidth control, document language, and stored
+preference to change without a reload. `webLocale.test.ts` covers Chinese
+fallback, invalid/denied storage, the exact supported identifiers,
+login/shell/profile catalog-key parity, and the
 document-language adapter. `loginLocalization.test.mjs` keeps the login slice
 on the typed catalog and keeps local error identity separate from raw server
 errors; `authenticatedShellLocalization.test.mjs` locks the authenticated shell
-chrome and profile selector to the same live preference. Feature-owned content
-is still outside this localization slice.
+chrome and complete profile surface to the same live preference, including
+stable local identity-feedback keys. Server errors stay verbatim. Feature-owned
+friend/room lists and message tools are still outside this localization slice.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

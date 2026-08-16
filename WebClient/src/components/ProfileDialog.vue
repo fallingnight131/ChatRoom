@@ -2,24 +2,24 @@
   <div class="modal-overlay" @click.self="closeDialog">
     <div ref="dialogRef" class="modal profile-modal" role="dialog" aria-modal="true"
          aria-labelledby="profile-dialog-title" tabindex="-1" @keydown="onDialogKeydown">
-      <div id="profile-dialog-title" class="modal-title">个人资料</div>
+      <div id="profile-dialog-title" class="modal-title">{{ messages.title }}</div>
 
       <div class="input-group locale-section">
-        <label for="profile-locale">{{ shellMessages.language }}</label>
+        <label for="profile-locale">{{ messages.language }}</label>
         <select id="profile-locale" class="input" :value="userStore.locale"
                 @change="userStore.setLocale($event.target.value)">
-          <option value="zh-CN">{{ shellMessages.chinese }}</option>
-          <option value="en-US">{{ shellMessages.english }}</option>
+          <option value="zh-CN">{{ messages.chinese }}</option>
+          <option value="en-US">{{ messages.english }}</option>
         </select>
       </div>
 
       <!-- 头像 -->
       <div class="profile-avatar-section">
-        <button type="button" class="profile-avatar-wrap" aria-label="更换头像"
+        <button type="button" class="profile-avatar-wrap" :aria-label="messages.changeAvatar"
                 @click="triggerAvatarInput">
           <img v-if="userStore.avatarData"
                :src="'data:image/png;base64,' + userStore.avatarData"
-               class="avatar avatar-xl" alt="当前头像" />
+               class="avatar avatar-xl" :alt="messages.currentAvatar" />
           <div v-else class="avatar avatar-xl avatar-placeholder"
                :style="{ background: hashColor(userStore.username) }">
             {{ (userStore.displayName || userStore.username).charAt(0) }}
@@ -27,34 +27,34 @@
           <div class="avatar-overlay">📷</div>
         </button>
         <input ref="avatarInput" type="file" accept="image/*" class="visually-hidden" tabindex="-1"
-               aria-label="选择新头像"
+               :aria-label="messages.selectAvatar"
                @change="onAvatarSelected" />
       </div>
 
       <!-- 昵称 -->
       <div class="input-group">
-        <label for="profile-display-name">昵称</label>
+        <label for="profile-display-name">{{ messages.displayName }}</label>
         <div class="inline-edit">
           <input id="profile-display-name" class="input" v-model="displayName"
                  :disabled="!editingName" autocomplete="nickname" />
           <button v-if="!editingName" type="button" class="btn btn-text"
-                  @click="editingName = true">编辑</button>
-          <button v-else type="button" class="btn btn-primary" @click="saveName">保存</button>
+                  @click="editingName = true">{{ messages.edit }}</button>
+          <button v-else type="button" class="btn btn-primary" @click="saveName">{{ messages.save }}</button>
         </div>
       </div>
 
       <!-- UID -->
       <div class="input-group">
-        <label for="profile-user-id">用户ID</label>
+        <label for="profile-user-id">{{ messages.userId }}</label>
         <div class="inline-edit">
           <input id="profile-user-id" class="input" v-model="uid" :disabled="!editingUid"
                  aria-describedby="profile-user-id-hint profile-user-id-feedback"
                  autocomplete="username" />
           <button v-if="!editingUid" type="button" class="btn btn-text"
-                  @click="editingUid = true">编辑</button>
-          <button v-else type="button" class="btn btn-primary" @click="saveUid">保存</button>
+                  @click="editingUid = true">{{ messages.edit }}</button>
+          <button v-else type="button" class="btn btn-primary" @click="saveUid">{{ messages.save }}</button>
         </div>
-        <div id="profile-user-id-hint" class="uid-hint">6-20位字母/数字/下划线，每月仅可修改一次</div>
+        <div id="profile-user-id-hint" class="uid-hint">{{ messages.userIdHint }}</div>
         <div id="profile-user-id-feedback" aria-live="polite">
           <div v-if="uidError" class="uid-error" role="alert">{{ uidError }}</div>
           <div v-if="uidSuccess" class="uid-success" role="status">{{ uidSuccess }}</div>
@@ -65,27 +65,27 @@
       <div class="password-section">
         <button type="button" class="section-header" aria-controls="profile-password-panel"
                 :aria-expanded="showPasswordChange" @click="togglePasswordChange">
-          修改密码 {{ showPasswordChange ? '▲' : '▼' }}
+          {{ messages.changePassword }} {{ showPasswordChange ? '▲' : '▼' }}
         </button>
         <div id="profile-password-panel">
           <form v-if="showPasswordChange" id="profile-password-form"
                 @submit.prevent="changePassword">
             <div class="input-group">
-              <label for="profile-current-password">当前密码</label>
+              <label for="profile-current-password">{{ messages.currentPassword }}</label>
               <input id="profile-current-password" class="input" v-model="oldPassword"
                      type="password" autocomplete="current-password" required />
             </div>
             <div class="input-group">
-              <label for="profile-new-password">新密码</label>
+              <label for="profile-new-password">{{ messages.newPassword }}</label>
               <input id="profile-new-password" class="input" v-model="newPassword"
                      type="password" autocomplete="new-password" required />
             </div>
             <div class="input-group">
-              <label for="profile-confirm-password">确认新密码</label>
+              <label for="profile-confirm-password">{{ messages.confirmPassword }}</label>
               <input id="profile-confirm-password" class="input" v-model="confirmPassword"
                      type="password" autocomplete="new-password" required />
             </div>
-            <button type="submit" class="btn btn-primary" style="width:100%">修改密码</button>
+            <button type="submit" class="btn btn-primary" style="width:100%">{{ messages.changePassword }}</button>
           </form>
         </div>
       </div>
@@ -94,20 +94,20 @@
         <label class="bandwidth-toggle">
           <input type="checkbox" :checked="userStore.lowBandwidthMode"
                  @change="userStore.setLowBandwidthMode($event.target.checked)" />
-          <span>省流量模式</span>
+          <span>{{ messages.lowBandwidth }}</span>
         </label>
-        <p>开启后不再自动请求联系人和消息列表头像；消息、离线同步和您主动打开的资料仍正常工作。</p>
+        <p>{{ messages.lowBandwidthDescription }}</p>
         <small v-if="userStore.lowBandwidthPreferenceSource === 'browser'" role="status">
-          已根据浏览器的节省流量设置自动开启
+          {{ messages.browserDataSaver }}
         </small>
         <small v-else-if="userStore.lowBandwidthPreferenceSource === 'session'" role="status">
-          浏览器禁止保存设置，本次会话内有效
+          {{ messages.sessionOnly }}
         </small>
       </div>
 
       <div class="modal-actions">
-        <button type="button" class="btn btn-danger" @click="doLogout">退出登录</button>
-        <button type="button" class="btn btn-secondary" @click="closeDialog">关闭</button>
+        <button type="button" class="btn btn-danger" @click="doLogout">{{ messages.signOut }}</button>
+        <button type="button" class="btn btn-secondary" @click="closeDialog">{{ messages.close }}</button>
       </div>
     </div>
   </div>
@@ -120,14 +120,14 @@ import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
 import { chatWs, MsgType } from '../services/websocket'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
-import { chatShellMessages } from '../localization/webLocale'
+import { profileMessages } from '../localization/webLocale'
 
 const emit = defineEmits(['close'])
 const router = useRouter()
 const chatStore = useChatStore()
 const userStore = useUserStore()
 const hashColor = inject('hashColor')
-const shellMessages = computed(() => chatShellMessages(userStore.locale))
+const messages = computed(() => profileMessages(userStore.locale))
 
 const displayName = ref(userStore.displayName)
 const uid = ref(userStore.username)
@@ -140,8 +140,15 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 
 const avatarInput = ref(null)
-const uidError = ref('')
-const uidSuccess = ref('')
+const uidErrorKey = ref('')
+const uidServerError = ref('')
+const uidSuccessKey = ref('')
+const uidError = computed(() => uidErrorKey.value
+  ? messages.value[uidErrorKey.value]
+  : uidServerError.value)
+const uidSuccess = computed(() => uidSuccessKey.value
+  ? messages.value[uidSuccessKey.value]
+  : '')
 const { dialogRef, closeDialog, onDialogKeydown } = useModalKeyboardBoundary({
   onClose: () => {
     clearPasswordFields()
@@ -173,7 +180,7 @@ async function onAvatarSelected(e) {
 
     // 检查大小 < 256KB
     if (base64.length > 256 * 1024 * 1.37) {
-      alert('头像太大，请选择更小的图片')
+      alert(messages.value.avatarTooLarge)
       return
     }
     chatWs.uploadAvatar(base64)
@@ -190,8 +197,9 @@ function saveName() {
 }
 
 function saveUid() {
-  uidError.value = ''
-  uidSuccess.value = ''
+  uidErrorKey.value = ''
+  uidServerError.value = ''
+  uidSuccessKey.value = ''
   const newUid = uid.value.trim()
   if (!newUid || newUid === userStore.username) {
     editingUid.value = false
@@ -199,7 +207,7 @@ function saveUid() {
   }
   // 前端格式校验
   if (!/^[a-zA-Z0-9_]{6,20}$/.test(newUid)) {
-    uidError.value = '用户ID必须为6-20位，只能包含字母、数字和下划线'
+    uidErrorKey.value = 'invalidUserId'
     return
   }
   chatWs.changeUid(newUid)
@@ -219,23 +227,25 @@ function togglePasswordChange() {
 
 function onUidChangeRsp(msg) {
   if (msg.data.success) {
-    uidError.value = ''
-    uidSuccess.value = '用户ID修改成功'
+    uidErrorKey.value = ''
+    uidServerError.value = ''
+    uidSuccessKey.value = 'userIdChanged'
     uid.value = msg.data.newUid
-    setTimeout(() => { uidSuccess.value = '' }, 3000)
+    setTimeout(() => { uidSuccessKey.value = '' }, 3000)
   } else {
-    uidError.value = msg.data.error || '修改失败'
+    uidErrorKey.value = msg.data.error ? '' : 'changeFailed'
+    uidServerError.value = msg.data.error || ''
     uid.value = userStore.username  // 还原
   }
 }
 
 function changePassword() {
   if (!oldPassword.value || !newPassword.value) {
-    alert('请填写所有字段')
+    alert(messages.value.requiredFields)
     return
   }
   if (newPassword.value !== confirmPassword.value) {
-    alert('两次新密码不一致')
+    alert(messages.value.passwordMismatch)
     return
   }
   userStore.stagePasswordChange(newPassword.value)

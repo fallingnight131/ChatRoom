@@ -130,6 +130,69 @@ const shellCatalog = {
   },
 } as const;
 
+const profileCatalog = {
+  "zh-CN": {
+    title: "个人资料",
+    language: "界面语言",
+    chinese: "简体中文",
+    english: "English",
+    changeAvatar: "更换头像",
+    currentAvatar: "当前头像",
+    selectAvatar: "选择新头像",
+    displayName: "昵称",
+    edit: "编辑",
+    save: "保存",
+    userId: "用户ID",
+    userIdHint: "6-20位字母/数字/下划线，每月仅可修改一次",
+    changePassword: "修改密码",
+    currentPassword: "当前密码",
+    newPassword: "新密码",
+    confirmPassword: "确认新密码",
+    lowBandwidth: "省流量模式",
+    lowBandwidthDescription: "开启后不再自动请求联系人和消息列表头像；消息、离线同步和您主动打开的资料仍正常工作。",
+    browserDataSaver: "已根据浏览器的节省流量设置自动开启",
+    sessionOnly: "浏览器禁止保存设置，本次会话内有效",
+    signOut: "退出登录",
+    close: "关闭",
+    avatarTooLarge: "头像太大，请选择更小的图片",
+    invalidUserId: "用户ID必须为6-20位，只能包含字母、数字和下划线",
+    userIdChanged: "用户ID修改成功",
+    changeFailed: "修改失败",
+    requiredFields: "请填写所有字段",
+    passwordMismatch: "两次新密码不一致",
+  },
+  "en-US": {
+    title: "Profile",
+    language: "Interface language",
+    chinese: "简体中文",
+    english: "English",
+    changeAvatar: "Change avatar",
+    currentAvatar: "Current avatar",
+    selectAvatar: "Choose a new avatar",
+    displayName: "Display name",
+    edit: "Edit",
+    save: "Save",
+    userId: "User ID",
+    userIdHint: "6–20 letters, numbers, or underscores; editable once per month",
+    changePassword: "Change password",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    lowBandwidth: "Low-bandwidth mode",
+    lowBandwidthDescription: "Stops automatic avatar requests in contacts and message lists. Messages, offline sync, and profiles you open still work.",
+    browserDataSaver: "Enabled automatically from your browser's data-saver setting",
+    sessionOnly: "Your browser blocked preference storage; this session only",
+    signOut: "Sign out",
+    close: "Close",
+    avatarTooLarge: "The avatar is too large. Choose a smaller image.",
+    invalidUserId: "User ID must be 6–20 letters, numbers, or underscores",
+    userIdChanged: "User ID updated",
+    changeFailed: "Update failed",
+    requiredFields: "Complete all required fields",
+    passwordMismatch: "The new passwords do not match",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -160,6 +223,10 @@ export function loginMessages(locale: WebLocale) {
 
 export function chatShellMessages(locale: WebLocale) {
   return shellCatalog[locale];
+}
+
+export function profileMessages(locale: WebLocale) {
+  return profileCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

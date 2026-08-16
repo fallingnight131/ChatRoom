@@ -18,8 +18,8 @@ test('exposes a persistent, accessible Web low-bandwidth preference', () => {
   ]) assert.ok(store.includes(marker), `missing bandwidth store marker: ${marker}`)
   for (const marker of [
     'type="checkbox" :checked="userStore.lowBandwidthMode"',
-    '省流量模式',
-    '浏览器禁止保存设置，本次会话内有效',
+    '{{ messages.lowBandwidth }}',
+    '{{ messages.sessionOnly }}',
   ]) assert.ok(profile.includes(marker), `missing bandwidth UI marker: ${marker}`)
 })
 

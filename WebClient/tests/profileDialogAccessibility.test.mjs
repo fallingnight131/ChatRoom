@@ -6,10 +6,10 @@ const source = readFileSync(new URL('../src/components/ProfileDialog.vue', impor
 
 test('offers the persistent Web locale preference inside the authenticated profile', () => {
   for (const marker of [
-    '<label for="profile-locale">{{ shellMessages.language }}</label>',
+    '<label for="profile-locale">{{ messages.language }}</label>',
     'id="profile-locale" class="input" :value="userStore.locale"',
     '@change="userStore.setLocale($event.target.value)"',
-    'chatShellMessages(userStore.locale)',
+    'profileMessages(userStore.locale)',
   ]) assert.ok(source.includes(marker), `missing profile locale marker: ${marker}`)
 })
 
@@ -26,10 +26,10 @@ test('exposes a labeled modal with bounded keyboard focus and trigger restoratio
 
 test('makes avatar replacement a native keyboard action with an accessible file input', () => {
   for (const marker of [
-    'type="button" class="profile-avatar-wrap" aria-label="更换头像"',
-    'alt="当前头像"',
+    'type="button" class="profile-avatar-wrap" :aria-label="messages.changeAvatar"',
+    ':alt="messages.currentAvatar"',
     'class="visually-hidden" tabindex="-1"',
-    'aria-label="选择新头像"',
+    ':aria-label="messages.selectAvatar"',
   ]) assert.ok(source.includes(marker), `missing avatar accessibility marker: ${marker}`)
 })
 

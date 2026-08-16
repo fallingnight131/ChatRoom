@@ -5,6 +5,7 @@ import {
   chatShellMessages,
   loginMessages,
   persistWebLocale,
+  profileMessages,
   resolveWebLocale,
 } from "../src/localization/webLocale";
 
@@ -38,6 +39,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(chatShellMessages("en-US")).sort(),
     Object.keys(chatShellMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(profileMessages("en-US")).sort(),
+    Object.keys(profileMessages("zh-CN")).sort(),
   );
 });
 

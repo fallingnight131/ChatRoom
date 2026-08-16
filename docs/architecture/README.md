@@ -1975,10 +1975,12 @@ retain stable catalog keys across language changes; server-provided errors stay
 verbatim. The authenticated shell is the second migrated slice: navigation,
 network/reconnect state, mobile panel controls, empty states, theme/profile
 entry, and forced-offline recovery update immediately from the same preference.
-The authenticated profile owns the post-login language selector. Feature-owned
-lists, message tools, and profile-editing content remain Chinese until their
-separate catalog slices; this boundary does not claim complete product
-localization.
+The authenticated profile owns the post-login language selector and is the
+third migrated slice: avatar, identity, password, low-bandwidth, local feedback,
+and session actions update from stable catalog keys. Raw server-provided profile
+errors remain verbatim. Feature-owned lists and message tools remain Chinese
+until their separate catalog slices; this boundary does not claim complete
+product localization.
 
 ### Product consistency
 

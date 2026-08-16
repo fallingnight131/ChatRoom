@@ -430,6 +430,9 @@ test("switches the authenticated shell locale from profile and persists it", asy
   await expect(page.getByRole("tab", { name: "Friends" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Rooms" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open profile" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Profile" })).toBeVisible();
+  await expect(page.getByLabel("Low-bandwidth mode")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("chat.web.locale"))).toBe("en-US");
 });
 

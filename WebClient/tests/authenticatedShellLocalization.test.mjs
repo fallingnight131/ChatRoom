@@ -21,5 +21,18 @@ test('renders authenticated shell chrome from the live locale catalog', () => {
 
 test('keeps the authenticated locale selector in the shared user preference boundary', () => {
   assert.ok(profile.includes('userStore.setLocale($event.target.value)'))
-  assert.ok(profile.includes('chatShellMessages(userStore.locale)'))
+  assert.ok(profile.includes('profileMessages(userStore.locale)'))
+})
+
+test('renders profile editing and local feedback from stable catalog keys', () => {
+  for (const marker of [
+    '{{ messages.title }}',
+    '{{ messages.displayName }}',
+    '{{ messages.userIdHint }}',
+    '{{ messages.changePassword }}',
+    '{{ messages.lowBandwidthDescription }}',
+    '{{ messages.signOut }}',
+    "uidErrorKey.value = 'invalidUserId'",
+    "uidSuccessKey.value = 'userIdChanged'",
+  ]) assert.ok(profile.includes(marker), `missing profile locale marker: ${marker}`)
 })
