@@ -43,6 +43,13 @@ export function createConfiguredV2Runtime(
     return disabled("V2 message forwarding flag is invalid");
   }
   const forwardingEnabled = forwardingFlag === true || forwardingFlag === "true";
+  const searchFlag = environment.VITE_CHAT_V2_MESSAGE_SEARCH;
+  if (searchFlag !== undefined && searchFlag !== false
+      && searchFlag !== "false" && searchFlag !== true
+      && searchFlag !== "true" && searchFlag !== "") {
+    return disabled("V2 message search flag is invalid");
+  }
+  const searchEnabled = searchFlag === true || searchFlag === "true";
 
   const endpoint = stringValue(environment.VITE_CHAT_V2_WSS_URL);
   const fallbackEndpointValue = environment.VITE_CHAT_V2_WSS_FALLBACK_URLS;
@@ -66,6 +73,7 @@ export function createConfiguredV2Runtime(
         enableMessageEdits: true,
         enableMessageMentions: true,
         enableMessageForwarding: forwardingEnabled,
+        enableMessageSearch: searchEnabled,
       }),
     });
     const application = new V2WebChatApplication({
@@ -73,6 +81,7 @@ export function createConfiguredV2Runtime(
       cache: conversationCache,
       onChange: options.onChange,
       enableMessageForwarding: forwardingEnabled,
+      enableMessageSearch: searchEnabled,
     });
     return {
       enabled: true,

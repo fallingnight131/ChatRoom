@@ -36,6 +36,8 @@ import {
   MessagePinChangedRecordSchema,
   EditMessageSchema,
   ForwardMessageSchema,
+  SearchConversationMessagesSchema,
+  ConversationMessageSearchPageSchema,
   MessageEditAppliedSchema,
   MessageEditedRecordSchema,
   MessageReactionKind,
@@ -58,6 +60,7 @@ import {
   type MessageEditApplied,
   type MessageEditedRecord,
   type MessageMention,
+  type ConversationMessageSearchPage,
 } from "./generated/messaging_pb";
 import {
   AttachmentReadySchema,
@@ -123,6 +126,7 @@ export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "message-edited"; value: MessageEditedRecord }
   | { type: "conversation-directory-page"; value: ConversationDirectoryPage }
   | { type: "conversation-participant-page"; value: ConversationParticipantPage }
+  | { type: "conversation-message-search-page"; value: ConversationMessageSearchPage }
   | { type: "attachment-registered"; value: AttachmentRegistered }
   | { type: "attachment-upload-authorized"; value: AttachmentUploadAuthorized }
   | { type: "attachment-ready"; value: AttachmentReady }
@@ -146,6 +150,7 @@ export interface V2WebProtocolClientOptions {
   enableMessageEdits?: boolean;
   enableMessageMentions?: boolean;
   enableMessageForwarding?: boolean;
+  enableMessageSearch?: boolean;
 }
 
 export type V2MessageMention = Readonly<{
@@ -179,6 +184,7 @@ export class V2WebProtocolClient {
       ...(options.enableMessageEdits ? [ClientCapability.MESSAGE_EDITS] : []),
       ...(options.enableMessageMentions ? [ClientCapability.MESSAGE_MENTIONS] : []),
       ...(options.enableMessageForwarding ? [ClientCapability.MESSAGE_FORWARDING] : []),
+      ...(options.enableMessageSearch ? [ClientCapability.MESSAGE_SEARCH] : []),
     ];
   }
 
@@ -310,6 +316,34 @@ export class V2WebProtocolClient {
       payload,
       new Set([MessageType.MESSAGE_HISTORY_PAGE]),
     );
+  }
+
+  searchConversationMessages(
+    conversationId: string,
+    literalQuery: string,
+    beforeSequence: bigint,
+    limit: number,
+  ): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    if (!this.searchEnabled()) throw new Error("message search was not enabled for this client");
+    requireUuid("conversationId", conversationId);
+    if (literalQuery !== literalQuery.trim()) {
+      throw new Error("literalQuery must already be stripped");
+    }
+    requireUtf8("literalQuery", literalQuery, 1, 128);
+    if (beforeSequence < 0n || beforeSequence > MAX_SIGNED_SEQUENCE) {
+      throw new Error("beforeSequence must be in the signed server range");
+    }
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+      throw new Error("search limit must be an integer in 1..50");
+    }
+    return correlated(this.command(
+      MessageType.SEARCH_CONVERSATION_MESSAGES,
+      toBinary(SearchConversationMessagesSchema, create(SearchConversationMessagesSchema, {
+        conversationId, literalQuery, beforeSequence, limit,
+      })),
+      new Set([MessageType.CONVERSATION_MESSAGE_SEARCH_PAGE]),
+    ));
   }
 
   submitText(conversationId: string, clientMessageId: string, text: string,
@@ -734,6 +768,8 @@ export class V2WebProtocolClient {
           return { ...correlation, type: "conversation-directory-page", value: fromBinary(ConversationDirectoryPageSchema, envelope.payload) };
         case MessageType.CONVERSATION_PARTICIPANT_PAGE:
           return { ...correlation, type: "conversation-participant-page", value: fromBinary(ConversationParticipantPageSchema, envelope.payload) };
+        case MessageType.CONVERSATION_MESSAGE_SEARCH_PAGE:
+          return { ...correlation, type: "conversation-message-search-page", value: fromBinary(ConversationMessageSearchPageSchema, envelope.payload) };
         case MessageType.ATTACHMENT_REGISTERED:
           return { ...correlation, type: "attachment-registered", value: fromBinary(AttachmentRegisteredSchema, envelope.payload) };
         case MessageType.ATTACHMENT_UPLOAD_AUTHORIZED:
@@ -836,6 +872,13 @@ export class V2WebProtocolClient {
         }
         validateParticipantPage(event.value);
         break;
+      case "conversation-message-search-page":
+        if (!this.searchEnabled()) {
+          throw new Error("conversation search requires negotiated message search");
+        }
+        validateMessageSearchPage(
+          event.value, this.mentionsEnabled(), this.forwardingEnabled());
+        break;
       case "attachment-registered":
         requireUuid("attachmentId", event.value.attachmentId);
         requireUuid("conversationId", event.value.conversationId);
@@ -889,6 +932,10 @@ export class V2WebProtocolClient {
 
   private forwardingEnabled(): boolean {
     return this.requestedCapabilities.includes(ClientCapability.MESSAGE_FORWARDING);
+  }
+
+  private searchEnabled(): boolean {
+    return this.requestedCapabilities.includes(ClientCapability.MESSAGE_SEARCH);
   }
 }
 
@@ -1007,6 +1054,30 @@ function validateHistoryPage(
   const lastSequence = page.entries.length > 0 ? previousEntry : previous;
   if (page.nextSequence < lastSequence || page.nextSequence > page.latestSequence) {
     throw new Error("history cursor is outside the visible and latest sequence bounds");
+  }
+}
+
+function validateMessageSearchPage(
+  page: ConversationMessageSearchPage,
+  allowMentions: boolean,
+  allowForwarding: boolean,
+): void {
+  requireUuid("conversationId", page.conversationId);
+  if (page.hits.length > 50 || (page.hasMore && page.hits.length === 0)
+      || page.nextBeforeSequence > MAX_SIGNED_SEQUENCE) {
+    throw new Error("invalid message search page bounds");
+  }
+  let previous = 0n;
+  for (const hit of page.hits) {
+    validateMessageRecord(hit, allowMentions, allowForwarding);
+    if (hit.conversationId !== page.conversationId
+        || (previous !== 0n && hit.conversationSequence >= previous)) {
+      throw new Error("message search hits must descend within one conversation");
+    }
+    previous = hit.conversationSequence;
+  }
+  if (page.nextBeforeSequence !== previous) {
+    throw new Error("message search cursor must identify the last hit");
   }
 }
 

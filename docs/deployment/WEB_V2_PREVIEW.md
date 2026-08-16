@@ -12,6 +12,7 @@ has a fourth independent, default-off value:
 ```bash
 VITE_CHAT_V2_PREVIEW=true \
 VITE_CHAT_V2_MESSAGE_FORWARDING=false \
+VITE_CHAT_V2_MESSAGE_SEARCH=false \
 VITE_CHAT_V2_WSS_URL=wss://preview-chat.example.com/v2/web \
 VITE_CHAT_V2_WSS_FALLBACK_URLS='["wss://preview-chat-secondary.example.com/v2/web"]' \
 VITE_CHAT_APP_VERSION=2.0.0-preview.1 \
@@ -23,6 +24,11 @@ npm run build
 - `VITE_CHAT_V2_MESSAGE_FORWARDING` is optional and disabled when missing,
   empty, or exactly `false`. Only exact `true` enables the application action
   and requests capability 5; any other spelling invalidates the V2 runtime.
+- `VITE_CHAT_V2_MESSAGE_SEARCH` is optional and disabled when missing, empty,
+  or exactly `false`. Only exact `true` requests capability 6 and exposes search
+  as enabled application state; any other spelling invalidates the V2 runtime.
+  The current slice has no search UI, so keep it false outside protocol
+  candidates.
 - `VITE_CHAT_V2_WSS_URL` must use `wss`, contain no credentials/query/fragment,
   and end at the exact `/v2/web` route. It is independent of the user-editable
   V1 host/port settings.

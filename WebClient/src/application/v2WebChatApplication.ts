@@ -218,6 +218,7 @@ export interface V2WebChatSnapshot {
   deviceFailure: string;
   lastFailure: string;
   forwardingEnabled: boolean;
+  searchEnabled: boolean;
 }
 
 export interface V2WebChatApplicationOptions {
@@ -227,6 +228,7 @@ export interface V2WebChatApplicationOptions {
   now?: () => number;
   onChange?: (snapshot: V2WebChatSnapshot) => void;
   enableMessageForwarding?: boolean;
+  enableMessageSearch?: boolean;
 }
 
 type ConversationState = {
@@ -253,6 +255,7 @@ export class V2WebChatApplication {
   private readonly now: () => number;
   private readonly onChange?: (snapshot: V2WebChatSnapshot) => void;
   private readonly enableMessageForwarding: boolean;
+  private readonly enableMessageSearch: boolean;
   private readonly observers = new Set<(snapshot: V2WebChatSnapshot) => void>();
   private readonly conversations = new Map<string, ConversationState>();
   private readonly participants = new Map<string, ParticipantState>();
@@ -285,6 +288,7 @@ export class V2WebChatApplication {
     this.now = options.now ?? Date.now;
     this.onChange = options.onChange;
     this.enableMessageForwarding = options.enableMessageForwarding === true;
+    this.enableMessageSearch = options.enableMessageSearch === true;
     this.connectionStateValue = this.transport.state;
     this.unsubscribeTransport = this.transport.subscribe({
       onStateChange: (state) => this.handleTransportState(state),
@@ -321,6 +325,7 @@ export class V2WebChatApplication {
       deviceFailure: this.deviceFailureValue,
       lastFailure: this.lastFailureValue,
       forwardingEnabled: this.enableMessageForwarding,
+      searchEnabled: this.enableMessageSearch,
     };
   }
 

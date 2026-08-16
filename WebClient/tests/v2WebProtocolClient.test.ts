@@ -43,6 +43,8 @@ import {
   MessagePinChangedRecordSchema,
   EditMessageSchema,
   ForwardMessageSchema,
+  SearchConversationMessagesSchema,
+  ConversationMessageSearchPageSchema,
   MessageEditAppliedSchema,
   MessageEditedRecordSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
@@ -77,6 +79,7 @@ function newClient(
   enableMessageEdits = false,
   enableMessageMentions = false,
   enableMessageForwarding = false,
+  enableMessageSearch = false,
 ): V2WebProtocolClient {
   let next = 0;
   return new V2WebProtocolClient({
@@ -87,6 +90,7 @@ function newClient(
     enableMessageEdits,
     enableMessageMentions,
     enableMessageForwarding,
+    enableMessageSearch,
   });
 }
 
@@ -390,6 +394,86 @@ test("keeps message forwarding default-off and validates capable commands and ev
   if (published.type === "message-published") {
     assert.equal(published.value.forwarded, true);
   }
+});
+
+test("keeps conversation search default-off and validates descending current-state pages", () => {
+  const disabled = newClient();
+  authenticate(disabled);
+  assert.throws(() => disabled.searchConversationMessages(
+    CONVERSATION_ID, "needle", 0n, 20), /not enabled/);
+
+  const capabilities = [
+    ClientCapability.MESSAGE_REACTIONS,
+    ClientCapability.MESSAGE_PINS,
+    ClientCapability.MESSAGE_SEARCH,
+  ];
+  const client = newClient(false, false, false, true);
+  authenticate(client, capabilities);
+  const command = client.searchConversationMessages(
+    CONVERSATION_ID, "世界 needle", 20n, 20);
+  const request = decodeEnvelope(command.bytes);
+  assert.equal(request.messageType, MessageType.SEARCH_CONVERSATION_MESSAGES);
+  assert.equal(request.requestId, command.requestId);
+  const query = fromBinary(SearchConversationMessagesSchema, request.payload);
+  assert.deepEqual({
+    conversationId: query.conversationId,
+    literalQuery: query.literalQuery,
+    beforeSequence: query.beforeSequence,
+    limit: query.limit,
+  }, {
+    conversationId: CONVERSATION_ID,
+    literalQuery: "世界 needle",
+    beforeSequence: 20n,
+    limit: 20,
+  });
+  assert.throws(() => client.searchConversationMessages(
+    CONVERSATION_ID, " padded ", 0n, 20), /already be stripped/);
+  assert.throws(() => client.searchConversationMessages(
+    CONVERSATION_ID, "x", 0n, 51), /1\.\.50/);
+
+  const hit = create(MessageRecordSchema, {
+    conversationId: CONVERSATION_ID,
+    messageId: MESSAGE_ID,
+    conversationSequence: 9n,
+    senderAccountId: ACCOUNT_ID,
+    senderDeviceId: DEVICE_ID,
+    clientMessageId: CLIENT_MESSAGE_ID,
+    contentType: MessageContentType.TEXT_UTF8,
+    content: new TextEncoder().encode("世界 needle"),
+    acceptedAtEpochMs: BigInt(NOW),
+  });
+  const event = client.receive(response(
+    request,
+    MessageType.CONVERSATION_MESSAGE_SEARCH_PAGE,
+    toBinary(ConversationMessageSearchPageSchema,
+      create(ConversationMessageSearchPageSchema, {
+        conversationId: CONVERSATION_ID,
+        hits: [hit],
+        nextBeforeSequence: 9n,
+        hasMore: false,
+      })),
+    { sessionId: SESSION_ID },
+  ));
+  assert.equal(event.type, "conversation-message-search-page");
+  if (event.type === "conversation-message-search-page") {
+    assert.equal(event.value.hits[0]?.conversationSequence, 9n);
+  }
+
+  const invalidCommand = client.searchConversationMessages(
+    CONVERSATION_ID, "needle", 0n, 20);
+  const invalidRequest = decodeEnvelope(invalidCommand.bytes);
+  assert.throws(() => client.receive(response(
+    invalidRequest,
+    MessageType.CONVERSATION_MESSAGE_SEARCH_PAGE,
+    toBinary(ConversationMessageSearchPageSchema,
+      create(ConversationMessageSearchPageSchema, {
+        conversationId: CONVERSATION_ID,
+        hits: [hit],
+        nextBeforeSequence: 8n,
+        hasMore: true,
+      })),
+    { sessionId: SESSION_ID },
+  )), /cursor must identify the last hit/);
 });
 
 test("encodes and strictly validates the capability-gated participant directory", () => {

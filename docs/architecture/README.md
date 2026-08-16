@@ -833,8 +833,14 @@ handshake policy only for exact
 `CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED=true`. Missing or exact `false` keeps
 both absent; malformed values fail before bind. A disposable PostgreSQL test
 drives a real TLS/WSS login, active-member query, and current-text result.
-Web and Windows capability requests remain off, so this is a server candidate,
-not product activation.
+Default Web and Windows capability requests remain off, so this is not product
+activation.
+Web now has an independent immutable protocol-candidate gate,
+`VITE_CHAT_V2_MESSAGE_SEARCH=true`. Its one validated boolean controls both
+capability 6 in `ClientHello` and application `searchEnabled` state. The client
+encodes only bounded stripped literal queries and rejects uncorrelated,
+cross-conversation, non-descending, malformed-message, or invalid-cursor pages.
+The default and current UI remain off; search results are not cached yet.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

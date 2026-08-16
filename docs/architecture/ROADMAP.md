@@ -2206,6 +2206,13 @@ Progress:
       gate.
   - [ ] Add cache-aware, accessible Web and Windows search surfaces with
     endpoint-specific activation and context-history repair.
+    - [x] Add the strict default-off Web build/protocol gate with bounded query
+      encoding, correlated descending-page validation, and shared application
+      capability state; no UI or result cache is activated.
+    - [ ] Add Web search result orchestration, accessible UI, context-history
+      repair, and explicit endpoint activation evidence.
+    - [ ] Add the equivalent Windows protocol, local state, accessible UI, and
+      endpoint activation evidence.
 
 Candidate slices:
 

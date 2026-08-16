@@ -113,8 +113,10 @@ The application port binds the requester account from authentication and owns
 the same limits independently of Protobuf. Its PostgreSQL adapter now
 reauthorizes active membership in a repeatable-read snapshot, matches current
 type-1 bodies literally and case-insensitively under the database collation,
-and excludes recalled/deleted rows. Both client capability advertisements
-remain absent. The authenticated handler enforces
+and excludes recalled/deleted rows. Windows capability advertisement remains
+absent. Web requests capability 6 only in an immutable candidate built with
+exact `VITE_CHAT_V2_MESSAGE_SEARCH=true`; its default and UI remain off. The
+authenticated handler enforces
 capability 6, server-bound requester identity, a bounded serialized queue, safe
 error mapping, descending response validation, and independent mention/forward
 metadata filtering. Runtime installation and handshake negotiation are both

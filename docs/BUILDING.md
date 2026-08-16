@@ -317,6 +317,7 @@ is a separate, default-off build configuration:
 cd WebClient
 VITE_CHAT_V2_PREVIEW=true \
 VITE_CHAT_V2_MESSAGE_FORWARDING=false \
+VITE_CHAT_V2_MESSAGE_SEARCH=false \
 VITE_CHAT_V2_WSS_URL=wss://preview-chat.example.com/v2/web \
 VITE_CHAT_V2_WSS_FALLBACK_URLS='["wss://preview-chat-secondary.example.com/v2/web"]' \
 VITE_CHAT_APP_VERSION=2.0.0-preview.1 \
@@ -2043,6 +2044,12 @@ the V2 runtime invalid. The same boolean is supplied to the protocol client and
 application service, preventing a UI/protocol half-activation. A Web candidate
 still succeeds only when the gateway independently enables and negotiates
 capability 5.
+Web message search has the independent exact build-time gate
+`VITE_CHAT_V2_MESSAGE_SEARCH=true`. Missing, empty, or exact `false` keeps
+capability 6 and application search state off; malformed values invalidate the
+whole V2 runtime. The protocol client validates bounded literal queries,
+correlation, descending same-conversation hits, current message records, and the
+last-hit cursor. No search UI or cached result state exists in this slice.
 Windows now has a separate CMake configuration seam,
 `CHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON`. It is rejected unless both the
 Windows client and `CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON` are selected. The
