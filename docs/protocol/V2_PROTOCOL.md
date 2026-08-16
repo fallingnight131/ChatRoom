@@ -113,14 +113,14 @@ The application port binds the requester account from authentication and owns
 the same limits independently of Protobuf. Its PostgreSQL adapter now
 reauthorizes active membership in a repeatable-read snapshot, matches current
 type-1 bodies literally and case-insensitively under the database collation,
-and excludes recalled/deleted rows. Runtime dispatch and both client capability
-advertisements remain absent. A detached authenticated handler already enforces
+and excludes recalled/deleted rows. Both client capability advertisements
+remain absent. The authenticated handler enforces
 capability 6, server-bound requester identity, a bounded serialized queue, safe
 error mapping, descending response validation, and independent mention/forward
-metadata filtering; it is not installed in the product pipeline. Handshake
-negotiation is also default-off and requires an explicitly enabled server policy
-plus a matching client request. Old V2 clients therefore see no new capability
-or unsolicited shape. The three generated
+metadata filtering. Runtime installation and handshake negotiation are both
+default-off and require exact `CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED=true`;
+negotiation also requires a matching client request. Old V2 clients therefore
+see no new capability or unsolicited shape. The three generated
 bindings parse and re-emit one fixed mixed-language Unicode command fixture
 identically (ADR-0404).
 

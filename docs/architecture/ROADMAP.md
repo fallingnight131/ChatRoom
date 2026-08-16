@@ -2189,7 +2189,7 @@ Progress:
     (ADR-0404).
   - [x] Add the generated wire contract and bounded application query model
     while runtime and both clients remain off.
-  - [ ] Implement the authorized PostgreSQL query, deletion/recall/edit
+  - [x] Implement the authorized PostgreSQL query, deletion/recall/edit
     semantics, query-plan evidence, and gateway handler behind a default-off
     server policy.
     - [x] Add the repeatable-read PostgreSQL adapter with active-member and
@@ -2201,7 +2201,7 @@ Progress:
       projection, feature-metadata filtering, and fixed failure/telemetry paths.
     - [x] Make capability 6 negotiation strictly default-off and available only
       to an explicitly constructed candidate handshake policy.
-    - [ ] Add default-off runtime configuration, compose the PostgreSQL handler
+    - [x] Add default-off runtime configuration, compose the PostgreSQL handler
       with fixed-cardinality telemetry, and pass the real TLS/WSS authorization
       gate.
   - [ ] Add cache-aware, accessible Web and Windows search surfaces with

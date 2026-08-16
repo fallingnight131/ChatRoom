@@ -130,6 +130,7 @@ and never store populated values or credentials in the repository.
 | `CHATROOM_GATEWAY_ACCOUNT_ATTEMPTS` | `10` | `1..10000` |
 | `CHATROOM_GATEWAY_MAX_LIMIT_KEYS` | `10000` | `16..1000000` |
 | `CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED` | `false` | exact `true` or `false` |
+| `CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED` | `false` | exact `true` or `false` |
 | `CHATROOM_GATEWAY_FORWARD_WINDOW_SECONDS` | `60` | `1..3600` |
 | `CHATROOM_GATEWAY_FORWARD_ATTEMPTS` | `120` | `1..10000` per account/window |
 | `CHATROOM_GATEWAY_FORWARD_MAX_KEYS` | `10000` | `16..1000000` tracked accounts |
@@ -137,6 +138,13 @@ and never store populated values or credentials in the repository.
 The high write-buffer watermark must be strictly greater than the low watermark.
 Crossing it makes a Netty child channel non-writable so later messaging code can
 apply bounded slow-consumer policy rather than accumulating unbounded output.
+
+Message search remains off unless
+`CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED=true` is supplied at process startup.
+The exact value enables capability 6 and installs the PostgreSQL-backed handler
+for new connections; missing or exact `false` leaves both absent, and any other
+value fails configuration before listener bind. Enabling the gateway alone does
+not advertise search from either product client.
 
 The heartbeat interval must be strictly shorter than the authenticated idle
 timeout. The gateway sends an empty WebSocket Ping only after authentication and

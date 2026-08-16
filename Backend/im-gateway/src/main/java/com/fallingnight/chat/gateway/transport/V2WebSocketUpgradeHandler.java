@@ -15,6 +15,8 @@ import com.fallingnight.chat.application.messaging.MessageEditPort;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
 import com.fallingnight.chat.application.messaging.MessageForwardPort;
 import com.fallingnight.chat.application.messaging.MessageForwardResult;
+import com.fallingnight.chat.application.messaging.MessageSearchPort;
+import com.fallingnight.chat.application.messaging.MessageSearchResult;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
@@ -36,6 +38,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
     private final MessagePinPort pins;
     private final MessageEditPort edits;
     private final MessageForwardPort forwards;
+    private final MessageSearchPort search;
     private final DeviceManagementService deviceManagement;
     private final Executor authenticationExecutor;
     private final Executor messagingExecutor;
@@ -48,6 +51,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
     private final Duration handshakeTimeout;
     private final Duration authenticationTimeout;
     private final boolean messageForwardingEnabled;
+    private final boolean messageSearchEnabled;
     private ScheduledFuture<?> upgradeDeadline;
 
     public V2WebSocketUpgradeHandler(
@@ -208,6 +212,39 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
             Duration handshakeTimeout,
             Duration authenticationTimeout,
             boolean messageForwardingEnabled) {
+        this(authentication, sessionResume, submissions, history, directory, participants,
+                reactions, pins, edits, forwards,
+                query -> MessageSearchResult.Rejected.NOT_AUTHORIZED,
+                deviceManagement, authenticationExecutor, messagingExecutor, admission, events,
+                messagingEvents, deviceEvents, deviceConnections, liveRouter, handshakeTimeout,
+                authenticationTimeout, messageForwardingEnabled, false);
+    }
+
+    public V2WebSocketUpgradeHandler(
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            MessageSearchPort search,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            Duration handshakeTimeout,
+            Duration authenticationTimeout,
+            boolean messageForwardingEnabled,
+            boolean messageSearchEnabled) {
         this.authentication = Objects.requireNonNull(authentication, "authentication");
         this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");
         this.submissions = Objects.requireNonNull(submissions, "submissions");
@@ -218,6 +255,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
         this.pins = Objects.requireNonNull(pins, "pins");
         this.edits = Objects.requireNonNull(edits, "edits");
         this.forwards = Objects.requireNonNull(forwards, "forwards");
+        this.search = Objects.requireNonNull(search, "search");
         this.deviceManagement = Objects.requireNonNull(deviceManagement, "deviceManagement");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
@@ -232,6 +270,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
         this.authenticationTimeout = Objects.requireNonNull(
                 authenticationTimeout, "authenticationTimeout");
         this.messageForwardingEnabled = messageForwardingEnabled;
+        this.messageSearchEnabled = messageSearchEnabled;
     }
 
     @Override
@@ -264,6 +303,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                     pins,
                     edits,
                     forwards,
+                    search,
                     deviceManagement,
                     authenticationExecutor,
                     messagingExecutor,
@@ -275,7 +315,8 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                     liveRouter,
                     handshakeTimeout,
                     authenticationTimeout,
-                    messageForwardingEnabled);
+                    messageForwardingEnabled,
+                    messageSearchEnabled);
             context.pipeline().remove(this);
         }
         context.fireUserEventTriggered(event);

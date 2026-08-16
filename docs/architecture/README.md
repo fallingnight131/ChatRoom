@@ -819,8 +819,7 @@ GROUP lifecycle), scans only current type-1 text in descending conversation
 sequence order, treats `%` and `_` literally, and excludes `deleted_at` or
 recalled rows. Because edits replace `message.payload`, their current body is
 the only searchable revision. The existing conversation-history index remains
-eligible for the bounded ordered scan; no new index or runtime handler has been
-introduced.
+eligible for the bounded ordered scan; no new index has been introduced.
 The detached gateway handler now consumes only type 126 after authentication
 and capability-6 negotiation. It binds the requester from channel identity,
 serializes at most one search with eight queued commands on the bounded
@@ -829,8 +828,13 @@ and filters mention/forward markers unless those independent capabilities were
 also negotiated. Capability 6 is now a strict default-off handshake policy:
 ordinary constructors never enable it, while an explicitly constructed
 candidate handshake can negotiate it only when the client also requested it.
-The handler is still not installed in the product pipeline and no runtime
-configuration currently enables the policy.
+The composition root now installs the PostgreSQL-backed handler and enables the
+handshake policy only for exact
+`CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED=true`. Missing or exact `false` keeps
+both absent; malformed values fail before bind. A disposable PostgreSQL test
+drives a real TLS/WSS login, active-member query, and current-text result.
+Web and Windows capability requests remain off, so this is a server candidate,
+not product activation.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

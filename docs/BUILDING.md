@@ -1246,10 +1246,12 @@ cd Backend
 
 It proves authentication/capability checks, server-bound identity, malformed
 input, authorization denial, worker rejection, fixed retryability, and filtering
-of mention/forward metadata that was not independently negotiated. The handler
-is intentionally not composed yet. The handshake test also proves capability 6
-is omitted by ordinary construction and negotiated only by an explicitly
-enabled candidate policy. This remains non-product evidence.
+of mention/forward metadata that was not independently negotiated. The handshake
+test also proves capability 6 is omitted by ordinary construction and negotiated
+only by an explicitly enabled candidate policy. Product composition remains off
+unless exact `CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED=true` is supplied; client
+advertisements are still absent, so this remains candidate rather than product
+evidence.
 The Java gate includes embedded-channel tests for the bounded V2 binary
 WebSocket frame decoder, single-use ClientHello negotiation, and fresh-login
 connection state machine. They verify server-bound identity, secret cleanup,
@@ -2588,9 +2590,10 @@ make a local build appear successful.
 
 ## Full Local Verification
 
-The inactive M6 conversation-search foundation allocates capability 6 and V2
-types 126/127 without registering a runtime handler or advertising the
-capability from Web/Windows. Its protocol/application gate is:
+The default-off M6 conversation-search foundation allocates capability 6 and V2
+types 126/127. The gateway can register its PostgreSQL-backed handler only with
+exact `CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED=true`; Web and Windows still do
+not advertise the capability. Its protocol/application gate is:
 
 ```bash
 cd Backend
@@ -2604,12 +2607,12 @@ trees, then runs the fixed Unicode search command through Java, TypeScript, and
 C++. This is wire/model evidence only, not an authorized database search path or
 a Windows Release product gate (ADR-0404).
 
-The next inactive slice adds the real PostgreSQL search adapter. Run
+The real PostgreSQL adapter and server-candidate composition are covered by
 `python3 tools/verify_m0.py --postgres` to cover active-member authorization,
 literal Unicode and wildcard-looking input, edit replacement, recall/deletion/
-non-text exclusion, descending paging, and ordered-index eligibility. This is a
-disposable-database correctness gate, not production search latency or capacity
-evidence.
+non-text exclusion, descending paging, ordered-index eligibility, and a real
+TLS/WSS login-to-search path. This is disposable-database correctness evidence,
+not production search latency, capacity, or Web/Windows activation evidence.
 
 ```bash
 python3 tools/verify_m0.py --all

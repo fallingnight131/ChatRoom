@@ -76,6 +76,13 @@ conversation IDs, and account IDs must not be metric labels or ordinary logs.
 - Record bounded PostgreSQL query-plan and latency evidence before a production
   index or external engine is selected.
 
+Implementation evidence now includes a strict default-false
+`CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED` composition gate. Exact `true`
+installs the PostgreSQL handler and permits capability 6 negotiation only for a
+requesting client. Disposable PostgreSQL verification drives that candidate
+through real TLS/WSS authentication and active-membership authorization; both
+product clients remain disabled.
+
 ## Rollback
 
 Stop negotiating capability 6 and remove the Web/Windows search entry points.

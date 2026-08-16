@@ -50,6 +50,7 @@ import com.fallingnight.chat.routing.redis.LettuceGatewayRoutingAdapter;
 import com.fallingnight.chat.routing.redis.RedisRoutingConfig;
 import com.fallingnight.chat.protocol.v2.Authenticate;
 import com.fallingnight.chat.protocol.v2.ClientHello;
+import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.ClientPlatform;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
@@ -59,8 +60,11 @@ import com.fallingnight.chat.protocol.v2.MessageHistoryPage;
 import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
+import com.fallingnight.chat.protocol.v2.ConversationMessageSearchPage;
 import com.fallingnight.chat.protocol.v2.ReadMessageHistory;
 import com.fallingnight.chat.protocol.v2.ResumeSession;
+import com.fallingnight.chat.protocol.v2.SearchConversationMessages;
+import com.fallingnight.chat.protocol.v2.ServerHello;
 import com.fallingnight.chat.protocol.v2.SessionEstablished;
 import com.fallingnight.chat.protocol.v2.SubmitMessage;
 import com.google.protobuf.ByteString;
@@ -177,7 +181,7 @@ class GatewayRuntimePostgresIntegrationTest {
                             HttpResponse.BodyHandlers.ofString());
             assertEquals(200, readiness.statusCode());
             assertEquals("ready\n", readiness.body());
-            if (System.getenv("CHATROOM_TEST_REDIS_URI") != null) {
+            if (!System.getenv().getOrDefault("CHATROOM_TEST_REDIS_URI", "").isBlank()) {
                 HttpResponse<String> metrics = HttpClient.newHttpClient().send(
                         HttpRequest.newBuilder(URI.create(
                                 "http://127.0.0.1:" + adminPort + "/metrics")).GET().build(),
@@ -281,6 +285,84 @@ class GatewayRuntimePostgresIntegrationTest {
                             + conversationId + "' AND client_message_id = 'network-message-1'"));
         } finally {
             if (peerSocket != null) peerSocket.abort();
+            if (socket != null) socket.abort();
+            if (runtime != null) runtime.close();
+            certificate.delete();
+        }
+    }
+
+    @Test
+    void searchesAuthorizedCurrentMessagesThroughRealTlsWebSocket() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String password = System.getenv().getOrDefault("CHATROOM_TEST_POSTGRES_PASSWORD", "");
+        Assumptions.assumeTrue(jdbcUrl != null && !jdbcUrl.isBlank());
+        Assumptions.assumeTrue(username != null && !username.isBlank());
+        new PostgresMigrator(jdbcUrl, username, password).migrate();
+
+        UUID accountId = UUID.randomUUID();
+        UUID peerAccountId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "wss-search-" + accountId;
+        seedV2NetworkAccounts(jdbcUrl, username, password, accountId, peerAccountId,
+                conversationId, login, "wss-search-" + peerAccountId);
+
+        int gatewayPort = availablePort();
+        int adminPort = availablePort();
+        SelfSignedCertificate certificate = new SelfSignedCertificate("localhost");
+        GatewayRuntime runtime = null;
+        WebSocket socket = null;
+        try {
+            Map<String, String> environment = new HashMap<>();
+            environment.put("CHATROOM_GATEWAY_PORT", Integer.toString(gatewayPort));
+            environment.put("CHATROOM_GATEWAY_ADMIN_PORT", Integer.toString(adminPort));
+            environment.put("CHATROOM_GATEWAY_TLS_CERTIFICATE",
+                    certificate.certificate().getAbsolutePath());
+            environment.put("CHATROOM_GATEWAY_TLS_PRIVATE_KEY",
+                    certificate.privateKey().getAbsolutePath());
+            environment.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "localhost:" + gatewayPort);
+            environment.put("CHATROOM_GATEWAY_WEB_ORIGINS", "https://chat.example.com");
+            environment.put("CHATROOM_POSTGRES_URL", jdbcUrl);
+            environment.put("CHATROOM_POSTGRES_USER", username);
+            environment.put("CHATROOM_POSTGRES_PASSWORD", "test-trust-password");
+            environment.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
+            environment.put("CHATROOM_POSTGRES_POOL_MAXIMUM", "4");
+            environment.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", "1");
+            environment.put("CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED", "true");
+
+            runtime = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(environment));
+            runtime.start();
+            awaitReady(runtime);
+            BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
+            socket = connectWebSocket(gatewayPort, listener);
+
+            socket.sendBinary(ByteBuffer.wrap(clientHelloWithSearch(
+                    "network-search-device").toByteArray()), true).join();
+            Envelope helloEnvelope = listener.next();
+            ServerHello hello = ServerHello.parseFrom(helloEnvelope.getPayload());
+            assertEquals(List.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH),
+                    hello.getEnabledCapabilitiesList());
+
+            socket.sendBinary(ByteBuffer.wrap(authenticate(login).toByteArray()), true).join();
+            SessionEstablished session = SessionEstablished.parseFrom(
+                    listener.next().getPayload());
+            socket.sendBinary(ByteBuffer.wrap(submit(
+                    session.getSessionId(), conversationId, "search-submit-1",
+                    "search-message-1", "Needle 世界").toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
+                    listener.next().getMessageType());
+
+            socket.sendBinary(ByteBuffer.wrap(search(
+                    session.getSessionId(), conversationId, "needle").toByteArray()),
+                    true).join();
+            Envelope result = listener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE_VALUE,
+                    result.getMessageType());
+            ConversationMessageSearchPage page =
+                    ConversationMessageSearchPage.parseFrom(result.getPayload());
+            assertEquals(1, page.getHitsCount());
+            assertEquals("Needle 世界", page.getHits(0).getContent().toStringUtf8());
+        } finally {
             if (socket != null) socket.abort();
             if (runtime != null) runtime.close();
             certificate.delete();
@@ -5524,6 +5606,19 @@ class GatewayRuntimePostgresIntegrationTest {
                 payload.toByteString());
     }
 
+    private static Envelope clientHelloWithSearch(String deviceId) {
+        ClientHello payload = ClientHello.newBuilder()
+                .setMinimumProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                .setMaximumProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                .setPlatform(ClientPlatform.CLIENT_PLATFORM_WINDOWS)
+                .setAppVersion("integration-test")
+                .setClientDeviceId(deviceId)
+                .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH)
+                .build();
+        return command(MessageType.MESSAGE_TYPE_CLIENT_HELLO, "hello-search-1", "", "",
+                payload.toByteString());
+    }
+
     private static Envelope authenticate(String login) {
         Authenticate payload = Authenticate.newBuilder()
                 .setUsername(login)
@@ -5547,6 +5642,16 @@ class GatewayRuntimePostgresIntegrationTest {
                 .build();
         return command(MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE, requestId, sessionId,
                 clientMessageId, payload.toByteString());
+    }
+
+    private static Envelope search(String sessionId, UUID conversationId, String query) {
+        SearchConversationMessages payload = SearchConversationMessages.newBuilder()
+                .setConversationId(conversationId.toString())
+                .setLiteralQuery(query)
+                .setLimit(20)
+                .build();
+        return command(MessageType.MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES,
+                "search-1", sessionId, "", payload.toByteString());
     }
 
     private static MessageAccepted accepted(Envelope envelope) throws Exception {

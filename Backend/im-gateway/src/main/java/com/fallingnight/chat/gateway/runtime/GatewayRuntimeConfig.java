@@ -58,6 +58,7 @@ public final class GatewayRuntimeConfig {
     private final AuthenticationAdmissionLimits admissionLimits;
     private final MessageForwardAdmissionLimits forwardAdmissionLimits;
     private final boolean messageForwardingEnabled;
+    private final boolean messageSearchEnabled;
     private final DistributedGatewayRoutingConfig distributedRouting;
     private final GatewayReleaseIdentity releaseIdentity;
 
@@ -94,6 +95,7 @@ public final class GatewayRuntimeConfig {
             AuthenticationAdmissionLimits admissionLimits,
             MessageForwardAdmissionLimits forwardAdmissionLimits,
             boolean messageForwardingEnabled,
+            boolean messageSearchEnabled,
             DistributedGatewayRoutingConfig distributedRouting,
             GatewayReleaseIdentity releaseIdentity) {
         this.listenerAddress = listenerAddress;
@@ -128,6 +130,7 @@ public final class GatewayRuntimeConfig {
         this.admissionLimits = admissionLimits;
         this.forwardAdmissionLimits = forwardAdmissionLimits;
         this.messageForwardingEnabled = messageForwardingEnabled;
+        this.messageSearchEnabled = messageSearchEnabled;
         this.distributedRouting = Objects.requireNonNull(distributedRouting, "distributedRouting");
         this.releaseIdentity = Objects.requireNonNull(releaseIdentity, "releaseIdentity");
     }
@@ -232,6 +235,8 @@ public final class GatewayRuntimeConfig {
                         10_000, 16, 1_000_000));
         boolean messageForwardingEnabled = bool(
                 environment, "CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED", false);
+        boolean messageSearchEnabled = bool(
+                environment, "CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED", false);
         return new GatewayRuntimeConfig(
                 listener,
                 admin,
@@ -265,6 +270,7 @@ public final class GatewayRuntimeConfig {
                 limits,
                 forwardLimits,
                 messageForwardingEnabled,
+                messageSearchEnabled,
                 DistributedGatewayRoutingConfig.fromEnvironment(environment),
                 GatewayReleaseIdentity.fromEnvironment(environment));
     }
@@ -399,6 +405,10 @@ public final class GatewayRuntimeConfig {
 
     public boolean messageForwardingEnabled() {
         return messageForwardingEnabled;
+    }
+
+    public boolean messageSearchEnabled() {
+        return messageSearchEnabled;
     }
 
     public DistributedGatewayRoutingConfig distributedRouting() {

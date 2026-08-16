@@ -18,6 +18,7 @@ import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.messaging.MessageForwardCommand;
 import com.fallingnight.chat.application.messaging.MessageForwardResult;
+import com.fallingnight.chat.application.messaging.MessageSearchResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.protocol.v2.Authenticate;
@@ -103,6 +104,61 @@ class V2ApplicationPipelineTest {
                     "v2-authenticated-heartbeat",
                     "v2-authenticated-idle-close"),
                     names.subList(0, 14));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void installsSearchOnlyForExplicitCandidatePolicyAndNegotiatesIt() throws Exception {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        try {
+            V2ApplicationPipeline.install(
+                    channel.pipeline(),
+                    command -> AuthenticationResult.Rejected.INSTANCE,
+                    command -> AuthenticationResult.Rejected.INSTANCE,
+                    command -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                    query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                    query -> new com.fallingnight.chat.application.conversation
+                            .ConversationDirectoryPage(List.of(), Optional.empty(), false),
+                    query -> ConversationParticipantResult.Rejected.NOT_AUTHORIZED,
+                    command -> com.fallingnight.chat.application.messaging
+                            .MessageReactionResult.Rejected.NOT_AUTHORIZED,
+                    command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
+                    command -> MessageEditResult.Rejected.NOT_AUTHORIZED,
+                    command -> MessageForwardResult.Rejected.NOT_AUTHORIZED,
+                    query -> MessageSearchResult.Rejected.NOT_AUTHORIZED,
+                    rejectingDevices(),
+                    Runnable::run,
+                    Runnable::run,
+                    AuthenticationAdmissionControl.allowAll(),
+                    AuthenticationEventSink.noop(),
+                    MessagingEventSink.noop(),
+                    DeviceManagementEventSink.noop(),
+                    new DeviceConnectionRegistry(),
+                    ConversationLiveRouter.noop(),
+                    Duration.ofSeconds(10),
+                    Duration.ofSeconds(30),
+                    false,
+                    true);
+
+            List<String> names = channel.pipeline().names();
+            assertEquals("v2-message-search", names.get(names.indexOf("v2-messaging") - 1));
+
+            write(channel, envelope("hello-search", MessageType.MESSAGE_TYPE_CLIENT_HELLO,
+                    ClientHello.newBuilder()
+                            .setMinimumProtocolVersion(2)
+                            .setMaximumProtocolVersion(2)
+                            .setPlatform(ClientPlatform.CLIENT_PLATFORM_WEB)
+                            .setAppVersion("0.1.0")
+                            .setClientDeviceId("pipeline-search-test")
+                            .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH)
+                            .build().toByteString(), ""));
+            com.fallingnight.chat.protocol.v2.ServerHello hello =
+                    com.fallingnight.chat.protocol.v2.ServerHello.parseFrom(
+                            read(channel).getPayload());
+            assertEquals(List.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH),
+                    hello.getEnabledCapabilitiesList());
         } finally {
             channel.finishAndReleaseAll();
         }
