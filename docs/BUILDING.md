@@ -2089,6 +2089,13 @@ diagnostic schema 3 reports `messageSearchEnabled` so CI can prove the final
 ordinary executable is off and the isolated candidate is on. This establishes
 only the activation seam; search commands, state, Widgets interaction, and
 endpoint canary evidence are separate gates.
+The detached Windows search codec now builds type 126 commands only for a bound
+session, canonical conversation, Unicode-stripped 1..128-byte literal query,
+signed-range cursor, and 1..50 limit. It retains at most four correlations and
+accepts only type 127 pages for the same session and conversation with strictly
+descending current text records and a last-hit cursor. Disconnect clears all
+pending state. This codec is not routed to the socket until the application
+search controller is composed.
 CI compiles a separate, non-published forwarding-enabled `ChatClient` and runs
 the target-dialog Widgets test without replacing the ordinary default-off
 Windows verification payload. The Web baseline likewise compiles an enabled

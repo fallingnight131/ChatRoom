@@ -2223,6 +2223,9 @@ Progress:
       - [x] Add the independent default-off Windows CMake/product/session gate,
         exact capability-6 negotiation, composition plumbing, and binary
         diagnostic evidence; query/state/UI remain off.
+      - [x] Add the detached bounded Windows type 126/127 codec with strict
+        query, correlation, current-message, descending-page, cursor, and
+        disconnect-abandonment validation; transport/state/UI remain off.
 
 Candidate slices:
 

@@ -863,6 +863,12 @@ preview builds remain at capabilities 1–4. A search candidate appends capabili
 6 in canonical order and fails closed if the server omits, reorders, or adds a
 capability. Binary diagnostic schema 3 exposes this immutable state; no Windows
 search command, state, or Widgets surface is activated by this seam alone.
+The independent Windows search codec now validates bounded Unicode-stripped
+queries before type 126 encoding and validates session/request correlation,
+same-conversation descending current-text hits, optional negotiated markers,
+and last-hit pagination cursors on type 127. Its four-request bound and session
+clear behavior prevent ambiguous reconnect replay. It remains detached from the
+WSS transport and UI in this slice.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
