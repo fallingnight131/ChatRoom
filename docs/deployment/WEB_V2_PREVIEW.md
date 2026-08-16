@@ -13,6 +13,7 @@ has a fourth independent, default-off value:
 VITE_CHAT_V2_PREVIEW=true \
 VITE_CHAT_V2_MESSAGE_FORWARDING=false \
 VITE_CHAT_V2_MESSAGE_SEARCH=false \
+VITE_CHAT_V2_NOTIFICATIONS=false \
 VITE_CHAT_V2_WSS_URL=wss://preview-chat.example.com/v2/web \
 VITE_CHAT_V2_WSS_FALLBACK_URLS='["wss://preview-chat-secondary.example.com/v2/web"]' \
 VITE_CHAT_APP_VERSION=2.0.0-preview.1 \
@@ -29,6 +30,11 @@ npm run build
   as enabled application state; any other spelling invalidates the V2 runtime.
   The enabled preview exposes bounded in-memory search and separately
   correlated context repair; keep it false outside reviewed candidates.
+- `VITE_CHAT_V2_NOTIFICATIONS` is optional and disabled when missing, empty, or
+  exactly `false`. Only exact `true` permits the application to emit a detached
+  candidate after a remote live message is successfully saved; any other
+  spelling invalidates V2. The current slice does not request browser permission
+  or invoke `Notification`, so keep it false outside reviewed candidates.
 - `VITE_CHAT_V2_WSS_URL` must use `wss`, contain no credentials/query/fragment,
   and end at the exact `/v2/web` route. It is independent of the user-editable
   V1 host/port settings.

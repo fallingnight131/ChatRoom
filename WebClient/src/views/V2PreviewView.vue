@@ -530,7 +530,8 @@ const snapshot = ref({
   historyLoading: false, devices: [],
   devicesLoading: false, revokingDeviceId: null, deviceFailure: '', lastFailure: '',
   forwardingEnabled: false, searchEnabled: false, searchQuery: '', searchResults: [],
-  searchLoading: false, searchHasMore: false, searchFailure: '', searchContextLoading: false
+  searchLoading: false, searchHasMore: false, searchFailure: '', searchContextLoading: false,
+  notificationsEnabled: false
 })
 const forwardTargets = computed(() => snapshot.value.directory.filter(
   conversation => conversation.conversationId !== snapshot.value.activeConversationId))

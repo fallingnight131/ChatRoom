@@ -65,6 +65,7 @@ test("fails closed for incomplete or unsafe preview configuration", () => {
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_APP_VERSION: "x".repeat(65) },
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_MESSAGE_FORWARDING: "TRUE" },
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_MESSAGE_SEARCH: "TRUE" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_NOTIFICATIONS: "TRUE" },
   ];
   for (const environment of cases) {
     const runtime = createConfiguredV2Runtime(environment, { storage: null, createUuid: () => DEVICE_ID });
@@ -93,6 +94,7 @@ test("creates an inert enabled runtime and persists a stable non-secret device i
   assert.equal(runtime.enabled && runtime.application.snapshot.connectionState, "idle");
   assert.equal(runtime.enabled && runtime.application.snapshot.forwardingEnabled, false);
   assert.equal(runtime.enabled && runtime.application.snapshot.searchEnabled, false);
+  assert.equal(runtime.enabled && runtime.application.snapshot.notificationsEnabled, false);
   runtime.dispose();
 });
 
@@ -113,6 +115,16 @@ test("activates search only for the exact independent build flag", () => {
   }, { storage: null, createUuid: () => DEVICE_ID });
   assert.equal(runtime.enabled, true);
   assert.equal(runtime.enabled && runtime.application.snapshot.searchEnabled, true);
+  runtime.dispose();
+});
+
+test("activates notifications only for the exact independent build flag", () => {
+  const runtime = createConfiguredV2Runtime({
+    ...ENABLED_ENVIRONMENT,
+    VITE_CHAT_V2_NOTIFICATIONS: "true",
+  }, { storage: null, createUuid: () => DEVICE_ID });
+  assert.equal(runtime.enabled, true);
+  assert.equal(runtime.enabled && runtime.application.snapshot.notificationsEnabled, true);
   runtime.dispose();
 });
 

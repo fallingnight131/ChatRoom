@@ -31,7 +31,11 @@ persistence, sequence progress, reconnect, or the visible chat path.
 - The browser presenter uses localized generic title/body copy, requires granted
   permission, isolates constructor/close/activation failures, and consumes one
   stable conversation activation per notification click.
-- Composition requires an exact default-false Web build flag. Permission must be
+- Composition uses the exact default-false `VITE_CHAT_V2_NOTIFICATIONS` Web
+  build flag. The application emits a detached candidate only after its
+  IndexedDB save resolves successfully; duplicate live events, self echoes,
+  history pages, disabled builds, false saves, and stale sessions remain silent.
+  Permission must be
   requested by a native user action with visible state and a disable path. This
   decision adds no service worker, Web Push, closed-browser delivery, server
   notification service, or delivery guarantee.
@@ -49,11 +53,12 @@ restart; IndexedDB remains recoverable message truth, not a notification queue.
 Unit tests cover bounded eviction, duplicate and visible-conversation
 suppression, structured mention classification, malformed/self rejection,
 denied permission, platform failure, privacy-safe copy, and one-shot stable
-conversation activation. Composition requires separate persistence, build-gate,
-user-gesture, browser, rollback, and deployment evidence.
+conversation activation. Application tests additionally require save-before-
+candidate ordering and silent duplicate/self/history/failed-save paths. User-
+gesture, browser, rollback, and deployment evidence remain separate.
 
 ## Rollback
 
-Remove the detached policy/presenter and tests. No protocol, PostgreSQL,
-IndexedDB schema, message state, permission, or product route changes in this
-slice.
+Rebuild without `VITE_CHAT_V2_NOTIFICATIONS=true` and remove the detached
+candidate subscription, policy/presenter, and tests. No protocol, PostgreSQL,
+IndexedDB schema, message state, permission, or product route needs migration.

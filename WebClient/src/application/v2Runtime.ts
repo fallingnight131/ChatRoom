@@ -50,6 +50,13 @@ export function createConfiguredV2Runtime(
     return disabled("V2 message search flag is invalid");
   }
   const searchEnabled = searchFlag === true || searchFlag === "true";
+  const notificationFlag = environment.VITE_CHAT_V2_NOTIFICATIONS;
+  if (notificationFlag !== undefined && notificationFlag !== false
+      && notificationFlag !== "false" && notificationFlag !== true
+      && notificationFlag !== "true" && notificationFlag !== "") {
+    return disabled("V2 notifications flag is invalid");
+  }
+  const notificationsEnabled = notificationFlag === true || notificationFlag === "true";
 
   const endpoint = stringValue(environment.VITE_CHAT_V2_WSS_URL);
   const fallbackEndpointValue = environment.VITE_CHAT_V2_WSS_FALLBACK_URLS;
@@ -82,6 +89,7 @@ export function createConfiguredV2Runtime(
       onChange: options.onChange,
       enableMessageForwarding: forwardingEnabled,
       enableMessageSearch: searchEnabled,
+      enableNotifications: notificationsEnabled,
     });
     return {
       enabled: true,

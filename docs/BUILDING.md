@@ -536,6 +536,7 @@ cd WebClient
 VITE_CHAT_V2_PREVIEW=true \
 VITE_CHAT_V2_MESSAGE_FORWARDING=false \
 VITE_CHAT_V2_MESSAGE_SEARCH=false \
+VITE_CHAT_V2_NOTIFICATIONS=false \
 VITE_CHAT_V2_WSS_URL=wss://preview-chat.example.com/v2/web \
 VITE_CHAT_V2_WSS_FALLBACK_URLS='["wss://preview-chat-secondary.example.com/v2/web"]' \
 VITE_CHAT_APP_VERSION=2.0.0-preview.1 \
@@ -2272,6 +2273,12 @@ The application layer keeps at most 100 search hits in page memory, never writes
 the query or results to IndexedDB, and ignores pages abandoned by a disconnect
 or conversation switch. Its focused test is included in `npm test`; context
 history and UI activation remain separate work.
+Web V2 browser notifications have the independent exact build-time gate
+`VITE_CHAT_V2_NOTIFICATIONS=true`. Missing, empty, or exact `false` keeps
+application candidate emission off; malformed values invalidate the V2 runtime.
+An enabled application emits identity-only remote-live candidates only after a
+successful IndexedDB save. The browser presenter and permission UI remain
+disconnected in this slice, so the flag alone cannot display a notification.
 The candidate view now exposes the search surface only when application
 capability state is true. Static accessibility tests lock its native search
 form, live status, result-list label, pagination, and keyboard-focusable reveal;

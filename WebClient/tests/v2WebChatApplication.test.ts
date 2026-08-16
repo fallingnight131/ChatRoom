@@ -3,7 +3,11 @@ import test from "node:test";
 
 import { create } from "@bufbuild/protobuf";
 
-import { V2WebChatApplication, type V2ConversationCacheMessage } from "../src/application/v2WebChatApplication";
+import {
+  V2WebChatApplication,
+  type V2ConversationCacheMessage,
+  type V2RemoteMessageNotificationCandidate,
+} from "../src/application/v2WebChatApplication";
 import { AuthenticationRejectedSchema, SessionEstablishedSchema } from "../src/protocol/v2/generated/authentication_pb";
 import {
   ConversationDirectoryPageSchema,
@@ -730,6 +734,119 @@ test("merges contiguous live events and repairs sequence gaps through history", 
     "history", CONVERSATION_ID, BigInt(CURSOR) + 1n, 100,
   ]);
   assert.equal(cache.saves.at(-1)?.cursor, (BigInt(CURSOR) + 1n).toString());
+  application.dispose();
+});
+
+test("emits notification candidates only after new remote live messages persist", async () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  const application = new V2WebChatApplication({
+    transport,
+    cache,
+    enableNotifications: true,
+  });
+  establish(transport);
+  directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+  transport.emit(correlated({
+    type: "message-history-page",
+    value: create(MessageHistoryPageSchema, {
+      conversationId: CONVERSATION_ID,
+      nextSequence: 0n,
+      latestSequence: 0n,
+    }),
+  }));
+
+  const candidates: V2RemoteMessageNotificationCandidate[] = [];
+  const unsubscribe = application.subscribeRemoteMessages(candidate => candidates.push(candidate));
+  const remote = create(MessageRecordSchema, {
+    conversationId: CONVERSATION_ID,
+    messageId: MESSAGE_ID,
+    conversationSequence: 1n,
+    senderAccountId: SECOND_ACCOUNT_ID,
+    senderDeviceId: "30000000-0000-4000-8000-000000000002",
+    clientMessageId: "remote-live-1",
+    contentType: MessageContentType.TEXT_UTF8,
+    content: new TextEncoder().encode("@Alice hi"),
+    mentions: [{ targetAccountId: ACCOUNT_ID, startUtf8Byte: 0, lengthUtf8Bytes: 6 }],
+    acceptedAtEpochMs: BigInt(NOW),
+  });
+  transport.emit({ type: "message-published", requestId: "", clientMessageId: "", value: remote });
+  assert.deepEqual(candidates, []);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(candidates, [{
+    messageId: MESSAGE_ID,
+    conversationId: CONVERSATION_ID,
+    senderAccountId: SECOND_ACCOUNT_ID,
+    authenticatedAccountId: ACCOUNT_ID,
+    authenticatedAccountMentioned: true,
+  }]);
+
+  transport.emit({ type: "message-published", requestId: "", clientMessageId: "", value: remote });
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(candidates.length, 1);
+
+  transport.emit({
+    type: "message-published", requestId: "", clientMessageId: "",
+    value: create(MessageRecordSchema, {
+      conversationId: CONVERSATION_ID,
+      messageId: SECOND_MESSAGE_ID,
+      conversationSequence: 2n,
+      senderAccountId: ACCOUNT_ID,
+      senderDeviceId: DEVICE_ID,
+      clientMessageId: "self-live-2",
+      contentType: MessageContentType.TEXT_UTF8,
+      content: new TextEncoder().encode("self"),
+      acceptedAtEpochMs: BigInt(NOW + 1),
+    }),
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(candidates.length, 1);
+
+  transport.emit(correlated({
+    type: "message-history-page",
+    value: create(MessageHistoryPageSchema, {
+      conversationId: CONVERSATION_ID,
+      messages: [{
+        conversationId: CONVERSATION_ID,
+        messageId: "60000000-0000-4000-8000-000000000003",
+        conversationSequence: 3n,
+        senderAccountId: SECOND_ACCOUNT_ID,
+        senderDeviceId: "30000000-0000-4000-8000-000000000002",
+        clientMessageId: "history-3",
+        contentType: MessageContentType.TEXT_UTF8,
+        content: new TextEncoder().encode("history"),
+        acceptedAtEpochMs: BigInt(NOW + 2),
+      }],
+      nextSequence: 3n,
+      latestSequence: 3n,
+    }),
+  }));
+  await Promise.resolve();
+  assert.equal(candidates.length, 1);
+
+  cache.available = false;
+  transport.emit({
+    type: "message-published", requestId: "", clientMessageId: "",
+    value: create(MessageRecordSchema, {
+      conversationId: CONVERSATION_ID,
+      messageId: "60000000-0000-4000-8000-000000000004",
+      conversationSequence: 4n,
+      senderAccountId: SECOND_ACCOUNT_ID,
+      senderDeviceId: "30000000-0000-4000-8000-000000000002",
+      clientMessageId: "remote-live-4",
+      contentType: MessageContentType.TEXT_UTF8,
+      content: new TextEncoder().encode("not persisted"),
+      acceptedAtEpochMs: BigInt(NOW + 3),
+    }),
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(candidates.length, 1);
+  unsubscribe();
   application.dispose();
 });
 

@@ -2306,7 +2306,7 @@ Candidate slices:
     deduplication, active-visible-conversation suppression, structural mention
     classification, privacy-safe copy, and one-shot stable-conversation
     activation in a detached policy/presenter boundary (ADR-0407).
-  - [ ] Emit candidates only after IndexedDB persistence succeeds and compose
+  - [x] Emit candidates only after IndexedDB persistence succeeds and compose
     them behind an exact default-off Web build gate.
   - [ ] Add user-gesture permission, visible enable/disable state, localized
     presentation, notification-click navigation, and Chromium/Firefox evidence.

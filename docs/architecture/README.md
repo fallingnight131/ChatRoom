@@ -1906,8 +1906,11 @@ active visible conversation while remembering the event, and classifies a
 structural mention without accepting message text. The browser presenter uses
 injected permission, creation, and stable-conversation activation ports with
 generic localized copy and one-shot click consumption. It is not yet composed:
-the default build, runtime, IndexedDB event path, permission UI, and browser
-product behavior remain unchanged until the subsequent default-off slices pass.
+the strict default-false `VITE_CHAT_V2_NOTIFICATIONS` gate now controls whether
+the application may publish a candidate after its IndexedDB save succeeds, but
+the presenter, permission UI, and browser product behavior remain disconnected.
+Duplicate live events, self echoes, history repair, save refusal, and a stale
+account generation do not emit candidates. The default build remains unchanged.
 
 The pinned V2 generator now publishes reviewed TypeScript bindings directly to
 the Web source tree, and the protocol gate rejects stale committed output. An

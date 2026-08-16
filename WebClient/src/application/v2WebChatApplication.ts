@@ -76,6 +76,14 @@ export interface V2ConversationMention {
   lengthUtf8Bytes: number;
 }
 
+export interface V2RemoteMessageNotificationCandidate {
+  messageId: string;
+  conversationId: string;
+  senderAccountId: string;
+  authenticatedAccountId: string;
+  authenticatedAccountMentioned: boolean;
+}
+
 export interface V2ConversationCacheReactionCommand {
   conversationId: string;
   messageId: string;
@@ -231,6 +239,7 @@ export interface V2WebChatSnapshot {
   searchHasMore: boolean;
   searchFailure: string;
   searchContextLoading: boolean;
+  notificationsEnabled: boolean;
 }
 
 export interface V2WebChatApplicationOptions {
@@ -241,6 +250,7 @@ export interface V2WebChatApplicationOptions {
   onChange?: (snapshot: V2WebChatSnapshot) => void;
   enableMessageForwarding?: boolean;
   enableMessageSearch?: boolean;
+  enableNotifications?: boolean;
 }
 
 type ConversationState = {
@@ -277,7 +287,10 @@ export class V2WebChatApplication {
   private readonly onChange?: (snapshot: V2WebChatSnapshot) => void;
   private readonly enableMessageForwarding: boolean;
   private readonly enableMessageSearch: boolean;
+  private readonly enableNotifications: boolean;
   private readonly observers = new Set<(snapshot: V2WebChatSnapshot) => void>();
+  private readonly remoteMessageObservers = new Set<(
+    candidate: V2RemoteMessageNotificationCandidate) => void>();
   private readonly conversations = new Map<string, ConversationState>();
   private readonly participants = new Map<string, ParticipantState>();
   private readonly unsubscribeTransport: () => void;
@@ -313,6 +326,7 @@ export class V2WebChatApplication {
     this.onChange = options.onChange;
     this.enableMessageForwarding = options.enableMessageForwarding === true;
     this.enableMessageSearch = options.enableMessageSearch === true;
+    this.enableNotifications = options.enableNotifications === true;
     this.connectionStateValue = this.transport.state;
     this.unsubscribeTransport = this.transport.subscribe({
       onStateChange: (state) => this.handleTransportState(state),
@@ -356,6 +370,7 @@ export class V2WebChatApplication {
       searchHasMore: this.searchState.hasMore,
       searchFailure: this.searchState.failure,
       searchContextLoading: this.searchContextRequest !== null,
+      notificationsEnabled: this.enableNotifications,
     };
   }
 
@@ -376,6 +391,14 @@ export class V2WebChatApplication {
     this.observers.add(observer);
     try { observer(this.snapshot); } catch { /* views do not own application state */ }
     return () => this.observers.delete(observer);
+  }
+
+  subscribeRemoteMessages(
+    observer: (candidate: V2RemoteMessageNotificationCandidate) => void,
+  ): () => void {
+    this.requireActive();
+    this.remoteMessageObservers.add(observer);
+    return () => this.remoteMessageObservers.delete(observer);
   }
 
   resumeSession(sessionId: string, resumeToken: Uint8Array): void {
@@ -947,6 +970,7 @@ export class V2WebChatApplication {
     this.selectionGeneration += 1;
     this.unsubscribeTransport();
     this.observers.clear();
+    this.remoteMessageObservers.clear();
     this.transport.stop();
     this.sessionValue = null;
     this.conversations.clear();
@@ -1231,6 +1255,7 @@ export class V2WebChatApplication {
     }
     const state = this.conversations.get(record.conversationId);
     if (!state) return;
+    const isNewMessage = !state.messages.some((message) => message.id === record.messageId);
     state.messages = mergeMessages(state.messages, [mapMessageRecord(record)]);
     const publishedSequence = record.conversationSequence;
     const cursor = BigInt(state.cursorSequence);
@@ -1240,7 +1265,42 @@ export class V2WebChatApplication {
       state.loading = true;
       this.transport.readMessageHistory(record.conversationId, cursor, HISTORY_PAGE_SIZE);
     }
-    this.persist(record.conversationId);
+    this.persistPublishedMessage(record, state, isNewMessage);
+  }
+
+  private persistPublishedMessage(
+    record: MessageRecord,
+    state: ConversationState,
+    isNewMessage: boolean,
+  ): void {
+    const session = this.sessionValue;
+    if (!session) return;
+    const accountId = session.accountId;
+    const generation = this.sessionGeneration;
+    void this.saveConversation(record.conversationId, state, accountId).then((saved) => {
+      if (!saved || !isNewMessage || !this.enableNotifications || this.disposed
+          || this.sessionGeneration !== generation
+          || this.sessionValue?.accountId !== accountId
+          || record.senderAccountId === accountId) return;
+      const currentState = this.conversations.get(record.conversationId);
+      const currentMessage = currentState?.messages.find(
+        (message) => message.id === record.messageId);
+      if (currentState !== state || currentMessage?.availability !== "available") return;
+      const candidate: V2RemoteMessageNotificationCandidate = {
+        messageId: record.messageId,
+        conversationId: record.conversationId,
+        senderAccountId: record.senderAccountId,
+        authenticatedAccountId: accountId,
+        authenticatedAccountMentioned: record.mentions.some(
+          (mention) => mention.targetAccountId === accountId),
+      };
+      for (const observer of this.remoteMessageObservers) {
+        try { observer({ ...candidate }); } catch { /* notification consumers do not own chat state */ }
+      }
+    }).catch(() => {
+      this.lastFailureValue = "V2 cache write failed";
+      this.emit();
+    });
   }
 
   private applyReactionApplied(
