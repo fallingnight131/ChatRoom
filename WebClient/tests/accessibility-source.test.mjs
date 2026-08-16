@@ -60,6 +60,14 @@ test('labels composer controls and honors focus and reduced-motion preferences',
   assert.match(styles, /prefers-reduced-motion: reduce/)
 })
 
+test('uses independent native controls for profile entry and theme selection', () => {
+  assert.match(chatView, /class="user-profile-trigger" type="button" aria-haspopup="dialog"/)
+  assert.match(chatView, /:aria-expanded="showProfile" aria-label="打开个人资料"/)
+  assert.match(chatView, /class="avatar" alt="用户头像"/)
+  assert.match(chatView, /:aria-label="userStore\.darkMode \? '切换到浅色主题' : '切换到深色主题'"/)
+  assert.doesNotMatch(chatView, /class="user-header" @click=/)
+})
+
 test('exposes login as a labeled keyboard-operable form with announced errors', () => {
   assert.match(login, /<form class="login-card" aria-labelledby="login-title"/)
   assert.match(login, /<label for="login-username">/)

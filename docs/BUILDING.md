@@ -2234,6 +2234,8 @@ credential clearing, and navigation.
 `profileDialogAccessibility.test.mjs` locks modal naming, focus entry/cycling/
 restoration, Escape dismissal, and the native avatar-picker action. Production
 build verification compiles the same dialog used by the V1 Web product.
+The general accessibility source test additionally forbids the former clickable
+profile-header `div` and requires separate, named native profile/theme buttons.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

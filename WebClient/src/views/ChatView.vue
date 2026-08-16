@@ -8,18 +8,23 @@
 
     <!-- 左侧面板：个人信息 + 房间列表 -->
     <div class="left-panel" :class="{ 'panel-open': mobilePanel === 'left' }">
-      <div class="user-header" @click="showProfile = true">
-        <img v-if="userStore.avatarData" :src="'data:image/png;base64,' + userStore.avatarData"
-             class="avatar" />
-        <div v-else class="avatar avatar-placeholder"
-             :style="{ background: hashColor(userStore.username) }">
-          {{ (userStore.displayName || userStore.username).charAt(0) }}
-        </div>
-        <div class="user-info">
-          <div class="user-name text-ellipsis">{{ userStore.displayName }}</div>
-          <div class="user-id text-ellipsis">@{{ userStore.username }}</div>
-        </div>
-        <button class="btn-icon theme-btn" @click.stop="userStore.toggleDarkMode()" title="切换主题">
+      <div class="user-header">
+        <button class="user-profile-trigger" type="button" aria-haspopup="dialog"
+                :aria-expanded="showProfile" aria-label="打开个人资料"
+                @click="showProfile = true">
+          <img v-if="userStore.avatarData" :src="'data:image/png;base64,' + userStore.avatarData"
+               class="avatar" alt="用户头像" />
+          <div v-else class="avatar avatar-placeholder" aria-hidden="true"
+               :style="{ background: hashColor(userStore.username) }">
+            {{ (userStore.displayName || userStore.username).charAt(0) }}
+          </div>
+          <div class="user-info">
+            <div class="user-name text-ellipsis">{{ userStore.displayName }}</div>
+            <div class="user-id text-ellipsis">@{{ userStore.username }}</div>
+          </div>
+        </button>
+        <button class="btn-icon theme-btn" @click="userStore.toggleDarkMode()" title="切换主题"
+                :aria-label="userStore.darkMode ? '切换到浅色主题' : '切换到深色主题'">
           {{ userStore.darkMode ? '☀️' : '🌙' }}
         </button>
       </div>
@@ -329,13 +334,26 @@ function onForceOfflineConfirm() {
 .user-header {
   display: flex;
   align-items: center;
-  padding: 16px;
-  gap: 12px;
+  padding: 8px 10px;
+  gap: 4px;
   border-bottom: 1px solid var(--border-color);
+}
+.user-profile-trigger {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+  background: transparent;
   cursor: pointer;
   transition: background 0.15s;
 }
-.user-header:hover {
+.user-profile-trigger:hover,
+.user-profile-trigger:focus-visible {
   background: var(--bg-hover);
 }
 
