@@ -3,12 +3,15 @@ import { expect, test, type WebSocketRoute } from "@playwright/test";
 import { MessageType } from "../src/protocol/v2/generated/control_pb";
 import {
   FIXTURE_CONVERSATION_ID,
+  KEYBOARD_CONVERSATION_ID,
   createV2ProtocolFixture,
 } from "./fixtures/v2ProtocolFixture";
 
 const enabled = process.env.CHATROOM_V2_BROWSER_PREVIEW === "true";
 const searchCandidate = process.env.CHATROOM_V2_BROWSER_SEARCH === "true";
 const searchRollback = process.env.CHATROOM_V2_BROWSER_SEARCH_ROLLBACK === "true";
+const forwardingCandidate = process.env.CHATROOM_V2_BROWSER_FORWARDING === "true";
+const forwardingRollback = process.env.CHATROOM_V2_BROWSER_FORWARDING_ROLLBACK === "true";
 const FIXTURE_MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 
 async function installV2SocketFixture(
@@ -260,6 +263,73 @@ test("keeps V2 search absent after the Web candidate rollback", async ({ page })
   await expect(page.getByRole("button", { name: "搜索消息" })).toHaveCount(0);
   expect(fixture.searchQueries).toEqual([]);
   expect(fixture.receivedTypes).not.toContain(MessageType.SEARCH_CONVERSATION_MESSAGES);
+});
+
+test("forwards one server-authoritative message to a distinct conversation", async ({ page }) => {
+  test.skip(!enabled || !forwardingCandidate,
+    "requires the explicit V2 message-forwarding browser candidate");
+  const { fixture } = await installV2SocketFixture(page, "accept");
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+  await expect(page.getByText("Fixture incoming message")).toBeVisible();
+
+  const forward = page.getByRole("button", { name: "转发消息 1" });
+  await forward.focus();
+  await forward.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "转发到会话" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "关闭转发目标选择" })).toBeFocused();
+  const targets = dialog.getByRole("listbox", { name: "转发目标会话" });
+  await expect(targets.getByRole("option", { name: /Browser Fixture Conversation/ })).toHaveCount(0);
+  const target = targets.getByRole("option", { name: /Keyboard Target Conversation/ });
+  await expect(target).toBeVisible();
+  const targetTree = await targets.ariaSnapshot();
+  expect(targetTree).toContain('- listbox "转发目标会话"');
+  expect(targetTree).toContain('option "Keyboard Target Conversation');
+  expect(targetTree).not.toContain("Browser Fixture Conversation");
+
+  await target.focus();
+  await target.press("Enter");
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => fixture.forwardRequests.length).toBe(1);
+  expect(fixture.forwardRequests[0]).toEqual({
+    sourceConversationId: FIXTURE_CONVERSATION_ID,
+    sourceMessageId: FIXTURE_MESSAGE_ID,
+    expectedSourceContentRevision: 0,
+    targetConversationId: KEYBOARD_CONVERSATION_ID,
+    clientMessageId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+  });
+
+  await page.getByRole("button", { name: /Keyboard Target Conversation/ }).click();
+  const targetLog = page.getByRole("log", { name: "消息记录" });
+  await expect(targetLog.getByText("Fixture incoming message")).toBeVisible();
+  await expect(targetLog.getByText("已转发", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("消息 1：已接收")).toBeVisible();
+  expect(fixture.receivedTypes.filter(type => type === MessageType.FORWARD_MESSAGE)).toHaveLength(1);
+  expect(await targetLog.innerText()).not.toContain(FIXTURE_CONVERSATION_ID);
+  expect(await targetLog.innerText()).not.toContain(FIXTURE_MESSAGE_ID);
+});
+
+test("keeps V2 forwarding absent after the Web candidate rollback", async ({ page }) => {
+  test.skip(!enabled || !forwardingRollback,
+    "requires the explicit V2 message-forwarding rollback browser candidate");
+  const { fixture } = await installV2SocketFixture(page, "accept");
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+
+  await expect(page.getByRole("button", { name: "转发消息 1" })).toHaveCount(0);
+  expect(fixture.forwardRequests).toEqual([]);
+  expect(fixture.receivedTypes).not.toContain(MessageType.FORWARD_MESSAGE);
 });
 
 test("resumes an in-memory V2 session and repairs ordered history", async ({ page }) => {

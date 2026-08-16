@@ -2178,6 +2178,10 @@ Progress:
     - [x] Add a side-effect-free Windows binary configuration diagnostic and
       require CI to prove the final ordinary executable is default-off while the
       isolated forwarding candidate contains the exact enabled configuration.
+    - [x] Add generated-Protobuf Chromium/Firefox evidence for the immutable Web
+      forwarding candidate and same-revision disabled rollback, including
+      keyboard target selection, source exclusion, type-119 acceptance,
+      privacy-safe target history, and post-rollback command absence.
   - [ ] Pass the forwarding-enabled workflow on a Windows runner, retain the
     final binary diagnostic and Widgets evidence, and complete endpoint canary
     plus rollback rehearsal before treating forwarding as releasable.

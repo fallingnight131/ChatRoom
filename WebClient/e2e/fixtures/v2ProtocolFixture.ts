@@ -36,6 +36,7 @@ import {
 } from "../../src/protocol/v2/generated/envelope_pb";
 import {
   ConversationMessageSearchPageSchema,
+  ForwardMessageSchema,
   MessageAcceptedSchema,
   MessageContentType,
   MessageHistoryPageSchema,
@@ -51,9 +52,10 @@ const PEER_ACCOUNT_ID = "20000000-0000-4000-8000-000000000002";
 const PEER_DEVICE_ID = "30000000-0000-4000-8000-000000000002";
 const SESSION_ID = "40000000-0000-4000-8000-000000000001";
 export const FIXTURE_CONVERSATION_ID = "50000000-0000-4000-8000-000000000001";
-const KEYBOARD_CONVERSATION_ID = "50000000-0000-4000-8000-000000000002";
+export const KEYBOARD_CONVERSATION_ID = "50000000-0000-4000-8000-000000000002";
 const INCOMING_MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 const OUTGOING_MESSAGE_ID = "60000000-0000-4000-8000-000000000002";
+const FORWARDED_MESSAGE_ID = "60000000-0000-4000-8000-000000000003";
 const EXPECTED_USERNAME = "browser_v2_user";
 const EXPECTED_PASSWORD = "non-secret-test-value";
 const RESUME_TOKEN = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
@@ -69,6 +71,13 @@ export interface V2ProtocolFixture {
     beforeSequence: bigint;
     limit: number;
   }>;
+  readonly forwardRequests: Array<{
+    sourceConversationId: string;
+    sourceMessageId: string;
+    expectedSourceContentRevision: number;
+    targetConversationId: string;
+    clientMessageId: string;
+  }>;
   respond(bytes: number[]): number[];
 }
 
@@ -76,13 +85,16 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
   const receivedTypes: MessageType[] = [];
   const clientHelloAppVersions: string[] = [];
   const searchQueries: V2ProtocolFixture["searchQueries"] = [];
+  const forwardRequests: V2ProtocolFixture["forwardRequests"] = [];
   let clientDeviceId = "";
   let resumed = false;
+  let forwardedClientMessageId = "";
 
   return {
     receivedTypes,
     clientHelloAppVersions,
     searchQueries,
+    forwardRequests,
     respond(raw) {
       const request = fromBinary(EnvelopeSchema, Uint8Array.from(raw));
       if (request.protocolVersion !== 2 || request.kind !== MessageKind.COMMAND
@@ -152,7 +164,7 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
                 kind: ConversationKind.DIRECT,
                 displayName: "Keyboard Target Conversation",
                 role: ConversationRole.MEMBER,
-                latestSequence: 0n,
+                latestSequence: forwardedClientMessageId ? 1n : 0n,
                 lastReadSequence: 0n,
                 updatedAtEpochMs: NOW - 1_000n,
               }],
@@ -174,6 +186,30 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
         case MessageType.READ_MESSAGE_HISTORY: {
           const history = fromBinary(ReadMessageHistorySchema, request.payload);
           requireSession(request);
+          if (history.conversationId === KEYBOARD_CONVERSATION_ID) {
+            if (history.afterSequence !== 0n || !forwardedClientMessageId) {
+              throw new Error("unexpected V2 fixture forwarded history cursor");
+            }
+            return response(request, MessageType.MESSAGE_HISTORY_PAGE,
+              MessageHistoryPageSchema, {
+                conversationId: KEYBOARD_CONVERSATION_ID,
+                messages: [create(MessageRecordSchema, {
+                  conversationId: KEYBOARD_CONVERSATION_ID,
+                  messageId: FORWARDED_MESSAGE_ID,
+                  conversationSequence: 1n,
+                  senderAccountId: ACCOUNT_ID,
+                  senderDeviceId: clientDeviceId,
+                  clientMessageId: forwardedClientMessageId,
+                  contentType: MessageContentType.TEXT_UTF8,
+                  content: new TextEncoder().encode("Fixture incoming message"),
+                  acceptedAtEpochMs: NOW + 2_000n,
+                  forwarded: true,
+                })],
+                nextSequence: 1n,
+                latestSequence: 1n,
+                hasMore: false,
+              }, { sessionId: SESSION_ID });
+          }
           if (history.conversationId !== FIXTURE_CONVERSATION_ID
               || (history.afterSequence !== 0n && history.afterSequence !== 1n)) {
             throw new Error("unexpected V2 fixture history cursor");
@@ -229,6 +265,33 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
               hits: [incomingMessage()],
               nextBeforeSequence: 1n,
               hasMore: false,
+            }, { sessionId: SESSION_ID });
+        }
+        case MessageType.FORWARD_MESSAGE: {
+          const forward = fromBinary(ForwardMessageSchema, request.payload);
+          requireSession(request);
+          if (forward.sourceConversationId !== FIXTURE_CONVERSATION_ID
+              || forward.sourceMessageId !== INCOMING_MESSAGE_ID
+              || forward.expectedSourceContentRevision !== 0
+              || forward.targetConversationId !== KEYBOARD_CONVERSATION_ID
+              || !request.clientMessageId) {
+            throw new Error("unexpected V2 fixture message forward");
+          }
+          forwardedClientMessageId = request.clientMessageId;
+          forwardRequests.push({
+            sourceConversationId: forward.sourceConversationId,
+            sourceMessageId: forward.sourceMessageId,
+            expectedSourceContentRevision: forward.expectedSourceContentRevision,
+            targetConversationId: forward.targetConversationId,
+            clientMessageId: request.clientMessageId,
+          });
+          return response(request, MessageType.MESSAGE_ACCEPTED,
+            MessageAcceptedSchema, {
+              conversationId: KEYBOARD_CONVERSATION_ID,
+              messageId: FORWARDED_MESSAGE_ID,
+              conversationSequence: 1n,
+              acceptedAtEpochMs: NOW + 2_000n,
+              duplicate: false,
             }, { sessionId: SESSION_ID });
         }
         case MessageType.SUBMIT_MESSAGE: {

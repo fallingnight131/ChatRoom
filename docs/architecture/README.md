@@ -2142,6 +2142,13 @@ composition defects: deep-readonly proxying of mutable application instances and
 unbound browser timer functions. The fixture is skipped for the default-off
 bundle and is not real TLS/gateway/PostgreSQL, physical network/edge failover,
 deployment-compatibility, or capacity evidence.
+Independent search and forwarding candidate builds now extend that same local
+browser boundary. Search covers capability-6 query/result/context behavior,
+disconnect clearing, explicit post-resume resubmission, and a disabled rollback
+candidate. Forwarding covers a distinct authorized target, type-119 acceptance,
+privacy-safe destination history, and a disabled rollback candidate. These
+generated-Protobuf routes remain below real gateway/PostgreSQL, endpoint-canary,
+and release evidence.
 
 ### Product consistency
 

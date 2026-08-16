@@ -599,6 +599,9 @@ export class V2WebChatApplication {
     if (!this.directoryValue.some((item) => item.conversationId === targetConversationId)) {
       throw new Error("target conversation is not present in the authenticated directory");
     }
+    if (targetConversationId === sourceConversationId) {
+      throw new Error("forward target must differ from the source conversation");
+    }
     const sourceState = this.requireConversation(sourceConversationId);
     const source = sourceState.messages.find((message) => message.id === sourceMessageId);
     if (!source || source.deliveryState !== "accepted" || source.availability !== "available") {

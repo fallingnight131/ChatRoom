@@ -514,6 +514,10 @@ test("persists a privacy-bounded forward before dispatch and converges authorita
   directoryWithForwardTarget(transport);
   await application.openConversation(CONVERSATION_ID);
 
+  await assert.rejects(application.forwardMessage(MESSAGE_ID, CONVERSATION_ID),
+    /must differ from the source conversation/);
+  assert.equal(transport.calls.some((call) => call[0] === "forward"), false);
+
   const optimistic = await application.forwardMessage(MESSAGE_ID, SECOND_CONVERSATION_ID);
   assert.equal(optimistic.forwarded, true);
   assert.equal(optimistic.deliveryState, "sending");

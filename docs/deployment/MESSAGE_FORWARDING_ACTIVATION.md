@@ -42,6 +42,45 @@ Do not enable a client candidate before the gateway. Such a client must fail
 closed when capability 5 is omitted, but that intentional protection would make
 the preview unusable rather than provide forwarding.
 
+## Local Web candidate evidence
+
+Before an endpoint canary, the deterministic generated-Protobuf fixture can
+verify the immutable Web composition seam. From `WebClient/`, build and run the
+enabled candidate:
+
+```bash
+env VITE_CHAT_V2_PREVIEW=true \
+  VITE_CHAT_V2_MESSAGE_FORWARDING=true \
+  VITE_CHAT_V2_WSS_URL=wss://fixture.invalid/v2/web \
+  VITE_CHAT_APP_VERSION=<candidate-version> \
+  npm run build
+env CHATROOM_V2_BROWSER_PREVIEW=true \
+  CHATROOM_V2_BROWSER_FORWARDING=true \
+  npm run test:browser -- e2e/v2PreviewBrowser.spec.ts
+```
+
+Then rebuild the same revision with
+`VITE_CHAT_V2_MESSAGE_FORWARDING=false` and run the rollback candidate:
+
+```bash
+env CHATROOM_V2_BROWSER_PREVIEW=true \
+  CHATROOM_V2_BROWSER_FORWARDING_ROLLBACK=true \
+  npm run test:browser -- e2e/v2PreviewBrowser.spec.ts
+```
+
+The enabled path verifies keyboard dialog entry, accessibility-tree target
+semantics, exclusion of the source conversation, an exact one-target type-119
+command, correlated acceptance, and a target-history projection containing the
+copied body plus only the public `forwarded` marker. The browser asserts that
+the rendered destination does not expose the source conversation or message
+identity. The rollback path verifies both the authoring action and type-119
+command are absent.
+
+This fixture uses no real network, gateway, or PostgreSQL. It does not prove
+server authorization, revision races, rate limiting, production observability,
+deployed candidate identity, endpoint canary behavior, or public rollback.
+Keep the required release evidence open until those retained records exist.
+
 ## Rollback order
 
 1. Stop promotion and restore Web and Windows candidates whose forwarding gates

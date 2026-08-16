@@ -111,6 +111,11 @@ exchange, keyboard result reveal, accessibility-tree naming, and one correlated
 context read. Rebuilding the same revision with search disabled proves the
 entry point and type-126 command disappear. These are local composition and
 rollback checks, not deployed endpoint activation evidence.
+An independently built forwarding candidate verifies keyboard/modal target
+selection, source-conversation exclusion, the one-target type-119 command,
+acceptance, and privacy-safe destination history. Rebuilding the same revision
+with forwarding disabled proves the action and command disappear. This remains
+local composition/rollback evidence below the real gateway endpoint gate.
 The fixture does not satisfy the real TLS, Origin/Host, gateway, database,
 physical network, edge-failover, or deployment checks above and must not be
 reported as release or capacity evidence.

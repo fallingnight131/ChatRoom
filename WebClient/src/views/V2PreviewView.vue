@@ -340,7 +340,7 @@
                         :aria-label="forwardMessages.close" @click="closeForwardDialog">×</button>
               </header>
               <ul role="listbox" :aria-label="forwardMessages.targets" :aria-busy="forwardPending">
-                <li v-for="conversation in snapshot.directory" :key="conversation.conversationId">
+                <li v-for="conversation in forwardTargets" :key="conversation.conversationId">
                   <button type="button" role="option" :disabled="forwardPending"
                           @click="chooseForwardTarget(conversation)">
                     <strong>{{ conversation.displayName }}</strong>
@@ -531,6 +531,8 @@ const snapshot = ref({
   forwardingEnabled: false, searchEnabled: false, searchQuery: '', searchResults: [],
   searchLoading: false, searchHasMore: false, searchFailure: '', searchContextLoading: false
 })
+const forwardTargets = computed(() => snapshot.value.directory.filter(
+  conversation => conversation.conversationId !== snapshot.value.activeConversationId))
 let unsubscribe = null
 let startedApplication = null
 

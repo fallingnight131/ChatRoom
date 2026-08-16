@@ -16,6 +16,8 @@ test('keeps an accessible forwarding picker behind the application capability ga
     "canClose: () => !forwardPending.value",
     "initialFocusSelector: '#forward-dialog-close'",
     'role="listbox" :aria-label="forwardMessages.targets"',
+    'v-for="conversation in forwardTargets"',
+    'conversation.conversationId !== snapshot.value.activeConversationId',
     'await runtimeRef.value.application.forwardMessage(',
     'message.forwarded',
     'forwardMessages.description',
