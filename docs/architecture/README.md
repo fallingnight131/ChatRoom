@@ -2011,7 +2011,11 @@ as its own slice: zoom, download, close, loading, embedded-media descriptions,
 unsupported-file state,
 expiry feedback, and the DPlayer language follow the active locale. Its HTTP/
 WebSocket fallback, chunking, timeout, and Blob lifecycle are unchanged. The
-forwarding picker remains a later slice.
+forwarding picker is also migrated as a separate slice: tabs, search, presence,
+empty state, selection count, and submit state follow the active locale. It
+continues to emit only stable room IDs and usernames, preserves roving tabs and
+modal focus containment, and blocks dismissal or duplicate submission while a
+forward is pending.
 
 ### Product consistency
 

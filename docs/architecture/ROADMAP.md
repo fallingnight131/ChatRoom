@@ -2374,6 +2374,8 @@ Candidate slices:
     administrator confirmation/validation feedback without changing commands.
   - [x] Migrate the Web V1 file-preview dialog and embedded-player language
     without changing download, fallback, chunking, or Blob lifecycle behavior.
+  - [x] Migrate the Web V1 forwarding picker while preserving stable target
+    identities, modal focus containment, and pending-submit protection.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

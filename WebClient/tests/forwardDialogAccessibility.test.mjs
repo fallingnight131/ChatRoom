@@ -9,7 +9,7 @@ test('uses the shared modal boundary and exposes named forwarding controls', () 
     'role="dialog" aria-modal="true"',
     'aria-labelledby="forward-dialog-title"',
     'tabindex="-1" @keydown="onDialogKeydown"',
-    'role="tablist" aria-label="转发目标类型"',
+    'role="tablist" :aria-label="messages.targetType"',
     'id="forward-friends-tab" aria-controls="forward-friends-panel"',
     'id="forward-rooms-tab" aria-controls="forward-rooms-panel"',
     ':aria-selected="activeTab === \'friends\'"',
@@ -38,7 +38,7 @@ test('prevents dismissal and duplicate confirmation while forwarding is pending'
   for (const marker of [
     'canClose: () => !props.submitting',
     'type="button" class="btn btn-secondary" :disabled="submitting"',
-    '@click="closeDialog">取消</button>',
+    '@click="closeDialog">{{ messages.cancel }}</button>',
     'if (props.submitting || selectedCount.value === 0) return',
   ]) assert.ok(source.includes(marker), `missing forwarding pending-state marker: ${marker}`)
 })

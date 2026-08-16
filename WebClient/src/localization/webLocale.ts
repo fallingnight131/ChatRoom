@@ -398,6 +398,24 @@ const filePreviewCatalog = {
   },
 } as const;
 
+const forwardDialogCatalog = {
+  "zh-CN": {
+    title: "转发到其他会话", targetType: "转发目标类型", friends: "好友", rooms: "房间",
+    search: "搜索转发目标", searchFriends: "搜索好友用户名或昵称", searchRooms: "搜索房间名或房间ID",
+    selectAll: "全选", selectedPrefix: "已选 ", selectedSuffix: " 项", online: "在线", offline: "离线",
+    noFriends: "暂无可选好友", noRooms: "暂无可选房间", roomIdPrefix: "ID: ", cancel: "取消",
+    submitting: "转发中...", confirm: "确认转发",
+  },
+  "en-US": {
+    title: "Forward to other conversations", targetType: "Forwarding target type", friends: "Friends", rooms: "Rooms",
+    search: "Search forwarding targets", searchFriends: "Search friend username or display name",
+    searchRooms: "Search room name or room ID", selectAll: "Select all", selectedPrefix: "Selected: ",
+    selectedSuffix: "", online: "Online", offline: "Offline", noFriends: "No friends available",
+    noRooms: "No rooms available", roomIdPrefix: "ID: ", cancel: "Cancel", submitting: "Forwarding...",
+    confirm: "Confirm forwarding",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -468,6 +486,10 @@ export function messageActionMessages(locale: WebLocale) {
 
 export function filePreviewMessages(locale: WebLocale) {
   return filePreviewCatalog[locale];
+}
+
+export function forwardDialogMessages(locale: WebLocale) {
+  return forwardDialogCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

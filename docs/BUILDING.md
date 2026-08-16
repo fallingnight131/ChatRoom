@@ -99,7 +99,10 @@ close, loading, media-region, unsupported-file, and local expiry feedback to
 the active locale, and selects the matching DPlayer language. Source tests
 preserve the HTTP/WebSocket fallback, chunk, and Blob cleanup markers; the
 browser fixture still does not claim attachment-byte end-to-end coverage. The
-forwarding picker remains a separate localization slice.
+forwarding picker now localizes its tabs, search, candidate state, selection
+summary, and pending actions while retaining stable `roomId`/`username` target
+values. The English browser journey opens and closes the named picker from a
+real fixture message and verifies its disabled empty-selection submit state.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

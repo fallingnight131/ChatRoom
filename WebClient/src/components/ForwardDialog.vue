@@ -2,9 +2,9 @@
   <div class="modal-overlay" @click.self="closeDialog">
     <div ref="dialogRef" class="modal forward-modal" role="dialog" aria-modal="true"
          aria-labelledby="forward-dialog-title" tabindex="-1" @keydown="onDialogKeydown">
-      <div id="forward-dialog-title" class="modal-title">转发到其他会话</div>
+      <div id="forward-dialog-title" class="modal-title">{{ messages.title }}</div>
 
-      <div class="tab-bar" role="tablist" aria-label="转发目标类型">
+      <div class="tab-bar" role="tablist" :aria-label="messages.targetType">
         <button ref="friendTab" type="button" class="tab-btn" role="tab"
                 id="forward-friends-tab" aria-controls="forward-friends-panel"
                 :class="{ active: activeTab === 'friends' }"
@@ -12,7 +12,7 @@
                 :tabindex="activeTab === 'friends' ? 0 : -1"
                 @keydown="onTabKeydown($event, 'friends')"
                 @click="selectTab('friends')">
-          好友
+          {{ messages.friends }}
           <span class="tab-count">{{ friendCandidates.length }}</span>
         </button>
         <button ref="roomTab" type="button" class="tab-btn" role="tab"
@@ -22,27 +22,27 @@
                 :tabindex="activeTab === 'rooms' ? 0 : -1"
                 @keydown="onTabKeydown($event, 'rooms')"
                 @click="selectTab('rooms')">
-          房间
+          {{ messages.rooms }}
           <span class="tab-count">{{ roomCandidates.length }}</span>
         </button>
       </div>
 
       <div class="search-row">
-        <label class="visually-hidden" for="forward-target-search">搜索转发目标</label>
+        <label class="visually-hidden" for="forward-target-search">{{ messages.search }}</label>
         <input
           id="forward-target-search"
           class="input"
           v-model.trim="searchKeyword"
-          :placeholder="activeTab === 'friends' ? '搜索好友用户名或昵称' : '搜索房间名或房间ID'"
+          :placeholder="activeTab === 'friends' ? messages.searchFriends : messages.searchRooms"
         />
       </div>
 
       <div class="toolbar-row">
         <label class="check-all">
           <input type="checkbox" :checked="allChecked" @change="toggleAll($event)" />
-          <span>全选</span>
+          <span>{{ messages.selectAll }}</span>
         </label>
-        <span class="selected-count">已选 {{ selectedCount }} 项</span>
+        <span class="selected-count">{{ messages.selectedPrefix }}{{ selectedCount }}{{ messages.selectedSuffix }}</span>
       </div>
 
       <div class="list-wrap">
@@ -52,12 +52,12 @@
             <input type="checkbox" :checked="selectedFriends.has(f.username)" @change="toggleFriend(f.username, $event.target.checked)" />
             <span class="item-main-row">
               <span class="item-main">{{ f.displayName || f.username }}</span>
-              <span class="item-badge" :class="f.isOnline ? 'online' : 'offline'">{{ f.isOnline ? '在线' : '离线' }}</span>
+              <span class="item-badge" :class="f.isOnline ? 'online' : 'offline'">{{ f.isOnline ? messages.online : messages.offline }}</span>
               <span v-if="friendUnreadMap[f.username] > 0" class="item-unread">{{ friendUnreadMap[f.username] }}</span>
             </span>
             <span class="item-sub">@{{ f.username }}</span>
           </label>
-          <div v-if="filteredFriendCandidates.length === 0" class="empty">暂无可选好友</div>
+          <div v-if="filteredFriendCandidates.length === 0" class="empty">{{ messages.noFriends }}</div>
         </div>
 
         <div v-else id="forward-rooms-panel" role="tabpanel"
@@ -68,18 +68,18 @@
               <span class="item-main">{{ r.roomName }}</span>
               <span v-if="Number(r.unread || 0) > 0" class="item-unread">{{ r.unread }}</span>
             </span>
-            <span class="item-sub">ID: {{ r.roomId }}</span>
+            <span class="item-sub">{{ messages.roomIdPrefix }}{{ r.roomId }}</span>
           </label>
-          <div v-if="filteredRoomCandidates.length === 0" class="empty">暂无可选房间</div>
+          <div v-if="filteredRoomCandidates.length === 0" class="empty">{{ messages.noRooms }}</div>
         </div>
       </div>
 
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" :disabled="submitting"
-                @click="closeDialog">取消</button>
+                @click="closeDialog">{{ messages.cancel }}</button>
         <button type="button" class="btn btn-primary"
                 :disabled="selectedCount === 0 || submitting" @click="submitForward">
-          {{ submitting ? '转发中...' : '确认转发' }}
+          {{ submitting ? messages.submitting : messages.confirm }}
         </button>
       </div>
     </div>
@@ -89,6 +89,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useChatStore } from '../stores/chat'
+import { useUserStore } from '../stores/user'
+import { forwardDialogMessages } from '../localization/webLocale'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 
 const props = defineProps({
@@ -97,6 +99,8 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'confirm'])
 const chatStore = useChatStore()
+const userStore = useUserStore()
+const messages = computed(() => forwardDialogMessages(userStore.locale))
 
 const activeTab = ref('friends')
 const friendTab = ref(null)
