@@ -1081,6 +1081,11 @@ its named dialog focuses Close, contains Tab, handles Escape locally, and
 restores the invoking message control. Download/close actions and image, video,
 audio, PDF, and text surfaces expose file-specific names, while loading is
 announced. File grants, fetching, decoding, and cleanup behavior are unchanged.
+Every V1 Web message attachment entry is now a native, file-named button across
+loaded image, thumbnail, video, generic file, and expired states. Browser-native
+Enter/Space activation replaces duplicated pseudo-button handlers and opens the
+same preview path; message authorization and attachment availability remain
+server-projected.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

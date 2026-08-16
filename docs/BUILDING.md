@@ -2293,6 +2293,10 @@ Close initial focus, local Escape handling, trigger restoration, native named
 download/close actions, announced loading, and file-specific labels for image,
 video, audio, PDF, and text surfaces. It does not replace content-type, grant,
 fetch, decoding, or blob-cleanup tests.
+`messageAttachmentAccessibility.test.mjs` locks native, file-named attachment
+preview buttons for loaded images, thumbnails, videos, generic files, and
+expired states, and forbids reintroducing manual Enter/Space pseudo-button
+handlers. It does not alter or prove server-side file availability policy.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

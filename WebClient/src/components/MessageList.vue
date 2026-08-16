@@ -57,35 +57,45 @@
 
             <!-- 图片 -->
             <template v-else-if="msg.contentType === 'image'">
-              <div v-if="msg.fileCleared" class="msg-expired-image" @click="openPreview(msg)"
-                   role="button" tabindex="0" @keydown.enter="openPreview(msg)">
+              <button v-if="msg.fileCleared" type="button" class="msg-expired-image"
+                      :aria-label="`查看已过期图片 ${msg.fileName || '图片'}`"
+                      @click="openPreview(msg)">
                 <div class="expired-icon">📷</div>
                 <div class="expired-name text-ellipsis">{{ msg.fileName || '图片' }}</div>
                 <div class="expired-text">文件已过期或被清除</div>
-              </div>
-              <img v-else-if="msg.imageData" :src="'data:image/png;base64,' + msg.imageData"
-                   class="msg-image" @click="openPreview(msg)" tabindex="0"
-                   :alt="msg.fileName || '聊天图片'" @keydown.enter="openPreview(msg)" />
-              <img v-else-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
-                   class="msg-image" @click="openPreview(msg)" tabindex="0"
-                   :alt="msg.fileName || '聊天图片缩略图'" @keydown.enter="openPreview(msg)" />
-              <div v-else class="msg-file" @click="openPreview(msg)" role="button" tabindex="0"
-                   @keydown.enter="openPreview(msg)" @keydown.space.prevent="openPreview(msg)">
+              </button>
+              <button v-else-if="msg.imageData" type="button" class="msg-image-button"
+                      :aria-label="`预览图片 ${msg.fileName || '聊天图片'}`"
+                      @click="openPreview(msg)">
+                <img :src="'data:image/png;base64,' + msg.imageData" class="msg-image"
+                     :alt="msg.fileName || '聊天图片'" />
+              </button>
+              <button v-else-if="msg.thumbnail" type="button" class="msg-image-button"
+                      :aria-label="`预览图片 ${msg.fileName || '聊天图片'}`"
+                      @click="openPreview(msg)">
+                <img :src="'data:image/jpeg;base64,' + msg.thumbnail" class="msg-image"
+                     :alt="msg.fileName || '聊天图片缩略图'" />
+              </button>
+              <button v-else type="button" class="msg-file"
+                      :aria-label="`预览图片 ${msg.fileName || '图片'}`"
+                      @click="openPreview(msg)">
                 📷 {{ msg.fileName || '图片' }}
                 <span class="file-size">{{ formatSize(msg.fileSize) }}</span>
-              </div>
+              </button>
             </template>
 
             <!-- 视频 -->
             <template v-else-if="msg.contentType === 'video' || (msg.contentType === 'file' && isVideoFile(msg.fileName))">
-              <div v-if="msg.fileCleared" class="msg-expired-video" @click="openPreview(msg)"
-                   role="button" tabindex="0" @keydown.enter="openPreview(msg)">
+              <button v-if="msg.fileCleared" type="button" class="msg-expired-video"
+                      :aria-label="`查看已过期视频 ${msg.fileName || '视频'}`"
+                      @click="openPreview(msg)">
                 <div class="expired-icon">🎬</div>
                 <div class="expired-name text-ellipsis">{{ msg.fileName || '视频' }}</div>
                 <div class="expired-text">文件已过期或被清除</div>
-              </div>
-              <div v-else class="msg-video-card" @click="openPreview(msg)" role="button" tabindex="0"
-                   @keydown.enter="openPreview(msg)" @keydown.space.prevent="openPreview(msg)">
+              </button>
+              <button v-else type="button" class="msg-video-card"
+                      :aria-label="`预览视频 ${msg.fileName || '视频'}`"
+                      @click="openPreview(msg)">
                 <img v-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
                      class="video-thumbnail" :alt="`${msg.fileName || '视频'} 缩略图`" />
                 <div v-else class="video-placeholder">
@@ -96,20 +106,20 @@
                   <span class="file-name text-ellipsis">{{ msg.fileName }}</span>
                   <span class="file-size">{{ formatSize(msg.fileSize) }}</span>
                 </div>
-              </div>
+              </button>
             </template>
 
             <!-- 其他文件 -->
             <template v-else-if="msg.contentType === 'file'">
-              <div class="msg-file" :class="{ expired: msg.fileCleared }" @click="openPreview(msg)"
-                   role="button" tabindex="0" @keydown.enter="openPreview(msg)"
-                   @keydown.space.prevent="openPreview(msg)">
+              <button type="button" class="msg-file" :class="{ expired: msg.fileCleared }"
+                      :aria-label="`${msg.fileCleared ? '查看已过期文件' : '预览文件'} ${msg.fileName || '文件'}`"
+                      @click="openPreview(msg)">
                 <div class="file-icon">{{ getFileIcon(msg.fileName) }}</div>
                 <div class="file-info">
                   <div class="file-name text-ellipsis">{{ msg.fileName }}</div>
                   <div class="file-size">{{ msg.fileCleared ? '文件已过期或被清除' : formatSize(msg.fileSize) }}</div>
                 </div>
-              </div>
+              </button>
             </template>
           </div>
 
@@ -117,7 +127,7 @@
           <div class="msg-time" :class="{ 'time-mine': isMine(msg) }">
             {{ formatTime(msg.timestamp) }}
             <span v-if="msg.deliveryState === 'sending'" class="delivery-state"> 发送中…</span>
-            <button v-else-if="msg.deliveryState === 'failed'" class="delivery-retry"
+            <button v-else-if="msg.deliveryState === 'failed'" type="button" class="delivery-retry"
                     @click="chatStore.retryMessage(msg)" aria-label="发送失败，重试这条消息">
               发送失败，点击重试</button>
             <span v-else-if="isMine(msg) && msg.deliveryState === 'read'"
@@ -865,6 +875,14 @@ onUnmounted(() => {
   cursor: pointer;
   display: block;
 }
+.msg-image-button {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
 
 .msg-file {
   display: flex;
@@ -876,6 +894,10 @@ onUnmounted(() => {
   cursor: pointer;
   min-width: 200px;
   transition: background 0.15s;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 .msg-file:hover {
   opacity: 0.85;
@@ -933,6 +955,11 @@ onUnmounted(() => {
   overflow: hidden;
   max-width: 280px;
   background: #000;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 .msg-video-card:hover .video-play-btn {
   transform: translate(-50%, -50%) scale(1.1);
@@ -1002,6 +1029,8 @@ onUnmounted(() => {
   font-size: 13px;
   font-weight: 600;
   padding: 8px;
+  border: 0;
+  font: inherit;
 }
 
 .msg-expired-image {

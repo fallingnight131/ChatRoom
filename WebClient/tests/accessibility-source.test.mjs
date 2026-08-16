@@ -35,7 +35,9 @@ test('announces offline and reconnecting state without relying on icons', () => 
 
 test('supports keyboard access to files, profiles, retry, and message actions', () => {
   assert.match(messages, /<button type="button" class="msg-avatar"/)
-  assert.match(messages, /@keydown\.space\.prevent="openPreview\(msg\)"/)
+  assert.match(messages, /type="button" class="msg-image-button"/)
+  assert.match(messages, /type="button" class="msg-video-card"/)
+  assert.match(messages, /type="button" class="msg-file"/)
   assert.match(messages, /onBubbleKeydown/)
   assert.match(messages, /role="menu" aria-label="消息操作"/)
   assert.match(messages, /role="menuitem" tabindex="0"/)
