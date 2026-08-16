@@ -1,19 +1,23 @@
 <template>
   <Teleport to="body">
-    <div v-if="visible" class="preview-overlay" @click.self="close">
+    <div v-if="visible" ref="dialogRef" class="preview-overlay" role="dialog"
+         aria-modal="true" aria-labelledby="file-preview-title" tabindex="-1"
+         @keydown="onDialogKeydown" @click.self="closeDialog">
       <!-- 顶部栏 -->
       <div class="preview-topbar">
-        <span class="preview-filename text-ellipsis">{{ fileName }}</span>
+        <span id="file-preview-title" class="preview-filename text-ellipsis">{{ fileName }}</span>
         <div class="preview-actions">
-          <button class="preview-btn" @click="download" title="下载">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button type="button" class="preview-btn" @click="download" title="下载"
+                  :aria-label="`下载 ${fileName}`">
+            <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
           </button>
-          <button class="preview-btn" @click="close" title="关闭">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button type="button" class="preview-btn" data-preview-close
+                  @click="closeDialog" title="关闭" aria-label="关闭文件预览">
+            <svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"/>
               <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -22,15 +26,16 @@
       </div>
 
       <!-- 加载动画 -->
-      <div v-if="loading" class="preview-spinner">
-        <div class="spinner"></div>
+      <div v-if="loading" class="preview-spinner" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
         <span>加载中... {{ loadPercent }}</span>
       </div>
 
       <!-- 图片预览 -->
       <div v-else-if="previewType === 'image'" class="preview-content preview-image-wrap"
-           @click.self="close">
+           @click.self="closeDialog">
         <img :src="blobUrl" class="preview-image"
+             :alt="`${fileName} 预览`"
              :style="imageStyle"
              @wheel.prevent="onWheel"
              @mousedown="onDragStart"
@@ -39,41 +44,45 @@
 
       <!-- 视频播放 (DPlayer) -->
       <div v-else-if="previewType === 'video'" class="preview-content preview-video-wrap"
-           @click.self="close">
-        <div ref="dplayerRef" class="dplayer-container"></div>
+           @click.self="closeDialog">
+        <div ref="dplayerRef" class="dplayer-container" role="region"
+             :aria-label="`${fileName} 视频播放器`"></div>
       </div>
 
       <!-- 音频播放 -->
       <div v-else-if="previewType === 'audio'" class="preview-content preview-audio-wrap"
-           @click.self="close">
+           @click.self="closeDialog">
         <div class="audio-card">
           <div class="audio-icon">🎵</div>
           <div class="audio-name">{{ fileName }}</div>
-          <audio :src="blobUrl" controls autoplay class="audio-player"></audio>
+          <audio :src="blobUrl" controls autoplay class="audio-player"
+                 :aria-label="`${fileName} 音频播放器`"></audio>
         </div>
       </div>
 
       <!-- PDF 预览 -->
       <div v-else-if="previewType === 'pdf'" class="preview-content preview-pdf-wrap"
-           @click.self="close">
-        <iframe :src="blobUrl" class="preview-pdf"></iframe>
+           @click.self="closeDialog">
+        <iframe :src="blobUrl" class="preview-pdf" :title="`${fileName} PDF 预览`"></iframe>
       </div>
 
       <!-- 文本预览 -->
       <div v-else-if="previewType === 'text'" class="preview-content preview-text-wrap"
-           @click.self="close">
-        <pre class="preview-text-content">{{ textContent }}</pre>
+           @click.self="closeDialog">
+        <pre class="preview-text-content" tabindex="0"
+             :aria-label="`${fileName} 文本预览`">{{ textContent }}</pre>
       </div>
 
       <!-- 不支持预览 -->
       <div v-else-if="previewType === 'unsupported'" class="preview-content preview-unsupported"
-           @click.self="close">
+           @click.self="closeDialog">
         <div class="unsupported-card">
           <div class="unsupported-icon">📄</div>
           <div class="unsupported-name">{{ fileName }}</div>
           <div class="unsupported-size">{{ formatSize(fileSize) }}</div>
           <div class="unsupported-hint">该文件类型不支持在线预览</div>
-          <button class="unsupported-download-btn" @click="download">⬇ 下载文件</button>
+          <button type="button" class="unsupported-download-btn" @click="download"
+                  :aria-label="`下载 ${fileName}`">⬇ 下载文件</button>
         </div>
       </div>
     </div>
@@ -84,6 +93,7 @@
 import { ref, watch, onUnmounted, nextTick, computed } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE, getHttpDownloadUrl } from '../services/websocket'
+import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 
 const props = defineProps({
   visible: Boolean,
@@ -101,6 +111,12 @@ const previewType = ref('')  // image | video | audio | pdf | text | unsupported
 const fileName = ref('')
 const fileSize = ref(0)
 const dplayerRef = ref(null)
+const previewActive = computed(() => props.visible)
+const { dialogRef, closeDialog, onDialogKeydown } = useModalKeyboardBoundary({
+  active: previewActive,
+  initialFocusSelector: '[data-preview-close]',
+  onClose: () => emit('close'),
+})
 let dpInstance = null
 let _activeChunkHandler = null   // 跟踪大文件预览的chunk handler，用于cleanup时移除
 
@@ -202,10 +218,6 @@ function onDragStart(e) {
   }
   document.addEventListener('mousemove', onMove)
   document.addEventListener('mouseup', onUp)
-}
-
-function close() {
-  emit('close')
 }
 
 function download() {
@@ -469,17 +481,9 @@ watch(() => props.visible, (v) => {
   }
 })
 
-// ESC 关闭
-function onKeydown(e) {
-  if (e.key === 'Escape' && props.visible) close()
-}
-if (typeof document !== 'undefined') {
-  document.addEventListener('keydown', onKeydown)
-}
 onUnmounted(() => {
   cleanup()
   document.body.style.overflow = ''
-  document.removeEventListener('keydown', onKeydown)
 })
 </script>
 

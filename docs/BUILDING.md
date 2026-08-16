@@ -2288,6 +2288,11 @@ authorization, size, or message-delivery tests.
 named collapse relationship, task-list semantics, file-specific progress, and
 native filename-specific pause/resume/cancel actions. This source gate does not
 claim resumability after page loss or replace transport/storage verification.
+`filePreviewAccessibility.test.mjs` locks the shared conditional modal boundary,
+Close initial focus, local Escape handling, trigger restoration, native named
+download/close actions, announced loading, and file-specific labels for image,
+video, audio, PDF, and text surfaces. It does not replace content-type, grant,
+fetch, decoding, or blob-cleanup tests.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

@@ -1076,6 +1076,11 @@ The floating V1 Web download manager is now a named collapsible region and
 list. Each task exposes a filename-specific progress value, visible downloading
 or paused state, and native filename-specific pause/resume/cancel actions. The
 existing in-memory chunk assembly and transport lifecycle are unchanged.
+The V1 Web file preview now uses the shared conditional modal keyboard boundary:
+its named dialog focuses Close, contains Tab, handles Escape locally, and
+restores the invoking message control. Download/close actions and image, video,
+audio, PDF, and text surfaces expose file-specific names, while loading is
+announced. File grants, fetching, decoding, and cleanup behavior are unchanged.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

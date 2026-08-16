@@ -2334,6 +2334,8 @@ Candidate slices:
     password text on collapse and dialog exit.
   - [x] Expose the V1 Web download manager as a named collapsible task list with
     file-specific progress, textual state, and native pause/resume/cancel actions.
+  - [x] Contain the V1 Web file preview in the shared conditional modal boundary
+    and name its actions, loading state, and embedded media/document surfaces.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
