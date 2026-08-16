@@ -2368,6 +2368,8 @@ Candidate slices:
     preserving the shared ordering and roving keyboard interaction.
   - [x] Migrate Web V1 timeline landmarks, sender/recall summaries, delivery
     states, new-message history feedback, and copy announcements.
+  - [x] Migrate Web V1 image/video/file cards, preview names, expiry states,
+    and local expired-file preview/download/forward denials.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

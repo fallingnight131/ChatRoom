@@ -1999,8 +1999,11 @@ roving keyboard behavior stay unchanged. The message timeline is split into
 smaller slices. Its first core-semantics slice is now migrated: log/loading landmarks,
 recall and sender/profile descriptions, delivery/retry/read states, bounded new-
 message history feedback, copy announcements, and compound message summaries
-use catalog-owned punctuation. Attachment cards and the message action menu
-remain later slices.
+use catalog-owned punctuation. The attachment-card slice is now migrated: image/video/file
+defaults, preview action names, thumbnails, expiry presentation, and local
+expired-file preview/download/forward denials use catalog keys. File metadata,
+authorization, byte lifecycle, and transport behavior are unchanged; the action
+menu and preview dialog remain separate slices.
 
 ### Product consistency
 

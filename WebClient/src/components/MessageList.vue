@@ -58,28 +58,28 @@
             <!-- 图片 -->
             <template v-else-if="msg.contentType === 'image'">
               <button v-if="msg.fileCleared" type="button" class="msg-expired-image"
-                      :aria-label="`查看已过期图片 ${msg.fileName || '图片'}`"
+                      :aria-label="`${attachmentMessages.expiredImagePrefix}${msg.fileName || attachmentMessages.image}`"
                       @click="openPreview(msg)">
                 <div class="expired-icon">📷</div>
-                <div class="expired-name text-ellipsis">{{ msg.fileName || '图片' }}</div>
-                <div class="expired-text">文件已过期或被清除</div>
+                <div class="expired-name text-ellipsis">{{ msg.fileName || attachmentMessages.image }}</div>
+                <div class="expired-text">{{ attachmentMessages.expired }}</div>
               </button>
               <button v-else-if="msg.imageData" type="button" class="msg-image-button"
-                      :aria-label="`预览图片 ${msg.fileName || '聊天图片'}`"
+                      :aria-label="`${attachmentMessages.previewImagePrefix}${msg.fileName || attachmentMessages.chatImage}`"
                       @click="openPreview(msg)">
                 <img :src="'data:image/png;base64,' + msg.imageData" class="msg-image"
-                     :alt="msg.fileName || '聊天图片'" />
+                     :alt="msg.fileName || attachmentMessages.chatImage" />
               </button>
               <button v-else-if="msg.thumbnail" type="button" class="msg-image-button"
-                      :aria-label="`预览图片 ${msg.fileName || '聊天图片'}`"
+                      :aria-label="`${attachmentMessages.previewImagePrefix}${msg.fileName || attachmentMessages.chatImage}`"
                       @click="openPreview(msg)">
                 <img :src="'data:image/jpeg;base64,' + msg.thumbnail" class="msg-image"
-                     :alt="msg.fileName || '聊天图片缩略图'" />
+                     :alt="msg.fileName || attachmentMessages.imageThumbnail" />
               </button>
               <button v-else type="button" class="msg-file"
-                      :aria-label="`预览图片 ${msg.fileName || '图片'}`"
+                      :aria-label="`${attachmentMessages.previewImagePrefix}${msg.fileName || attachmentMessages.image}`"
                       @click="openPreview(msg)">
-                📷 {{ msg.fileName || '图片' }}
+                📷 {{ msg.fileName || attachmentMessages.image }}
                 <span class="file-size">{{ formatSize(msg.fileSize) }}</span>
               </button>
             </template>
@@ -87,17 +87,17 @@
             <!-- 视频 -->
             <template v-else-if="msg.contentType === 'video' || (msg.contentType === 'file' && isVideoFile(msg.fileName))">
               <button v-if="msg.fileCleared" type="button" class="msg-expired-video"
-                      :aria-label="`查看已过期视频 ${msg.fileName || '视频'}`"
+                      :aria-label="`${attachmentMessages.expiredVideoPrefix}${msg.fileName || attachmentMessages.video}`"
                       @click="openPreview(msg)">
                 <div class="expired-icon">🎬</div>
-                <div class="expired-name text-ellipsis">{{ msg.fileName || '视频' }}</div>
-                <div class="expired-text">文件已过期或被清除</div>
+                <div class="expired-name text-ellipsis">{{ msg.fileName || attachmentMessages.video }}</div>
+                <div class="expired-text">{{ attachmentMessages.expired }}</div>
               </button>
               <button v-else type="button" class="msg-video-card"
-                      :aria-label="`预览视频 ${msg.fileName || '视频'}`"
+                      :aria-label="`${attachmentMessages.previewVideoPrefix}${msg.fileName || attachmentMessages.video}`"
                       @click="openPreview(msg)">
                 <img v-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
-                     class="video-thumbnail" :alt="`${msg.fileName || '视频'} 缩略图`" />
+                     class="video-thumbnail" :alt="`${msg.fileName || attachmentMessages.video}${attachmentMessages.thumbnailSuffix}`" />
                 <div v-else class="video-placeholder">
                   <span>🎬</span>
                 </div>
@@ -112,12 +112,12 @@
             <!-- 其他文件 -->
             <template v-else-if="msg.contentType === 'file'">
               <button type="button" class="msg-file" :class="{ expired: msg.fileCleared }"
-                      :aria-label="`${msg.fileCleared ? '查看已过期文件' : '预览文件'} ${msg.fileName || '文件'}`"
+                      :aria-label="`${msg.fileCleared ? attachmentMessages.expiredFilePrefix : attachmentMessages.previewFilePrefix}${msg.fileName || attachmentMessages.file}`"
                       @click="openPreview(msg)">
                 <div class="file-icon">{{ getFileIcon(msg.fileName) }}</div>
                 <div class="file-info">
                   <div class="file-name text-ellipsis">{{ msg.fileName }}</div>
-                  <div class="file-size">{{ msg.fileCleared ? '文件已过期或被清除' : formatSize(msg.fileSize) }}</div>
+                  <div class="file-size">{{ msg.fileCleared ? attachmentMessages.expired : formatSize(msg.fileSize) }}</div>
                 </div>
               </button>
             </template>
@@ -247,11 +247,12 @@ import ForwardDialog from './ForwardDialog.vue'
 import { calculateVirtualWindow } from '../ui/virtualWindow'
 import { copyMessageText } from '../messaging/copyMessageText'
 import { addPendingNewMessages } from '../messaging/newMessageIndicator'
-import { messageTimelineMessages } from '../localization/webLocale'
+import { messageAttachmentMessages, messageTimelineMessages } from '../localization/webLocale'
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
 const messages = computed(() => messageTimelineMessages(userStore.locale))
+const attachmentMessages = computed(() => messageAttachmentMessages(userStore.locale))
 const openUserInfo = inject('openUserInfo')
 const hashColor = inject('hashColor')
 
@@ -411,7 +412,7 @@ function getFileIcon(fileName) {
 
 function openPreview(msg) {
   if (msg?.fileCleared) {
-    alert('文件已过期或被清除，无法预览')
+    alert(attachmentMessages.value.cannotPreview)
     return
   }
   previewMsgData.value = msg
@@ -461,7 +462,7 @@ function previewFromMenu(msg) {
 function downloadFromMenu(msg) {
   contextMenu.value.show = false
   if (msg?.fileCleared) {
-    alert('文件已过期或被清除，无法下载')
+    alert(attachmentMessages.value.cannotDownload)
     return
   }
   if (msg && msg.fileId) {
@@ -485,7 +486,7 @@ async function forwardFromMenu(msg) {
   if (!msg) return
 
   if (isFileType(msg) && msg.fileCleared) {
-    alert('文件已过期或被清除，Web 端不支持转发')
+    alert(attachmentMessages.value.cannotForward)
     return
   }
   forwardSourceMsg.value = msg

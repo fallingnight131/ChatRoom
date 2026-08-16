@@ -331,6 +331,29 @@ const messageTimelineCatalog = {
   },
 } as const;
 
+const messageAttachmentCatalog = {
+  "zh-CN": {
+    image: "图片", chatImage: "聊天图片", imageThumbnail: "聊天图片缩略图",
+    video: "视频", file: "文件", thumbnailSuffix: " 缩略图",
+    expiredImagePrefix: "查看已过期图片 ", previewImagePrefix: "预览图片 ",
+    expiredVideoPrefix: "查看已过期视频 ", previewVideoPrefix: "预览视频 ",
+    expiredFilePrefix: "查看已过期文件 ", previewFilePrefix: "预览文件 ",
+    expired: "文件已过期或被清除", cannotPreview: "文件已过期或被清除，无法预览",
+    cannotDownload: "文件已过期或被清除，无法下载",
+    cannotForward: "文件已过期或被清除，Web 端不支持转发",
+  },
+  "en-US": {
+    image: "Image", chatImage: "Chat image", imageThumbnail: "Chat image thumbnail",
+    video: "Video", file: "File", thumbnailSuffix: " thumbnail",
+    expiredImagePrefix: "View expired image: ", previewImagePrefix: "Preview image: ",
+    expiredVideoPrefix: "View expired video: ", previewVideoPrefix: "Preview video: ",
+    expiredFilePrefix: "View expired file: ", previewFilePrefix: "Preview file: ",
+    expired: "File expired or was removed", cannotPreview: "This file expired or was removed and cannot be previewed.",
+    cannotDownload: "This file expired or was removed and cannot be downloaded.",
+    cannotForward: "This file expired or was removed and cannot be forwarded on Web.",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -389,6 +412,10 @@ export function emojiPickerMessages(locale: WebLocale) {
 
 export function messageTimelineMessages(locale: WebLocale) {
   return messageTimelineCatalog[locale];
+}
+
+export function messageAttachmentMessages(locale: WebLocale) {
+  return messageAttachmentCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

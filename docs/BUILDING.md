@@ -86,8 +86,11 @@ browser journey opens the localized emoji dialog, verifies its named grid, and
 closes it with Escape; source tests retain the existing roving-focus contract.
 It also verifies the localized V1 message-log landmark. Source tests bind
 loading, recall, delivery/retry/read states, bounded history feedback, copy
-announcements, and compound article summaries to catalog keys; attachment cards
-and the context menu remain separate localization slices.
+announcements, and compound article summaries to catalog keys. Attachment
+source tests now cover catalog-backed image/video/file defaults, action names,
+thumbnails, expiry state, and local expired-file denials. The browser suite is
+a regression gate here; its fixture does not claim attachment-byte coverage.
+The context menu remains a separate localization slice.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

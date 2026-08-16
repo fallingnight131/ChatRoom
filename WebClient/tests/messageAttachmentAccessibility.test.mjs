@@ -7,16 +7,28 @@ const source = readFileSync(new URL('../src/components/MessageList.vue', import.
 test('uses named native controls for every attachment preview state', () => {
   for (const marker of [
     'type="button" class="msg-expired-image"',
-    ':aria-label="`查看已过期图片 ${msg.fileName || \'图片\'}`"',
+    'attachmentMessages.expiredImagePrefix',
     'type="button" class="msg-image-button"',
-    ':aria-label="`预览图片 ${msg.fileName || \'聊天图片\'}`"',
+    'attachmentMessages.previewImagePrefix',
     'type="button" class="msg-expired-video"',
-    ':aria-label="`查看已过期视频 ${msg.fileName || \'视频\'}`"',
+    'attachmentMessages.expiredVideoPrefix',
     'type="button" class="msg-video-card"',
-    ':aria-label="`预览视频 ${msg.fileName || \'视频\'}`"',
+    'attachmentMessages.previewVideoPrefix',
     'type="button" class="msg-file"',
-    "${msg.fileCleared ? '查看已过期文件' : '预览文件'}",
+    'msg.fileCleared ? attachmentMessages.expiredFilePrefix : attachmentMessages.previewFilePrefix',
   ]) assert.ok(source.includes(marker), `missing attachment-action marker: ${marker}`)
+})
+
+test('renders attachment defaults, expiry state, and local denials from the live catalog', () => {
+  for (const marker of [
+    'messageAttachmentMessages(userStore.locale)',
+    '{{ attachmentMessages.expired }}',
+    'attachmentMessages.imageThumbnail',
+    'attachmentMessages.thumbnailSuffix',
+    'attachmentMessages.value.cannotPreview',
+    'attachmentMessages.value.cannotDownload',
+    'attachmentMessages.value.cannotForward',
+  ]) assert.ok(source.includes(marker), `missing attachment locale marker: ${marker}`)
 })
 
 test('does not recreate native button keyboard behavior on attachment cards', () => {
