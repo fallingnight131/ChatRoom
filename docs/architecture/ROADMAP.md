@@ -2292,6 +2292,8 @@ Candidate slices:
     Escape dismissal with focus restoration to the invoking message.
   - [x] Preserve Web history reading position while exposing a bounded,
     accessible new-message counter and keyboard-operable jump to the live tail.
+  - [x] Add equivalent Web V2 tail following using stable message/client IDs and
+    server sequences without counting initial history or search-context repair.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

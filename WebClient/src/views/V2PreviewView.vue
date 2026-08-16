@@ -114,7 +114,9 @@
               加载更多结果
             </button>
           </section>
-          <ol class="message-list" role="log" aria-live="polite"
+          <div class="message-timeline">
+          <ol ref="messageListRef" class="message-list" role="log" aria-live="polite"
+              tabindex="-1" @scroll="onMessageListScroll"
               :aria-busy="snapshot.historyLoading" aria-label="消息记录">
             <li v-for="message in snapshot.messages" :key="message.id || message.clientMessageId"
                 :id="message.id ? `v2-message-${message.id}` : undefined" tabindex="-1"
@@ -222,6 +224,15 @@
               </div>
             </li>
           </ol>
+          <button v-if="pendingNewMessages" class="new-message-jump" type="button"
+                  :aria-label="`${pendingNewMessagesLabel}，回到最新消息`"
+                  @click="revealNewMessages">
+            {{ pendingNewMessagesLabel }} ↓
+          </button>
+          <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
+            {{ pendingNewMessages ? `${pendingNewMessagesLabel}，当前仍在阅读历史消息` : '' }}
+          </p>
+          </div>
           <form class="composer" @submit.prevent="sendMessage">
             <div v-if="replyTarget" class="composer-reply" role="status">
               <div>
@@ -358,6 +369,8 @@ import { V2_RUNTIME_KEY } from '../application/v2RuntimeKey'
 import { MessageReactionKind } from '../protocol/v2/generated/messaging_pb'
 import { messageTextBudget, messageTextBudgetLabel } from '../messaging/messageTextBudget.js'
 import { copyMessageText } from '../messaging/copyMessageText.js'
+import { addPendingNewMessages, pendingNewMessageLabel } from '../messaging/newMessageIndicator.js'
+import { classifyV2TailUpdate } from '../messaging/v2TailActivity'
 import {
   anchorsFromMentionSpans,
   insertMention,
@@ -374,6 +387,10 @@ const searchDraft = ref('')
 const searchOpen = ref(false)
 const actionError = ref('')
 const copyAnnouncement = ref('')
+const messageListRef = ref(null)
+const followingMessageTail = ref(true)
+const pendingNewMessages = ref(0)
+const pendingNewMessagesLabel = computed(() => pendingNewMessageLabel(pendingNewMessages.value))
 const replyTarget = ref(null)
 const editingMessageId = ref(null)
 const editDraft = ref('')
@@ -436,10 +453,47 @@ function attachRuntime(runtime) {
   if (!runtime?.enabled || runtime.application === startedApplication) return
   startedApplication = runtime.application
   unsubscribe = runtime.application.subscribe(next => {
+    const previous = snapshot.value
+    const tailUpdate = classifyV2TailUpdate(previous, next)
     snapshot.value = next
+    nextTick(() => {
+      if (snapshot.value.activeConversationId !== next.activeConversationId) return
+      if (tailUpdate.conversationChanged) {
+        followingMessageTail.value = true
+        pendingNewMessages.value = 0
+        scrollMessageListToTail()
+      } else if (tailUpdate.additions > 0) {
+        if (followingMessageTail.value) scrollMessageListToTail()
+        else pendingNewMessages.value = addPendingNewMessages(
+          pendingNewMessages.value, tailUpdate.additions)
+      }
+    })
     if (next.session || next.lastFailure || next.connectionState !== 'connected') authenticationPending.value = false
   })
   runtime.application.start()
+}
+
+function onMessageListScroll() {
+  const element = messageListRef.value
+  if (!element) return
+  followingMessageTail.value = element.scrollHeight - element.scrollTop - element.clientHeight < 80
+  if (followingMessageTail.value) pendingNewMessages.value = 0
+}
+
+function scrollMessageListToTail() {
+  nextTick(() => {
+    const element = messageListRef.value
+    if (!element) return
+    element.scrollTop = element.scrollHeight
+    followingMessageTail.value = true
+    pendingNewMessages.value = 0
+  })
+}
+
+function revealNewMessages() {
+  pendingNewMessages.value = 0
+  scrollMessageListToTail()
+  nextTick(() => messageListRef.value?.focus({ preventScroll: true }))
 }
 
 function login() {
@@ -903,7 +957,10 @@ onUnmounted(() => {
 .search-results { max-height: 240px; overflow-y: auto; display: grid; gap: 4px; list-style: none; }
 .search-results button { width: 100%; padding: 9px 10px; display: grid; gap: 3px; border: 0; border-radius: 8px; text-align: left; color: var(--text-primary); background: var(--bg-primary); cursor: pointer; }
 .search-results button:hover, .search-results button:focus-visible { background: var(--bg-hover); }.search-results span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }.search-results small { color: var(--text-secondary); }
-.message-list { flex: 1; overflow-y: auto; padding: 20px; list-style: none; }
+.message-timeline { position: relative; flex: 1; min-height: 0; }
+.message-list { height: 100%; box-sizing: border-box; overflow-y: auto; padding: 20px; list-style: none; }
+.new-message-jump { position: absolute; right: 20px; bottom: 14px; z-index: 4; padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-link); background: var(--bg-secondary); box-shadow: var(--shadow-md); cursor: pointer; }
+.new-message-jump:hover, .new-message-jump:focus-visible { background: var(--bg-hover); }
 .message-row:focus { outline: 2px solid var(--accent); outline-offset: 3px; }
 .message-row { display: flex; margin-bottom: 12px; }.message-row.mine { justify-content: flex-end; }
 .bubble { max-width: min(70%, 680px); padding: 10px 12px; border-radius: 12px; background: var(--bg-bubble-other); box-shadow: var(--shadow); }

@@ -961,6 +961,13 @@ without changing server read state, while history prepends continue through the
 existing scroll anchor and are not counted. Returning to the bottom, switching
 conversation, or activating the accessible jump clears the counter; keyboard
 activation restores focus to the message log after scrolling.
+Web V2 now applies the same user-facing tail behavior through its own snapshot
+boundary. It recognizes a server message only when an unknown stable ID has a
+sequence above the previously known tail, recognizes local optimistic sends by
+client message ID, and does not count the later authoritative ACK twice. Initial
+history and search-context repair are suppressed, while genuine reconnect tail
+additions above an existing cursor remain eligible. The count is local-only and
+does not mutate read state, cache contents, or synchronization cursors.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,
