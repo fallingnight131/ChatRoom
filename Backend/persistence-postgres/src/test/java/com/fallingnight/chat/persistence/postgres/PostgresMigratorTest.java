@@ -223,7 +223,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(52, first.migrate());
+        assertEquals(53, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -259,8 +259,17 @@ class PostgresMigratorTest {
                             "message_edit_operation", "message_edit_event",
                             "message_mention", "message_edit_event_mention",
                             "message_forward_request", "conversation_event_outbox",
-                            "account_block", "account_block_operation"),
+                            "account_block", "account_block_operation",
+                            "web_push_subscription", "web_push_notification_outbox"),
                     applicationTables(connection));
+            assertEquals(2, count("SELECT count(*) FROM pg_indexes "
+                    + "WHERE schemaname = 'chat' AND indexname IN ("
+                    + "'web_push_notification_outbox_available_idx', "
+                    + "'web_push_notification_outbox_retention_idx')"));
+            assertEquals(2, count("SELECT count(*) FROM pg_constraint "
+                    + "WHERE connamespace = 'chat'::regnamespace AND conname IN ("
+                    + "'web_push_subscription_endpoint_unique', "
+                    + "'web_push_notification_lifetime')"));
             assertEquals(11, count("SELECT count(*) FROM pg_constraint "
                     + "WHERE connamespace = 'chat'::regnamespace "
                     + "AND conrelid = 'chat.conversation_event_outbox'::regclass"));

@@ -110,6 +110,17 @@ final class WebPushApplicationBoundaryTest {
                 committedAt,
                 committedAt.plusSeconds(60),
                 Set.of(ACCOUNT_ID)));
+        var tooManyMentions = new java.util.HashSet<UUID>();
+        for (int index = 0; index <= WebPushNotificationIntent.MAX_MENTIONED_ACCOUNTS; index++) {
+            tooManyMentions.add(new UUID(1, index));
+        }
+        assertThrows(IllegalArgumentException.class, () -> new WebPushNotificationIntent(
+                MESSAGE_ID,
+                CONVERSATION_ID,
+                ACCOUNT_ID,
+                committedAt,
+                committedAt.plusSeconds(60),
+                tooManyMentions));
     }
 
     private static WebPushSubscriptionCredentials credentials(

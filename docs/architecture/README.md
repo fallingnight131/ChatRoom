@@ -1969,7 +1969,10 @@ owned/zeroed credential model, canonical HTTPS and browser-key bounds, and a
 payload-free notification intent whose lifetime cannot exceed 24 hours. Nothing
 calls these ports yet: PostgreSQL adapters, message-acceptance composition, HTTP,
 provider worker, and the exact-gated Service Worker remain unimplemented and
-default-off.
+default-off. Migration V053 expands PostgreSQL with ciphertext-only browser
+subscriptions, a keyed endpoint lookup tag, and a payload-free notification
+outbox whose expiry, claim lifecycle, mention cardinality, and retention indexes
+are database constrained. No adapter writes either table yet.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

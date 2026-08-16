@@ -16,7 +16,7 @@ public record WebPushNotificationIntent(
         Instant expiresAt,
         Set<UUID> mentionedAccountIds) {
     public static final Duration MAX_LIFETIME = Duration.ofHours(24);
-    public static final int MAX_MENTIONED_ACCOUNTS = 100;
+    public static final int MAX_MENTIONED_ACCOUNTS = 20;
 
     public WebPushNotificationIntent {
         Objects.requireNonNull(messageId, "messageId");

@@ -1447,6 +1447,10 @@ payload-free outbox identity, the 24-hour event lifetime cap, and the explicit
 default-disabled policy. It does not compose message acceptance or prove
 PostgreSQL encryption, HTTP authorization, provider delivery, browser Service
 Workers, or production activation.
+Migration V053 adds only Web Push storage shape. The normal PostgreSQL gate
+checks clean migration, same-database restart, table/constraint/index presence,
+and Flyway checksums; passing it does not prove that ciphertext came from a
+production key service because no subscription or outbox adapter is composed.
 The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility

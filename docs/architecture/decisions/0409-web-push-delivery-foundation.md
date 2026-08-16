@@ -111,6 +111,9 @@ acceptance, stall synchronization, or reduce gateway readiness.
   callback-copy zeroing, redacted rendering, canonical HTTPS/P-256/auth bounds,
   stable message identity, a 24-hour maximum event lifetime, and an explicit
   default-disabled policy. It intentionally has no runtime composition.
+- Migration V053 is the expand-only storage step: it accepts ciphertext-only
+  subscription columns and a keyed endpoint lookup tag, and constrains the
+  payload-free outbox lifetime/claim/retention shape. No writer is composed yet.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

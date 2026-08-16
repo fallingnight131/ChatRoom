@@ -2402,6 +2402,12 @@ Candidate slices:
     message acceptance, PostgreSQL, HTTP, provider, and Web UI remain uncomposed.
   - [ ] Add encrypted PostgreSQL subscriptions and a transactionally produced,
     bounded notification outbox with retention and concurrent claim evidence.
+    - [x] Expand the schema with ciphertext-only subscriptions, a keyed endpoint
+      lookup tag, and payload-free 24-hour outbox/claim/retention constraints.
+    - [ ] Add protected subscription replacement/erasure adapters and explicit
+      production key-custody/rotation composition.
+    - [ ] Produce the outbox in the new-message transaction and prove bounded
+      concurrent claims, idempotent replay, expiry, retention, and rollback.
   - [ ] Add authenticated HTTP subscription management and a bounded provider
     worker with current-policy reauthorization and secret-free observability.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
