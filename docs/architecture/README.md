@@ -2077,6 +2077,15 @@ a newly created browser subscription. Disable deletes server state before local
 unsubscribe, preserving the local subscription when server authority refuses
 the mutation. Operations are serialized and expose only fixed UI states. No
 credential provider, fetch adapter, global registration, or view is composed.
+The Web subscription HTTP adapter now requires a short-lived credential lease
+for every replace/delete and never accepts a stored credential. It validates the
+installation, canonical HTTPS endpoint, browser expiration, uncompressed P-256
+key and 16-byte auth secret before acquiring credentials. Fetch is pinned to the
+exact HTTPS origin and stable installation path with omitted ambient
+credentials, same-origin mode, no redirects, no cache, and no referrer. Only
+fixed HTTP outcomes and bounded Retry-After metadata escape; response bodies are
+cancelled and never reflected. The HTTP credential issuer remains absent, so
+this adapter cannot be composed in the product yet.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

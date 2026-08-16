@@ -157,6 +157,11 @@ acceptance, stall synchronization, or reduce gateway readiness.
   state is rolled back on upload failure. Disable deletes server authority first
   and only then unsubscribes locally. Fetch credentials, global entry, and UI
   remain uncomposed.
+- The detached Web HTTP adapter acquires bearer/CSRF only through one short-lived
+  lease per mutation, validates the subscription before that lease, and pins a
+  credential-omitting, no-redirect/no-cache/no-referrer request to the exact
+  HTTPS product origin. It exposes fixed outcomes, discards response bodies, and
+  has no credential issuer or product composition.
 - PostgreSQL recipient resolution now starts from the exact committed message,
   rechecks current membership/account/bilateral-block/recall truth, and returns
   a complete ordered result or explicit saturation. Active subscription reads

@@ -1536,6 +1536,12 @@ subscription order, defensive VAPID key copying, authenticated-port upload,
 new-subscription rollback, serialized state, and server-first disable. The
 production build remains free of active Web Push composition until the separate
 gate and entry are added.
+The same Web suite covers the authenticated subscription HTTP adapter. It proves
+one credential lease per mutation, exact same-origin HTTPS routing, omitted
+ambient credentials, redirect/cache/referrer denial, canonical endpoint and key
+validation before fetch, account-free JSON, fixed status/Retry-After mapping,
+and response-body suppression. Fixture bearer/CSRF values are not a token issuer
+or production authentication claim.
 The disposable PostgreSQL gate also verifies current Web Push recipient policy:
 complete ordered results or explicit saturation, sender/block/disabled-member
 exclusion, durable mention classification, recall suppression, active-only

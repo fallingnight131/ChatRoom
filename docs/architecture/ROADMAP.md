@@ -2460,8 +2460,12 @@ Candidate slices:
       disabled-build key/installation requirement, user-gesture permission,
       defensive VAPID key copies, server-upload rollback, server-first disable,
       serialized mutations, and fixed UI states.
-    - [ ] Add the gated global worker entry, short-lived authenticated HTTP
-      adapter, localized UI, and browser evidence.
+    - [x] Add the same-origin HTTPS subscription HTTP adapter with one short-
+      lived bearer/CSRF credential lease per mutation, local subscription/key
+      validation, hardened fetch options, fixed status mapping, retry metadata,
+      and response-body disposal without diagnostic reflection.
+    - [ ] Add the gated global worker entry, HTTP credential issuer/runtime
+      composition, localized UI, and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes:
