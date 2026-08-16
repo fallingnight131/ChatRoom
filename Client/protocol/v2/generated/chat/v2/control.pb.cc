@@ -649,7 +649,7 @@ const char descriptor_table_protodef_chat_2fv2_2fcontrol_2eproto[] ABSL_ATTRIBUT
     "capabilities\030\005 \003(\0162\031.chat.v2.ClientCapab"
     "ility\"b\n\rProtocolError\022(\n\004code\030\001 \001(\0162\032.c"
     "hat.v2.ProtocolErrorCode\022\024\n\014safe_message"
-    "\030\002 \001(\t\022\021\n\tretryable\030\003 \001(\010*\250\r\n\013MessageTyp"
+    "\030\002 \001(\t\022\021\n\tretryable\030\003 \001(\010*\215\016\n\013MessageTyp"
     "e\022\034\n\030MESSAGE_TYPE_UNSPECIFIED\020\000\022\035\n\031MESSA"
     "GE_TYPE_CLIENT_HELLO\020\001\022\035\n\031MESSAGE_TYPE_S"
     "ERVER_HELLO\020\002\022\037\n\033MESSAGE_TYPE_PROTOCOL_E"
@@ -692,39 +692,43 @@ const char descriptor_table_protodef_chat_2fv2_2fcontrol_2eproto[] ABSL_ATTRIBUT
     "E_DEVICE\020\204\001\022 \n\033MESSAGE_TYPE_DEVICE_REVOK"
     "ED\020\205\001\022%\n MESSAGE_TYPE_LIST_ACCOUNT_BLOCK"
     "S\020\206\001\022.\n)MESSAGE_TYPE_ACCOUNT_BLOCK_DIREC"
-    "TORY_PAGE\020\207\001*g\n\016ClientPlatform\022\037\n\033CLIENT"
-    "_PLATFORM_UNSPECIFIED\020\000\022\027\n\023CLIENT_PLATFO"
-    "RM_WEB\020\001\022\033\n\027CLIENT_PLATFORM_WINDOWS\020\002*\307\002"
-    "\n\020ClientCapability\022!\n\035CLIENT_CAPABILITY_"
-    "UNSPECIFIED\020\000\022\'\n#CLIENT_CAPABILITY_MESSA"
-    "GE_REACTIONS\020\001\022\"\n\036CLIENT_CAPABILITY_MESS"
-    "AGE_PINS\020\002\022#\n\037CLIENT_CAPABILITY_MESSAGE_"
-    "EDITS\020\003\022&\n\"CLIENT_CAPABILITY_MESSAGE_MEN"
-    "TIONS\020\004\022(\n$CLIENT_CAPABILITY_MESSAGE_FOR"
-    "WARDING\020\005\022$\n CLIENT_CAPABILITY_MESSAGE_S"
-    "EARCH\020\006\022&\n\"CLIENT_CAPABILITY_ACCOUNT_BLO"
-    "CKING\020\007*\250\004\n\021ProtocolErrorCode\022#\n\037PROTOCO"
-    "L_ERROR_CODE_UNSPECIFIED\020\000\022+\n\'PROTOCOL_E"
-    "RROR_CODE_UNSUPPORTED_VERSION\020\001\0220\n,PROTO"
-    "COL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE\020"
-    "\002\022\'\n#PROTOCOL_ERROR_CODE_INVALID_PAYLOAD"
-    "\020\003\022%\n!PROTOCOL_ERROR_CODE_INVALID_STATE\020"
-    "\004\022$\n PROTOCOL_ERROR_CODE_RATE_LIMITED\020\005\022"
-    "&\n\"PROTOCOL_ERROR_CODE_INTERNAL_ERROR\020\006\022"
-    ",\n(PROTOCOL_ERROR_CODE_IDEMPOTENCY_CONFL"
-    "ICT\020\007\022&\n\"PROTOCOL_ERROR_CODE_NOT_AUTHORI"
-    "ZED\020\010\0221\n-PROTOCOL_ERROR_CODE_MESSAGE_REV"
-    "ISION_CONFLICT\020\t\0223\n/PROTOCOL_ERROR_CODE_"
-    "MESSAGE_EDIT_WINDOW_EXPIRED\020\n\0223\n/PROTOCO"
-    "L_ERROR_CODE_MESSAGE_EDIT_REVISION_LIMIT"
-    "\020\013B4\n!com.fallingnight.chat.protocol.v2B"
-    "\rControlSchemaP\001b\006proto3"
+    "TORY_PAGE\020\207\001\0220\n+MESSAGE_TYPE_ISSUE_WEB_P"
+    "USH_HTTP_CREDENTIAL\020\210\001\0221\n,MESSAGE_TYPE_W"
+    "EB_PUSH_HTTP_CREDENTIAL_ISSUED\020\211\001*g\n\016Cli"
+    "entPlatform\022\037\n\033CLIENT_PLATFORM_UNSPECIFI"
+    "ED\020\000\022\027\n\023CLIENT_PLATFORM_WEB\020\001\022\033\n\027CLIENT_"
+    "PLATFORM_WINDOWS\020\002*\367\002\n\020ClientCapability\022"
+    "!\n\035CLIENT_CAPABILITY_UNSPECIFIED\020\000\022\'\n#CL"
+    "IENT_CAPABILITY_MESSAGE_REACTIONS\020\001\022\"\n\036C"
+    "LIENT_CAPABILITY_MESSAGE_PINS\020\002\022#\n\037CLIEN"
+    "T_CAPABILITY_MESSAGE_EDITS\020\003\022&\n\"CLIENT_C"
+    "APABILITY_MESSAGE_MENTIONS\020\004\022(\n$CLIENT_C"
+    "APABILITY_MESSAGE_FORWARDING\020\005\022$\n CLIENT"
+    "_CAPABILITY_MESSAGE_SEARCH\020\006\022&\n\"CLIENT_C"
+    "APABILITY_ACCOUNT_BLOCKING\020\007\022.\n*CLIENT_C"
+    "APABILITY_WEB_PUSH_HTTP_CREDENTIAL\020\010*\250\004\n"
+    "\021ProtocolErrorCode\022#\n\037PROTOCOL_ERROR_COD"
+    "E_UNSPECIFIED\020\000\022+\n\'PROTOCOL_ERROR_CODE_U"
+    "NSUPPORTED_VERSION\020\001\0220\n,PROTOCOL_ERROR_C"
+    "ODE_UNSUPPORTED_MESSAGE_TYPE\020\002\022\'\n#PROTOC"
+    "OL_ERROR_CODE_INVALID_PAYLOAD\020\003\022%\n!PROTO"
+    "COL_ERROR_CODE_INVALID_STATE\020\004\022$\n PROTOC"
+    "OL_ERROR_CODE_RATE_LIMITED\020\005\022&\n\"PROTOCOL"
+    "_ERROR_CODE_INTERNAL_ERROR\020\006\022,\n(PROTOCOL"
+    "_ERROR_CODE_IDEMPOTENCY_CONFLICT\020\007\022&\n\"PR"
+    "OTOCOL_ERROR_CODE_NOT_AUTHORIZED\020\010\0221\n-PR"
+    "OTOCOL_ERROR_CODE_MESSAGE_REVISION_CONFL"
+    "ICT\020\t\0223\n/PROTOCOL_ERROR_CODE_MESSAGE_EDI"
+    "T_WINDOW_EXPIRED\020\n\0223\n/PROTOCOL_ERROR_COD"
+    "E_MESSAGE_EDIT_REVISION_LIMIT\020\013B4\n!com.f"
+    "allingnight.chat.protocol.v2B\rControlSch"
+    "emaP\001b\006proto3"
 };
 static ::absl::once_flag descriptor_table_chat_2fv2_2fcontrol_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_chat_2fv2_2fcontrol_2eproto = {
     false,
     false,
-    3304,
+    3453,
     descriptor_table_protodef_chat_2fv2_2fcontrol_2eproto,
     "chat/v2/control.proto",
     &descriptor_table_chat_2fv2_2fcontrol_2eproto_once,
@@ -745,7 +749,7 @@ MessageType_descriptor() {
   return file_level_enum_descriptors_chat_2fv2_2fcontrol_2eproto[0];
 }
 PROTOBUF_CONSTINIT const uint32_t MessageType_internal_data_[] = {
-    262144u, 160u, 960u, 0u, 0u, 4294967295u, 15u, };
+    262144u, 160u, 960u, 0u, 0u, 4294967295u, 63u, };
 [[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
 ClientPlatform_descriptor() {
   ::google::protobuf::internal::AssignDescriptors(&descriptor_table_chat_2fv2_2fcontrol_2eproto);
@@ -759,7 +763,7 @@ ClientCapability_descriptor() {
   return file_level_enum_descriptors_chat_2fv2_2fcontrol_2eproto[2];
 }
 PROTOBUF_CONSTINIT const uint32_t ClientCapability_internal_data_[] = {
-    524288u, 0u, };
+    589824u, 0u, };
 [[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
 ProtocolErrorCode_descriptor() {
   ::google::protobuf::internal::AssignDescriptors(&descriptor_table_chat_2fv2_2fcontrol_2eproto);

@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package chat.v2;
+
+option java_multiple_files = true;
+option java_package = "com.fallingnight.chat.protocol.v2";
+option java_outer_classname = "WebPushSchema";
+
+// Empty by design: account/device/session authority comes from the authenticated channel.
+message IssueWebPushHttpCredential {}
+
+message WebPushHttpCredentialIssued {
+  bytes bearer_token_ascii = 1;
+  bytes csrf_token_ascii = 2;
+  int64 expires_at_epoch_ms = 3;
+}

@@ -32,6 +32,7 @@ import {
 } from '../generated/typescript/chat/v2/conversation_pb.js'
 import { RegisterAttachmentSchema } from '../generated/typescript/chat/v2/attachment_pb.js'
 import { RevokeDeviceSchema } from '../generated/typescript/chat/v2/device_management_pb.js'
+import { WebPushHttpCredentialIssuedSchema } from '../generated/typescript/chat/v2/web_push_pb.js'
 
 const GOLDEN_HEX = '08021001186422057265712d312a0973657373696f6e2d31' +
   '3208636c69656e742d313880d095ffbc314203616263'
@@ -82,6 +83,8 @@ const REGISTER_ATTACHMENT_GOLDEN_HEX =
   '0101010101010101010101010101010101010101010101010101010101010101'
 const REVOKE_DEVICE_GOLDEN_HEX =
   '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031'
+const WEB_PUSH_HTTP_CREDENTIAL_GOLDEN_HEX =
+  '0a2b61616161616161616161616161616161616161616161616161616161616161616161616161616161616161122b626262626262626262626262626262626262626262626262626262626262626262626262626262626262621880a0f1c2b134'
 
 function bytesFromHex(hex: string): Uint8Array {
   return Uint8Array.from(hex.match(/.{2}/g) ?? [], byte => Number.parseInt(byte, 16))
@@ -290,6 +293,26 @@ test('keeps the bounded server-bound account block directory request compatible'
   assert.equal(
     Buffer.from(toBinary(ListAccountBlocksSchema, encoded)).toString('hex'),
     LIST_ACCOUNT_BLOCKS_GOLDEN_HEX
+  )
+})
+
+test('keeps the session-bound Web Push HTTP credential compatible across bindings', () => {
+  const decoded = fromBinary(
+    WebPushHttpCredentialIssuedSchema,
+    bytesFromHex(WEB_PUSH_HTTP_CREDENTIAL_GOLDEN_HEX)
+  )
+  assert.equal(new TextDecoder().decode(decoded.bearerTokenAscii), 'a'.repeat(43))
+  assert.equal(new TextDecoder().decode(decoded.csrfTokenAscii), 'b'.repeat(43))
+  assert.equal(decoded.expiresAtEpochMs, 1_800_000_000_000n)
+
+  const encoded = create(WebPushHttpCredentialIssuedSchema, {
+    bearerTokenAscii: new TextEncoder().encode('a'.repeat(43)),
+    csrfTokenAscii: new TextEncoder().encode('b'.repeat(43)),
+    expiresAtEpochMs: 1_800_000_000_000n
+  })
+  assert.equal(
+    Buffer.from(toBinary(WebPushHttpCredentialIssuedSchema, encoded)).toString('hex'),
+    WEB_PUSH_HTTP_CREDENTIAL_GOLDEN_HEX
   )
 })
 

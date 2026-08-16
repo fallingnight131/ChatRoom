@@ -2096,6 +2096,17 @@ fallback copy. Nothing imports or registers this entry in the default product;
 the exact build gate, locale persistence, HTTP credential issuer, and UI remain
 open.
 
+ADR-0410 defines the missing Web Push HTTP credential issuance boundary without
+reusing the WSS resume proof. Capability 8 and permanent types 136/137 carry an
+empty authenticated command and a correlated, short-lived bearer/CSRF response;
+account/device/session authority comes only from the established connection.
+The detached application service is exact-default-off and returns only a fixed
+disabled, unavailable-session, or owned-secret result through an issuance port.
+Issued secrets use bounded unpadded Base64URL ASCII, redact rendering, and are
+zeroable by the caller. No default client requests capability 8 and no gateway
+handler, PostgreSQL verifier store, or HTTP authentication adapter is composed,
+so this is an additive inactive contract rather than product activation.
+
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables
 the application operation, and exposes the localized privacy dialog. The view

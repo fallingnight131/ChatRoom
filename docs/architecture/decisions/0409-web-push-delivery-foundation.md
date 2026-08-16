@@ -107,6 +107,11 @@ acceptance, stall synchronization, or reduce gateway readiness.
 
 ## Verification
 
+ADR-0410 refines the previously open server-issued HTTP-session requirement:
+an authenticated, capability-gated WSS command issues an independent,
+session-bound, short-lived bearer/CSRF pair on demand. It does not reuse the WSS
+resume proof or activate a gateway/client path.
+
 - The first detached application slice locks defensive credential ownership,
   callback-copy zeroing, redacted rendering, canonical HTTPS/P-256/auth bounds,
   stable message identity, a 24-hour maximum event lifetime, and an explicit

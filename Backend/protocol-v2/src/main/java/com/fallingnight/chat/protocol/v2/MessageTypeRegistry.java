@@ -32,7 +32,8 @@ public final class MessageTypeRegistry {
                     MESSAGE_TYPE_READ_MESSAGE_HISTORY,
                     MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES,
                     MESSAGE_TYPE_SET_ACCOUNT_BLOCK,
-                    MESSAGE_TYPE_LIST_ACCOUNT_BLOCKS ->
+                    MESSAGE_TYPE_LIST_ACCOUNT_BLOCKS,
+                    MESSAGE_TYPE_ISSUE_WEB_PUSH_HTTP_CREDENTIAL ->
                     MessageKind.MESSAGE_KIND_COMMAND;
             case MESSAGE_TYPE_MESSAGE_ACCEPTED, MESSAGE_TYPE_MESSAGE_HISTORY_PAGE,
                     MESSAGE_TYPE_MESSAGE_REACTION_APPLIED, MESSAGE_TYPE_MESSAGE_PIN_APPLIED,
@@ -60,6 +61,8 @@ public final class MessageTypeRegistry {
             case MESSAGE_TYPE_LIST_DEVICES, MESSAGE_TYPE_REVOKE_DEVICE ->
                     MessageKind.MESSAGE_KIND_COMMAND;
             case MESSAGE_TYPE_DEVICE_DIRECTORY, MESSAGE_TYPE_DEVICE_REVOKED ->
+                    MessageKind.MESSAGE_KIND_RESPONSE;
+            case MESSAGE_TYPE_WEB_PUSH_HTTP_CREDENTIAL_ISSUED ->
                     MessageKind.MESSAGE_KIND_RESPONSE;
             case MESSAGE_TYPE_UNSPECIFIED, UNRECOGNIZED ->
                     throw new IllegalArgumentException("unregistered message type");

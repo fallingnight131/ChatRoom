@@ -1542,6 +1542,21 @@ ambient credentials, redirect/cache/referrer denial, canonical endpoint and key
 validation before fetch, account-free JSON, fixed status/Retry-After mapping,
 and response-body suppression. Fixture bearer/CSRF values are not a token issuer
 or production authentication claim.
+The inactive HTTP-credential protocol and application boundary can be selected
+with:
+
+```bash
+cd Backend
+./gradlew --no-daemon :protocol-v2:test --tests '*WebPushProtocol*' \
+  :application:test --tests '*WebPushHttpCredentialIssue*'
+```
+
+This locks capability 8, types 136/137, command/response kinds, bounded
+Base64URL-ASCII bearer/CSRF ownership, expiry shape, exact-default-off policy,
+authenticated-actor binding, unavailable-session mapping, redaction, and
+cleanup. Regenerate all client bindings with
+`:protocol-v2:generateClientBindings`. No gateway handler, PostgreSQL verifier,
+default client capability, or usable HTTP credential exists yet.
 The TypeScript suite also drives the detached browser adapter with fake browser
 ports. It proves secure-context capability failure, exact local worker path and
 scope, module registration, existing-subscription lookup, `userVisibleOnly`,

@@ -2468,6 +2468,10 @@ Candidate slices:
       capability checks, fixed path/scope validation, explicit module
       registration, existing-subscription lookup, and user-visible PushManager
       subscription using a defensive VAPID-key copy.
+    - [x] Reserve capability 8 and types 136/137 for an on-demand authenticated
+      WSS command that issues an independent, short-lived, session-bound HTTP
+      bearer/CSRF pair; add the exact-default-off application issue boundary and
+      generated Java/TypeScript/C++ bindings (ADR-0410).
     - [ ] Add the exact-gated product composition, HTTP credential issuer,
       localized durable worker copy/UI, and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key

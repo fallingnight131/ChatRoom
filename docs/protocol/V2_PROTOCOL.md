@@ -85,6 +85,8 @@ reused:
 | 129 | `AccountBlockApplied` | response | inactive correlated durable block-state result |
 | 134 | `ListAccountBlocks` | command | inactive capable authenticated client; bounded outgoing-block page |
 | 135 | `AccountBlockDirectoryPage` | response | inactive server-authored current identity projection |
+| 136 | `IssueWebPushHttpCredential` | command | inactive capable authenticated Web client; issue a session-bound HTTP credential |
+| 137 | `WebPushHttpCredentialIssued` | response | inactive correlated short-lived bearer/CSRF result |
 
 `SubmitMessage` carries a canonical conversation UUID and a registered content
 type. Content type 1 is permanently assigned to nonempty valid UTF-8 text with a
@@ -200,6 +202,17 @@ required-header bounds; disconnect erases every correlation. It retains no file
 bytes, path, checksum input, signed URI, or required header after returning an
 event. Root product CMake, WSS routing, capability negotiation, SQLite, and
 Widgets do not reference it (ADR-0406).
+
+Capability 8 and types 136/137 define the inactive Web Push HTTP-credential
+issuance boundary (ADR-0410). The command is intentionally empty: the gateway
+must bind account, device, and session only from its authenticated connection.
+The correlated response carries separate unpadded Base64URL-ASCII bearer and
+CSRF secrets plus a positive expiry instant. These secrets are not the WSS
+resume proof, are never client-generated, and must remain memory-only. Issuance
+atomically validates the active device session and replaces that session's
+prior HTTP credential, making the prior pair invalid immediately. Default Web
+and Windows clients do not request capability 8, and no gateway handler is
+installed yet, so ordinary handshakes and product behavior remain unchanged.
 
 After authentication, the gateway dispatches types 100 and 102 through the
 transport-independent application ports and PostgreSQL adapter. It uses only

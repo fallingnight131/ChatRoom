@@ -6,6 +6,7 @@
 #include "chat/v2/conversation.pb.h"
 #include "chat/v2/attachment.pb.h"
 #include "chat/v2/device_management.pb.h"
+#include "chat/v2/web_push.pb.h"
 
 #include <cstdint>
 #include <iostream>
@@ -67,6 +68,8 @@ constexpr char kRegisterAttachmentGoldenHex[] =
     "0101010101010101010101010101010101010101010101010101010101010101";
 constexpr char kRevokeDeviceGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031";
+constexpr char kWebPushHttpCredentialGoldenHex[] =
+    "0a2b61616161616161616161616161616161616161616161616161616161616161616161616161616161616161122b626262626262626262626262626262626262626262626262626262626262626262626262626262626262621880a0f1c2b134";
 
 int hexDigit(char value) {
     if (value >= '0' && value <= '9') return value - '0';
@@ -296,6 +299,16 @@ int main() {
             || revoke.target_device_id() != "00000000-0000-0000-0000-000000000001"
             || revoke.SerializeAsString() != revokeGolden) {
         std::cerr << "generated C++ binding changed the RevokeDevice golden payload\n";
+        return 1;
+    }
+    const std::string credentialGolden = fromHex(kWebPushHttpCredentialGoldenHex);
+    chat::v2::WebPushHttpCredentialIssued credential;
+    if (!credential.ParseFromString(credentialGolden)
+            || credential.bearer_token_ascii() != std::string(43, 'a')
+            || credential.csrf_token_ascii() != std::string(43, 'b')
+            || credential.expires_at_epoch_ms() != INT64_C(1800000000000)
+            || credential.SerializeAsString() != credentialGolden) {
+        std::cerr << "generated C++ binding changed the Web Push credential payload\n";
         return 1;
     }
     return 0;
