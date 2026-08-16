@@ -926,6 +926,11 @@ text editing: `Ctrl+Enter` sends only when the existing send action is enabled,
 Enter and modified Enter continue through `QPlainTextEdit`, and `Escape` cancels
 only active reply/edit composition. Visible button tooltips expose the two
 shortcuts, while mouse and assistive-technology actions remain unchanged.
+The composer now also exposes the existing 65,536-byte V2 text invariant before
+submission. Its accessible status reports the actual UTF-8 byte count (rather
+than UTF-16 characters), names the overage when exceeded, and disables the same
+send action used by keyboard and mouse. Text and drafts are not truncated, so
+the user can edit back below the limit without silent data loss.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

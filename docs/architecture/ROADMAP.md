@@ -2276,7 +2276,12 @@ Candidate slices:
   - [ ] Retain native Windows Release presentation and activation evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
-- accessibility, localization, keyboard navigation, and low-bandwidth modes;
+- accessibility, localization, keyboard navigation, and low-bandwidth modes:
+  - [x] Expose the Windows V2 composer UTF-8 byte budget accessibly and disable
+    send above the authoritative 65,536-byte message limit without truncating
+    the draft.
+  - [ ] Complete localization catalogs, broader keyboard navigation, screen-
+    reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

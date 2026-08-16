@@ -103,6 +103,8 @@ def main() -> int:
         "m_viewModel->persistDraft(",
         "key->modifiers() == Qt::ControlModifier",
         "key->key() == Qt::Key_Escape",
+        "V2LocalMessageRepository::MaxTextBytes",
+        'setAccessibleName(QStringLiteral("消息字节数"))',
         "m_mentionsEnabled && !m_conversationId.isEmpty()",
         "V2WindowsMentionComposer::serialize",
         'setProperty("mentionTargetAccountIds"',

@@ -35,6 +35,7 @@ public:
     QPushButton *cancelReplyForTest() const { return m_cancelReply; }
     QPushButton *mentionForTest() const { return m_mention; }
     QPushButton *sendForTest() const { return m_send; }
+    QLabel *composerBudgetForTest() const { return m_composerBudget; }
     QLineEdit *searchInputForTest() const { return m_searchInput; }
     QPushButton *searchButtonForTest() const { return m_searchButton; }
     QListWidget *searchResultsForTest() const { return m_searchResults; }
@@ -83,6 +84,7 @@ private:
     QPushButton *m_cancelReply;
     QPushButton *m_mention;
     QPushButton *m_send;
+    QLabel *m_composerBudget;
     QTimer *m_draftSaveTimer;
     QString m_conversationId;
     QString m_editTargetMessageId;

@@ -160,10 +160,27 @@ int main(int argc, char **argv) {
     if (panel.accessibleName().isEmpty()
             || panel.messageListForTest()->accessibleName().isEmpty()
             || panel.composerForTest()->accessibleName().isEmpty()
+            || panel.composerBudgetForTest()->accessibleName().isEmpty()
             || panel.sendForTest()->accessibleName().isEmpty()
             || panel.searchInputForTest()->accessibleName().isEmpty()
             || panel.searchResultsForTest()->accessibleName().isEmpty()) {
         qCritical() << "core messaging controls lack accessible names";
+        return 1;
+    }
+    panel.composerForTest()->setPlainText(QString(32768, QChar(0x00e9)));
+    app.processEvents();
+    if (!panel.sendForTest()->isEnabled()
+            || !panel.composerBudgetForTest()->text().startsWith(
+                QStringLiteral("65536 /"))) {
+        qCritical() << "exact UTF-8 byte budget was not sendable";
+        return 1;
+    }
+    panel.composerForTest()->setPlainText(QString(32769, QChar(0x00e9)));
+    app.processEvents();
+    if (panel.sendForTest()->isEnabled()
+            || !panel.composerBudgetForTest()->text().contains(
+                QStringLiteral("超过上限"))) {
+        qCritical() << "UTF-8 byte budget did not block oversized Unicode text";
         return 1;
     }
     panel.composerForTest()->setPlainText(QStringLiteral("line one"));

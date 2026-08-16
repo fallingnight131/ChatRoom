@@ -47,6 +47,7 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
       m_cancelReply(new QPushButton(QStringLiteral("取消回复"), this)),
       m_mention(new QPushButton(QStringLiteral("@ 提及"), this)),
       m_send(new QPushButton(QStringLiteral("发送消息"), this)),
+      m_composerBudget(new QLabel(this)),
       m_draftSaveTimer(new QTimer(this)),
       m_mentionsEnabled(mentionsEnabled),
       m_forwardingEnabled(forwardingEnabled && directoryViewModel) {
@@ -96,6 +97,8 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     m_cancelReply->setToolTip(QStringLiteral("Esc"));
     m_send->setAccessibleName(QStringLiteral("发送当前消息"));
     m_send->setToolTip(QStringLiteral("Ctrl+Enter"));
+    m_composerBudget->setAccessibleName(QStringLiteral("消息字节数"));
+    m_composerBudget->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     m_draftSaveTimer->setSingleShot(true);
     m_draftSaveTimer->setInterval(400);
 
@@ -123,6 +126,7 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     layout->addWidget(m_messages, 1);
     layout->addLayout(replyHeader);
     layout->addWidget(m_participantPane);
+    layout->addWidget(m_composerBudget);
     layout->addLayout(composerRow);
 
     connect(m_viewModel, &V2WindowsMessagingViewModel::changed,
@@ -165,6 +169,7 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     render();
     renderParticipants();
     renderSearch();
+    reconcileComposer();
 }
 
 V2WindowsMessagingPanel::~V2WindowsMessagingPanel() {
@@ -621,7 +626,16 @@ void V2WindowsMessagingPanel::reconcileComposer() {
         }
     }
     m_previousComposerText = next;
-    m_send->setEnabled(!m_conversationId.isEmpty() && !next.trimmed().isEmpty());
+    const qsizetype bytes = next.toUtf8().size();
+    const bool withinBudget = bytes <= V2LocalMessageRepository::MaxTextBytes;
+    m_composerBudget->setText(withinBudget
+        ? QStringLiteral("%1 / %2 字节").arg(bytes).arg(
+            V2LocalMessageRepository::MaxTextBytes)
+        : QStringLiteral("超过上限 %1 字节（最多 %2 字节）")
+            .arg(bytes - V2LocalMessageRepository::MaxTextBytes)
+            .arg(V2LocalMessageRepository::MaxTextBytes));
+    m_send->setEnabled(!m_conversationId.isEmpty()
+        && !next.trimmed().isEmpty() && withinBudget);
     if (!m_updatingComposer && m_editTargetMessageId.isEmpty()
             && !m_conversationId.isEmpty())
         m_draftSaveTimer->start();
