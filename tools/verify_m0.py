@@ -163,6 +163,8 @@ def verify_protocol_bindings(skip_install: bool) -> None:
         ROOT / "Tests" / "message_forwarding_activation_policy_test.py")], ROOT)
     run([sys.executable, str(
         ROOT / "Tests" / "message_search_activation_policy_test.py")], ROOT)
+    run([sys.executable, str(
+        ROOT / "Tests" / "account_blocking_activation_policy_test.py")], ROOT)
     npm = command_path("npm", "npm.cmd")
     backend = ROOT / "Backend"
     typescript = backend / "protocol-v2" / "typescript"

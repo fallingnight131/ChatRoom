@@ -1490,7 +1490,7 @@ absent unless exact
 `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true` is supplied, and negotiation
 still requires a client request for capability 7. Ordinary Web and Windows
 builds do not request it; exact-gated Web and Windows candidates can, although
-the Windows candidate exposes no user action yet. `python3
+the Windows candidate remains restricted to internal preview actions. `python3
 tools/verify_m0.py --postgres` additionally
 proves the route over real TLS/WSS against a disposable PostgreSQL database,
 including durable exact retry, a current outgoing-only type-135 directory page,
@@ -1519,6 +1519,9 @@ restoration through generated Protobuf. Rebuild the same revision with
 `CHATROOM_V2_BROWSER_ACCOUNT_BLOCKING_ROLLBACK=true` to prove the action and
 types 128/134 commands disappear. This fixture is not a live
 gateway/PostgreSQL endpoint or a release claim.
+The baseline workflow rebuilds and runs both Chromium and Firefox for the
+enabled and flag-off account-block candidates, then restores the ordinary Web
+bundle before the general browser matrix.
 
 The Java gate includes embedded-channel tests for the bounded V2 binary
 WebSocket frame decoder, single-use ClientHello negotiation, and fresh-login

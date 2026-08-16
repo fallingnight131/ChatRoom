@@ -1,9 +1,10 @@
 # V2 Account Blocking Activation and Rollback
 
-This checklist activates the capability-7 candidate without treating it as a
-complete block-list product or weakening the transactional direct-contact
-policy. It applies to the Java gateway and the independent default-off Web and
-Windows V2 candidates. Windows has a separately compiled
+This checklist activates the capability-7 candidate without weakening the
+transactional direct-contact policy. It applies to the Java gateway and the
+independent default-off Web and Windows V2 candidates. Both clients expose a
+bounded, outgoing-only server directory in page memory; neither persists the
+block graph locally. Windows has a separately compiled
 protocol/transport/Widgets candidate. It
 must remain internal until the native Windows Release interaction and real
 endpoint gates below are retained for the exact revision.
@@ -24,6 +25,9 @@ endpoint gates below are retained for the exact revision.
   directory in page memory only. A fresh authenticated page reads it again;
   incomplete or failed pagination leaves an absent target unknown rather than
   claiming it is unblocked.
+- Confirm the same rule for Windows: its privacy directory retains at most 500
+  rows in page memory, clears across account changes, and uses list absence only
+  as presentation state, never as permission truth.
 - Confirm the shipped Windows diagnostic reports schema 5 with
   `accountBlockingEnabled=false`. A candidate may set it true only for the
   bounded Windows validation cohort described below.
@@ -70,13 +74,19 @@ endpoint gates below are retained for the exact revision.
 1. Build an unsigned/internal candidate with the reviewed preview endpoint and
    `CHATROOM_ENABLE_WINDOWS_V2_ACCOUNT_BLOCKING=ON`; retain a same-revision build
    without that option for rollback.
-2. On native Windows, require the account-block dialog CI test plus clean-host
-   launch. Verify ordinary and group conversations do not expose an enabled
-   action, while a DIRECT conversation waits for its authoritative participant.
-3. Against the gateway canary, confirm block, unblock, generic denial, one
+2. On native Windows, require both account-block dialog CI tests plus clean-host
+   launch. Verify the global privacy menu, bounded refresh/load-more, offline
+   status, keyboard selection, and confirmed row-level unblock. Verify ordinary
+   and group conversations do not expose an enabled new-block action, while a
+   DIRECT conversation waits for its authoritative participant.
+3. Against the gateway canary, confirm block, directory refresh, row unblock,
+   generic denial, one
    interrupted same-operation retry, keyboard-only navigation, screen-reader
    names/status, and focus return to the conversation window.
-4. Retain diagnostic schema 5, gateway telemetry, database desired state, and
+4. Verify the correlated unblock result removes the row and triggers a fresh
+   type-134 request; interrupt that refresh and confirm no durable state is
+   inferred from the incomplete page.
+5. Retain diagnostic schema 5, gateway telemetry, database desired state, and
    client-first rollback evidence for the exact binary. Until these checks pass,
    do not distribute the candidate outside the bounded validation cohort.
 

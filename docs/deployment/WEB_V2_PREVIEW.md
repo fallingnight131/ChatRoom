@@ -107,7 +107,8 @@ Before serving preview assets:
     `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true`; test unique DIRECT target
     resolution, generic denial, exact retry after connection loss, block and
     unblock, subsequent direct-message/contact-request denial, and client-first
-    rollback. Do not present page-memory result state as a complete block list.
+    rollback. Do not present an incomplete page-memory directory or list absence
+    as permission truth.
 
 The deterministic browser boundary uses Playwright WebSocket routing and exact
 generated Protobuf envelopes. It verifies the current view/application/transport

@@ -2367,6 +2367,9 @@ Candidate slices:
   - [x] Expose an accessible Windows DIRECT-only block/unblock dialog behind the
     same immutable product gate, with authoritative target loading, confirmation,
     announced status, pending disablement, and native Windows CI coverage.
+  - [x] Lock gateway-first/client-first activation policy and add ordinary,
+    capability-7, and flag-off Web candidate builds plus Chromium/Firefox
+    interaction/rollback gates to CI. These remain local fixture evidence.
   - [ ] Complete real endpoint activation/rollback evidence for both supported
     clients and retain native Windows Release interaction evidence.
 - Windows native notifications;

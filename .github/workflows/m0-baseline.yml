@@ -47,9 +47,49 @@ jobs:
           VITE_CHAT_APP_VERSION: "2.0.0-ci-search"
         run: npm run build -- --outDir ../build/m6/web-search-gate --emptyOutDir
 
+      - name: Verify account-blocking Web preview candidate compiles
+        working-directory: WebClient
+        env:
+          VITE_CHAT_V2_PREVIEW: "true"
+          VITE_CHAT_V2_ACCOUNT_BLOCKING: "true"
+          VITE_CHAT_V2_WSS_URL: "wss://preview-chat.example.test/v2/web"
+          VITE_CHAT_V2_WSS_FALLBACK_URLS: '["wss://preview-chat-secondary.example.test/v2/web"]'
+          VITE_CHAT_APP_VERSION: "2.0.0-ci-account-blocking"
+        run: npm run build -- --outDir ../build/m6/web-account-blocking-gate --emptyOutDir
+
       - name: Install pinned browser engines
         working-directory: WebClient
         run: npx playwright install --with-deps chromium firefox
+
+      - name: Verify account-blocking Web candidate in Chromium and Firefox
+        working-directory: WebClient
+        env:
+          VITE_CHAT_V2_PREVIEW: "true"
+          VITE_CHAT_V2_ACCOUNT_BLOCKING: "true"
+          VITE_CHAT_V2_WSS_URL: "wss://fixture.invalid/v2/web"
+          VITE_CHAT_APP_VERSION: "2.0.0-ci-account-blocking"
+          CHATROOM_V2_BROWSER_PREVIEW: "true"
+          CHATROOM_V2_BROWSER_ACCOUNT_BLOCKING: "true"
+        run: |
+          npm run build
+          npm run test:browser -- --grep "sets direct-account block state"
+
+      - name: Verify account-blocking Web rollback candidate
+        working-directory: WebClient
+        env:
+          VITE_CHAT_V2_PREVIEW: "true"
+          VITE_CHAT_V2_ACCOUNT_BLOCKING: "false"
+          VITE_CHAT_V2_WSS_URL: "wss://fixture.invalid/v2/web"
+          VITE_CHAT_APP_VERSION: "2.0.0-ci-account-blocking-rollback"
+          CHATROOM_V2_BROWSER_PREVIEW: "true"
+          CHATROOM_V2_BROWSER_ACCOUNT_BLOCKING_ROLLBACK: "true"
+        run: |
+          npm run build
+          npm run test:browser -- --grep "keeps account blocking absent"
+
+      - name: Restore ordinary Web candidate
+        working-directory: WebClient
+        run: npm run build
 
       - name: Verify Chromium and Firefox Web compatibility
         working-directory: WebClient

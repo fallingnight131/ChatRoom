@@ -2228,8 +2228,9 @@ blocking covers the authoritative unique DIRECT participant, localized modal
 focus, explicit confirmation, types 128/129, and both desired states in Chromium
 and Firefox. These
 generated-Protobuf routes remain below real gateway/PostgreSQL, endpoint-canary,
-and release evidence. A same-revision flag-off Chromium build proves the Web
-action and command disappear again.
+and release evidence. Baseline CI rebuilds the same-revision flag-off candidate
+and proves in both Chromium and Firefox that the Web action and command disappear
+again before restoring the ordinary bundle. This closes only local composition.
 The standard V2 candidate also exercises structured mentions through generated
 type-117/118 participant paging and type-25 submission. Its authoritative page
 deliberately includes the authenticated account, proving the application removes
