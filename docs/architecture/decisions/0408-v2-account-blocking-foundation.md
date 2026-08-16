@@ -102,7 +102,10 @@ server candidate without activating an incomplete client product path.
   product feature.
 - An independent Windows CMake gate now carries capability 7 through immutable
   binary configuration, exact handshake validation, and an isolated bounded Qt
-  transport route for types 128/129 and their correlated errors. It remains
+  transport route for types 128/129/134/135 and their correlated errors. The
+  detached C++ protocol client validates directory bounds, requested-cursor
+  advancement, target order, nonblank bounded UTF-8 display names, positive block
+  times and continuation before exposing a page. It remains
   default-off; diagnostic schema 5 makes its absence or candidate presence
   observable without account or session data.
 - A detached Windows ViewModel accepts only a complete actor-filtered
@@ -194,7 +197,11 @@ are absent after client-first rollback.
 The portable C++ binding gate additionally proves Windows request encoding,
 self-block rejection, actor/target/desired-state/operation correlation,
 same-operation explicit retry, and disconnect cleanup without claiming a native
-Windows product build.
+Windows product build. The detached directory extension additionally proves
+type-134 cursor/bound encoding, type-135 correlation and projection, cursor
+advancement, Unicode names, positive time, continuation, invalid-response
+retention and explicit abandonment. The native Windows CMake gate now owns this
+test, while macOS execution remains portability evidence.
 The Windows configuration policy rejects capability 7 without the preview; the
 portable session/transport tests prove exact seven-capability negotiation,
 default-independent capability selection, isolated command routing, correlated

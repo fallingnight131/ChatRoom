@@ -4,6 +4,7 @@
 #include "chat/v2/control.pb.h"
 #include "chat/v2/envelope.pb.h"
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <google/protobuf/message_lite.h>
@@ -14,6 +15,8 @@
 namespace {
 constexpr std::size_t maximumWireBytes = 1024U * 1024U + 1024U;
 constexpr std::size_t maximumPendingOperations = 8;
+constexpr std::size_t maximumDisplayNameBytes = 400;
+constexpr std::size_t maximumDisplayNameCodePoints = 100;
 
 std::string serialize(const google::protobuf::MessageLite &message) {
     std::string result;
@@ -29,6 +32,31 @@ template <typename Message> Message parse(const std::string &bytes) {
     if (!result.ParseFromArray(bytes.data(), static_cast<int>(bytes.size())))
         throw std::runtime_error("account block decode failed");
     return result;
+}
+
+std::vector<std::uint32_t> codePoints(const std::string &value) {
+    std::vector<std::uint32_t> result;
+    const auto *data = reinterpret_cast<const unsigned char *>(value.data());
+    std::size_t position = 0;
+    while (position < value.size()) {
+        const auto first = data[position++];
+        const int trailing = first <= 0x7fU ? 0 : first <= 0xdfU ? 1
+            : first <= 0xefU ? 2 : 3;
+        std::uint32_t codepoint = first & (trailing == 0 ? 0x7fU
+            : trailing == 1 ? 0x1fU : trailing == 2 ? 0x0fU : 0x07U);
+        for (int index = 0; index < trailing; ++index)
+            codepoint = (codepoint << 6U) | (data[position++] & 0x3fU);
+        result.push_back(codepoint);
+    }
+    return result;
+}
+
+bool unicodeWhitespace(std::uint32_t value) {
+    return (value >= 0x09U && value <= 0x0dU) || value == 0x20U
+        || value == 0x85U || value == 0xa0U || value == 0x1680U
+        || (value >= 0x2000U && value <= 0x200aU)
+        || value == 0x2028U || value == 0x2029U || value == 0x202fU
+        || value == 0x205fU || value == 0x3000U;
 }
 }
 
@@ -83,8 +111,37 @@ V2WindowsAccountBlockProtocolClient::setAccountBlock(
     envelope.set_client_message_id(clientOperationId);
     envelope.set_sent_at_epoch_ms(now);
     envelope.set_payload(serialize(payload));
-    m_pending.emplace(requestId, Pending{targetAccountId, clientOperationId, blocked});
+    m_pending.emplace(requestId, Pending{
+        Pending::Kind::Mutation, targetAccountId, clientOperationId, blocked, 0});
     return {requestId, clientOperationId, serialize(envelope)};
+}
+
+V2WindowsAccountBlockProtocolClient::Command
+V2WindowsAccountBlockProtocolClient::listAccountBlocks(
+        const std::string &afterTargetAccountId, std::uint32_t limit) {
+    if (m_sessionId.empty()
+            || (!afterTargetAccountId.empty() && !canonicalUuid(afterTargetAccountId))
+            || limit < 1 || limit > 100 || m_pending.size() >= maximumPendingOperations)
+        throw std::invalid_argument("invalid account block directory request");
+    const auto requestId = m_factory();
+    if (!canonicalUuid(requestId) || m_pending.count(requestId))
+        throw std::runtime_error("invalid account block directory request id");
+    const auto now = m_clock();
+    if (now <= 0) throw std::runtime_error("account block clock must be positive");
+    chat::v2::ListAccountBlocks payload;
+    payload.set_after_target_account_id(afterTargetAccountId);
+    payload.set_limit(limit);
+    chat::v2::Envelope envelope;
+    envelope.set_protocol_version(2);
+    envelope.set_kind(chat::v2::MESSAGE_KIND_COMMAND);
+    envelope.set_message_type(chat::v2::MESSAGE_TYPE_LIST_ACCOUNT_BLOCKS);
+    envelope.set_request_id(requestId);
+    envelope.set_session_id(m_sessionId);
+    envelope.set_sent_at_epoch_ms(now);
+    envelope.set_payload(serialize(payload));
+    m_pending.emplace(requestId, Pending{
+        Pending::Kind::Directory, afterTargetAccountId, {}, false, limit});
+    return {requestId, {}, serialize(envelope)};
 }
 
 V2WindowsAccountBlockProtocolClient::Event
@@ -114,8 +171,47 @@ V2WindowsAccountBlockProtocolClient::receive(const std::string &bytes) {
         m_pending.erase(position);
         return result;
     }
-    if (envelope.kind() != chat::v2::MESSAGE_KIND_RESPONSE
-            || envelope.message_type() != chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_APPLIED)
+    if (envelope.kind() != chat::v2::MESSAGE_KIND_RESPONSE)
+        throw std::runtime_error("account block response type confusion");
+    if (pending.kind == Pending::Kind::Directory) {
+        if (envelope.message_type()
+                != chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_DIRECTORY_PAGE)
+            throw std::runtime_error("account block directory response type confusion");
+        const auto payload = parse<chat::v2::AccountBlockDirectoryPage>(envelope.payload());
+        if (payload.blocks_size() > static_cast<int>(pending.limit)
+                || (payload.has_more() && payload.blocks().empty()))
+            throw std::runtime_error("invalid account block directory bounds");
+        std::string previous = pending.targetAccountId;
+        for (const auto &block : payload.blocks()) {
+            if (!canonicalUuid(block.target_account_id())
+                    || (!previous.empty() && block.target_account_id() <= previous)
+                    || block.target_display_name().empty()
+                    || block.target_display_name().size() > maximumDisplayNameBytes
+                    || !validUtf8(block.target_display_name())
+                    || block.blocked_at_epoch_ms() <= 0)
+                throw std::runtime_error("invalid account block directory row");
+            const auto points = codePoints(block.target_display_name());
+            if (points.size() > maximumDisplayNameCodePoints
+                    || std::all_of(points.begin(), points.end(), unicodeWhitespace))
+                throw std::runtime_error("invalid account block directory display name");
+            result.blocks.push_back({block.target_account_id(),
+                                     block.target_display_name(),
+                                     block.blocked_at_epoch_ms()});
+            previous = block.target_account_id();
+        }
+        if ((payload.has_more()
+                    && (payload.next_after_target_account_id().empty()
+                        || payload.next_after_target_account_id() != previous))
+                || (!payload.has_more()
+                    && !payload.next_after_target_account_id().empty()))
+            throw std::runtime_error("invalid account block directory cursor");
+        result.type = EventType::DirectoryPage;
+        result.nextAfterTargetAccountId = payload.next_after_target_account_id();
+        result.hasMore = payload.has_more();
+        m_pending.erase(position);
+        return result;
+    }
+    if (envelope.message_type() != chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_APPLIED)
         throw std::runtime_error("account block response type confusion");
     const auto payload = parse<chat::v2::AccountBlockApplied>(envelope.payload());
     if (!canonicalUuid(payload.actor_account_id())

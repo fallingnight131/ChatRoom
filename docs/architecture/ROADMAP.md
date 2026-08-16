@@ -2327,6 +2327,11 @@ Candidate slices:
     global privacy entry with localized empty/loading/failure states, bounded
     load-more, current-DIRECT status, per-row confirmed unblock, modal focus,
     Chromium/Firefox interaction, and same-revision flag-off rollback evidence.
+  - [x] Extend the detached Windows capability-7 C++ protocol client and isolated
+    Qt transport route for types 134/135 with canonical advancing cursors,
+    bounded ordered rows, strict UTF-8/display limits, positive block times,
+    correlation cleanup, a portable macOS test, and a native Windows CMake gate;
+    keep Windows list state and Widgets uncomposed.
   - [x] Add an exact-default-off V2 gateway handler, negotiated capability,
     bounded execution, privacy-safe errors and metrics, plus real TLS/WSS and
     PostgreSQL mutation/direct-denial evidence.

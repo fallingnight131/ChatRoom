@@ -4,6 +4,7 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 class V2WindowsAccountBlockProtocolClient final {
 public:
@@ -12,7 +13,12 @@ public:
         std::string clientOperationId;
         std::string bytes;
     };
-    enum class EventType { Applied, ProtocolError };
+    struct DirectoryEntry {
+        std::string targetAccountId;
+        std::string targetDisplayName;
+        std::int64_t blockedAtEpochMs = 0;
+    };
+    enum class EventType { Applied, DirectoryPage, ProtocolError };
     struct Event {
         EventType type = EventType::ProtocolError;
         std::string requestId;
@@ -22,6 +28,9 @@ public:
         bool blocked = false;
         bool changed = false;
         bool retryable = false;
+        std::vector<DirectoryEntry> blocks;
+        std::string nextAfterTargetAccountId;
+        bool hasMore = false;
     };
     using RequestIdFactory = std::function<std::string()>;
     using Clock = std::function<std::int64_t()>;
@@ -32,15 +41,20 @@ public:
     void clearSession();
     Command setAccountBlock(const std::string &targetAccountId, bool blocked,
                             const std::string &clientOperationId);
+    Command listAccountBlocks(const std::string &afterTargetAccountId = {},
+                              std::uint32_t limit = 100);
     Event receive(const std::string &bytes);
     void abandon(const std::string &requestId);
     std::size_t pendingCount() const { return m_pending.size(); }
 
 private:
     struct Pending {
+        enum class Kind { Mutation, Directory };
+        Kind kind = Kind::Mutation;
         std::string targetAccountId;
         std::string clientOperationId;
         bool blocked = false;
+        std::uint32_t limit = 0;
     };
     static bool canonicalUuid(const std::string &value);
     static bool validUtf8(const std::string &value);

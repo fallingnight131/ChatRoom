@@ -833,6 +833,17 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             m6_windows_message_notification_presenter PROPERTIES TIMEOUT 30)
         if(CHATROOM_BUILD_WINDOWS_CLIENT)
             add_executable(
+                V2WindowsAccountBlockProtocolClientTest
+                Tests/V2WindowsAccountBlockProtocolClientTest.cpp)
+            target_link_libraries(
+                V2WindowsAccountBlockProtocolClientTest
+                PRIVATE chatroom_windows_v2_messaging_product)
+            add_test(
+                NAME m6_windows_v2_account_block_protocol
+                COMMAND V2WindowsAccountBlockProtocolClientTest)
+            set_tests_properties(
+                m6_windows_v2_account_block_protocol PROPERTIES TIMEOUT 30)
+            add_executable(
                 V2WindowsDeviceManagementTransportTest
                 Tests/V2WindowsDeviceManagementTransportTest.cpp)
             target_link_libraries(

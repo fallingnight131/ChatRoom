@@ -155,6 +155,10 @@ successful mutation, and contains stale/disconnected requests. Its global
 localized privacy dialog now renders the server list, bounded load-more and
 confirmed per-row unblock while deriving current-DIRECT status only from a
 complete page or operation result. IndexedDB never stores the block graph.
+The detached Windows capability-7 protocol client now also encodes type 134 and
+strictly projects correlated type-135 pages. Its existing isolated Qt transport
+route permits both mutation and directory response types, but no Windows state
+model or Widgets list consumes them yet.
 
 Keep module calls in-process at first. Split a deployable service only for one of
 these reasons:

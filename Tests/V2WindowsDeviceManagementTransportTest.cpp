@@ -183,6 +183,36 @@ int main(int argc, char **argv) {
               == static_cast<qsizetype>(accountBlockResponseBytes.size()) && !aborted,
           QStringLiteral("account block response must use its isolated route"));
 
+    chat::v2::Envelope accountBlockDirectoryCommand = accountBlockCommand;
+    accountBlockDirectoryCommand.set_message_type(
+        chat::v2::MESSAGE_TYPE_LIST_ACCOUNT_BLOCKS);
+    accountBlockDirectoryCommand.set_request_id(
+        "51000000-0000-4000-8000-000000000002");
+    accountBlockDirectoryCommand.set_payload("block-directory-request");
+    const auto accountBlockDirectoryBytes = serialize(accountBlockDirectoryCommand);
+    check(transport.sendAccountBlockFrame(QByteArray(
+              accountBlockDirectoryBytes.data(),
+              static_cast<qsizetype>(accountBlockDirectoryBytes.size())))
+              && sent.size() == 1,
+          QStringLiteral("negotiated account block directory must share the isolated route"));
+    sent.clear();
+    chat::v2::Envelope accountBlockDirectoryResponse = accountBlockResponse;
+    accountBlockDirectoryResponse.set_message_type(
+        chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_DIRECTORY_PAGE);
+    accountBlockDirectoryResponse.set_request_id(
+        accountBlockDirectoryCommand.request_id());
+    accountBlockDirectoryResponse.set_payload("block-directory-page");
+    const auto accountBlockDirectoryResponseBytes = serialize(
+        accountBlockDirectoryResponse);
+    socket.binaryMessageReceived(QByteArray(
+        accountBlockDirectoryResponseBytes.data(),
+        static_cast<qsizetype>(accountBlockDirectoryResponseBytes.size())));
+    check(routedAccountBlockFrame == QByteArray(
+              accountBlockDirectoryResponseBytes.data(),
+              static_cast<qsizetype>(accountBlockDirectoryResponseBytes.size()))
+              && !aborted,
+          QStringLiteral("account block directory response must use its isolated route"));
+
     chat::v2::Envelope messagingCommand;
     messagingCommand.set_protocol_version(2);
     messagingCommand.set_kind(chat::v2::MESSAGE_KIND_COMMAND);

@@ -177,6 +177,11 @@ ambiguous requests on disconnect. No Web UI or durable client cache consumes it
 durably. The exact-gated privacy dialog now consumes the page-memory projection,
 offers bounded pagination, and permits unblock only for a server-returned target;
 ordinary clients and rollback behavior are unchanged.
+The detached exact-gated Windows C++ client can also encode type 134 and validates
+that type-135 rows advance beyond the requested cursor, remain bounded/ordered,
+carry strict nonblank UTF-8 display names and positive times, and expose a
+consistent continuation before its isolated Qt route forwards the page. Windows
+application state and Widgets remain uncomposed.
 
 The Web candidate correlates every search response with one active in-memory
 request and discards pages abandoned by disconnect or conversation change.

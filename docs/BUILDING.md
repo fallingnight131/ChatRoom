@@ -1569,6 +1569,14 @@ disconnect containment, and post-mutation authoritative refresh. UI list state
 is now composed only in the exact-gated Web candidate: the localized modal owns
 a global entry, empty/loading/failure states, bounded load-more, and confirmed
 unblock of server-returned targets (ADR-0408).
+The same capability-gated Windows C++ protocol client now accepts types 134/135.
+`V2WindowsAccountBlockProtocolClientTest` locks the empty/canonical cursor,
+1..100 bound, request correlation, cursor advancement, Unicode display-name
+projection, block time, continuation and disconnect cleanup. The Windows-native
+CMake test is `m6_windows_v2_account_block_protocol`; the Qt transport test also
+proves type 134 is the only additional outbound account-block command and type
+135 remains on the isolated correlated response route. A macOS compile/run of
+the portable protocol test is development evidence, not Windows product proof.
 Web reaction tests additionally verify account-scoped IndexedDB persistence,
 stable optimistic replay after reconnect history, ACK/history/live convergence,
 bounded fixed-kind aggregates, keyboard-native controls, pressed state, and

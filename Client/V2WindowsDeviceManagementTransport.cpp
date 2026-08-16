@@ -164,7 +164,8 @@ bool V2WindowsDeviceManagementTransport::sendAccountBlockFrame(const QByteArray 
     if (!m_accountBlockingEnabled) return false;
     return sendAuthenticatedFrame(frame, m_pendingAccountBlockRequestIds,
         [](std::uint32_t messageType) {
-            return messageType == chat::v2::MESSAGE_TYPE_SET_ACCOUNT_BLOCK;
+            return messageType == chat::v2::MESSAGE_TYPE_SET_ACCOUNT_BLOCK
+                || messageType == chat::v2::MESSAGE_TYPE_LIST_ACCOUNT_BLOCKS;
         });
 }
 
@@ -398,7 +399,9 @@ bool V2WindowsDeviceManagementTransport::routeAuthenticatedMessagingFrame(
             == chat::v2::MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE;
     const QString requestId = qt(envelope.request_id());
     const bool accountBlockResponse = envelope.message_type()
-        == chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_APPLIED;
+        == chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_APPLIED
+        || envelope.message_type()
+            == chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_DIRECTORY_PAGE;
     const bool accountBlockCorrelated = m_pendingAccountBlockRequestIds.contains(requestId);
     const bool accountBlockError = envelope.message_type()
         == chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR && accountBlockCorrelated;
