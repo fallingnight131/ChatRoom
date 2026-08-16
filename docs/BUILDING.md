@@ -1520,6 +1520,12 @@ This proves fixed identity-free metric names and label-free Prometheus text,
 plus 1-second-to-15-minute exponential retry with bounded jitter and strict
 event-expiry clipping. It does not expose a metrics endpoint, run a scheduler,
 contact a Web Push provider, or establish readiness/backlog thresholds.
+The same focused gateway selector covers the detached delivery loop. Its manual
+scheduler and worker executor prove that claim/provider work is off-scheduler,
+only one bounded pass can be in flight, full/idle/failure cadences are capped,
+foreign claims fail closed, per-claim exceptions are isolated, worker rejection
+backs off, and close cancels pending scheduling. The test does not create
+threads, own a production executor, or activate the loop at gateway startup.
 The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility

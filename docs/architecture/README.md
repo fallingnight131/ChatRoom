@@ -2025,9 +2025,15 @@ identity labels. The gateway operations package now supplies lock-free,
 fixed-name worker counters, label-free Prometheus text, and exponential retry
 from 1 second to 15 minutes with bounded 50%--150% jitter. Retry is clipped
 strictly before the durable event expiry and rejects an already exhausted
-window. These pieces are detached operational policy only: no real Web Push
-protocol adapter, scheduler/pool, readiness policy, metrics endpoint, or runtime
-composition exists.
+window. An explicitly started delivery loop now schedules only a trigger and
+moves the bounded PostgreSQL claim plus sequential claim processing to an
+injected worker executor. It permits one pass in flight, validates the returned
+claim owner and 100-row cap, isolates individual claim failures, drains full
+batches with a nonzero cadence, backs off dependency/worker rejection, and
+cancels pending schedules on close. Its counters and scheduling gauges are
+fixed-name and label-free. These pieces are detached operational policy only:
+no real Web Push protocol adapter, owned scheduler/worker pool, readiness
+policy, metrics endpoint, or runtime composition exists.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

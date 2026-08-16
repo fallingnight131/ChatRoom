@@ -146,7 +146,10 @@ acceptance, stall synchronization, or reduce gateway readiness.
   provider commands, erases invalid installs, fences retry/completion, and emits
   fixed-cardinality events. Detached lock-free counters render only fixed,
   label-free Prometheus series, while exponential retry is jittered, capped at
-  15 minutes, and clipped before event expiry. Real provider, scheduler,
+  15 minutes, and clipped before event expiry. An explicit delivery loop keeps
+  claim/provider work off its scheduler, enforces one bounded pass in flight,
+  validates claim ownership, isolates claims, applies capped polling/backoff,
+  and cancels pending scheduling on close. Real provider, owned executors,
   readiness policy, metrics endpoint, and runtime composition remain open.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;

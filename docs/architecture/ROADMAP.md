@@ -2438,7 +2438,11 @@ Candidate slices:
     - [x] Add identity-free fixed-cardinality worker counters, a label-free
       Prometheus renderer, and expiry-clipped exponential retry with bounded
       jitter; keep them detached from runtime composition.
-    - [ ] Add the real provider adapter, bounded scheduler/worker pool,
+    - [x] Add an explicitly started, non-overlapping delivery loop that moves
+      bounded claim/processing passes off the scheduler, validates claim
+      ownership, isolates per-claim failures, uses capped polling/backoff, and
+      emits fixed-cardinality loop telemetry; keep executor ownership detached.
+    - [ ] Add the real provider adapter, owned bounded scheduler/worker pool,
       readiness/backlog policy, and failure canary.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
