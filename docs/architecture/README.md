@@ -992,6 +992,11 @@ state and a named avatar; it no longer wraps the theme action in a pointer-only
 click region. Theme selection remains an independently named button, so keyboard
 activation cannot accidentally open the profile dialog and returned modal focus
 lands on a valid control.
+The pinned Chromium/Firefox engine gate now drives the production bundle through
+login Tab order and announced empty validation, authenticated friend/room Arrow
+navigation, and profile Escape dismissal with trigger focus restoration. This
+is browser keyboard interaction evidence, not assistive-technology or branded-
+browser support evidence.
 The focus behavior is now owned by a shared typed Web UI boundary rather than
 copied inside profile code. V1 forwarding is the second consumer: it gains modal
 naming, focus entry/wrap/restore, Escape handling, named search, selected tab

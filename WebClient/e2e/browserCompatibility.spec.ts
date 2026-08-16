@@ -149,6 +149,17 @@ async function exerciseDelayedClientBoot(browser: Browser) {
   await context.close();
 }
 
+async function exerciseKeyboardLogin(page: Page) {
+  await page.goto("/");
+  await page.getByLabel("用户ID (唯一标识)").focus();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("密码")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "登录" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("alert")).toHaveText("请输入用户ID和密码");
+}
+
 async function exerciseNativeIndexedDbMigration(page: Page) {
   await installV1ClientFixture(page);
   await page.goto("/");
@@ -364,6 +375,36 @@ test("keeps the login path usable at a narrow responsive viewport", async ({ pag
   await expect(page.getByRole("button", { name: "登录" })).toBeVisible();
 });
 
+test("supports keyboard login order and announced validation", async ({ page }) => {
+  await exerciseKeyboardLogin(page);
+});
+
+test("supports authenticated tab navigation and modal focus restoration", async ({ page }) => {
+  await installV1ClientFixture(page);
+  await page.goto("/");
+  await page.getByLabel("用户ID (唯一标识)").fill("browser_gate_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page).toHaveURL(/#\/chat$/);
+
+  const friendsTab = page.getByRole("tab", { name: "好友" });
+  const roomsTab = page.getByRole("tab", { name: "房间" });
+  await friendsTab.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(roomsTab).toBeFocused();
+  await expect(roomsTab).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(friendsTab).toBeFocused();
+  await expect(friendsTab).toHaveAttribute("aria-selected", "true");
+
+  const profileTrigger = page.getByRole("button", { name: "打开个人资料" });
+  await profileTrigger.click();
+  await expect(page.getByRole("dialog", { name: "个人资料" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "个人资料" })).toBeHidden();
+  await expect(profileTrigger).toBeFocused();
+});
+
 test("pauses an offline login attempt and requires explicit retry after recovery", async ({ context, page }) => {
   const socketUrls: string[] = [];
   page.on("websocket", socket => socketUrls.push(socket.url()));
@@ -473,14 +514,7 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
 
   const keyboard = await context.newPage();
   keyboard.on("pageerror", error => pageErrors.push(error));
-  await keyboard.goto("/");
-  await keyboard.getByLabel("用户ID (唯一标识)").focus();
-  await keyboard.keyboard.press("Tab");
-  await expect(keyboard.getByLabel("密码")).toBeFocused();
-  await keyboard.keyboard.press("Tab");
-  await expect(keyboard.getByRole("button", { name: "登录" })).toBeFocused();
-  await keyboard.keyboard.press("Enter");
-  await expect(keyboard.getByRole("alert")).toHaveText("请输入用户ID和密码");
+  await exerciseKeyboardLogin(keyboard);
   expect(pageErrors).toEqual([]);
 
   const offline = await context.newPage();

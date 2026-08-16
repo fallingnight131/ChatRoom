@@ -2348,6 +2348,8 @@ Candidate slices:
     trigger/editor focus return for the non-modal Web V2 member picker.
   - [x] Bind repeated Web V2 reaction, pin, copy, reply, edit, forward, and retry
     controls to an explicit server-sequence or local-failure accessible context.
+  - [x] Run production-bundle Chromium/Firefox interaction gates for login Tab
+    order, announced validation, conversation-tab arrows, and modal focus return.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

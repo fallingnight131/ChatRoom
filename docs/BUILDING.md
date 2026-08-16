@@ -53,6 +53,11 @@ worker. The current bound engines are Chromium 151.0.7922.34 and Playwright
 Firefox 153.0. They are engine-level evidence; branded current/previous Chrome,
 Edge, and Firefox checks remain a public-release gate. Playwright reports and
 test results are local/short-lived CI output and are ignored by Git.
+The everyday engine suite also drives keyboard focus through the production
+bundle: login username/password/submit order and announced empty validation,
+authenticated friend/room Arrow navigation, and profile Escape dismissal with
+trigger restoration. These checks are browser interaction evidence, not a
+screen-reader or branded-browser compatibility claim.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and
