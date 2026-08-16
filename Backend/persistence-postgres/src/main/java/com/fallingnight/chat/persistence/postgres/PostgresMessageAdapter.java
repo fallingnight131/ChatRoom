@@ -13,6 +13,8 @@ import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
+import com.fallingnight.chat.application.notification.WebPushDeliveryPolicy;
+import com.fallingnight.chat.application.notification.WebPushNotificationIntent;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -21,6 +23,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -35,14 +38,29 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
         ConversationEntryHistoryPort {
     private final DataSource dataSource;
     private final Supplier<UUID> uuidSupplier;
+    private final WebPushDeliveryPolicy webPushDeliveryPolicy;
 
     public PostgresMessageAdapter(DataSource dataSource) {
-        this(dataSource, UUID::randomUUID);
+        this(dataSource, UUID::randomUUID, WebPushDeliveryPolicy.DEFAULT);
+    }
+
+    public PostgresMessageAdapter(
+            DataSource dataSource, WebPushDeliveryPolicy webPushDeliveryPolicy) {
+        this(dataSource, UUID::randomUUID, webPushDeliveryPolicy);
     }
 
     PostgresMessageAdapter(DataSource dataSource, Supplier<UUID> uuidSupplier) {
+        this(dataSource, uuidSupplier, WebPushDeliveryPolicy.DEFAULT);
+    }
+
+    PostgresMessageAdapter(
+            DataSource dataSource,
+            Supplier<UUID> uuidSupplier,
+            WebPushDeliveryPolicy webPushDeliveryPolicy) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
         this.uuidSupplier = Objects.requireNonNull(uuidSupplier, "uuidSupplier");
+        this.webPushDeliveryPolicy = Objects.requireNonNull(
+                webPushDeliveryPolicy, "webPushDeliveryPolicy");
     }
 
     @Override
@@ -85,7 +103,8 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                         submission,
                         payload,
                         payloadHash,
-                        reply);
+                        reply,
+                        webPushDeliveryPolicy);
                 if (insertedAt.isPresent()) {
                     connection.commit();
                     return new MessageSubmissionResult.Accepted(
@@ -413,7 +432,8 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
             MessageSubmission submission,
             byte[] payload,
             byte[] payloadHash,
-            Optional<MessageReplyReference> reply) throws SQLException {
+            Optional<MessageReplyReference> reply,
+            WebPushDeliveryPolicy webPushDeliveryPolicy) throws SQLException {
         insertConversationEntry(connection, submission.conversationId(), sequence);
         String sql = "INSERT INTO chat.message(id, conversation_id, conversation_sequence, "
                 + "sender_account_id, sender_device_id, client_message_id, message_type, "
@@ -440,6 +460,9 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                 insertMentions(connection, submission.conversationId(), messageId,
                         submission.mentions());
                 insertOutbox(connection, messageId, submission.conversationId(), sequence);
+                if (webPushDeliveryPolicy.enabled()) {
+                    insertWebPushOutbox(connection, messageId, submission, acceptedAt);
+                }
                 return Optional.of(acceptedAt);
             }
         }
@@ -507,6 +530,39 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
             statement.setObject(2, conversationId);
             statement.setLong(3, sequence);
             statement.executeUpdate();
+        }
+    }
+
+    private static void insertWebPushOutbox(
+            Connection connection,
+            UUID messageId,
+            MessageSubmission submission,
+            Instant acceptedAt) throws SQLException {
+        String sql = "INSERT INTO chat.web_push_notification_outbox("
+                + "message_id, conversation_id, sender_account_id, "
+                + "mentioned_account_ids, committed_at, expires_at, available_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        List<UUID> mentionedAccountIds = submission.mentions().stream()
+                .map(MessageMention::targetAccountId)
+                .distinct()
+                .toList();
+        java.sql.Array mentions = connection.createArrayOf(
+                "uuid", mentionedAccountIds.toArray());
+        OffsetDateTime committedAt = OffsetDateTime.ofInstant(acceptedAt, ZoneOffset.UTC);
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, messageId);
+            statement.setObject(2, submission.conversationId());
+            statement.setObject(3, submission.senderAccountId());
+            statement.setArray(4, mentions);
+            statement.setObject(5, committedAt);
+            statement.setObject(6, OffsetDateTime.ofInstant(
+                    acceptedAt.plus(WebPushNotificationIntent.MAX_LIFETIME), ZoneOffset.UTC));
+            statement.setObject(7, committedAt);
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("Web Push outbox insertion changed no row");
+            }
+        } finally {
+            mentions.free();
         }
     }
 

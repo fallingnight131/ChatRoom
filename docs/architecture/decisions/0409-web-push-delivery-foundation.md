@@ -118,6 +118,10 @@ acceptance, stall synchronization, or reduce gateway readiness.
   bound protection result, performs same-transaction endpoint ownership
   transfer/replacement, scopes deletion by account/install, and clears protected
   working bytes. The fixture protector is not a production key-custody claim.
+- The message adapter's ordinary constructor remains default-off. Its explicit
+  enabled policy writes one payload-free row in the new-message transaction;
+  duplicate replay writes none, and a forced outbox failure rolls back all
+  message/sequence/event state. No composition selects it yet.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

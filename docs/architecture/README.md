@@ -1967,17 +1967,22 @@ truth. The detached Java application boundary now defines a default-disabled
 policy, encrypted-storage subscription port, stable idempotent outbox port,
 owned/zeroed credential model, canonical HTTPS and browser-key bounds, and a
 payload-free notification intent whose lifetime cannot exceed 24 hours. Nothing
-calls these ports yet: PostgreSQL adapters, message-acceptance composition, HTTP,
-provider worker, and the exact-gated Service Worker remain unimplemented and
-default-off. Migration V053 expands PostgreSQL with ciphertext-only browser
-subscriptions, a keyed endpoint lookup tag, and a payload-free notification
+in the gateway calls these ports, so HTTP, provider delivery, and the exact-
+gated Service Worker remain unimplemented and default-off. Migration V053
+expands PostgreSQL with ciphertext-only browser subscriptions, a keyed endpoint
+lookup tag, and a payload-free notification
 outbox whose expiry, claim lifecycle, mention cardinality, and retention indexes
 are database constrained. The detached subscription adapter now accepts only an
 injected protection result bound to the same account/installation/expiry, writes
 ciphertext plus a keyed endpoint tag, clears protected working copies, and
 transfers endpoint ownership or erases one account/install atomically. No
-production key-custody implementation, HTTP caller, outbox writer, or worker is
-composed.
+production key-custody implementation, HTTP caller, or worker is composed. The
+message adapter now has an explicit enabled-policy constructor that inserts one
+payload-free notification row inside the new-message
+transaction. Its ordinary constructor remains disabled; exact idempotent replay
+does not enqueue again, and notification insertion failure rolls back message,
+conversation entry/sequence, and both outboxes. No gateway composition currently
+selects the enabled constructor, and no worker claims these rows.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

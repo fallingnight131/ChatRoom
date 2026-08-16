@@ -2409,8 +2409,12 @@ Candidate slices:
       ciphertext-only writes, and post-use protected-byte zeroing.
     - [ ] Add explicit production key-custody, AEAD context, keyed lookup-tag,
       rotation, backup/restore, and erasure composition.
-    - [ ] Produce the outbox in the new-message transaction and prove bounded
-      concurrent claims, idempotent replay, expiry, retention, and rollback.
+    - [x] Produce the outbox only under an explicit enabled policy in the
+      new-message transaction; prove default-off behavior, stable message
+      identity, mention metadata, idempotent replay, 24-hour expiry, and atomic
+      rollback on outbox failure.
+    - [ ] Add fenced bounded concurrent claims, retry/terminal transitions,
+      expiry, and retention deletion evidence.
   - [ ] Add authenticated HTTP subscription management and a bounded provider
     worker with current-policy reauthorization and secret-free observability.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then

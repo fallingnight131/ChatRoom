@@ -1454,7 +1454,11 @@ production key service. The PostgreSQL integration additionally exercises the
 detached subscription adapter with a fixture protector: it proves ciphertext-
 only replacement, keyed endpoint ownership transfer, account/install-scoped
 deletion, and protected-buffer closing, not production AEAD/KMS correctness or
-key rotation. No HTTP caller or outbox adapter is composed.
+key rotation. The same real-database gate proves the message adapter's default-
+off path, explicit enabled transaction outbox, stable message identity, exact
+idempotent replay, bounded mention metadata, 24-hour expiry, and forced-insert
+rollback. No gateway enables this policy, and no HTTP caller or claim worker is
+composed.
 The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility

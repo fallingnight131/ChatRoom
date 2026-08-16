@@ -123,6 +123,7 @@ import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.MessageEditCommand;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
 import com.fallingnight.chat.application.notification.ProtectedWebPushSubscription;
+import com.fallingnight.chat.application.notification.WebPushDeliveryPolicy;
 import com.fallingnight.chat.application.notification.WebPushSubscriptionRegistration;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataCommand;
@@ -5954,6 +5955,73 @@ class PostgresMigratorTest {
         assertFalse(adapter.delete(secondAccount, secondInstall));
     }
 
+    @Test
+    @Order(101)
+    void producesDefaultOffWebPushOutboxOnlyForNewMessagesInTheMessageTransaction()
+            throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID account = UUID.randomUUID(), device = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID(), mentionedAccount = UUID.randomUUID();
+        seedMessageOwner(account, device, conversation);
+        seedMentionTarget(mentionedAccount, conversation);
+
+        var disabled = new PostgresMessageAdapter(dataSource());
+        accepted(disabled.submit(
+                new MessageSubmission(conversation, account, device, "push-disabled", 1,
+                        "before".getBytes(java.nio.charset.StandardCharsets.UTF_8))));
+        assertEquals(0, count("SELECT count(*) FROM chat.web_push_notification_outbox"));
+
+        var enabled = new PostgresMessageAdapter(
+                dataSource(), new WebPushDeliveryPolicy(true));
+        byte[] mentionedBody = "@you hi".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var enabledSubmission = new MessageSubmission(
+                conversation, account, device, "push-enabled", 1, mentionedBody,
+                Optional.empty(), List.of(new MessageMention(mentionedAccount, 0, 4)));
+        MessageSubmissionResult.Accepted enabledAccepted = accepted(
+                enabled.submit(enabledSubmission));
+        assertFalse(enabledAccepted.duplicate());
+        assertTrue(accepted(enabled.submit(enabledSubmission)).duplicate());
+        assertEquals(1, count("SELECT count(*) FROM chat.web_push_notification_outbox"));
+        assertWebPushOutbox(enabledAccepted, conversation, account, mentionedAccount);
+
+        try (Connection connection = connect()) {
+            execute(connection, """
+                    CREATE FUNCTION chat.reject_web_push_outbox_fixture()
+                    RETURNS trigger LANGUAGE plpgsql AS $$
+                    BEGIN
+                        RAISE EXCEPTION 'fixture Web Push outbox rejection';
+                    END;
+                    $$
+                    """);
+            execute(connection, """
+                    CREATE TRIGGER reject_web_push_outbox_fixture
+                    BEFORE INSERT ON chat.web_push_notification_outbox
+                    FOR EACH ROW EXECUTE FUNCTION chat.reject_web_push_outbox_fixture()
+                    """);
+        }
+        try {
+            assertThrows(MessagePersistenceException.class, () -> enabled.submit(
+                    new MessageSubmission(conversation, account, device,
+                            "push-outbox-rollback", 1, new byte[] {9})));
+            assertEquals(2, conversationEntryCount(conversation));
+            assertEquals(2, count("SELECT count(*) FROM chat.conversation_event_outbox"));
+            assertEquals(1, count("SELECT count(*) FROM chat.web_push_notification_outbox"));
+            assertEquals(0, count("SELECT count(*) FROM chat.message "
+                    + "WHERE client_message_id = 'push-outbox-rollback'"));
+        } finally {
+            try (Connection connection = connect()) {
+                execute(connection, "DROP TRIGGER reject_web_push_outbox_fixture "
+                        + "ON chat.web_push_notification_outbox");
+                execute(connection, "DROP FUNCTION chat.reject_web_push_outbox_fixture()");
+            }
+        }
+        MessageSubmissionResult.Accepted afterRollback = accepted(enabled.submit(
+                new MessageSubmission(conversation, account, device,
+                        "push-outbox-rollback", 1, new byte[] {9})));
+        assertEquals(3, afterRollback.conversationSequence());
+        assertEquals(2, count("SELECT count(*) FROM chat.web_push_notification_outbox"));
+    }
+
     private static Set<String> applicationTables(Connection connection) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT table_name FROM information_schema.tables "
@@ -6141,6 +6209,38 @@ class PostgresMigratorTest {
                 byte[] value = result.getBytes(1);
                 assertFalse(result.next());
                 return value;
+            }
+        }
+    }
+
+    private static void assertWebPushOutbox(
+            MessageSubmissionResult.Accepted accepted,
+            UUID conversation,
+            UUID sender,
+            UUID mentionedAccount) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement("""
+                        SELECT conversation_id, sender_account_id, committed_at, expires_at,
+                               mentioned_account_ids
+                        FROM chat.web_push_notification_outbox WHERE message_id = ?
+                        """)) {
+            statement.setObject(1, accepted.messageId());
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                assertEquals(conversation, result.getObject(1, UUID.class));
+                assertEquals(sender, result.getObject(2, UUID.class));
+                Instant committedAt = result.getObject(3, OffsetDateTime.class).toInstant();
+                Instant expiresAt = result.getObject(4, OffsetDateTime.class).toInstant();
+                assertEquals(accepted.acceptedAt(), committedAt);
+                assertEquals(Duration.ofHours(24), Duration.between(committedAt, expiresAt));
+                java.sql.Array mentions = result.getArray(5);
+                try {
+                    assertEquals(List.of(mentionedAccount),
+                            Arrays.asList((UUID[]) mentions.getArray()));
+                } finally {
+                    mentions.free();
+                }
+                assertFalse(result.next());
             }
         }
     }
