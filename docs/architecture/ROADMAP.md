@@ -2414,6 +2414,9 @@ Candidate slices:
     gating connection, synchronization, conversation, or message operations.
   - [x] Add non-activating Arrow/Home/End keyboard focus navigation to the Web
     V2 conversation directory while preserving native button activation.
+  - [x] Expose the shared validated and persisted Web locale preference directly
+    in the V2 header without introducing runtime-owned locale state, with
+    opt-in Chromium/Firefox pre-authentication persistence evidence.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

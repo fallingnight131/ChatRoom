@@ -5,9 +5,16 @@
         <span class="preview-badge">{{ shellMessages.engineeringPreview }}</span>
         <h1>ChatRoom V2</h1>
       </div>
-      <div class="connection" role="status" aria-live="polite">
-        <span :class="['status-dot', connectionTone]" aria-hidden="true"></span>
-        {{ connectionLabel }}
+      <div class="preview-header-actions">
+        <label class="visually-hidden" for="v2-locale">{{ preferenceMessages.language }}</label>
+        <select id="v2-locale" :value="userStore.locale" @change="setLocale">
+          <option value="zh-CN">{{ preferenceMessages.chinese }}</option>
+          <option value="en-US">{{ preferenceMessages.english }}</option>
+        </select>
+        <div class="connection" role="status" aria-live="polite">
+          <span :class="['status-dot', connectionTone]" aria-hidden="true"></span>
+          {{ connectionLabel }}
+        </div>
       </div>
     </header>
 
@@ -56,14 +63,14 @@
                      :checked="userStore.lowBandwidthMode"
                      aria-describedby="v2-low-bandwidth-description"
                      @change="setLowBandwidthMode" />
-              <span>{{ bandwidthMessages.lowBandwidth }}</span>
+              <span>{{ preferenceMessages.lowBandwidth }}</span>
             </label>
-            <small id="v2-low-bandwidth-description">{{ bandwidthMessages.lowBandwidthDescription }}</small>
+            <small id="v2-low-bandwidth-description">{{ preferenceMessages.lowBandwidthDescription }}</small>
             <small v-if="userStore.lowBandwidthPreferenceSource === 'browser'" role="status">
-              {{ bandwidthMessages.browserDataSaver }}
+              {{ preferenceMessages.browserDataSaver }}
             </small>
             <small v-else-if="userStore.lowBandwidthPreferenceSource === 'session'" role="status">
-              {{ bandwidthMessages.sessionOnly }}
+              {{ preferenceMessages.sessionOnly }}
             </small>
           </div>
         </div>
@@ -445,7 +452,7 @@ import {
 const runtimeRef = inject(V2_RUNTIME_KEY)
 const userStore = useUserStore()
 const shellMessages = computed(() => v2PreviewShellMessages(userStore.locale))
-const bandwidthMessages = computed(() => profileMessages(userStore.locale))
+const preferenceMessages = computed(() => profileMessages(userStore.locale))
 const searchMessages = computed(() => v2PreviewSearchMessages(userStore.locale))
 const timelineMessages = computed(() => messageTimelineMessages(userStore.locale))
 const v2TimelineMessages = computed(() => v2PreviewTimelineMessages(userStore.locale))
@@ -690,6 +697,10 @@ function loadMoreDirectory() {
 
 function setLowBandwidthMode(event) {
   userStore.setLowBandwidthMode(event.target.checked)
+}
+
+function setLocale(event) {
+  userStore.setLocale(event.target.value)
 }
 
 function moveConversationFocus(event) {
@@ -1070,6 +1081,8 @@ onUnmounted(() => {
 .v2-preview { height: 100%; display: flex; flex-direction: column; background: var(--bg-primary); color: var(--text-primary); }
 .preview-header { min-height: 72px; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); }
 .preview-header h1 { font-size: 20px; }
+.preview-header-actions { display: flex; align-items: center; gap: 12px; }
+.preview-header-actions select { min-height: 34px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); background: var(--bg-primary); }
 .preview-badge { display: inline-block; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
 .connection { display: flex; gap: 8px; align-items: center; color: var(--text-secondary); }
 .status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-tertiary); }

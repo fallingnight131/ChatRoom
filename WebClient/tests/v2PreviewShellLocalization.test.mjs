@@ -17,6 +17,16 @@ test('renders the V2 preview entry, authentication, and directory from the activ
   ]) assert.ok(source.includes(marker), `missing V2 shell locale marker: ${marker}`)
 })
 
+test('offers the shared persistent locale preference inside V2', () => {
+  for (const marker of [
+    'for="v2-locale">{{ preferenceMessages.language }}',
+    '<select id="v2-locale" :value="userStore.locale" @change="setLocale">',
+    '<option value="zh-CN">{{ preferenceMessages.chinese }}</option>',
+    '<option value="en-US">{{ preferenceMessages.english }}</option>',
+    'userStore.setLocale(event.target.value)',
+  ]) assert.ok(source.includes(marker), `missing V2 locale preference marker: ${marker}`)
+})
+
 test('localizes connection state without changing runtime or transient credential boundaries', () => {
   for (const marker of [
     'shellMessages.value.runtimeUnavailable', 'shellMessages.value.idle',

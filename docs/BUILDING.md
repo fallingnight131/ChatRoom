@@ -203,6 +203,20 @@ The V2 conversation directory also supports Arrow Up/Down and Home/End focus
 movement. Navigation changes focus only; Enter or Space on the native button is
 still required to open a conversation, so keyboard browsing cannot mutate the
 active server conversation accidentally.
+The V2 header exposes the shared `zh-CN`/`en-US` preference before and after
+authentication. It delegates to the user preference store, which validates and
+persists the locale and updates the document language; it does not duplicate
+locale state inside the preview runtime.
+After an explicit V2-enabled build, run the pre-authentication browser locale
+evidence with:
+
+```bash
+CHATROOM_V2_BROWSER_PREVIEW=true npm run test:browser -- e2e/v2PreviewBrowser.spec.ts
+```
+
+The test is skipped in the ordinary default-off browser run. It verifies the V2
+route, locale control, document language, and reload persistence in Chromium and
+Firefox; it does not authenticate a V2 session.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

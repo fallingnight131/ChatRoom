@@ -49,5 +49,6 @@ test('suppresses automatic avatar requests without blocking explicit profile loa
 
 test('keeps V2 messaging and synchronization outside the presentation preference boundary', () => {
   assert.ok(v2Preview.includes('userStore.setLowBandwidthMode(event.target.checked)'))
+  assert.ok(v2Preview.includes('preferenceMessages.lowBandwidthDescription'))
   assert.doesNotMatch(v2Preview, /lowBandwidthMode[^\n]*(sendText|openConversation|loadMoreDirectory|start)/)
 })

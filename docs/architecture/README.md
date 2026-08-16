@@ -2106,6 +2106,15 @@ Up/Down focus movement plus Home/End boundaries while retaining native buttons.
 Focus navigation is intentionally separate from activation: only the button's
 native Enter/Space action opens the stable conversation identity, and
 `aria-current` continues to describe the application-owned active conversation.
+V2 no longer requires a detour through V1 to change language. Its always-visible
+header selector delegates to the same validated, persisted user preference and
+document-language boundary as the stable client. The V2 runtime, protocol, and
+cache remain locale-independent; only presentation catalogs are switched.
+An opt-in Chromium/Firefox browser fixture now verifies that pre-authentication
+V2 selection updates `document.lang`, persists the supported locale, and
+survives reload. The fixture is skipped for the default-off production bundle
+and does not count as authenticated V2 chat, synchronization, or compatibility
+evidence.
 
 ### Product consistency
 
