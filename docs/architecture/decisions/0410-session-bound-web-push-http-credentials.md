@@ -22,8 +22,9 @@ Web Push.
 - Reserve V2 capability 8 and message types 136/137 for on-demand Web Push HTTP
   credential issuance. The command payload is empty. Account, device, and
   session authority comes only from the authenticated WSS connection.
-- The gateway may negotiate capability 8 only under the future exact-default-off
-  Web Push activation gate and only when a Web client explicitly requests it.
+- The gateway may negotiate capability 8 only under exact-default-off
+  `CHATROOM_GATEWAY_WEB_PUSH_ENABLED=true` and only when a Web client explicitly
+  requests it.
   Windows and ordinary Web builds request nothing and remain compatible.
 - Issue an independent random bearer and CSRF token as unpadded Base64URL ASCII.
   They are never derived from, interchangeable with, or accepted as the WSS
@@ -54,9 +55,10 @@ single-current-credential reasoning but concurrent tabs using the same device
 session can invalidate each other's short-lived lease; clients already acquire
 one immediately before each mutation and surface fixed retry behavior.
 
-This adds two permanent wire identities and a secret-verifier table. It does
-not activate Web Push, install a gateway handler, expose an HTTP route, or add
-the capability to a default client. A future distributed credential cache may
+This adds two permanent wire identities and a secret-verifier table. Exact
+server activation installs the issuer handler and capability on the Web WSS
+pipeline, but does not expose the subscription HTTP route, add capability 8 to
+a default client, or activate Web Push delivery. A future distributed credential cache may
 optimize lookup only as rebuildable state; PostgreSQL remains authoritative.
 
 ## Verification and rollback
@@ -71,14 +73,19 @@ optimize lookup only as rebuildable state; PostgreSQL remains authoritative.
   by cascading foreign key to the device session. Real-database integration
   proves active-session issuance, session-lifetime clipping, immediate
   replacement, expiry, CSRF mismatch, and session/account/device revocation.
-  The gateway handler is still uncomposed.
+  The issuer handler is composed only by the exact server gate.
 - The detached V2 handler accepts only an authenticated Web capability-8
   connection, an empty type-136 command, and no client operation identity. It
   binds the application actor from connection state, moves issuance to a
   bounded executor, closes plaintext ownership before scheduling the response,
   and emits only fixed errors/events. A separate adapter maps the application
   authenticator to the HTTP handler's fixed actor/decision contract without
-  retaining tokens. Neither is installed by runtime composition.
+  retaining tokens. Runtime composition installs only the WSS issuer under the
+  exact gate; the HTTP bridge and subscription route remain detached.
+- Runtime configuration tests prove absent/false and non-exact values remain
+  disabled. Real TLS/WSS plus disposable-PostgreSQL integration proves Web-only
+  negotiation, authenticated issuance, hash-only persistence, server-bound
+  response identity, and the identity-free issued counter.
 - Rollback removes capability negotiation and handler composition first. The
   additive registry identities and migration remain; credential rows expire or
   can be erased without touching chat or subscription truth.

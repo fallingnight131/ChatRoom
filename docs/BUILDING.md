@@ -1562,8 +1562,8 @@ This locks capability 8, types 136/137, command/response kinds, bounded
 Base64URL-ASCII bearer/CSRF ownership, expiry shape, exact-default-off policy,
 authenticated-actor binding, unavailable-session mapping, redaction, and
 cleanup. Regenerate all client bindings with
-`:protocol-v2:generateClientBindings`. No runtime-installed gateway handler,
-default client capability, or Web credential lease bridge exists yet.
+`:protocol-v2:generateClientBindings`. No default client capability or Web
+credential lease bridge exists yet.
 The detached gateway issuance and HTTP bridge can be selected with:
 
 ```bash
@@ -1577,9 +1577,15 @@ cd Backend
 This proves Web-only two-sided capability negotiation, authenticated channel
 actor binding, empty command shape, bounded off-event-loop issuance, server-
 bound response identity, credential closing, fixed denial/saturation/failure
-mapping, and fixed HTTP actor/CSRF/session translation. Runtime config and
-pipeline installation remain absent, so passing it does not expose type 136 or
-the subscription HTTP route on a product listener.
+mapping, fixed HTTP actor/CSRF/session translation, exact-default-off runtime
+configuration, pipeline installation, and identity-free metrics. Exact
+`CHATROOM_GATEWAY_WEB_PUSH_ENABLED=true` exposes capability 8/type 136 only to a
+requesting Web V2 connection; missing, false, and non-exact values keep the
+handler absent. `JAVA_HOME=/opt/homebrew/opt/openjdk@21 python3
+tools/verify_m0.py --postgres` additionally proves the enabled path over real
+TLS/WSS against disposable PostgreSQL, including hash-only persistence and the
+issued counter. The subscription HTTP route and default Web lease bridge remain
+absent, so this flag alone does not activate browser subscription or delivery.
 The TypeScript suite also drives the detached browser adapter with fake browser
 ports. It proves secure-context capability failure, exact local worker path and
 scope, module registration, existing-subscription lookup, `userVisibleOnly`,

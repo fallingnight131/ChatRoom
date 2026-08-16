@@ -59,6 +59,7 @@ class GatewayRuntimeConfigTest {
         assertFalse(config.messageForwardingEnabled());
         assertFalse(config.messageSearchEnabled());
         assertFalse(config.accountBlockingEnabled());
+        assertFalse(config.webPushEnabled());
         assertFalse(config.distributedRouting().enabled());
         assertEquals("development", config.releaseIdentity().releaseVersion());
         assertEquals("unknown", config.releaseIdentity().sourceRevision());
@@ -78,6 +79,9 @@ class GatewayRuntimeConfigTest {
         enabledBlocking.put("CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED", "true");
         assertTrue(GatewayRuntimeConfig.fromEnvironment(enabledBlocking)
                 .accountBlockingEnabled());
+        Map<String, String> enabledWebPush = requiredEnvironment();
+        enabledWebPush.put("CHATROOM_GATEWAY_WEB_PUSH_ENABLED", "true");
+        assertTrue(GatewayRuntimeConfig.fromEnvironment(enabledWebPush).webPushEnabled());
         Map<String, String> enabledRouting = requiredEnvironment();
         enabledRouting.put(DistributedGatewayRoutingConfig.ENABLED, "true");
         enabledRouting.put(DistributedGatewayRoutingConfig.REDIS_URI,
@@ -144,6 +148,11 @@ class GatewayRuntimeConfigTest {
         blockingFlag.put("CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED", "TRUE");
         assertThrows(IllegalArgumentException.class,
                 () -> GatewayRuntimeConfig.fromEnvironment(blockingFlag));
+
+        Map<String, String> webPushFlag = requiredEnvironment();
+        webPushFlag.put("CHATROOM_GATEWAY_WEB_PUSH_ENABLED", "TRUE");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(webPushFlag));
 
         Map<String, String> waterMarks = requiredEnvironment();
         waterMarks.put("CHATROOM_GATEWAY_WRITE_BUFFER_LOW_BYTES", "65536");

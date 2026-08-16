@@ -214,9 +214,11 @@ prior HTTP credential, making the prior pair invalid immediately. A detached
 gateway handler now binds the actor from authentication, rejects nonempty
 payload/client-operation identity, serializes work on a bounded executor, and
 returns the server-bound session. Capability negotiation additionally restricts
-this feature to Web. No runtime pipeline enables or installs it, and default Web
-and Windows clients do not request capability 8, so ordinary handshakes and
-product behavior remain unchanged.
+this feature to Web. Runtime installation requires exact
+`CHATROOM_GATEWAY_WEB_PUSH_ENABLED=true`; otherwise the handler and capability
+remain absent. Default Web and Windows clients do not request capability 8, so
+ordinary handshakes and product behavior remain unchanged. The server flag does
+not install the separate subscription HTTP route or activate Web Push delivery.
 
 After authentication, the gateway dispatches types 100 and 102 through the
 transport-independent application ports and PostgreSQL adapter. It uses only

@@ -61,6 +61,8 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
     private AccountBlockDirectoryUseCase accountBlockDirectory =
             (actor, request) -> AccountBlockDirectoryResult.Rejected.NOT_AUTHORIZED;
     private boolean accountBlockingEnabled;
+    private WebPushHttpCredentialGatewayComponent webPushHttpCredentials =
+            WebPushHttpCredentialGatewayComponent.disabled();
     private ScheduledFuture<?> upgradeDeadline;
 
     public V2WebSocketUpgradeHandler(
@@ -356,6 +358,45 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                 accountBlockDirectory, "accountBlockDirectory");
     }
 
+    public V2WebSocketUpgradeHandler(
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            MessageSearchPort search,
+            AccountBlockUseCase accountBlocks,
+            AccountBlockDirectoryUseCase accountBlockDirectory,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            Duration handshakeTimeout,
+            Duration authenticationTimeout,
+            boolean messageForwardingEnabled,
+            boolean messageSearchEnabled,
+            boolean accountBlockingEnabled,
+            WebPushHttpCredentialGatewayComponent webPushHttpCredentials) {
+        this(authentication, sessionResume, submissions, history, directory, participants,
+                reactions, pins, edits, forwards, search, accountBlocks, accountBlockDirectory,
+                deviceManagement, authenticationExecutor, messagingExecutor, admission, events,
+                messagingEvents, deviceEvents, deviceConnections, liveRouter, handshakeTimeout,
+                authenticationTimeout, messageForwardingEnabled, messageSearchEnabled,
+                accountBlockingEnabled);
+        this.webPushHttpCredentials = Objects.requireNonNull(
+                webPushHttpCredentials, "webPushHttpCredentials");
+    }
+
     @Override
     public void channelActive(ChannelHandlerContext context) {
         Runnable close = context::close;
@@ -402,7 +443,8 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                     authenticationTimeout,
                     messageForwardingEnabled,
                     messageSearchEnabled,
-                    accountBlockingEnabled);
+                    accountBlockingEnabled,
+                    webPushHttpCredentials);
             context.pipeline().remove(this);
         }
         context.fireUserEventTriggered(event);

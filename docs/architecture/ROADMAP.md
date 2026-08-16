@@ -2478,8 +2478,12 @@ Candidate slices:
     - [x] Add Web-only capability-8 negotiation policy, a detached authenticated
       type-136 handler with bounded off-event-loop serialization and server-bound
       response identity, plus the fixed application-to-HTTP authentication bridge.
-    - [ ] Add the exact-gated product composition, WSS credential handler and
-      Web lease bridge, localized durable worker copy/UI, and browser evidence.
+    - [x] Compose capability 8 and the type-136 issuer on the Web WSS listener
+      only under exact `CHATROOM_GATEWAY_WEB_PUSH_ENABLED=true`, retain the
+      default-off path, and expose identity-free issuance counters; prove the
+      path through real TLS/WSS and disposable PostgreSQL.
+    - [ ] Add the exact-gated Web lease bridge and subscription HTTP route,
+      localized durable worker copy/UI, and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes:

@@ -73,6 +73,7 @@ import com.fallingnight.chat.protocol.v2.ServerHello;
 import com.fallingnight.chat.protocol.v2.SetAccountBlock;
 import com.fallingnight.chat.protocol.v2.SessionEstablished;
 import com.fallingnight.chat.protocol.v2.SubmitMessage;
+import com.fallingnight.chat.protocol.v2.WebPushHttpCredentialIssued;
 import com.google.protobuf.ByteString;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -468,6 +469,87 @@ class GatewayRuntimePostgresIntegrationTest {
                     denied.getMessageType());
             assertEquals(ProtocolErrorCode.PROTOCOL_ERROR_CODE_NOT_AUTHORIZED,
                     ProtocolError.parseFrom(denied.getPayload()).getCode());
+        } finally {
+            if (socket != null) socket.abort();
+            if (runtime != null) runtime.close();
+            certificate.delete();
+        }
+    }
+
+    @Test
+    void issuesWebPushHttpCredentialOnlyForNegotiatedWebRuntime() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String password = System.getenv().getOrDefault("CHATROOM_TEST_POSTGRES_PASSWORD", "");
+        Assumptions.assumeTrue(jdbcUrl != null && !jdbcUrl.isBlank());
+        Assumptions.assumeTrue(username != null && !username.isBlank());
+        new PostgresMigrator(jdbcUrl, username, password).migrate();
+
+        UUID accountId = UUID.randomUUID();
+        UUID peerAccountId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "wss-web-push-" + accountId;
+        seedV2NetworkAccounts(jdbcUrl, username, password, accountId, peerAccountId,
+                conversationId, login, "wss-web-push-" + peerAccountId);
+
+        int gatewayPort = availablePort();
+        int adminPort = availablePort();
+        SelfSignedCertificate certificate = new SelfSignedCertificate("localhost");
+        GatewayRuntime runtime = null;
+        WebSocket socket = null;
+        try {
+            Map<String, String> environment = new HashMap<>();
+            environment.put("CHATROOM_GATEWAY_PORT", Integer.toString(gatewayPort));
+            environment.put("CHATROOM_GATEWAY_ADMIN_PORT", Integer.toString(adminPort));
+            environment.put("CHATROOM_GATEWAY_TLS_CERTIFICATE",
+                    certificate.certificate().getAbsolutePath());
+            environment.put("CHATROOM_GATEWAY_TLS_PRIVATE_KEY",
+                    certificate.privateKey().getAbsolutePath());
+            environment.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "localhost:" + gatewayPort);
+            environment.put("CHATROOM_GATEWAY_WEB_ORIGINS", "https://chat.example.com");
+            environment.put("CHATROOM_POSTGRES_URL", jdbcUrl);
+            environment.put("CHATROOM_POSTGRES_USER", username);
+            environment.put("CHATROOM_POSTGRES_PASSWORD", "test-trust-password");
+            environment.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
+            environment.put("CHATROOM_GATEWAY_WEB_PUSH_ENABLED", "true");
+
+            runtime = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(environment));
+            runtime.start();
+            awaitReady(runtime);
+            BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
+            socket = connectWebSocketWeb(gatewayPort, listener);
+            socket.sendBinary(ByteBuffer.wrap(clientHelloWithWebPush(
+                    "network-web-push-device").toByteArray()), true).join();
+            ServerHello hello = ServerHello.parseFrom(listener.next().getPayload());
+            assertEquals(List.of(
+                    ClientCapability.CLIENT_CAPABILITY_WEB_PUSH_HTTP_CREDENTIAL),
+                    hello.getEnabledCapabilitiesList());
+            socket.sendBinary(ByteBuffer.wrap(authenticate(login).toByteArray()), true).join();
+            SessionEstablished session = SessionEstablished.parseFrom(
+                    listener.next().getPayload());
+
+            long issuedAfterEpochMs = System.currentTimeMillis();
+            socket.sendBinary(ByteBuffer.wrap(issueWebPushHttpCredential(
+                    session.getSessionId()).toByteArray()), true).join();
+            Envelope response = listener.next();
+            long receivedAtEpochMs = System.currentTimeMillis();
+            assertEquals(MessageType.MESSAGE_TYPE_WEB_PUSH_HTTP_CREDENTIAL_ISSUED_VALUE,
+                    response.getMessageType());
+            assertEquals(session.getSessionId(), response.getSessionId());
+            WebPushHttpCredentialIssued issued = WebPushHttpCredentialIssued.parseFrom(
+                    response.getPayload());
+            assertEquals(43, issued.getBearerTokenAscii().size());
+            assertEquals(43, issued.getCsrfTokenAscii().size());
+            assertTrue(issued.getExpiresAtEpochMs() > issuedAfterEpochMs);
+            assertTrue(issued.getExpiresAtEpochMs()
+                    <= receivedAtEpochMs + Duration.ofMinutes(10).toMillis());
+            assertEquals(1, countQuery(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.web_push_http_credential WHERE session_id='"
+                            + session.getSessionId()
+                            + "' AND octet_length(bearer_sha256)=32"
+                            + " AND octet_length(csrf_sha256)=32"));
+            assertTrue(adminMetrics(adminPort).contains(
+                    "chat_gateway_web_push_http_credentials_issued_total 1\n"));
         } finally {
             if (socket != null) socket.abort();
             if (runtime != null) runtime.close();
@@ -5270,6 +5352,21 @@ class GatewayRuntimePostgresIntegrationTest {
                 "wss://localhost:" + gatewayPort + "/v2/windows"), listener);
     }
 
+    private static WebSocket connectWebSocketWeb(
+            int gatewayPort, BinaryEnvelopeListener listener) throws Exception {
+        return HttpClient.newBuilder()
+                .sslContext(trustAllTls())
+                .connectTimeout(Duration.ofSeconds(2))
+                .build()
+                .newWebSocketBuilder()
+                .header("Origin", "https://chat.example.com")
+                .subprotocols("chat.v2")
+                .connectTimeout(Duration.ofSeconds(2))
+                .buildAsync(URI.create(
+                        "wss://localhost:" + gatewayPort + "/v2/web"), listener)
+                .get(3, TimeUnit.SECONDS);
+    }
+
     private static WebSocket connectWebSocket(
             URI endpoint, BinaryEnvelopeListener listener) throws Exception {
         return HttpClient.newBuilder()
@@ -5744,6 +5841,25 @@ class GatewayRuntimePostgresIntegrationTest {
                 .build();
         return command(MessageType.MESSAGE_TYPE_CLIENT_HELLO, "hello-block-1", "", "",
                 payload.toByteString());
+    }
+
+    private static Envelope clientHelloWithWebPush(String deviceId) {
+        ClientHello payload = ClientHello.newBuilder()
+                .setMinimumProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                .setMaximumProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                .setPlatform(ClientPlatform.CLIENT_PLATFORM_WEB)
+                .setAppVersion("integration-test")
+                .setClientDeviceId(deviceId)
+                .addCapabilities(
+                        ClientCapability.CLIENT_CAPABILITY_WEB_PUSH_HTTP_CREDENTIAL)
+                .build();
+        return command(MessageType.MESSAGE_TYPE_CLIENT_HELLO, "hello-web-push-1", "", "",
+                payload.toByteString());
+    }
+
+    private static Envelope issueWebPushHttpCredential(String sessionId) {
+        return command(MessageType.MESSAGE_TYPE_ISSUE_WEB_PUSH_HTTP_CREDENTIAL,
+                "issue-web-push-http-credential-1", sessionId, "", ByteString.EMPTY);
     }
 
     private static Envelope authenticate(String login) {

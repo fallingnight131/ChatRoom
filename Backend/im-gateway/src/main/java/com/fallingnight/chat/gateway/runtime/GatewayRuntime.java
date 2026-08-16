@@ -5,12 +5,15 @@ import com.fallingnight.chat.application.contact.AccountBlockDirectoryService;
 import com.fallingnight.chat.application.identity.AuthenticationService;
 import com.fallingnight.chat.application.identity.SessionResumeService;
 import com.fallingnight.chat.application.identity.DeviceManagementService;
+import com.fallingnight.chat.application.notification.WebPushDeliveryPolicy;
+import com.fallingnight.chat.application.notification.WebPushHttpCredentialIssueService;
 import com.fallingnight.chat.gateway.operations.AttachmentCleanupTelemetry;
 import com.fallingnight.chat.gateway.operations.GatewayAdminServer;
 import com.fallingnight.chat.gateway.operations.GatewayProcessResources;
 import com.fallingnight.chat.gateway.operations.ResidentMemorySampler;
 import com.fallingnight.chat.gateway.operations.PrometheusConversationEventOutboxMetrics;
 import com.fallingnight.chat.gateway.operations.PrometheusGatewayRoutingMetrics;
+import com.fallingnight.chat.gateway.operations.PrometheusWebPushHttpCredentialMetrics;
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
 import com.fallingnight.chat.gateway.transport.AuthenticationWorkerPool;
 import com.fallingnight.chat.gateway.transport.InMemoryAuthenticationAdmissionControl;
@@ -21,6 +24,8 @@ import com.fallingnight.chat.gateway.transport.DeviceConnectionRegistry;
 import com.fallingnight.chat.gateway.transport.DeviceManagementTelemetry;
 import com.fallingnight.chat.gateway.transport.SingleGatewayConversationLiveRouter;
 import com.fallingnight.chat.gateway.transport.ConversationLiveRouter;
+import com.fallingnight.chat.gateway.transport.WebPushHttpCredentialGatewayComponent;
+import com.fallingnight.chat.gateway.transport.WebPushHttpCredentialTelemetry;
 import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
@@ -35,6 +40,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresMessageSearchAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresAccountBlockAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresAccountBlockDirectoryAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresDeviceManagementAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresWebPushHttpCredentialAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.zaxxer.hikari.HikariDataSource;
 import java.time.Clock;
@@ -127,6 +133,17 @@ public final class GatewayRuntime implements AutoCloseable {
             DeviceManagementService deviceManagement = new DeviceManagementService(
                     new PostgresDeviceManagementAdapter(dataSource));
             Clock clock = Clock.systemUTC();
+            WebPushHttpCredentialTelemetry webPushCredentialTelemetry =
+                    new WebPushHttpCredentialTelemetry();
+            WebPushHttpCredentialGatewayComponent webPushHttpCredentials =
+                    config.webPushEnabled()
+                            ? WebPushHttpCredentialGatewayComponent.enabled(
+                                    new WebPushHttpCredentialIssueService(
+                                            new WebPushDeliveryPolicy(true),
+                                            new PostgresWebPushHttpCredentialAdapter(dataSource),
+                                            clock),
+                                    webPushCredentialTelemetry)
+                            : WebPushHttpCredentialGatewayComponent.disabled();
             AuthenticationService authentication = new AuthenticationService(
                     identity,
                     new CompatibleCredentialVerifier(),
@@ -199,7 +216,8 @@ public final class GatewayRuntime implements AutoCloseable {
                     deviceTelemetry,
                     deviceConnections,
                     productLiveRouter,
-                    publicReadiness);
+                    publicReadiness,
+                    webPushHttpCredentials);
             V2GatewayServer eventLoopMetricsServer = productServer;
             residentMemorySampler = ResidentMemorySampler.startDefault(Duration.ofMillis(250));
             ResidentMemorySampler residentMemoryMetricsSampler = residentMemorySampler;
@@ -220,7 +238,9 @@ public final class GatewayRuntime implements AutoCloseable {
                     GatewayProcessResources::snapshot,
                     residentMemoryMetricsSampler::snapshot,
                     publicReadiness,
-                    distributedMetrics,
+                    () -> PrometheusWebPushHttpCredentialMetrics.render(
+                            webPushCredentialTelemetry.snapshot())
+                            + distributedMetrics.get(),
                     config.releaseIdentity());
             return new GatewayRuntime(
                     readiness,

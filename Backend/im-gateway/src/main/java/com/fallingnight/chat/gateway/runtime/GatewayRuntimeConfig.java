@@ -60,6 +60,7 @@ public final class GatewayRuntimeConfig {
     private final boolean messageForwardingEnabled;
     private final boolean messageSearchEnabled;
     private final boolean accountBlockingEnabled;
+    private final boolean webPushEnabled;
     private final DistributedGatewayRoutingConfig distributedRouting;
     private final GatewayReleaseIdentity releaseIdentity;
 
@@ -98,6 +99,7 @@ public final class GatewayRuntimeConfig {
             boolean messageForwardingEnabled,
             boolean messageSearchEnabled,
             boolean accountBlockingEnabled,
+            boolean webPushEnabled,
             DistributedGatewayRoutingConfig distributedRouting,
             GatewayReleaseIdentity releaseIdentity) {
         this.listenerAddress = listenerAddress;
@@ -134,6 +136,7 @@ public final class GatewayRuntimeConfig {
         this.messageForwardingEnabled = messageForwardingEnabled;
         this.messageSearchEnabled = messageSearchEnabled;
         this.accountBlockingEnabled = accountBlockingEnabled;
+        this.webPushEnabled = webPushEnabled;
         this.distributedRouting = Objects.requireNonNull(distributedRouting, "distributedRouting");
         this.releaseIdentity = Objects.requireNonNull(releaseIdentity, "releaseIdentity");
     }
@@ -242,6 +245,8 @@ public final class GatewayRuntimeConfig {
                 environment, "CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED", false);
         boolean accountBlockingEnabled = bool(
                 environment, "CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED", false);
+        boolean webPushEnabled = bool(
+                environment, "CHATROOM_GATEWAY_WEB_PUSH_ENABLED", false);
         return new GatewayRuntimeConfig(
                 listener,
                 admin,
@@ -277,6 +282,7 @@ public final class GatewayRuntimeConfig {
                 messageForwardingEnabled,
                 messageSearchEnabled,
                 accountBlockingEnabled,
+                webPushEnabled,
                 DistributedGatewayRoutingConfig.fromEnvironment(environment),
                 GatewayReleaseIdentity.fromEnvironment(environment));
     }
@@ -419,6 +425,10 @@ public final class GatewayRuntimeConfig {
 
     public boolean accountBlockingEnabled() {
         return accountBlockingEnabled;
+    }
+
+    public boolean webPushEnabled() {
+        return webPushEnabled;
     }
 
     public DistributedGatewayRoutingConfig distributedRouting() {

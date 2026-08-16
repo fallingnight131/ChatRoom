@@ -295,15 +295,56 @@ public final class V2ApplicationPipeline {
             boolean messageForwardingEnabled,
             boolean messageSearchEnabled,
             boolean accountBlockingEnabled) {
+        install(pipeline, authentication, sessionResume, submissions, history, directory,
+                participants, reactions, pins, edits, forwards, search, accountBlocks,
+                accountBlockDirectory, deviceManagement, authenticationExecutor,
+                messagingExecutor, admission, events, messagingEvents, deviceEvents,
+                deviceConnections, liveRouter, handshakeTimeout, authenticationTimeout,
+                messageForwardingEnabled, messageSearchEnabled, accountBlockingEnabled,
+                WebPushHttpCredentialGatewayComponent.disabled());
+    }
+
+    public static void install(
+            ChannelPipeline pipeline,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            MessageSearchPort search,
+            AccountBlockUseCase accountBlocks,
+            AccountBlockDirectoryUseCase accountBlockDirectory,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            Duration handshakeTimeout,
+            Duration authenticationTimeout,
+            boolean messageForwardingEnabled,
+            boolean messageSearchEnabled,
+            boolean accountBlockingEnabled,
+            WebPushHttpCredentialGatewayComponent webPushHttpCredentials) {
         Objects.requireNonNull(pipeline, "pipeline");
         Objects.requireNonNull(search, "search");
         Objects.requireNonNull(accountBlocks, "accountBlocks");
         Objects.requireNonNull(accountBlockDirectory, "accountBlockDirectory");
+        Objects.requireNonNull(webPushHttpCredentials, "webPushHttpCredentials");
         V2FramePipeline.install(pipeline);
         pipeline.addLast("v2-phase-timeouts", new V2ConnectionTimeoutHandler(
                 handshakeTimeout, authenticationTimeout));
         pipeline.addLast("v2-handshake", new V2HandshakeHandler(
-                messageForwardingEnabled, messageSearchEnabled, accountBlockingEnabled));
+                messageForwardingEnabled, messageSearchEnabled, accountBlockingEnabled,
+                webPushHttpCredentials.enabled()));
         pipeline.addLast("v2-authentication", new V2AuthenticationHandler(
                 authentication,
                 sessionResume,
@@ -325,6 +366,7 @@ public final class V2ApplicationPipeline {
             pipeline.addLast("v2-account-block", new V2AccountBlockHandler(
                     accountBlocks, accountBlockDirectory, messagingExecutor, messagingEvents));
         }
+        webPushHttpCredentials.install(pipeline, messagingExecutor);
         pipeline.addLast("v2-messaging", new V2MessagingHandler(
                 submissions, history, directory, reactions, pins, edits, forwards,
                 messagingExecutor, messagingEvents, liveRouter));

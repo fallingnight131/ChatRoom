@@ -2085,9 +2085,8 @@ key and 16-byte auth secret before acquiring credentials. Fetch is pinned to the
 exact HTTPS origin and stable installation path with omitted ambient
 credentials, same-origin mode, no redirects, no cache, and no referrer. Only
 fixed HTTP outcomes and bounded Retry-After metadata escape; response bodies are
-cancelled and never reflected. The Web protocol lease bridge and gateway
-credential handler remain absent, so this adapter cannot be composed in the
-product yet.
+cancelled and never reflected. The Web protocol lease bridge and subscription
+HTTP route remain absent, so this adapter cannot be composed in the product yet.
 The Web platform now has a Vite module-worker entry and a detached browser
 adapter. Capability requires a secure context plus Notification, ServiceWorker,
 and PushManager support. Registration accepts only a fixed local worker asset
@@ -2112,9 +2111,9 @@ random tokens, clips their default ten-minute lifetime to the current session,
 atomically replaces the prior pair, and authenticates only while the account,
 device, session, and HTTP credential all remain current. Plaintext is returned
 only through the owned response and all adapter working buffers are cleared. No
-default client requests capability 8 and no gateway handler or transport bridge
-is composed, so this remains an additive inactive contract rather than product
-activation.
+default client requests capability 8. The runtime installs its issuer only
+under exact `CHATROOM_GATEWAY_WEB_PUSH_ENABLED=true`; the default remains an
+additive inactive contract rather than product activation.
 The detached gateway boundary now understands that contract without activating
 it. Handshake policy can negotiate capability 8 only when its explicit server
 policy is true, the client requested it, and the negotiated platform is Web.
@@ -2124,8 +2123,13 @@ state; serializes a bounded queue off the event loop; and returns secrets under
 the server-bound session before closing their owned application buffers. Fixed
 unavailable, saturated, and internal outcomes expose no exception detail. The
 HTTP bridge maps the application authentication actor/decision to the existing
-transport contract and retains no token. Runtime pipeline installation, config,
-and default client capability remain absent.
+transport contract and retains no token. Runtime composition now places the
+type-136 handler on the Web WSS pipeline only under the exact-default-off flag,
+using the shared bounded messaging executor and PostgreSQL authority. Fixed,
+identity-free issuance/denial/saturation/failure counters are exposed on the
+admin metrics endpoint. The subscription HTTP handler, Web credential lease
+bridge, and default client capability remain absent, so enabling this server
+flag alone cannot register or deliver Web Push.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

@@ -166,8 +166,9 @@ resume proof or activate a gateway/client path.
 - The detached Web HTTP adapter acquires bearer/CSRF only through one short-lived
   lease per mutation, validates the subscription before that lease, and pins a
   credential-omitting, no-redirect/no-cache/no-referrer request to the exact
-  HTTPS product origin. It exposes fixed outcomes, discards response bodies, and
-  has no WSS credential handler, Web lease bridge, or product composition.
+  HTTPS product origin. It exposes fixed outcomes and discards response bodies.
+  ADR-0410 now composes the exact-gated WSS issuer, while the Web lease bridge,
+  subscription HTTP route, and product composition remain absent.
 - A Vite module-worker entry installs the validated event runtime, while a
   detached browser adapter requires secure Notification/ServiceWorker/
   PushManager capabilities, validates local URL/scope, registers explicitly,

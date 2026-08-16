@@ -38,6 +38,7 @@ import com.fallingnight.chat.gateway.transport.V2EnvelopeDecoder;
 import com.fallingnight.chat.gateway.transport.V2WebSocketUpgradeHandler;
 import com.fallingnight.chat.gateway.transport.WebSocketEndpointPolicy;
 import com.fallingnight.chat.gateway.transport.WebSocketEndpointPolicyHandler;
+import com.fallingnight.chat.gateway.transport.WebPushHttpCredentialGatewayComponent;
 import com.fallingnight.chat.gateway.operations.EventLoopSnapshot;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -94,6 +95,8 @@ public final class V2GatewayServer implements AutoCloseable {
             (actor, intent) -> AccountBlockResult.Rejected.TARGET_UNAVAILABLE;
     private AccountBlockDirectoryUseCase accountBlockDirectory =
             (actor, request) -> AccountBlockDirectoryResult.Rejected.NOT_AUTHORIZED;
+    private WebPushHttpCredentialGatewayComponent webPushHttpCredentials =
+            WebPushHttpCredentialGatewayComponent.disabled();
     private final DeviceManagementService deviceManagement;
     private final Executor authenticationExecutor;
     private final Executor messagingExecutor;
@@ -291,6 +294,41 @@ public final class V2GatewayServer implements AutoCloseable {
         this.accountBlocks = Objects.requireNonNull(accountBlocks, "accountBlocks");
         this.accountBlockDirectory = Objects.requireNonNull(
                 accountBlockDirectory, "accountBlockDirectory");
+    }
+
+    V2GatewayServer(
+            GatewayRuntimeConfig config,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            MessageSearchPort search,
+            AccountBlockUseCase accountBlocks,
+            AccountBlockDirectoryUseCase accountBlockDirectory,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            BooleanSupplier productReadiness,
+            WebPushHttpCredentialGatewayComponent webPushHttpCredentials) {
+        this(config, authentication, sessionResume, submissions, history, directory,
+                participants, reactions, pins, edits, forwards, search, accountBlocks,
+                accountBlockDirectory, deviceManagement, authenticationExecutor,
+                messagingExecutor, admission, events, messagingEvents, deviceEvents,
+                deviceConnections, liveRouter, productReadiness);
+        this.webPushHttpCredentials = Objects.requireNonNull(
+                webPushHttpCredentials, "webPushHttpCredentials");
     }
 
     V2GatewayServer(
@@ -720,7 +758,8 @@ public final class V2GatewayServer implements AutoCloseable {
                 config.authenticationTimeout(),
                 config.messageForwardingEnabled(),
                 config.messageSearchEnabled(),
-                config.accountBlockingEnabled()));
+                config.accountBlockingEnabled(),
+                webPushHttpCredentials));
         pipeline.addLast("safe-channel-error", new GatewayChannelExceptionHandler());
     }
 
