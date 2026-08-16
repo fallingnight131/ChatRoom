@@ -2282,6 +2282,8 @@ Candidate slices:
     the draft.
   - [x] Apply the same shared UTF-8 byte budget to Web V1 and V2 ordinary/edit
     composers, replacing the misleading V2 UTF-16 `maxlength` guard.
+  - [x] Add an explicit keyboard-focusable Windows copy action for available
+    message bodies without exposing recalled content.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

@@ -2198,6 +2198,10 @@ Web unit/source tests verify the same exact/over-limit multibyte cases and requi
 both V1 and V2 send/edit handlers to recheck the shared helper. `npm run build`
 also compiles the accessible live byte labels; the old V2 UTF-16 `maxlength`
 marker is forbidden.
+The Windows Widgets test also activates the accessible copy control and requires
+the clipboard to receive the exact plain body, including Unicode and literal
+HTML-looking text. The action is rendered only for available accepted rows, so
+recalled content is never copied from hidden cached text.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

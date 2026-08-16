@@ -6,7 +6,9 @@
 #include "V2WindowsMessageSearchViewModel.h"
 
 #include <QAccessible>
+#include <QClipboard>
 #include <QEvent>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
@@ -314,6 +316,14 @@ void V2WindowsMessagingPanel::render() {
             actions->addWidget(retry);
         }
         if (message.canReply) {
+            auto *copy = new QPushButton(QStringLiteral("复制"), row);
+            copy->setAccessibleName(QStringLiteral("复制此消息正文"));
+            connect(copy, &QPushButton::clicked, this,
+                [text = message.text] {
+                    if (auto *clipboard = QGuiApplication::clipboard())
+                        clipboard->setText(text);
+                });
+            actions->addWidget(copy);
             if (m_forwardingEnabled && message.canForward) {
                 auto *forward = new QPushButton(QStringLiteral("转发"), row);
                 forward->setAccessibleName(QStringLiteral("转发此消息"));

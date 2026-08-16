@@ -935,6 +935,10 @@ Web now uses the same shared UTF-8 budget helper in its V1 composer and V2
 ordinary/edit forms. Enter and submit handlers recheck the budget rather than
 depending only on disabled buttons, and the previous V2 `maxlength=65536`
 character guard is removed because it did not represent the byte contract.
+Available Windows V2 message rows now also expose a keyboard-focusable,
+screen-reader-named copy action. It places the plain authoritative body on the
+platform clipboard, not the rich HTML rendering or mention identity metadata.
+Recalled/unavailable rows do not expose the action.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

@@ -6,6 +6,7 @@
 #include "V2WindowsMessageSearchViewModel.h"
 
 #include <QApplication>
+#include <QClipboard>
 #include <QEventLoop>
 #include <QLabel>
 #include <QKeyEvent>
@@ -286,6 +287,21 @@ int main(int argc, char **argv) {
         return 1;
     }
     auto replies = panel.findChildren<QPushButton *>(QString(), Qt::FindChildrenRecursively);
+    const auto copy = std::find_if(replies.cbegin(), replies.cend(), [](QPushButton *button) {
+        return button->isVisible()
+            && button->accessibleName() == QStringLiteral("复制此消息正文");
+    });
+    if (copy == replies.cend()) {
+        qCritical() << "accessible copy action missing";
+        return 1;
+    }
+    (*copy)->click();
+    app.processEvents();
+    if (!QApplication::clipboard()
+            || QApplication::clipboard()->text() != message.text) {
+        qCritical() << "copy action did not preserve the plain message body";
+        return 1;
+    }
     auto reply = std::find_if(replies.cbegin(), replies.cend(), [](QPushButton *button) {
         return button->isVisible() && button->text() == QStringLiteral("回复");
     });

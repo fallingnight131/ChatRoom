@@ -105,6 +105,8 @@ def main() -> int:
         "key->key() == Qt::Key_Escape",
         "V2LocalMessageRepository::MaxTextBytes",
         'setAccessibleName(QStringLiteral("消息字节数"))',
+        'setAccessibleName(QStringLiteral("复制此消息正文"))',
+        "QGuiApplication::clipboard()",
         "m_mentionsEnabled && !m_conversationId.isEmpty()",
         "V2WindowsMentionComposer::serialize",
         'setProperty("mentionTargetAccountIds"',
