@@ -95,6 +95,9 @@ optimize lookup only as rebuildable state; PostgreSQL remains authoritative.
   resolving, and contains timeout/rejection. Exact Web candidate composition
   requires a valid public P-256 application-server key, exact HTTPS page origin,
   and persistent installation; default and ephemeral clients remain uncomposed.
+  The candidate UI invokes issuance only from an authenticated explicit opt-in
+  or opt-out action, announces fixed localized outcomes, and never persists a
+  credential or requests permission during initialization.
 - Rollback removes capability negotiation and handler composition first. The
   additive registry identities and migration remain; credential rows expire or
   can be erased without touching chat or subscription truth.

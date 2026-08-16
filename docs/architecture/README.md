@@ -2105,8 +2105,11 @@ valid public uncompressed P-256 application-server key, an exact HTTPS page
 origin, and a persistent browser installation identity. The same gate lazily
 resolves the reviewed module-worker asset and composes the subscription
 controller/HTTP adapter; denied browser storage leaves capability 8 absent to
-avoid an orphan installation. The default build and current view construct no
-push UI, so users still cannot activate the route.
+avoid an orphan installation. The V2 view presents that candidate as a separate
+localized offline-notification preference: permission remains behind an
+explicit native button, server mutation remains authenticated, pending and
+fixed failure states are announced accessibly, and no contact or message body
+appears in its copy. The default build still constructs no push UI.
 The Web platform now has a Vite module-worker entry and a detached browser
 adapter. Capability requires a secure context plus Notification, ServiceWorker,
 and PushManager support. Registration accepts only a fixed local worker asset
@@ -2115,8 +2118,8 @@ subscription, and passes `userVisibleOnly: true` with a defensive VAPID public-
 key copy. The entry installs the already-tested push/click runtime with generic
 fallback copy. Vite may emit the inert hashed worker asset in an ordinary build,
 but only the exact candidate resolves/registers it; the default product performs
-no Service Worker or PushManager action. Localized UI and browser evidence remain
-open.
+no Service Worker or PushManager action. Durable worker-locale propagation and
+Chromium/Firefox browser evidence remain open.
 
 ADR-0410 defines the missing Web Push HTTP credential issuance boundary without
 reusing the WSS resume proof. Capability 8 and permanent types 136/137 carry an
@@ -2150,9 +2153,9 @@ using the shared bounded messaging executor and PostgreSQL authority. Fixed,
 identity-free issuance/denial/saturation/failure counters are exposed on the
 admin metrics endpoint. A second exact gate can install the subscription HTTP
 handler only with protected key custody and the issuer enabled. The exact Web
-candidate can now request capability 8 and compose the controller, while the
-default client and product UI remain absent; enabling server flags alone still
-cannot register or deliver Web Push.
+candidate can now request capability 8 and compose the controller plus localized
+authenticated V2 preference, while the default client remains absent; enabling
+server flags alone still cannot register or deliver Web Push.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

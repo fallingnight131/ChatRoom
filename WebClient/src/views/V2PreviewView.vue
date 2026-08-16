@@ -90,6 +90,18 @@
               {{ notificationMessages.sessionOnly }}
             </small>
           </div>
+          <div v-if="webPushAvailable" class="notification-control">
+            <button class="device-entry" type="button"
+                    :disabled="!canManageWebPush"
+                    aria-describedby="v2-web-push-description v2-web-push-status"
+                    @click="toggleWebPush">
+              {{ webPushSubscription.enabled ? webPushMessages.disable : webPushMessages.enable }}
+            </button>
+            <small id="v2-web-push-description">{{ webPushMessages.description }}</small>
+            <small id="v2-web-push-status" role="status" aria-live="polite" aria-atomic="true">
+              {{ webPushStateLabel }}
+            </small>
+          </div>
         </div>
         <ul class="conversation-list" :aria-label="shellMessages.availableConversations">
           <li v-for="conversation in snapshot.directory" :key="conversation.conversationId">
@@ -582,6 +594,7 @@ import {
   v2PreviewForwardMessages,
   v2PreviewMentionMessages,
   v2PreviewNotificationMessages,
+  v2PreviewWebPushMessages,
   v2PreviewPinMessages,
   v2PreviewReactionMessages,
   v2PreviewSearchMessages,
@@ -610,6 +623,7 @@ const deviceMessages = computed(() => v2PreviewDeviceMessages(userStore.locale))
 const editMessages = computed(() => v2PreviewEditMessages(userStore.locale))
 const mentionMessages = computed(() => v2PreviewMentionMessages(userStore.locale))
 const notificationMessages = computed(() => v2PreviewNotificationMessages(userStore.locale))
+const webPushMessages = computed(() => v2PreviewWebPushMessages(userStore.locale))
 const pinMessages = computed(() => v2PreviewPinMessages(userStore.locale))
 const reactionMessages = computed(() => v2PreviewReactionMessages(userStore.locale))
 const forwardMessages = computed(() => v2PreviewForwardMessages(userStore.locale))
@@ -714,6 +728,8 @@ const notificationPreferenceController = new WebNotificationPreferenceController
   },
 })
 const notificationPreference = ref(notificationPreferenceController.snapshot)
+const webPushSubscription = ref({ enabled: false, pending: false, state: 'unsupported' })
+let webPushController = null
 
 const runtimeReady = computed(() => runtimeRef?.value?.enabled === true)
 const runtimeReason = computed(() => runtimeRef?.value?.reason || shellMessages.value.runtimeUnavailable)
@@ -735,6 +751,27 @@ const notificationStateLabel = computed(() => ({
   unavailable: notificationMessages.value.unavailable,
   'request-failed': notificationMessages.value.requestFailed,
 }[notificationPreference.value.state]))
+const webPushAvailable = computed(() => Boolean(runtimeRef?.value?.enabled
+  && runtimeRef.value.webPushController))
+const canManageWebPush = computed(() => snapshot.value.connectionState === 'authenticated'
+  && !webPushSubscription.value.pending)
+const webPushStateLabel = computed(() => {
+  if (webPushSubscription.value.pending) return webPushMessages.value.pending
+  if (snapshot.value.connectionState !== 'authenticated' && !webPushSubscription.value.enabled) {
+    return webPushMessages.value.authenticationRequired
+  }
+  return ({
+    enabled: webPushMessages.value.enabled,
+    disabled: webPushMessages.value.disabled,
+    unsupported: webPushMessages.value.unsupported,
+    'permission-denied': webPushMessages.value.permissionDenied,
+    'permission-failed': webPushMessages.value.permissionFailed,
+    'registration-failed': webPushMessages.value.registrationFailed,
+    'subscription-failed': webPushMessages.value.subscriptionFailed,
+    'server-failed': webPushMessages.value.serverFailed,
+    'unsubscribe-failed': webPushMessages.value.unsubscribeFailed,
+  })[webPushSubscription.value.state]
+})
 const activeConversationName = computed(() => snapshot.value.directory.find(
   item => item.conversationId === snapshot.value.activeConversationId
 )?.displayName || shellMessages.value.conversation)
@@ -793,7 +830,8 @@ const reactionChoices = computed(() => [
 ])
 
 function attachRuntime(runtime) {
-  if (runtime?.enabled && runtime.application === startedApplication) return
+  if (runtime?.enabled && runtime.application === startedApplication
+      && runtime.webPushController === webPushController) return
   unsubscribe?.()
   unsubscribe = null
   unsubscribeRemoteMessages?.()
@@ -801,9 +839,13 @@ function attachRuntime(runtime) {
   notificationPresenter?.clear()
   notificationPresenter = null
   notificationAccountId = ''
+  webPushController = null
+  webPushSubscription.value = { enabled: false, pending: false, state: 'unsupported' }
   startedApplication = null
   if (!runtime?.enabled) return
   startedApplication = runtime.application
+  webPushController = runtime.webPushController
+  if (webPushController) void refreshWebPushSubscription(webPushController)
   notificationPresenter = new WebMessageNotificationPresenter({
     permission: () => window.Notification.permission,
     create: (title, options) => new window.Notification(title, options),
@@ -858,6 +900,22 @@ async function toggleNotifications() {
   } finally {
     notificationRequestPending.value = false
   }
+}
+
+async function toggleWebPush() {
+  const controller = webPushController
+  if (!controller || !canManageWebPush.value) return
+  webPushSubscription.value = { ...webPushSubscription.value, pending: true }
+  const result = webPushSubscription.value.enabled
+    ? await controller.disable()
+    : await controller.enableFromUserGesture()
+  if (webPushController === controller) webPushSubscription.value = result
+}
+
+async function refreshWebPushSubscription(controller = webPushController) {
+  if (!controller) return
+  const result = await controller.refresh()
+  if (webPushController === controller) webPushSubscription.value = result
 }
 
 function refreshNotificationPermission() {

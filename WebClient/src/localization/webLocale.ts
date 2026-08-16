@@ -586,6 +586,36 @@ const v2PreviewNotificationCatalog = {
   },
 } as const;
 
+const v2PreviewWebPushCatalog = {
+  "zh-CN": {
+    enable: "启用离线通知", disable: "关闭离线通知", enabled: "离线通知已启用",
+    disabled: "离线通知未启用", pending: "正在更新离线通知设置…",
+    unsupported: "当前浏览器或环境不支持离线通知",
+    permissionDenied: "浏览器已拒绝通知权限，请在网站设置中重新允许。",
+    permissionFailed: "无法请求浏览器通知权限",
+    registrationFailed: "无法启动离线通知组件",
+    subscriptionFailed: "无法创建浏览器离线通知订阅",
+    serverFailed: "无法在服务器保存离线通知设置，请稍后重试",
+    unsubscribeFailed: "服务器已停用通知，但浏览器订阅清理失败",
+    authenticationRequired: "安全连接后才能更改离线通知设置",
+    description: "关闭网页后仍可收到通用系统提示；通知不会展示联系人或消息正文。",
+  },
+  "en-US": {
+    enable: "Enable offline notifications", disable: "Turn off offline notifications",
+    enabled: "Offline notifications are enabled", disabled: "Offline notifications are not enabled",
+    pending: "Updating offline notification settings…",
+    unsupported: "Offline notifications are unavailable in this browser or environment",
+    permissionDenied: "Notifications are blocked. Allow them again in this site's browser settings.",
+    permissionFailed: "Unable to request browser notification permission",
+    registrationFailed: "Unable to start the offline notification component",
+    subscriptionFailed: "Unable to create the browser push subscription",
+    serverFailed: "Unable to save offline notification settings on the server. Try again later.",
+    unsubscribeFailed: "Server notifications are disabled, but the browser subscription could not be removed",
+    authenticationRequired: "Connect securely before changing offline notification settings",
+    description: "Receive generic system alerts after closing the page; contact names and message bodies are never shown.",
+  },
+} as const;
+
 const v2PreviewSearchCatalog = {
   "zh-CN": {
     openSearch: "搜索消息", closeSearch: "关闭搜索", searchConversation: "搜索当前会话",
@@ -897,6 +927,10 @@ export function v2PreviewShellMessages(locale: WebLocale) {
 
 export function v2PreviewNotificationMessages(locale: WebLocale) {
   return v2PreviewNotificationCatalog[locale];
+}
+
+export function v2PreviewWebPushMessages(locale: WebLocale) {
+  return v2PreviewWebPushCatalog[locale];
 }
 
 export function v2PreviewSearchMessages(locale: WebLocale) {

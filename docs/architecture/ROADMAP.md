@@ -2503,6 +2503,10 @@ Candidate slices:
       only under exact `VITE_CHAT_V2_WEB_PUSH=true`, a valid public uncompressed
       P-256 key, exact HTTPS page origin, and a persistent browser installation;
       leave ephemeral installations and the default build uncomposed.
+    - [x] Add a separate localized and accessible offline-notification
+      preference that requests permission only from an explicit user gesture,
+      requires an authenticated WSS session for server mutations, announces
+      pending/fixed failure states, and leaves the default build UI-free.
     - [ ] Add the exact-gated Web lease bridge, localized durable worker copy/UI,
       and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key

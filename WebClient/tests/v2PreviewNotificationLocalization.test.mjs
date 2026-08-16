@@ -23,3 +23,13 @@ test('keeps permission on an explicit native action and navigation on stable ide
   ]) assert.ok(source.includes(marker), `missing V2 notification boundary marker: ${marker}`)
   assert.doesNotMatch(source, /present\([^)]*(message\.content|candidate\.content)/)
 })
+
+test('renders an independent authenticated and accessible Web Push preference', () => {
+  for (const marker of [
+    'v-if="webPushAvailable"', 'v2PreviewWebPushMessages(userStore.locale)',
+    '@click="toggleWebPush"', 'enableFromUserGesture()', 'controller.disable()',
+    "snapshot.value.connectionState === 'authenticated'", 'aria-live="polite"',
+    'aria-atomic="true"', 'v2-web-push-description v2-web-push-status',
+    'webPushMessages.value.authenticationRequired', 'webPushMessages.value.serverFailed',
+  ]) assert.ok(source.includes(marker), `missing V2 Web Push UI boundary marker: ${marker}`)
+})

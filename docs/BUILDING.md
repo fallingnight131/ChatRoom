@@ -1544,8 +1544,9 @@ port tests, not a registered browser Service Worker or host-notification gate.
 build zero touch/zero configuration, user-gesture permission, registration and
 subscription order, defensive VAPID key copying, authenticated-port upload,
 new-subscription rollback, serialized state, and server-first disable. The
-production build remains free of active Web Push composition until the separate
-gate and entry are added.
+default production build remains free of active Web Push composition. The
+candidate view exposes a separate localized opt-in/out control only when its
+exact build gate successfully composes the controller.
 The same Web suite covers the authenticated subscription HTTP adapter. It proves
 one credential lease per mutation, exact same-origin HTTPS routing, omitted
 ambient credentials, redirect/cache/referrer denial, canonical endpoint and key
@@ -1570,8 +1571,12 @@ It composes capability 8, the live lease, same-origin HTTP adapter, lazy module
 worker browser port, and subscription controller only for a persistent browser
 device identity and exact HTTPS page origin. Missing/false/non-exact flags,
 invalid keys, or denied persistent storage leave Web Push uncomposed. The public
-key is not a secret. This candidate still has no product UI or real-provider
-browser acceptance evidence.
+key is not a secret. The candidate view then exposes an authenticated, native-
+button opt-in/out control with live-region status. It never requests permission
+on mount, keeps closed-page push separate from the page-only notification
+preference, disables mutations without an authenticated WSS session, and maps
+only fixed localized controller outcomes. This is not real-provider browser
+acceptance evidence.
 The inactive HTTP-credential protocol and application boundary can be selected
 with:
 
