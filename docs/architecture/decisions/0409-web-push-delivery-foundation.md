@@ -251,6 +251,12 @@ resume proof or activate a gateway/client path.
   it in one aggregate query, and its Prometheus form uses fixed names without
   labels. No threshold or product-readiness decision follows from observation
   alone.
+- A detached fail-closed readiness probe now evaluates the optional worker's
+  running state, durable backlog, oldest age, and consecutive loop failures
+  against reviewed bounds. It avoids PostgreSQL when stopped, collapses probe
+  exceptions to one fixed unavailable reason, and renders a label-free one-hot
+  reason set. Push-component health must not gate core chat traffic; runtime
+  configuration, admin exposure, and the provider canary remain open.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

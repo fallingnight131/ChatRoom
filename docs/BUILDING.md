@@ -1695,6 +1695,21 @@ leased, delayed, or expired counts and also reports retry count, maximum attempt
 count, and oldest committed age. The corresponding Prometheus gauges use fixed
 names and no labels. These are observation primitives only: readiness thresholds
 and admin-endpoint composition remain separate work.
+The detached component-readiness policy can be selected with:
+
+```bash
+cd Backend
+JAVA_HOME=/path/to/jdk-21 ./gradlew --no-daemon :im-gateway:test \
+  --tests '*WebPushDeliveryReadinessTest'
+```
+
+It short-circuits without a database read while the worker is stopped and
+otherwise fails closed on status-read failure, a reviewed consecutive-failure
+threshold, expired backlog, total backlog, or oldest-age threshold. Failure
+precedence is fixed and Prometheus output is a label-free one-hot reason set.
+This is readiness for the optional push component only; it must not remove the
+core chat gateway from service. Threshold configuration, admin composition,
+and a real-provider canary remain open.
 The detached gateway issuance and HTTP bridge can be selected with:
 
 ```bash

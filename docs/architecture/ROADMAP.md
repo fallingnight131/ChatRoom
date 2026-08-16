@@ -2488,6 +2488,10 @@ Candidate slices:
         aggregate that completely partitions incomplete work into ready,
         actively leased, delayed, or expired backlog, reports retry/attempt/age
         signals, and renders fixed-name label-free metrics.
+      - [x] Add detached component readiness with stopped short-circuit,
+        dependency-failure closure, reviewed consecutive-failure/expired/count/
+        age thresholds, fixed reason precedence, and label-free one-hot metrics;
+        do not couple optional push health to core chat readiness.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
     - [x] Add the pure Service Worker payload boundary with exact version/field/

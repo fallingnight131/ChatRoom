@@ -2097,7 +2097,12 @@ push event into ready, actively leased, delayed, or expired backlog and reports
 retry count, maximum attempt count, and oldest committed age. Its application
 record enforces a complete partition, and fixed-name label-free Prometheus
 gauges avoid account, conversation, message, claim, and installation identity.
-Threshold policy and admin/runtime composition remain open.
+A detached fail-closed readiness probe now applies reviewed limits to sustained
+loop failures, expired/total backlog, and oldest age, with fixed failure
+precedence and label-free one-hot reason metrics. A stopped worker does not read
+PostgreSQL. This health state belongs to the optional push component and does
+not make core chat traffic unready. Configuration, admin/runtime composition,
+and the real-provider canary remain open.
 The Web client now has a pure Service Worker payload boundary. It accepts only
 schema version 1, three canonical stable UUIDs, and the structural mention
 boolean within 2 KiB; unknown fields, message text, malformed identity, and
