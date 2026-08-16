@@ -48,6 +48,43 @@ Do not enable a client before its gateway endpoint. The client must fail closed
 when capability 6 is omitted, but that protection makes the preview unavailable
 rather than providing a fallback search implementation.
 
+## Local Web candidate evidence
+
+The deterministic generated-Protobuf browser fixture can prove the immutable
+Web candidate seam before an endpoint canary. Build and run the enabled
+candidate from `WebClient/`:
+
+```bash
+env VITE_CHAT_V2_PREVIEW=true \
+  VITE_CHAT_V2_MESSAGE_SEARCH=true \
+  VITE_CHAT_V2_WSS_URL=wss://fixture.invalid/v2/web \
+  VITE_CHAT_APP_VERSION=<candidate-version> \
+  npm run build
+env CHATROOM_V2_BROWSER_PREVIEW=true \
+  CHATROOM_V2_BROWSER_SEARCH=true \
+  npm run test:browser -- e2e/v2PreviewBrowser.spec.ts
+```
+
+Then rebuild the same revision with
+`VITE_CHAT_V2_MESSAGE_SEARCH=false` and run the rollback candidate:
+
+```bash
+env CHATROOM_V2_BROWSER_PREVIEW=true \
+  CHATROOM_V2_BROWSER_SEARCH_ROLLBACK=true \
+  npm run test:browser -- e2e/v2PreviewBrowser.spec.ts
+```
+
+The enabled path verifies capability-gated type-126/type-127 exchange, bounded
+query shape, live result announcement, accessibility-tree semantics, keyboard
+result activation, and one correlated context read. The rollback path verifies
+that the search entry point and type-126 command are both absent. Application
+tests separately prove result/context non-persistence and cursor isolation.
+
+This fixture opens no real network connection. It does not prove gateway
+configuration, TLS/WSS, PostgreSQL authority, deployed asset identity,
+observability, endpoint canary behavior, or public rollback. Keep the real Web
+endpoint activation item open until those retained records exist.
+
 ## Rollback order
 
 1. Stop promotion and restore Web and Windows candidates whose search gates are

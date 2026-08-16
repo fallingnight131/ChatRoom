@@ -2217,6 +2217,10 @@ Progress:
     - [x] Add a separately correlated, bounded Web context-history request that
       merges validated adjacent records in page memory without persistence,
       auto-pagination, or sync-cursor advancement.
+    - [x] Add generated-Protobuf Chromium/Firefox evidence for the immutable Web
+      search candidate and same-revision disabled rollback: keyboard query,
+      announced/accessibility-tree result, context reveal, and type-126 absence
+      after rollback without claiming a real endpoint canary.
     - [ ] Add explicit Web endpoint activation and rollback evidence.
     - [ ] Add the equivalent Windows protocol, local state, accessible UI, and
       endpoint activation evidence.

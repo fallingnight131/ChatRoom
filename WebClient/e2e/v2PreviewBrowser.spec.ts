@@ -1,9 +1,15 @@
 import { expect, test, type WebSocketRoute } from "@playwright/test";
 
 import { MessageType } from "../src/protocol/v2/generated/control_pb";
-import { createV2ProtocolFixture } from "./fixtures/v2ProtocolFixture";
+import {
+  FIXTURE_CONVERSATION_ID,
+  createV2ProtocolFixture,
+} from "./fixtures/v2ProtocolFixture";
 
 const enabled = process.env.CHATROOM_V2_BROWSER_PREVIEW === "true";
+const searchCandidate = process.env.CHATROOM_V2_BROWSER_SEARCH === "true";
+const searchRollback = process.env.CHATROOM_V2_BROWSER_SEARCH_ROLLBACK === "true";
+const FIXTURE_MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 
 async function installV2SocketFixture(
   page: import("@playwright/test").Page,
@@ -155,6 +161,69 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
   expect(fixture.receivedTypes.filter(type => type === MessageType.SUBMIT_MESSAGE)).toHaveLength(1);
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain("non-secret-test-value");
   expect(socketUrls).toEqual(["wss://fixture.invalid/v2/web"]);
+});
+
+test("activates bounded V2 search and reveals one result through the keyboard", async ({ page }) => {
+  test.skip(!enabled || !searchCandidate,
+    "requires the explicit V2 message-search browser candidate");
+  const { fixture } = await installV2SocketFixture(page, "accept");
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+  await expect(page.getByRole("log", { name: "消息记录" })
+    .getByText("Fixture incoming message")).toBeVisible();
+
+  const searchTrigger = page.getByRole("button", { name: "搜索消息" });
+  await searchTrigger.focus();
+  await searchTrigger.press("Enter");
+  const query = page.getByRole("searchbox", { name: "搜索当前会话" });
+  await expect(query).toBeFocused();
+  await query.fill("Fixture");
+  await query.press("Enter");
+
+  await expect(page.getByText("已找到 1 条结果")).toBeVisible();
+  const results = page.getByRole("list", { name: "消息搜索结果" });
+  const result = results.getByRole("button", { name: /Fixture incoming message/ });
+  await expect(result).toBeVisible();
+  const resultAccessibilityTree = await results.ariaSnapshot();
+  expect(resultAccessibilityTree).toContain('- list "消息搜索结果"');
+  expect(resultAccessibilityTree).toContain('button "Fixture incoming message');
+
+  await result.focus();
+  await result.press("Enter");
+  await expect(page.locator(`#v2-message-${FIXTURE_MESSAGE_ID}`)).toBeFocused();
+  await expect.poll(() => fixture.receivedTypes.filter(
+    type => type === MessageType.READ_MESSAGE_HISTORY).length).toBe(2);
+  expect(fixture.searchQueries).toEqual([{
+    conversationId: FIXTURE_CONVERSATION_ID,
+    literalQuery: "Fixture",
+    beforeSequence: 0n,
+    limit: 50,
+  }]);
+  expect(fixture.receivedTypes.filter(
+    type => type === MessageType.SEARCH_CONVERSATION_MESSAGES)).toHaveLength(1);
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain("Fixture");
+});
+
+test("keeps V2 search absent after the Web candidate rollback", async ({ page }) => {
+  test.skip(!enabled || !searchRollback,
+    "requires the explicit V2 message-search rollback browser candidate");
+  const { fixture } = await installV2SocketFixture(page, "accept");
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+
+  await expect(page.getByRole("button", { name: "搜索消息" })).toHaveCount(0);
+  expect(fixture.searchQueries).toEqual([]);
+  expect(fixture.receivedTypes).not.toContain(MessageType.SEARCH_CONVERSATION_MESSAGES);
 });
 
 test("resumes an in-memory V2 session and repairs ordered history", async ({ page }) => {

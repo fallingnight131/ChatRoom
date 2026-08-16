@@ -106,6 +106,11 @@ focus for continued keyboard chat. The device modal additionally verifies contai
 Escape restoration, and current-device protection. Route disposal verifies a
 normal socket close and no background retry after returning to V1. Authenticated
 locale switching changes browser semantics without additional protocol traffic.
+An independently built search candidate also verifies capability-6 query/page
+exchange, keyboard result reveal, accessibility-tree naming, and one correlated
+context read. Rebuilding the same revision with search disabled proves the
+entry point and type-126 command disappear. These are local composition and
+rollback checks, not deployed endpoint activation evidence.
 The fixture does not satisfy the real TLS, Origin/Host, gateway, database,
 physical network, edge-failover, or deployment checks above and must not be
 reported as release or capacity evidence.

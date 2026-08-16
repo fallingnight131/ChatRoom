@@ -35,11 +35,13 @@ import {
   type Envelope,
 } from "../../src/protocol/v2/generated/envelope_pb";
 import {
+  ConversationMessageSearchPageSchema,
   MessageAcceptedSchema,
   MessageContentType,
   MessageHistoryPageSchema,
   MessageRecordSchema,
   ReadMessageHistorySchema,
+  SearchConversationMessagesSchema,
   SubmitMessageSchema,
 } from "../../src/protocol/v2/generated/messaging_pb";
 
@@ -61,18 +63,26 @@ export type V2ProtocolFixtureMode = "accept" | "reject";
 export interface V2ProtocolFixture {
   readonly receivedTypes: MessageType[];
   readonly clientHelloAppVersions: string[];
+  readonly searchQueries: Array<{
+    conversationId: string;
+    literalQuery: string;
+    beforeSequence: bigint;
+    limit: number;
+  }>;
   respond(bytes: number[]): number[];
 }
 
 export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2ProtocolFixture {
   const receivedTypes: MessageType[] = [];
   const clientHelloAppVersions: string[] = [];
+  const searchQueries: V2ProtocolFixture["searchQueries"] = [];
   let clientDeviceId = "";
   let resumed = false;
 
   return {
     receivedTypes,
     clientHelloAppVersions,
+    searchQueries,
     respond(raw) {
       const request = fromBinary(EnvelopeSchema, Uint8Array.from(raw));
       if (request.protocolVersion !== 2 || request.kind !== MessageKind.COMMAND
@@ -190,23 +200,34 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
                 hasMore: false,
               }, { sessionId: SESSION_ID });
           }
-          const message = create(MessageRecordSchema, {
-            conversationId: FIXTURE_CONVERSATION_ID,
-            messageId: INCOMING_MESSAGE_ID,
-            conversationSequence: 1n,
-            senderAccountId: PEER_ACCOUNT_ID,
-            senderDeviceId: PEER_DEVICE_ID,
-            clientMessageId: "browser-fixture-incoming",
-            contentType: MessageContentType.TEXT_UTF8,
-            content: new TextEncoder().encode("Fixture incoming message"),
-            acceptedAtEpochMs: NOW - 1_000n,
-          });
           return response(request, MessageType.MESSAGE_HISTORY_PAGE,
             MessageHistoryPageSchema, {
               conversationId: FIXTURE_CONVERSATION_ID,
-              messages: [message],
+              messages: [incomingMessage()],
               nextSequence: 1n,
               latestSequence: 1n,
+              hasMore: false,
+            }, { sessionId: SESSION_ID });
+        }
+        case MessageType.SEARCH_CONVERSATION_MESSAGES: {
+          const search = fromBinary(SearchConversationMessagesSchema, request.payload);
+          requireSession(request);
+          if (search.conversationId !== FIXTURE_CONVERSATION_ID
+              || search.literalQuery !== "Fixture" || search.beforeSequence !== 0n
+              || search.limit !== 50) {
+            throw new Error("unexpected V2 fixture message search");
+          }
+          searchQueries.push({
+            conversationId: search.conversationId,
+            literalQuery: search.literalQuery,
+            beforeSequence: search.beforeSequence,
+            limit: search.limit,
+          });
+          return response(request, MessageType.CONVERSATION_MESSAGE_SEARCH_PAGE,
+            ConversationMessageSearchPageSchema, {
+              conversationId: FIXTURE_CONVERSATION_ID,
+              hits: [incomingMessage()],
+              nextBeforeSequence: 1n,
               hasMore: false,
             }, { sessionId: SESSION_ID });
         }
@@ -234,6 +255,20 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
       }
     },
   };
+}
+
+function incomingMessage() {
+  return create(MessageRecordSchema, {
+    conversationId: FIXTURE_CONVERSATION_ID,
+    messageId: INCOMING_MESSAGE_ID,
+    conversationSequence: 1n,
+    senderAccountId: PEER_ACCOUNT_ID,
+    senderDeviceId: PEER_DEVICE_ID,
+    clientMessageId: "browser-fixture-incoming",
+    contentType: MessageContentType.TEXT_UTF8,
+    content: new TextEncoder().encode("Fixture incoming message"),
+    acceptedAtEpochMs: NOW - 1_000n,
+  });
 }
 
 function establishedSession(request: Envelope, clientDeviceId: string): number[] {
