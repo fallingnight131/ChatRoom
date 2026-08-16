@@ -26,9 +26,11 @@ export function modalLoopTarget(
 export function useModalKeyboardBoundary({
   onClose,
   canClose = () => true,
+  initialFocusSelector = "",
 }: {
   onClose: () => void;
   canClose?: () => boolean;
+  initialFocusSelector?: string;
 }) {
   const dialogRef = ref<HTMLElement | null>(null);
   let previousFocus: { focus: () => void } | null = null;
@@ -61,7 +63,12 @@ export function useModalKeyboardBoundary({
   onMounted(() => {
     const active = document.activeElement as { focus?: () => void } | null;
     previousFocus = typeof active?.focus === "function" ? { focus: () => active.focus?.() } : null;
-    nextTick(() => dialogRef.value?.focus());
+    nextTick(() => {
+      const initial = initialFocusSelector
+        ? dialogRef.value?.querySelector<HTMLElement>(initialFocusSelector)
+        : null;
+      (initial ?? dialogRef.value)?.focus();
+    });
   });
   onUnmounted(() => previousFocus?.focus());
 

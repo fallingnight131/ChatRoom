@@ -2302,6 +2302,8 @@ Candidate slices:
     and keep theme selection as a separately named native control.
   - [x] Extract a shared typed Web modal keyboard boundary and apply it to
     profile and V1 forwarding, including pending-forward close/submit guards.
+  - [x] Apply the shared boundary to room-password entry with direct input
+    focus, native required submission, empty rejection, and pre-emit clearing.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

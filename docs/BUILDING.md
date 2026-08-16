@@ -2240,6 +2240,9 @@ profile-header `div` and requires separate, named native profile/theme buttons.
 Vue rendering. Profile and forwarding source gates require the shared boundary;
 the forwarding gate also locks dialog naming, search labeling, selected-tab
 state, and pending-operation close/duplicate-submit rejection.
+`roomPasswordDialogAccessibility.test.mjs` locks the shared modal boundary,
+direct input focus, label/description associations, native required submission,
+empty rejection, and component plaintext clearing before the join event.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable
