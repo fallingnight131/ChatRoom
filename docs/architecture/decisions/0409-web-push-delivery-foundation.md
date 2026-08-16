@@ -257,6 +257,11 @@ resume proof or activate a gateway/client path.
   exceptions to one fixed unavailable reason, and renders a label-free one-hot
   reason set. Push-component health must not gate core chat traffic; runtime
   configuration, admin exposure, and the provider canary remain open.
+- Gateway configuration now has a separate exact-default-off delivery gate. It
+  depends on the subscription gate and accepts only distinct canonical absolute
+  VAPID mount paths, a reviewed contact subject, exact HTTPS provider origins,
+  and bounded token, claim, polling, failure, shutdown, and readiness values.
+  It retains paths rather than key bytes and composes no runtime resource yet.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

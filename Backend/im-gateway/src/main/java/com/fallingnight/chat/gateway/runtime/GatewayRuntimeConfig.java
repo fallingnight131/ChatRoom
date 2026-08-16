@@ -62,6 +62,7 @@ public final class GatewayRuntimeConfig {
     private final boolean accountBlockingEnabled;
     private final boolean webPushEnabled;
     private final WebPushSubscriptionRuntimeConfig webPushSubscriptions;
+    private final WebPushDeliveryRuntimeConfig webPushDelivery;
     private final DistributedGatewayRoutingConfig distributedRouting;
     private final GatewayReleaseIdentity releaseIdentity;
 
@@ -102,6 +103,7 @@ public final class GatewayRuntimeConfig {
             boolean accountBlockingEnabled,
             boolean webPushEnabled,
             WebPushSubscriptionRuntimeConfig webPushSubscriptions,
+            WebPushDeliveryRuntimeConfig webPushDelivery,
             DistributedGatewayRoutingConfig distributedRouting,
             GatewayReleaseIdentity releaseIdentity) {
         this.listenerAddress = listenerAddress;
@@ -141,6 +143,7 @@ public final class GatewayRuntimeConfig {
         this.webPushEnabled = webPushEnabled;
         this.webPushSubscriptions = Objects.requireNonNull(
                 webPushSubscriptions, "webPushSubscriptions");
+        this.webPushDelivery = Objects.requireNonNull(webPushDelivery, "webPushDelivery");
         this.distributedRouting = Objects.requireNonNull(distributedRouting, "distributedRouting");
         this.releaseIdentity = Objects.requireNonNull(releaseIdentity, "releaseIdentity");
     }
@@ -251,6 +254,9 @@ public final class GatewayRuntimeConfig {
                 environment, "CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED", false);
         boolean webPushEnabled = bool(
                 environment, "CHATROOM_GATEWAY_WEB_PUSH_ENABLED", false);
+        WebPushSubscriptionRuntimeConfig webPushSubscriptions =
+                WebPushSubscriptionRuntimeConfig.fromEnvironment(
+                        environment, webPushEnabled, origins);
         return new GatewayRuntimeConfig(
                 listener,
                 admin,
@@ -287,8 +293,9 @@ public final class GatewayRuntimeConfig {
                 messageSearchEnabled,
                 accountBlockingEnabled,
                 webPushEnabled,
-                WebPushSubscriptionRuntimeConfig.fromEnvironment(
-                        environment, webPushEnabled, origins),
+                webPushSubscriptions,
+                WebPushDeliveryRuntimeConfig.fromEnvironment(
+                        environment, webPushSubscriptions.enabled()),
                 DistributedGatewayRoutingConfig.fromEnvironment(environment),
                 GatewayReleaseIdentity.fromEnvironment(environment));
     }
@@ -439,6 +446,10 @@ public final class GatewayRuntimeConfig {
 
     public WebPushSubscriptionRuntimeConfig webPushSubscriptions() {
         return webPushSubscriptions;
+    }
+
+    public WebPushDeliveryRuntimeConfig webPushDelivery() {
+        return webPushDelivery;
     }
 
     public DistributedGatewayRoutingConfig distributedRouting() {

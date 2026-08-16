@@ -61,6 +61,7 @@ class GatewayRuntimeConfigTest {
         assertFalse(config.accountBlockingEnabled());
         assertFalse(config.webPushEnabled());
         assertFalse(config.webPushSubscriptions().enabled());
+        assertFalse(config.webPushDelivery().enabled());
         assertFalse(config.distributedRouting().enabled());
         assertEquals("development", config.releaseIdentity().releaseVersion());
         assertEquals("unknown", config.releaseIdentity().sourceRevision());
@@ -132,6 +133,53 @@ class GatewayRuntimeConfigTest {
         duplicate.put(WebPushSubscriptionRuntimeConfig.KEY_IDS, "enc-v2,enc-v2");
         assertThrows(IllegalArgumentException.class,
                 () -> GatewayRuntimeConfig.fromEnvironment(duplicate));
+    }
+
+    @Test
+    void requiresSubscriptionGateAndPathOnlyProviderDeliveryConfiguration() throws Exception {
+        Path directory = Files.createDirectory(temporary.resolve("web-push-delivery"));
+        Map<String, String> enabled = requiredEnvironment();
+        enabled.put("CHATROOM_GATEWAY_WEB_PUSH_ENABLED", "true");
+        enabled.put(WebPushSubscriptionRuntimeConfig.ENABLED, "true");
+        enabled.put(WebPushSubscriptionRuntimeConfig.KEY_DIRECTORY, directory.toString());
+        enabled.put(WebPushSubscriptionRuntimeConfig.ACTIVE_KEY_ID, "enc-v1");
+        enabled.put(WebPushSubscriptionRuntimeConfig.KEY_IDS, "enc-v1");
+        enabled.put(WebPushDeliveryRuntimeConfig.ENABLED, "true");
+        enabled.put(WebPushDeliveryRuntimeConfig.VAPID_PRIVATE_KEY,
+                directory.resolve("vapid-private.der").toString());
+        enabled.put(WebPushDeliveryRuntimeConfig.VAPID_PUBLIC_KEY,
+                directory.resolve("vapid-public.der").toString());
+        enabled.put(WebPushDeliveryRuntimeConfig.VAPID_SUBJECT,
+                "mailto:push@example.com");
+        enabled.put(WebPushDeliveryRuntimeConfig.PROVIDER_ORIGINS,
+                "https://fcm.googleapis.com,https://push.services.mozilla.com");
+
+        WebPushDeliveryRuntimeConfig config = GatewayRuntimeConfig.fromEnvironment(enabled)
+                .webPushDelivery();
+        assertTrue(config.enabled());
+        assertEquals(Duration.ofHours(12), config.vapidTokenLifetime());
+        assertEquals(Duration.ofSeconds(30), config.lease());
+        assertEquals(100, config.batchSize());
+        assertEquals(2, config.providerOrigins().size());
+
+        Map<String, String> missingParent = new HashMap<>(enabled);
+        missingParent.put(WebPushSubscriptionRuntimeConfig.ENABLED, "false");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(missingParent));
+        Map<String, String> duplicateOrigins = new HashMap<>(enabled);
+        duplicateOrigins.put(WebPushDeliveryRuntimeConfig.PROVIDER_ORIGINS,
+                "https://fcm.googleapis.com,https://fcm.googleapis.com");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(duplicateOrigins));
+        Map<String, String> nonExact = new HashMap<>(enabled);
+        nonExact.put(WebPushDeliveryRuntimeConfig.ENABLED, "TRUE");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(nonExact));
+        Map<String, String> invalidSubject = new HashMap<>(enabled);
+        invalidSubject.put(WebPushDeliveryRuntimeConfig.VAPID_SUBJECT,
+                "ftp://push.example.com");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(invalidSubject));
     }
 
     @Test

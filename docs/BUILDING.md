@@ -1708,8 +1708,26 @@ otherwise fails closed on status-read failure, a reviewed consecutive-failure
 threshold, expired backlog, total backlog, or oldest-age threshold. Failure
 precedence is fixed and Prometheus output is a label-free one-hot reason set.
 This is readiness for the optional push component only; it must not remove the
-core chat gateway from service. Threshold configuration, admin composition,
-and a real-provider canary remain open.
+core chat gateway from service. Admin composition and a real-provider canary
+remain open. The following exact-default-off contract
+now validates delivery composition inputs without loading key bytes:
+
+```text
+CHATROOM_GATEWAY_WEB_PUSH_DELIVERY_ENABLED=true
+CHATROOM_WEB_PUSH_VAPID_PRIVATE_KEY=/run/secrets/chat-room/vapid-private.der
+CHATROOM_WEB_PUSH_VAPID_PUBLIC_KEY=/run/secrets/chat-room/vapid-public.der
+CHATROOM_WEB_PUSH_VAPID_SUBJECT=mailto:push@example.com
+CHATROOM_WEB_PUSH_PROVIDER_ORIGINS=https://fcm.googleapis.com,https://push.services.mozilla.com
+```
+
+Delivery requires the parent subscription API gate. VAPID paths must be
+distinct canonical absolute paths; file shape and permissions remain enforced
+by mounted-file custody at composition. The subject, exact canonical provider
+origins, 1--300 second lease, 1--100 batch, polling/failure delays, 100 ms--30
+second shutdown, 1 minute--24 hour token life, and readiness thresholds are
+bounded. Non-exact booleans, duplicate origins, and incomplete enabled
+configuration fail startup. This contract still creates no worker or network
+request.
 The detached gateway issuance and HTTP bridge can be selected with:
 
 ```bash

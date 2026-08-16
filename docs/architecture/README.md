@@ -2103,6 +2103,12 @@ precedence and label-free one-hot reason metrics. A stopped worker does not read
 PostgreSQL. This health state belongs to the optional push component and does
 not make core chat traffic unready. Configuration, admin/runtime composition,
 and the real-provider canary remain open.
+An exact-default-off delivery configuration is now part of the gateway config
+graph. Enabling it requires the subscription API gate plus distinct canonical
+absolute VAPID key paths, a reviewed `mailto:`/HTTPS subject, exact provider
+origins, and bounded token, lease, batch, polling, failure, shutdown, and
+readiness values. It contains paths rather than key bytes and rejects incomplete
+or non-exact activation. The config is not yet composed into `GatewayRuntime`.
 The Web client now has a pure Service Worker payload boundary. It accepts only
 schema version 1, three canonical stable UUIDs, and the structural mention
 boolean within 2 KiB; unknown fields, message text, malformed identity, and
