@@ -145,6 +145,10 @@ The exact value enables capability 6 and installs the PostgreSQL-backed handler
 for new connections; missing or exact `false` leaves both absent, and any other
 value fails configuration before listener bind. Enabling the gateway alone does
 not advertise search from either product client.
+Follow
+[`MESSAGE_SEARCH_ACTIVATION.md`](MESSAGE_SEARCH_ACTIVATION.md) for the
+gateway-first activation, endpoint-specific canary, and client-first rollback
+contract.
 
 The heartbeat interval must be strictly shorter than the authenticated idle
 timeout. The gateway sends an empty WebSocket Ping only after authentication and

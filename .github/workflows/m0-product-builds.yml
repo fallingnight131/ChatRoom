@@ -234,12 +234,15 @@ jobs:
           cmake --build build/m6/windows-forwarding-gate --config Release `
             --target ChatClient V2WindowsDeviceManagementTransportTest `
               V2WindowsForwardTargetDialogTest `
+              V2WindowsMessageSearchViewModelTest `
+              WindowsV2MessagingControllerTest `
+              V2WindowsMessagingPanelTest `
               WindowsV2ConfigurationDiagnosticTest --parallel 4
           if ($LASTEXITCODE -ne 0) { throw "Forwarding Windows build failed" }
           ctest --test-dir build/m6/windows-forwarding-gate -C Release `
-            -R "^m6_windows_v2_(device_management_transport|forward_target_dialog)$" `
+            -R "^m6_windows_v2_(device_management_transport|forward_target_dialog|message_search_view_model|messaging_controller|messaging_panel)$" `
             --output-on-failure
-          if ($LASTEXITCODE -ne 0) { throw "Forwarding Windows transport/Widgets gate failed" }
+          if ($LASTEXITCODE -ne 0) { throw "Windows feature candidate tests failed" }
           $client = Get-Item build/m6/windows-forwarding-gate/Release/ChatClient.exe
           $v2 = (& $client.FullName --chatroom-print-v2-configuration-json) |
             ConvertFrom-Json

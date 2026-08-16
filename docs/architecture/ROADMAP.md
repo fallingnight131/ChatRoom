@@ -2241,6 +2241,9 @@ Progress:
       - [x] Add separately correlated Windows context-history repair for an
         uncached hit, merge one validated bounded page into message-view memory,
         and prove it neither writes SQLite nor advances the durable sync cursor.
+      - [x] Add independent Web search-candidate compilation, Windows enabled
+        product tests, and the shared gateway-first/client-first activation and
+        rollback evidence contract; real endpoint canaries remain open.
 
 Candidate slices:
 

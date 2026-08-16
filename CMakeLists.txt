@@ -800,6 +800,45 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 COMMAND V2WindowsForwardTargetDialogTest)
             set_tests_properties(
                 m6_windows_v2_forward_target_dialog PROPERTIES TIMEOUT 30)
+            add_executable(
+                V2WindowsMessageSearchViewModelTest
+                Tests/V2WindowsMessageSearchViewModelTest.cpp)
+            target_link_libraries(
+                V2WindowsMessageSearchViewModelTest
+                PRIVATE chatroom_windows_v2_messaging_product)
+            add_test(
+                NAME m6_windows_v2_message_search_view_model
+                COMMAND V2WindowsMessageSearchViewModelTest)
+            set_tests_properties(
+                m6_windows_v2_message_search_view_model PROPERTIES TIMEOUT 30)
+            add_executable(
+                WindowsV2MessagingControllerTest
+                Tests/WindowsV2MessagingControllerTest.cpp)
+            target_link_libraries(
+                WindowsV2MessagingControllerTest
+                PRIVATE chatroom_windows_v2_messaging_product)
+            add_test(
+                NAME m6_windows_v2_messaging_controller
+                COMMAND WindowsV2MessagingControllerTest)
+            set_tests_properties(
+                m6_windows_v2_messaging_controller PROPERTIES TIMEOUT 30)
+            add_executable(
+                V2WindowsMessagingPanelTest
+                Tests/V2WindowsMessagingPanelTest.cpp
+                Client/V2WindowsMessagingPanel.cpp
+                Client/V2WindowsMessagingPanel.h
+                Client/V2WindowsForwardTargetDialog.cpp
+                Client/V2WindowsForwardTargetDialog.h)
+            set_target_properties(
+                V2WindowsMessagingPanelTest PROPERTIES AUTOMOC ON)
+            target_link_libraries(
+                V2WindowsMessagingPanelTest
+                PRIVATE Qt6::Widgets chatroom_windows_v2_messaging_product)
+            add_test(
+                NAME m6_windows_v2_messaging_panel
+                COMMAND V2WindowsMessagingPanelTest)
+            set_tests_properties(
+                m6_windows_v2_messaging_panel PROPERTIES TIMEOUT 30)
         endif()
         add_executable(V2WindowsMentionComposerTest Tests/V2WindowsMentionComposerTest.cpp)
         target_link_libraries(

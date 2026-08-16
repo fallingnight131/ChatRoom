@@ -894,6 +894,12 @@ stable message ID. It never calls the repository, persists the partial window,
 advances the durable synchronization cursor, or auto-pages. Missing/deleted
 targets fail generically; disconnect and conversation switch clear the
 temporary context and its correlation.
+The default-off cross-endpoint activation and rollback contract is recorded in
+[`MESSAGE_SEARCH_ACTIVATION.md`](../deployment/MESSAGE_SEARCH_ACTIVATION.md).
+CI now compiles independent search-enabled Web assets and a combined enabled
+Windows candidate, then exercises the Windows transient-state, Widgets, and
+controller/SQLite non-persistence tests. This is build and local correctness
+evidence only; native Windows Release and endpoint canary evidence remain open.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

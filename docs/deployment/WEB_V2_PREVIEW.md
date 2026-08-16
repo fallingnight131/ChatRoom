@@ -27,8 +27,8 @@ npm run build
 - `VITE_CHAT_V2_MESSAGE_SEARCH` is optional and disabled when missing, empty,
   or exactly `false`. Only exact `true` requests capability 6 and exposes search
   as enabled application state; any other spelling invalidates the V2 runtime.
-  The current slice has no search UI, so keep it false outside protocol
-  candidates.
+  The enabled preview exposes bounded in-memory search and separately
+  correlated context repair; keep it false outside reviewed candidates.
 - `VITE_CHAT_V2_WSS_URL` must use `wss`, contain no credentials/query/fragment,
   and end at the exact `/v2/web` route. It is independent of the user-editable
   V1 host/port settings.
@@ -80,10 +80,18 @@ Before serving preview assets:
 8. for a forwarding-enabled candidate, verify the gateway independently has
    `CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED=true`; test authorization,
    rate-limit, offline replay, legacy-client downgrade, and disable either side.
+9. for a search-enabled candidate, verify the gateway independently has
+   `CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED=true`; test membership and group
+   lifecycle denial, literal Unicode pagination, edit/recall/deletion current
+   state, context non-persistence, late-response abandonment, and disable either
+   side.
 
 Use the gateway-first activation and client-first rollback sequence in
 [`MESSAGE_FORWARDING_ACTIVATION.md`](MESSAGE_FORWARDING_ACTIVATION.md). A Web
 build flag is immutable candidate metadata, not authority to change the gateway.
+Use the same gateway-first activation and client-first rollback invariant for
+search, with its independent evidence checklist in
+[`MESSAGE_SEARCH_ACTIVATION.md`](MESSAGE_SEARCH_ACTIVATION.md).
 
 Rollback by redeploying the prior immutable asset version or a build without the
 exact preview flag, then invalidate the HTML entry point according to the Web
