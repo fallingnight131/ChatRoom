@@ -1792,26 +1792,31 @@ Progress:
   MiB. No sustained-pressure or latency knee triggered. RSS remained unavailable
   on macOS, and this is not a leak, memory limit, or capacity result.
 
-Work:
+Engineering status: complete (ADR-0403). Distributed routing remains
+default-off until an environment-specific release and operations gate passes.
 
-- compose a bounded outbox publisher with lifecycle, backoff, and fixed-label
-  backlog/age/attempt telemetry while retaining the local router;
-- add expiring Redis gateway/route leases and bounded per-gateway Streams;
-- run multiple gateways behind a load balancer;
-- introduce an independent durable broker only when background-consumer or
-  sustained relay evidence justifies its second operational dependency;
-- define partition keys that preserve per-conversation order;
-- isolate push, thumbnail, scanning, retention, audit, and analytics workers;
-- validate load-balancer deregistration, rolling multi-gateway deployment, and
-  reconnect-storm behavior on top of the bounded local drain contract;
-- add database partitioning/read strategies only after query evidence.
+Exit evidence:
 
-Exit criteria:
+- [x] Losing one gateway does not lose committed messages: ADR-0373 force-kills
+  a gateway after commit and repairs the durable sequence through the survivor.
+- [x] Users connected to different gateways exchange messages correctly:
+  ADR-0369 exercises the real PostgreSQL/Redis/TLS-WSS cross-process path.
+- [x] Duplicate event delivery remains safe: ADR-0358 and ADR-0365 prove
+  repeated and racing hints do not create duplicate visible delivery.
+- [x] Failure drills and repeated load diagnostics document the bounded
+  engineering envelope: ADR-0368 and ADR-0370 through ADR-0402 cover dependency
+  loss, rolling/crash/edge behavior, reconnect load, and resource signals. They
+  are not a production capacity or SLO claim.
 
-- losing one gateway does not lose committed messages;
-- users connected to different gateways exchange messages correctly;
-- duplicate event delivery remains safe;
-- chaos/load tests verify the documented failure and capacity envelope.
+Evidence-triggered follow-ons, not M5 exit blockers:
+
+- introduce an independent durable broker only if sustained relay backlog or
+  asynchronous-worker evidence justifies a second operational dependency;
+- add database partitioning/read replicas only after production query evidence;
+- isolate push, thumbnail, scanning, retention, audit, or analytics workers as
+  their owning M6 feature slices require them;
+- retain per-conversation ordering as the outbox, routing, and repair partition
+  boundary unless a later ADR changes it.
 
 ## M6 — Modern Product Capabilities
 

@@ -1365,6 +1365,14 @@ estimated used memory was about 8.62–10.12 MiB; no sustained-pressure or laten
 knee triggered. This local curve is not a leak, limit, or capacity result, and
 RSS remained unavailable on the macOS host.
 
+ADR-0403 closes the M5 engineering foundation by mapping its four exit
+conditions to real cross-gateway, abrupt-loss, duplicate-suppression, failure,
+and repeated-load evidence. This does not activate distributed routing in a
+production environment. Redis TLS/ACL and secrets, edge policy, alerts,
+rollback, and representative environment load remain release-owned gates. A
+durable broker, database partitioning, and independent feature workers remain
+evidence-triggered follow-on decisions rather than hidden M5 prerequisites.
+
 ## 10. Attachment Flow
 
 Target flow:
