@@ -3,45 +3,45 @@
     <div ref="dialogRef" class="modal room-file-modal" role="dialog" aria-modal="true"
          aria-labelledby="room-file-title" tabindex="-1" :aria-busy="isDeleting"
          @keydown="onDialogKeydown">
-      <div id="room-file-title" class="modal-title">文件管理</div>
+      <div id="room-file-title" class="modal-title">{{ messages.title }}</div>
 
-      <div class="summary" aria-live="polite">当前文件空间: {{ formatSize(chatStore.roomFileUsage.used) }} / {{ formatSize(chatStore.roomFileUsage.max) }}</div>
+      <div class="summary" aria-live="polite">{{ messages.usagePrefix }}{{ formatSize(chatStore.roomFileUsage.used) }} / {{ formatSize(chatStore.roomFileUsage.max) }}</div>
 
       <div class="table-wrap">
         <table class="file-table">
-          <caption class="visually-hidden">房间文件列表，可选择文件后批量删除</caption>
+          <caption class="visually-hidden">{{ messages.caption }}</caption>
           <thead>
             <tr>
               <th scope="col"><input type="checkbox" :checked="allChecked" :disabled="isDeleting"
-                     aria-label="选择全部房间文件" @change="toggleAll($event)" /></th>
-              <th scope="col">文件名</th>
-              <th scope="col">类型</th>
-              <th scope="col">大小</th>
-              <th scope="col">上传时间</th>
+                     :aria-label="messages.selectAll" @change="toggleAll($event)" /></th>
+              <th scope="col">{{ messages.fileName }}</th>
+              <th scope="col">{{ messages.type }}</th>
+              <th scope="col">{{ messages.size }}</th>
+              <th scope="col">{{ messages.uploadedAt }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="f in chatStore.roomFiles" :key="f.fileId">
               <td><input type="checkbox" v-model="selected" :value="f.fileId" :disabled="isDeleting"
-                         :aria-label="`选择文件 ${f.fileName}`" /></td>
+                         :aria-label="`${messages.selectFilePrefix}${f.fileName}`" /></td>
               <td class="name-cell">{{ f.fileName }}</td>
               <td>{{ fileType(f.fileName) }}</td>
               <td>{{ formatSize(Number(f.fileSize || 0)) }}</td>
               <td>{{ f.createdAt || '-' }}</td>
             </tr>
             <tr v-if="chatStore.roomFiles.length === 0">
-              <td colspan="5" class="empty">暂无文件</td>
+              <td colspan="5" class="empty">{{ messages.noFiles }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <div class="modal-actions">
-        <span v-if="isDeleting" class="delete-status" role="status">删除中…</span>
-        <button class="btn btn-secondary" type="button" :disabled="isDeleting" @click="refresh">刷新</button>
+        <span v-if="isDeleting" class="delete-status" role="status">{{ messages.deleting }}</span>
+        <button class="btn btn-secondary" type="button" :disabled="isDeleting" @click="refresh">{{ messages.refresh }}</button>
         <button class="btn btn-danger" type="button" :disabled="selected.length === 0 || isDeleting"
-                @click="deleteSelected">删除所选</button>
-        <button class="btn btn-primary" type="button" @click="closeDialog">关闭</button>
+                @click="deleteSelected">{{ messages.deleteSelected }}</button>
+        <button class="btn btn-primary" type="button" @click="closeDialog">{{ messages.close }}</button>
       </div>
     </div>
   </div>
@@ -50,9 +50,13 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useChatStore } from '../stores/chat'
+import { useUserStore } from '../stores/user'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
+import { roomFileManagerMessages } from '../localization/webLocale'
 
 const chatStore = useChatStore()
+const userStore = useUserStore()
+const messages = computed(() => roomFileManagerMessages(userStore.locale))
 const emit = defineEmits(['close'])
 const selected = ref([])
 const pendingDeleteOperationId = ref('')
@@ -76,9 +80,9 @@ function fileType(fileName) {
   const ext = (fileName || '').split('.').pop()?.toLowerCase() || ''
   const imageExt = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp']
   const videoExt = ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm']
-  if (imageExt.includes(ext)) return '图片'
-  if (videoExt.includes(ext)) return '视频'
-  return '文件'
+  if (imageExt.includes(ext)) return messages.value.image
+  if (videoExt.includes(ext)) return messages.value.video
+  return messages.value.file
 }
 
 function toggleAll(e) {
@@ -98,7 +102,7 @@ function refresh() {
 
 function deleteSelected() {
   if (isDeleting.value || selected.value.length === 0) return
-  if (!confirm('确定彻底删除选中的文件消息吗？\n删除后消息会从聊天室中完全移除，无法恢复。')) return
+  if (!confirm(messages.value.deleteConfirm)) return
   pendingDeleteOperationId.value = chatStore.deleteRoomFiles(
     chatStore.currentRoomId,
     [...selected.value],

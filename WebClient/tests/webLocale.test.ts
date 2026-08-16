@@ -16,6 +16,7 @@ import {
   downloadPanelMessages,
   userInfoMessages,
   roomPasswordMessages,
+  roomFileManagerMessages,
   persistWebLocale,
   profileMessages,
   roomListMessages,
@@ -108,6 +109,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(roomPasswordMessages("en-US")).sort(),
     Object.keys(roomPasswordMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(roomFileManagerMessages("en-US")).sort(),
+    Object.keys(roomFileManagerMessages("zh-CN")).sort(),
   );
 });
 

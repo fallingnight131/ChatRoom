@@ -11,8 +11,8 @@ test('exposes a labeled file-management modal and selectable table', () => {
     'aria-labelledby="room-file-title"',
     ':aria-busy="isDeleting"',
     '<caption class="visually-hidden">',
-    'aria-label="选择全部房间文件"',
-    ':aria-label="`选择文件 ${f.fileName}`"',
+    ':aria-label="messages.selectAll"',
+    ':aria-label="`${messages.selectFilePrefix}${f.fileName}`"',
     'useModalKeyboardBoundary({',
   ]) assert.ok(dialogSource.includes(marker), `missing room file marker: ${marker}`)
 })
@@ -30,6 +30,6 @@ test('correlates one deletion response and unlocks on success or failure', () =>
 })
 
 test('keeps close available while destructive work is pending', () => {
-  assert.ok(dialogSource.includes('<button class="btn btn-primary" type="button" @click="closeDialog">关闭</button>'))
+  assert.ok(dialogSource.includes('<button class="btn btn-primary" type="button" @click="closeDialog">{{ messages.close }}</button>'))
   assert.ok(!dialogSource.includes(':disabled="isDeleting" @click="closeDialog"'))
 })

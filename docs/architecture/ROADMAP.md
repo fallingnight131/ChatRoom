@@ -2382,6 +2382,8 @@ Candidate slices:
     preserving server-authoritative room administration command identities.
   - [x] Migrate the Web V1 protected-room password prompt and clear stale
     parent prompt state without changing the server room identity or transport.
+  - [x] Migrate Web V1 room-file management while preserving server IDs,
+    destructive confirmation, and operation-ID response correlation.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

@@ -85,7 +85,7 @@ async function installV1ClientFixture(page: Page) {
         } else if (message.type === "ROOM_LIST_REQ") {
           response = { type: "ROOM_LIST_RSP", id: `fixture-${sent.length}`,
             timestamp: Date.now(), data: { rooms: [{ roomId: 42,
-              roomName: "Browser Gate Room", unread: 0, isAdmin: false }] } };
+              roomName: "Browser Gate Room", unread: 0, isAdmin: true }] } };
         } else if (message.type === "FRIEND_LIST_REQ") {
           response = { type: "FRIEND_LIST_RSP", id: `fixture-${sent.length}`,
             timestamp: Date.now(), data: { friends: [{ username: "browser_friend",
@@ -101,9 +101,15 @@ async function installV1ClientFixture(page: Page) {
           response = { type: "USER_LIST_RSP", id: `fixture-${sent.length}`,
             timestamp: Date.now(), data: { roomId: message.data.roomId,
               users: [
-                { username: "browser_gate_user", displayName: "Browser Gate User", isOnline: true, isAdmin: false },
+                { username: "browser_gate_user", displayName: "Browser Gate User", isOnline: true, isAdmin: true },
                 { username: "browser_friend", displayName: "Browser Gate Friend", isOnline: true, isAdmin: false },
               ] } };
+        } else if (message.type === "ROOM_FILES_REQ") {
+          response = { type: "ROOM_FILES_RSP", id: `fixture-${sent.length}`,
+            timestamp: Date.now(), data: { success: true, roomId: message.data.roomId,
+              usedFileSpace: 1024, maxFileSpace: 1048576,
+              files: [{ fileId: 701, fileName: "browser-fixture.txt", fileSize: 1024,
+                createdAt: "2026-08-16T00:00:00Z" }] } };
         } else if (message.type === "HISTORY_REQ") {
           response = { type: "HISTORY_RSP", id: `fixture-${sent.length}`,
             timestamp: Date.now(), data: { roomId: message.data.roomId, mode: "sequence",
@@ -476,6 +482,17 @@ test("switches the authenticated shell locale from profile and persists it", asy
   await expect(avatarPreview).toBeHidden();
   await userInfo.getByRole("button", { name: "Close", exact: true }).click();
   await expect(userInfo).toBeHidden();
+  const roomButton = page.getByRole("button", { name: "Browser Gate Room", exact: true });
+  await roomButton.click({ button: "right" });
+  const roomActions = page.getByRole("menu", { name: "Room actions" });
+  await expect(roomActions).toBeVisible();
+  await roomActions.getByRole("menuitem", { name: "File management" }).click();
+  const fileManager = page.getByRole("dialog", { name: "File management" });
+  await expect(fileManager).toBeVisible();
+  await expect(fileManager.getByText("browser-fixture.txt", { exact: true })).toBeVisible();
+  await expect(fileManager.getByText("File", { exact: true })).toBeVisible();
+  await fileManager.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(fileManager).toBeHidden();
   await expect(page.getByRole("toolbar", { name: "Message tools" })).toBeVisible();
   await expect(page.getByRole("log", { name: "Chat messages" })).toBeVisible();
   await expect(page.getByText("Browser fixture message", { exact: true })).toBeVisible();

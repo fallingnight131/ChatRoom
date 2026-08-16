@@ -118,6 +118,12 @@ prove empty rejection, component plaintext clearing before emit, stale parent
 room-state cleanup, and use of the original server room ID. The current browser
 fixture has no protected-room search/join response, so its browser run is a
 regression gate rather than password-join end-to-end evidence.
+The room-file source tests bind its table, types, usage, pending state, actions,
+and confirmation to the locale while retaining room/file IDs and exact
+`clientOperationId` response correlation. The English browser journey opens the
+administrator-only dialog through the real room context menu and displays one
+fixture response file in Chromium and Firefox. It deliberately does not confirm
+or claim an end-to-end destructive deletion.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

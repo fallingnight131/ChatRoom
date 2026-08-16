@@ -460,6 +460,24 @@ const roomPasswordCatalog = {
   },
 } as const;
 
+const roomFileManagerCatalog = {
+  "zh-CN": {
+    title: "文件管理", usagePrefix: "当前文件空间: ", caption: "房间文件列表，可选择文件后批量删除",
+    selectAll: "选择全部房间文件", fileName: "文件名", type: "类型", size: "大小", uploadedAt: "上传时间",
+    selectFilePrefix: "选择文件 ", noFiles: "暂无文件", deleting: "删除中…", refresh: "刷新",
+    deleteSelected: "删除所选", close: "关闭", image: "图片", video: "视频", file: "文件",
+    deleteConfirm: "确定彻底删除选中的文件消息吗？\n删除后消息会从聊天室中完全移除，无法恢复。",
+  },
+  "en-US": {
+    title: "File management", usagePrefix: "Current file storage: ",
+    caption: "Room files; select files to delete them in a batch", selectAll: "Select all room files",
+    fileName: "File name", type: "Type", size: "Size", uploadedAt: "Uploaded at", selectFilePrefix: "Select file: ",
+    noFiles: "No files", deleting: "Deleting…", refresh: "Refresh", deleteSelected: "Delete selected",
+    close: "Close", image: "Image", video: "Video", file: "File",
+    deleteConfirm: "Permanently delete the selected file messages?\nThey will be removed from the room and cannot be restored.",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -546,6 +564,10 @@ export function userInfoMessages(locale: WebLocale) {
 
 export function roomPasswordMessages(locale: WebLocale) {
   return roomPasswordCatalog[locale];
+}
+
+export function roomFileManagerMessages(locale: WebLocale) {
+  return roomFileManagerCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {
