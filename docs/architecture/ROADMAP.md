@@ -2380,6 +2380,8 @@ Candidate slices:
     calculation or store-owned pause/resume/cancel commands.
   - [x] Migrate Web V1 user information and nested avatar preview while
     preserving server-authoritative room administration command identities.
+  - [x] Migrate the Web V1 protected-room password prompt and clear stale
+    parent prompt state without changing the server room identity or transport.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

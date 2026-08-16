@@ -113,6 +113,11 @@ administrator actions, and the nested avatar preview to the locale while
 retaining the exact room-ID/username command calls. The English browser journey
 uses a fixture member and avatar to open and close both nested dialogs in
 Chromium and Firefox; it does not exercise successful administrator mutation.
+The protected-room password source tests bind the prompt to the locale and
+prove empty rejection, component plaintext clearing before emit, stale parent
+room-state cleanup, and use of the original server room ID. The current browser
+fixture has no protected-room search/join response, so its browser run is a
+regression gate rather than password-join end-to-end evidence.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

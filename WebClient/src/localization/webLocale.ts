@@ -449,6 +449,17 @@ const userInfoCatalog = {
   },
 } as const;
 
+const roomPasswordCatalog = {
+  "zh-CN": {
+    title: "需要密码", description: "此房间需要密码才能加入", label: "房间密码",
+    placeholder: "输入房间密码", cancel: "取消", join: "加入",
+  },
+  "en-US": {
+    title: "Password required", description: "A password is required to join this room", label: "Room password",
+    placeholder: "Enter room password", cancel: "Cancel", join: "Join",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -531,6 +542,10 @@ export function downloadPanelMessages(locale: WebLocale) {
 
 export function userInfoMessages(locale: WebLocale) {
   return userInfoCatalog[locale];
+}
+
+export function roomPasswordMessages(locale: WebLocale) {
+  return roomPasswordCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

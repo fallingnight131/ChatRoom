@@ -2026,6 +2026,11 @@ labels, presence and role presentation, administrator actions, confirmation,
 and preview controls. Display names and usernames remain server data, and
 administrator/kick commands continue to carry the unchanged room ID and
 username for server-side authorization.
+The protected-room password prompt now follows the locale while preserving
+native password submission, empty-input rejection, and clear-before-emit. Its
+parent captures the server-provided room ID, clears stale prompt state on both
+cancel and submit, then sends the unchanged room ID/password pair through the
+existing transport; authorization remains server-side.
 
 ### Product consistency
 

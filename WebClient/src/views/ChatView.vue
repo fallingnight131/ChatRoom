@@ -109,7 +109,7 @@
     <RoomFileManagerDialog v-if="showRoomFiles" @close="showRoomFiles = false" />
     <UserInfoDialog v-if="showUserInfo" :user="selectedUser" @close="showUserInfo = false" />
     <RoomPasswordDialog v-if="showPasswordPrompt" :roomData="passwordRoomData"
-                        @close="showPasswordPrompt = false" @submit="onPasswordSubmit" />
+                        @close="closePasswordPrompt" @submit="onPasswordSubmit" />
 
     <!-- 被顶号提示 -->
     <div class="modal-overlay" v-if="userStore.forceOfflineReason">
@@ -238,10 +238,14 @@ function openUserInfo(user) {
 }
 
 function onPasswordSubmit(password) {
-  if (passwordRoomData.value) {
-    chatWs.joinRoom(passwordRoomData.value.roomId, password)
-  }
+  const roomId = passwordRoomData.value?.roomId
+  closePasswordPrompt()
+  if (roomId != null) chatWs.joinRoom(roomId, password)
+}
+
+function closePasswordPrompt() {
   showPasswordPrompt.value = false
+  passwordRoomData.value = null
 }
 
 // 需要密码事件

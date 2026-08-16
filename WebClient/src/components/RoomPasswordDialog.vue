@@ -3,32 +3,36 @@
     <form ref="dialogRef" class="modal password-modal" role="dialog" aria-modal="true"
           aria-labelledby="room-password-title" aria-describedby="room-password-description"
           tabindex="-1" @keydown="onDialogKeydown" @submit.prevent="submit">
-      <div id="room-password-title" class="modal-title">需要密码</div>
+      <div id="room-password-title" class="modal-title">{{ messages.title }}</div>
       <p id="room-password-description" class="password-description">
-        此房间需要密码才能加入
+        {{ messages.description }}
       </p>
       <div class="input-group">
-        <label for="room-password">房间密码</label>
+        <label for="room-password">{{ messages.label }}</label>
         <input id="room-password" class="input" v-model="password" type="password"
-               placeholder="输入房间密码" autocomplete="off" required />
+               :placeholder="messages.placeholder" autocomplete="off" required />
       </div>
       <div class="modal-actions">
-        <button class="btn btn-secondary" type="button" @click="closeDialog">取消</button>
-        <button class="btn btn-primary" type="submit" :disabled="!password">加入</button>
+        <button class="btn btn-secondary" type="button" @click="closeDialog">{{ messages.cancel }}</button>
+        <button class="btn btn-primary" type="submit" :disabled="!password">{{ messages.join }}</button>
       </div>
     </form>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
+import { useUserStore } from '../stores/user'
+import { roomPasswordMessages } from '../localization/webLocale'
 
 const props = defineProps({
   roomData: { type: Object, default: null }
 })
 const emit = defineEmits(['close', 'submit'])
 
+const userStore = useUserStore()
+const messages = computed(() => roomPasswordMessages(userStore.locale))
 const password = ref('')
 const { dialogRef, closeDialog, onDialogKeydown } = useModalKeyboardBoundary({
   onClose: () => emit('close'),
