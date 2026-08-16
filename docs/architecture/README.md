@@ -826,8 +826,11 @@ and capability-6 negotiation. It binds the requester from channel identity,
 serializes at most one search with eight queued commands on the bounded
 messaging executor, maps denial/saturation/failure to fixed protocol outcomes,
 and filters mention/forward markers unless those independent capabilities were
-also negotiated. It is not installed in the product pipeline and no handshake
-currently enables capability 6.
+also negotiated. Capability 6 is now a strict default-off handshake policy:
+ordinary constructors never enable it, while an explicitly constructed
+candidate handshake can negotiate it only when the client also requested it.
+The handler is still not installed in the product pipeline and no runtime
+configuration currently enables the policy.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

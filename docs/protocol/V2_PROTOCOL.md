@@ -117,8 +117,10 @@ and excludes recalled/deleted rows. Runtime dispatch and both client capability
 advertisements remain absent. A detached authenticated handler already enforces
 capability 6, server-bound requester identity, a bounded serialized queue, safe
 error mapping, descending response validation, and independent mention/forward
-metadata filtering; it is not installed in the product pipeline. Old V2 clients
-therefore see no new capability or unsolicited shape. The three generated
+metadata filtering; it is not installed in the product pipeline. Handshake
+negotiation is also default-off and requires an explicitly enabled server policy
+plus a matching client request. Old V2 clients therefore see no new capability
+or unsolicited shape. The three generated
 bindings parse and re-emit one fixed mixed-language Unicode command fixture
 identically (ADR-0404).
 

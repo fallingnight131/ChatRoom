@@ -30,6 +30,7 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
     private final Clock clock;
     private final String connectionId;
     private final boolean messageForwardingEnabled;
+    private final boolean messageSearchEnabled;
     private boolean negotiated;
 
     public V2HandshakeHandler() {
@@ -38,20 +39,32 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
 
     public V2HandshakeHandler(boolean messageForwardingEnabled) {
         this(Clock.systemUTC(), () -> UUID.randomUUID().toString(),
-                messageForwardingEnabled);
+                messageForwardingEnabled, false);
+    }
+
+    public V2HandshakeHandler(boolean messageForwardingEnabled, boolean messageSearchEnabled) {
+        this(Clock.systemUTC(), () -> UUID.randomUUID().toString(),
+                messageForwardingEnabled, messageSearchEnabled);
     }
 
     V2HandshakeHandler(Clock clock, Supplier<String> connectionIdSupplier) {
-        this(clock, connectionIdSupplier, false);
+        this(clock, connectionIdSupplier, false, false);
     }
 
     V2HandshakeHandler(
             Clock clock, Supplier<String> connectionIdSupplier,
             boolean messageForwardingEnabled) {
+        this(clock, connectionIdSupplier, messageForwardingEnabled, false);
+    }
+
+    V2HandshakeHandler(
+            Clock clock, Supplier<String> connectionIdSupplier,
+            boolean messageForwardingEnabled, boolean messageSearchEnabled) {
         this.clock = Objects.requireNonNull(clock, "clock");
         Objects.requireNonNull(connectionIdSupplier, "connectionIdSupplier");
         connectionId = requireConnectionId(connectionIdSupplier.get());
         this.messageForwardingEnabled = messageForwardingEnabled;
+        this.messageSearchEnabled = messageSearchEnabled;
     }
 
     @Override
@@ -141,7 +154,9 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
                         || capability == ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS
                         || capability == ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS
                         || (messageForwardingEnabled && capability
-                                == ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING))
+                                == ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING)
+                        || (messageSearchEnabled && capability
+                                == ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH))
                 .toList();
         Set<ClientCapability> enabledCapabilities = Set.copyOf(enabledCapabilityList);
         context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES)

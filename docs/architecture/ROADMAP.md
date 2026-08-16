@@ -2199,8 +2199,11 @@ Progress:
     - [x] Add the detached capability-gated authenticated search handler with
       server-bound account identity, bounded serialized work, defensive result
       projection, feature-metadata filtering, and fixed failure/telemetry paths.
-    - [ ] Add the capability/policy-gated gateway handler, fixed-cardinality
-      runtime composition and real TLS/WSS authorization gate.
+    - [x] Make capability 6 negotiation strictly default-off and available only
+      to an explicitly constructed candidate handshake policy.
+    - [ ] Add default-off runtime configuration, compose the PostgreSQL handler
+      with fixed-cardinality telemetry, and pass the real TLS/WSS authorization
+      gate.
   - [ ] Add cache-aware, accessible Web and Windows search surfaces with
     endpoint-specific activation and context-history repair.
 

@@ -1239,13 +1239,17 @@ The detached gateway boundary is covered by:
 
 ```bash
 cd Backend
-./gradlew :protocol-v2:test :im-gateway:test --tests '*V2MessageSearchHandlerTest'
+./gradlew :protocol-v2:test :im-gateway:test \
+  --tests '*V2MessageSearchHandlerTest' \
+  --tests '*V2HandshakeHandlerTest'
 ```
 
 It proves authentication/capability checks, server-bound identity, malformed
 input, authorization denial, worker rejection, fixed retryability, and filtering
 of mention/forward metadata that was not independently negotiated. The handler
-is intentionally not composed yet, so this remains non-product evidence.
+is intentionally not composed yet. The handshake test also proves capability 6
+is omitted by ordinary construction and negotiated only by an explicitly
+enabled candidate policy. This remains non-product evidence.
 The Java gate includes embedded-channel tests for the bounded V2 binary
 WebSocket frame decoder, single-use ClientHello negotiation, and fresh-login
 connection state machine. They verify server-bound identity, secret cleanup,

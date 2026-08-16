@@ -112,6 +112,40 @@ class V2HandshakeHandlerTest {
     }
 
     @Test
+    void enablesSearchOnlyWhenBothServerPolicyAndClientRequestIt() throws Exception {
+        ClientHello capable = validHello().toBuilder()
+                .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH)
+                .build();
+
+        EmbeddedChannel disabled = channel();
+        try {
+            disabled.writeInbound(clientHelloEnvelope(capable));
+            ServerHello response = ServerHello.parseFrom(readEnvelope(disabled).getPayload());
+            assertEquals(List.of(), response.getEnabledCapabilitiesList());
+            assertEquals(Set.of(),
+                    disabled.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get());
+        } finally {
+            disabled.finishAndReleaseAll();
+        }
+
+        EmbeddedChannel enabled = new EmbeddedChannel(
+                new V2EnvelopeDecoder(), new V2EnvelopeEncoder(),
+                new V2HandshakeHandler(
+                        Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC),
+                        () -> "connection-search", false, true));
+        try {
+            enabled.writeInbound(clientHelloEnvelope(capable));
+            ServerHello response = ServerHello.parseFrom(readEnvelope(enabled).getPayload());
+            assertEquals(List.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH),
+                    response.getEnabledCapabilitiesList());
+            assertEquals(Set.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH),
+                    enabled.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get());
+        } finally {
+            enabled.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void safelyRejectsWrongFirstFrameAndCloses() throws Exception {
         Envelope wrong = clientHelloEnvelope(validHello()).toBuilder()
                 .setMessageType(99)
