@@ -199,33 +199,42 @@
                   </button>
                 </div>
                 <button v-if="failedReaction(message)" class="retry-link" type="button"
+                        :aria-label="`重试消息 ${message.sequence} 的回应`"
                         @click="retryReaction(failedReaction(message).clientOperationId)">
                   重试回应
                 </button>
                 <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
                         class="pin-link" type="button" :aria-pressed="message.pinned"
+                        :aria-label="`${message.pinned ? '取消置顶' : '置顶'}消息 ${message.sequence}`"
                         :disabled="pinPending(message)" @click="togglePin(message)">
                   {{ message.pinned ? '取消置顶' : '置顶' }}
                 </button>
                 <button v-if="failedPin(message)" class="retry-link" type="button"
+                        :aria-label="`重试消息 ${message.sequence} 的置顶操作`"
                         @click="retryPin(failedPin(message).clientOperationId)">重试置顶</button>
-                <span>#{{ message.sequence }} · {{ deliveryLabel(message.deliveryState) }}</span>
+                <span :aria-label="`消息 ${message.sequence}：${deliveryLabel(message.deliveryState)}`">
+                  #{{ message.sequence }} · {{ deliveryLabel(message.deliveryState) }}
+                </span>
                 <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
                         class="copy-link" type="button"
                         :aria-label="`复制消息 ${message.sequence} 正文`" @click="copyMessage(message)">
                   复制
                 </button>
                 <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
-                        class="reply-link" type="button" @click="startReply(message)">
+                        class="reply-link" type="button" :aria-label="`回复消息 ${message.sequence}`"
+                        @click="startReply(message)">
                   回复
                 </button>
                 <button v-if="canEdit(message)" class="edit-link" type="button"
+                        :aria-label="`编辑消息 ${message.sequence}`"
                         @click="startEdit(message)">编辑</button>
                 <button v-if="snapshot.forwardingEnabled && message.deliveryState === 'accepted'
                               && message.availability === 'available'"
                         class="forward-link" type="button" aria-haspopup="dialog"
+                        :aria-label="`转发消息 ${message.sequence}`"
                         @click="openForwardPicker(message)">转发</button>
                 <button v-if="message.deliveryState === 'failed'" class="retry-link" type="button"
+                        aria-label="重试这条发送失败的消息"
                         @click="retryMessage(message.clientMessageId)">
                   重试
                 </button>

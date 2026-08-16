@@ -2274,6 +2274,9 @@ return to the original draft/edit caret.
 `v2DirectoryAccessibility.test.mjs` locks the preview's named conversation
 navigation/list structure, native selection actions, explicit current item, and
 textual connection status independent of the decorative color dot.
+`v2MessageActionAccessibility.test.mjs` locks sequence-specific accessible
+names for repeated reaction/pin/copy/reply/edit/forward controls and an explicit
+local-failure label for pre-acceptance retry, without changing capability gates.
 `friendListKeyboardNavigation.test.mjs` locks native friend rows, current-item
 state, keyboard context-menu invocation, wrapped arrow/Home/End navigation,
 Escape dismissal, and focus return.

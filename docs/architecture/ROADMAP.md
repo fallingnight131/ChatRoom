@@ -2346,6 +2346,8 @@ Candidate slices:
     current conversation and keep connection state independent of its color dot.
   - [x] Complete focus entry, wrapped Arrow/Home/End option navigation, and
     trigger/editor focus return for the non-modal Web V2 member picker.
+  - [x] Bind repeated Web V2 reaction, pin, copy, reply, edit, forward, and retry
+    controls to an explicit server-sequence or local-failure accessible context.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

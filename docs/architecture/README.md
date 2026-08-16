@@ -1054,6 +1054,11 @@ first option (or Close while empty), wraps Arrow Up/Down and Home/End through
 the member options, and returns to the invoking draft/edit trigger on Escape or
 explicit close. Selecting a member still returns to the original editor caret,
 so identity-backed span composition and focus restoration do not conflict.
+Repeated V2 message actions now include the authoritative message sequence in
+their accessible names for reaction retry, pin/unpin, pin retry, copy, reply,
+edit, and forward. A pre-acceptance failed send uses an explicit local-failure
+name because it has no server sequence. The action routing and capability gates
+are unchanged.
 Web friend rows are now native buttons rather than pointer-only containers. The
 active conversation is exposed through `aria-current`; Context Menu or
 Shift+F10 opens a named native-action menu whose arrows and Home/End wrap,
