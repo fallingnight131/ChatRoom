@@ -33,6 +33,12 @@ PROTOBUF_CONSTINIT ::google::protobuf::internal::ReflectionData
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fcontact_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::AccountBlockApplied
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fcontact_2eproto, /* tracker*/ nullptr,},
+        // ::chat::v2::ListAccountBlocks
+        {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fcontact_2eproto, /* tracker*/ nullptr,},
+        // ::chat::v2::AccountBlockSummary
+        {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fcontact_2eproto, /* tracker*/ nullptr,},
+        // ::chat::v2::AccountBlockDirectoryPage
+        {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fcontact_2eproto, /* tracker*/ nullptr,},
 };
 }  // namespace
 #endif
@@ -198,6 +204,323 @@ const ::_pbi::ClassData* SetAccountBlock_get_class_data() {
   return SetAccountBlock_globals_.GetClassData();
 #else
   return SetAccountBlock_class_data_.base();
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+}
+}  // namespace
+#endif  // PROTOBUF_CUSTOM_VTABLE
+class ListAccountBlocks::_Internal {
+ public:
+  using HasBits = decltype(::std::declval<ListAccountBlocks>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(ListAccountBlocks, _impl_._has_bits_);
+};
+
+constexpr ListAccountBlocks::ParseTableT_ ListAccountBlocks::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
+  return ParseTableT_{
+    {
+      PROTOBUF_FIELD_OFFSET(ListAccountBlocks, _impl_._has_bits_),
+      0, // no _extensions_
+      2, 8,  // max_field_number, fast_idx_mask
+      offsetof(ParseTableT_, field_lookup_table),
+      4294967292,  // skipmap
+      offsetof(ParseTableT_, field_entries),
+      2,  // num_field_entries
+      0,  // num_aux_entries
+      offsetof(ParseTableT_, field_names),  // no aux_entries
+      class_data,
+      nullptr,  // post_loop_handler
+      ::_pbi::TcParser::GenericFallback,  // fallback
+      #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+      ::_pbi::TcParser::GetTable<::chat::v2::ListAccountBlocks>(),  // to_prefetch
+      #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+    }, {{
+      // uint32 limit = 2;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ListAccountBlocks, _impl_.limit_), 1>(),
+       {16, 1, 0,
+        PROTOBUF_FIELD_OFFSET(ListAccountBlocks, _impl_.limit_)}},
+      // string after_target_account_id = 1;
+      {::_pbi::TcParser::FastUS1,
+       {10, 0, 0,
+        PROTOBUF_FIELD_OFFSET(ListAccountBlocks, _impl_.after_target_account_id_)}},
+    }}, {{
+      65535, 65535
+    }}, {{
+      // string after_target_account_id = 1;
+      {PROTOBUF_FIELD_OFFSET(ListAccountBlocks, _impl_.after_target_account_id_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // uint32 limit = 2;
+      {PROTOBUF_FIELD_OFFSET(ListAccountBlocks, _impl_.limit_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+    }},
+    // no aux_entries
+    {{
+      "\31\27\0\0\0\0\0\0"
+      "chat.v2.ListAccountBlocks"
+      "after_target_account_id"
+    }},
+  };
+}
+
+
+inline constexpr ListAccountBlocks::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        after_target_account_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        limit_{0u} {}
+
+template <typename>
+constexpr ListAccountBlocks::ListAccountBlocks(::_pbi::ConstantInitialized,
+                       const ::_pbi::ClassData* PROTOBUF_NONNULL class_data)
+    : ::google::protobuf::Message(
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          class_data
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          ),
+      _impl_(internal_visibility(), ::_pbi::ConstantInitialized()) {
+}
+inline void* PROTOBUF_NONNULL ListAccountBlocks::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) ListAccountBlocks(arena);
+}
+constexpr auto ListAccountBlocks::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(ListAccountBlocks), alignof(ListAccountBlocks));
+}
+constexpr auto ListAccountBlocks::InternalGenerateClassData_(
+    const MessageLite& prototype,
+    const ::google::protobuf::internal::TcParseTableBase* tc_table) {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &prototype,
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+          &_table_.header,
+#else
+          tc_table,
+#endif
+          nullptr,  // IsInitialized
+          &ListAccountBlocks::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<ListAccountBlocks>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &ListAccountBlocks::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<ListAccountBlocks>(), &ListAccountBlocks::ByteSizeLong,
+              &ListAccountBlocks::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(ListAccountBlocks, _impl_._cached_size_),
+          false,
+      },
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+      &file_reflection_data[2],
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+      &::_pbi::kDescriptorMethods,
+      &descriptor_table_chat_2fv2_2fcontact_2eproto,
+      nullptr,  // tracker
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  };
+}
+struct ListAccountBlocksGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
+  constexpr ListAccountBlocksGlobalsTypeInternal()
+      :
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+        _default(::_pbi::ConstantInitialized{},
+                 ListAccountBlocks_class_data_.base())
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+        MessageGlobalsBase(ListAccountBlocks::InternalGenerateClassData_(
+            _default, &ListAccountBlocks_globals_._table.header)),
+        _default(::_pbi::ConstantInitialized{}, GetClassData()),
+        _table(::_pbi::PrivateAccess::GenerateParseTable<ListAccountBlocks>(
+            GetClassData()))
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  {
+  }
+  ~ListAccountBlocksGlobalsTypeInternal() {}
+  union {
+    alignas(::_pbi::kMaxMessageAlignment) ListAccountBlocks _default;
+  };
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  decltype(::_pbi::PrivateAccess::GenerateParseTable<ListAccountBlocks>(
+      ::std::declval<const ::_pbi::ClassData*>())) _table;
+#endif
+};
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+static_assert(PROTOBUF_FIELD_OFFSET(ListAccountBlocksGlobalsTypeInternal, _default) ==
+              ::_pbi::MessageGlobalsBase::OffsetToDefault());
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST ListAccountBlocksGlobalsTypeInternal ListAccountBlocks_globals_
+        PROTOBUF_MESSAGE_GLOBALS_SECTION(.data.rel.ro);
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+namespace {
+const ::_pbi::ClassData* ListAccountBlocks_get_class_data() {
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  return ListAccountBlocks_globals_.GetClassData();
+#else
+  return ListAccountBlocks_class_data_.base();
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+}
+}  // namespace
+#endif  // PROTOBUF_CUSTOM_VTABLE
+class AccountBlockSummary::_Internal {
+ public:
+  using HasBits = decltype(::std::declval<AccountBlockSummary>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(AccountBlockSummary, _impl_._has_bits_);
+};
+
+constexpr AccountBlockSummary::ParseTableT_ AccountBlockSummary::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
+  return ParseTableT_{
+    {
+      PROTOBUF_FIELD_OFFSET(AccountBlockSummary, _impl_._has_bits_),
+      0, // no _extensions_
+      3, 24,  // max_field_number, fast_idx_mask
+      offsetof(ParseTableT_, field_lookup_table),
+      4294967288,  // skipmap
+      offsetof(ParseTableT_, field_entries),
+      3,  // num_field_entries
+      0,  // num_aux_entries
+      offsetof(ParseTableT_, field_names),  // no aux_entries
+      class_data,
+      nullptr,  // post_loop_handler
+      ::_pbi::TcParser::GenericFallback,  // fallback
+      #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+      ::_pbi::TcParser::GetTable<::chat::v2::AccountBlockSummary>(),  // to_prefetch
+      #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+    }, {{
+      {::_pbi::TcParser::MiniParse, {}},
+      // string target_account_id = 1;
+      {::_pbi::TcParser::FastUS1,
+       {10, 0, 0,
+        PROTOBUF_FIELD_OFFSET(AccountBlockSummary, _impl_.target_account_id_)}},
+      // string target_display_name = 2;
+      {::_pbi::TcParser::FastUS1,
+       {18, 1, 0,
+        PROTOBUF_FIELD_OFFSET(AccountBlockSummary, _impl_.target_display_name_)}},
+      // int64 blocked_at_epoch_ms = 3;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(AccountBlockSummary, _impl_.blocked_at_epoch_ms_), 2>(),
+       {24, 2, 0,
+        PROTOBUF_FIELD_OFFSET(AccountBlockSummary, _impl_.blocked_at_epoch_ms_)}},
+    }}, {{
+      65535, 65535
+    }}, {{
+      // string target_account_id = 1;
+      {PROTOBUF_FIELD_OFFSET(AccountBlockSummary, _impl_.target_account_id_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // string target_display_name = 2;
+      {PROTOBUF_FIELD_OFFSET(AccountBlockSummary, _impl_.target_display_name_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // int64 blocked_at_epoch_ms = 3;
+      {PROTOBUF_FIELD_OFFSET(AccountBlockSummary, _impl_.blocked_at_epoch_ms_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
+    }},
+    // no aux_entries
+    {{
+      "\33\21\23\0\0\0\0\0"
+      "chat.v2.AccountBlockSummary"
+      "target_account_id"
+      "target_display_name"
+    }},
+  };
+}
+
+
+inline constexpr AccountBlockSummary::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        target_account_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        target_display_name_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        blocked_at_epoch_ms_{::int64_t{0}} {}
+
+template <typename>
+constexpr AccountBlockSummary::AccountBlockSummary(::_pbi::ConstantInitialized,
+                       const ::_pbi::ClassData* PROTOBUF_NONNULL class_data)
+    : ::google::protobuf::Message(
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          class_data
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          ),
+      _impl_(internal_visibility(), ::_pbi::ConstantInitialized()) {
+}
+inline void* PROTOBUF_NONNULL AccountBlockSummary::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) AccountBlockSummary(arena);
+}
+constexpr auto AccountBlockSummary::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(AccountBlockSummary), alignof(AccountBlockSummary));
+}
+constexpr auto AccountBlockSummary::InternalGenerateClassData_(
+    const MessageLite& prototype,
+    const ::google::protobuf::internal::TcParseTableBase* tc_table) {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &prototype,
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+          &_table_.header,
+#else
+          tc_table,
+#endif
+          nullptr,  // IsInitialized
+          &AccountBlockSummary::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<AccountBlockSummary>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &AccountBlockSummary::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<AccountBlockSummary>(), &AccountBlockSummary::ByteSizeLong,
+              &AccountBlockSummary::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(AccountBlockSummary, _impl_._cached_size_),
+          false,
+      },
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+      &file_reflection_data[3],
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+      &::_pbi::kDescriptorMethods,
+      &descriptor_table_chat_2fv2_2fcontact_2eproto,
+      nullptr,  // tracker
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  };
+}
+struct AccountBlockSummaryGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
+  constexpr AccountBlockSummaryGlobalsTypeInternal()
+      :
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+        _default(::_pbi::ConstantInitialized{},
+                 AccountBlockSummary_class_data_.base())
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+        MessageGlobalsBase(AccountBlockSummary::InternalGenerateClassData_(
+            _default, &AccountBlockSummary_globals_._table.header)),
+        _default(::_pbi::ConstantInitialized{}, GetClassData()),
+        _table(::_pbi::PrivateAccess::GenerateParseTable<AccountBlockSummary>(
+            GetClassData()))
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  {
+  }
+  ~AccountBlockSummaryGlobalsTypeInternal() {}
+  union {
+    alignas(::_pbi::kMaxMessageAlignment) AccountBlockSummary _default;
+  };
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  decltype(::_pbi::PrivateAccess::GenerateParseTable<AccountBlockSummary>(
+      ::std::declval<const ::_pbi::ClassData*>())) _table;
+#endif
+};
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+static_assert(PROTOBUF_FIELD_OFFSET(AccountBlockSummaryGlobalsTypeInternal, _default) ==
+              ::_pbi::MessageGlobalsBase::OffsetToDefault());
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST AccountBlockSummaryGlobalsTypeInternal AccountBlockSummary_globals_
+        PROTOBUF_MESSAGE_GLOBALS_SECTION(.data.rel.ro);
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+namespace {
+const ::_pbi::ClassData* AccountBlockSummary_get_class_data() {
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  return AccountBlockSummary_globals_.GetClassData();
+#else
+  return AccountBlockSummary_class_data_.base();
 #endif  // PROTOBUF_MESSAGE_GLOBALS
 }
 }  // namespace
@@ -385,6 +708,177 @@ const ::_pbi::ClassData* AccountBlockApplied_get_class_data() {
 }
 }  // namespace
 #endif  // PROTOBUF_CUSTOM_VTABLE
+class AccountBlockDirectoryPage::_Internal {
+ public:
+  using HasBits = decltype(::std::declval<AccountBlockDirectoryPage>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(AccountBlockDirectoryPage, _impl_._has_bits_);
+};
+
+constexpr AccountBlockDirectoryPage::ParseTableT_ AccountBlockDirectoryPage::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
+  return ParseTableT_{
+    {
+      PROTOBUF_FIELD_OFFSET(AccountBlockDirectoryPage, _impl_._has_bits_),
+      0, // no _extensions_
+      3, 24,  // max_field_number, fast_idx_mask
+      offsetof(ParseTableT_, field_lookup_table),
+      4294967288,  // skipmap
+      offsetof(ParseTableT_, field_entries),
+      3,  // num_field_entries
+      1,  // num_aux_entries
+      offsetof(ParseTableT_, aux_entries),
+      class_data,
+      nullptr,  // post_loop_handler
+      ::_pbi::TcParser::GenericFallback,  // fallback
+      #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+      ::_pbi::TcParser::GetTable<::chat::v2::AccountBlockDirectoryPage>(),  // to_prefetch
+      #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+    }, {{
+      {::_pbi::TcParser::MiniParse, {}},
+      // repeated .chat.v2.AccountBlockSummary blocks = 1;
+      {::_pbi::TcParser::FastMtR1,
+       {10, 0, 0,
+        PROTOBUF_FIELD_OFFSET(AccountBlockDirectoryPage, _impl_.blocks_)}},
+      // string next_after_target_account_id = 2;
+      {::_pbi::TcParser::FastUS1,
+       {18, 1, 0,
+        PROTOBUF_FIELD_OFFSET(AccountBlockDirectoryPage, _impl_.next_after_target_account_id_)}},
+      // bool has_more = 3;
+      {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(AccountBlockDirectoryPage, _impl_.has_more_), 2>(),
+       {24, 2, 0,
+        PROTOBUF_FIELD_OFFSET(AccountBlockDirectoryPage, _impl_.has_more_)}},
+    }}, {{
+      65535, 65535
+    }}, {{
+      // repeated .chat.v2.AccountBlockSummary blocks = 1;
+      {PROTOBUF_FIELD_OFFSET(AccountBlockDirectoryPage, _impl_.blocks_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcRepeated | ::_fl::kMessage | ::_fl::kTvTable)},
+      // string next_after_target_account_id = 2;
+      {PROTOBUF_FIELD_OFFSET(AccountBlockDirectoryPage, _impl_.next_after_target_account_id_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // bool has_more = 3;
+      {PROTOBUF_FIELD_OFFSET(AccountBlockDirectoryPage, _impl_.has_more_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kBool)},
+    }},
+    {{
+        #ifndef PROTOBUF_MESSAGE_GLOBALS
+        {::_pbi::TcParser::GetTable<::chat::v2::AccountBlockSummary>()},
+        #else
+        {::_pbi::FieldAuxMessageGlobals(), &::chat::v2::AccountBlockSummary_globals_},
+        #endif
+    }},
+    {{
+      "\41\0\34\0\0\0\0\0"
+      "chat.v2.AccountBlockDirectoryPage"
+      "next_after_target_account_id"
+    }},
+  };
+}
+
+
+inline constexpr AccountBlockDirectoryPage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        blocks_ { visibility, ::_pbi::InternalMetadataOffset::Build<
+            ::chat::v2::AccountBlockDirectoryPage,
+            PROTOBUF_FIELD_OFFSET(::chat::v2::AccountBlockDirectoryPage, _impl_.blocks_)>()
+         }
+        ,
+        next_after_target_account_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        has_more_{false} {}
+
+template <typename>
+constexpr AccountBlockDirectoryPage::AccountBlockDirectoryPage(::_pbi::ConstantInitialized,
+                       const ::_pbi::ClassData* PROTOBUF_NONNULL class_data)
+    : ::google::protobuf::Message(
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          class_data
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          ),
+      _impl_(internal_visibility(), ::_pbi::ConstantInitialized()) {
+}
+inline void* PROTOBUF_NONNULL AccountBlockDirectoryPage::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) AccountBlockDirectoryPage(arena);
+}
+constexpr auto AccountBlockDirectoryPage::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(AccountBlockDirectoryPage), alignof(AccountBlockDirectoryPage));
+}
+constexpr auto AccountBlockDirectoryPage::InternalGenerateClassData_(
+    const MessageLite& prototype,
+    const ::google::protobuf::internal::TcParseTableBase* tc_table) {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &prototype,
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+          &_table_.header,
+#else
+          tc_table,
+#endif
+          nullptr,  // IsInitialized
+          &AccountBlockDirectoryPage::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<AccountBlockDirectoryPage>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &AccountBlockDirectoryPage::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<AccountBlockDirectoryPage>(), &AccountBlockDirectoryPage::ByteSizeLong,
+              &AccountBlockDirectoryPage::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(AccountBlockDirectoryPage, _impl_._cached_size_),
+          false,
+      },
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+      &file_reflection_data[4],
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+      &::_pbi::kDescriptorMethods,
+      &descriptor_table_chat_2fv2_2fcontact_2eproto,
+      nullptr,  // tracker
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  };
+}
+struct AccountBlockDirectoryPageGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
+  constexpr AccountBlockDirectoryPageGlobalsTypeInternal()
+      :
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+        _default(::_pbi::ConstantInitialized{},
+                 AccountBlockDirectoryPage_class_data_.base())
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+        MessageGlobalsBase(AccountBlockDirectoryPage::InternalGenerateClassData_(
+            _default, &AccountBlockDirectoryPage_globals_._table.header)),
+        _default(::_pbi::ConstantInitialized{}, GetClassData()),
+        _table(::_pbi::PrivateAccess::GenerateParseTable<AccountBlockDirectoryPage>(
+            GetClassData()))
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  {
+  }
+  ~AccountBlockDirectoryPageGlobalsTypeInternal() {}
+  union {
+    alignas(::_pbi::kMaxMessageAlignment) AccountBlockDirectoryPage _default;
+  };
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  decltype(::_pbi::PrivateAccess::GenerateParseTable<AccountBlockDirectoryPage>(
+      ::std::declval<const ::_pbi::ClassData*>())) _table;
+#endif
+};
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+static_assert(PROTOBUF_FIELD_OFFSET(AccountBlockDirectoryPageGlobalsTypeInternal, _default) ==
+              ::_pbi::MessageGlobalsBase::OffsetToDefault());
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST AccountBlockDirectoryPageGlobalsTypeInternal AccountBlockDirectoryPage_globals_
+        PROTOBUF_MESSAGE_GLOBALS_SECTION(.data.rel.ro);
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+namespace {
+const ::_pbi::ClassData* AccountBlockDirectoryPage_get_class_data() {
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  return AccountBlockDirectoryPage_globals_.GetClassData();
+#else
+  return AccountBlockDirectoryPage_class_data_.base();
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+}
+}  // namespace
+#endif  // PROTOBUF_CUSTOM_VTABLE
 }  // namespace v2
 }  // namespace chat
 static constexpr const ::_pb::EnumDescriptor* PROTOBUF_NONNULL* PROTOBUF_NULLABLE
@@ -416,17 +910,48 @@ const ::uint32_t
         3,
         4,
         2,
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::chat::v2::ListAccountBlocks, _impl_._has_bits_),
+        5, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::chat::v2::ListAccountBlocks, _impl_.after_target_account_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::ListAccountBlocks, _impl_.limit_),
+        0,
+        1,
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::chat::v2::AccountBlockSummary, _impl_._has_bits_),
+        6, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::chat::v2::AccountBlockSummary, _impl_.target_account_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::AccountBlockSummary, _impl_.target_display_name_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::AccountBlockSummary, _impl_.blocked_at_epoch_ms_),
+        0,
+        1,
+        2,
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::chat::v2::AccountBlockDirectoryPage, _impl_._has_bits_),
+        6, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::chat::v2::AccountBlockDirectoryPage, _impl_.blocks_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::AccountBlockDirectoryPage, _impl_.next_after_target_account_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::AccountBlockDirectoryPage, _impl_.has_more_),
+        0,
+        1,
+        2,
 };
 
 static const ::_pbi::MigrationSchema
     schemas[] ABSL_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
         {0, sizeof(::chat::v2::SetAccountBlock)},
         {9, sizeof(::chat::v2::AccountBlockApplied)},
+        {22, sizeof(::chat::v2::ListAccountBlocks)},
+        {29, sizeof(::chat::v2::AccountBlockSummary)},
+        {38, sizeof(::chat::v2::AccountBlockDirectoryPage)},
 };
 static const ::_pbi::MessageGlobalsBase* PROTOBUF_NONNULL const
     file_message_globals[] = {
         &::chat::v2::SetAccountBlock_globals_,
         &::chat::v2::AccountBlockApplied_globals_,
+        &::chat::v2::ListAccountBlocks_globals_,
+        &::chat::v2::AccountBlockSummary_globals_,
+        &::chat::v2::AccountBlockDirectoryPage_globals_,
 };
 const char descriptor_table_protodef_chat_2fv2_2fcontact_2eproto[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     protodesc_cold) = {
@@ -436,21 +961,28 @@ const char descriptor_table_protodef_chat_2fv2_2fcontact_2eproto[] ABSL_ATTRIBUT
     " \001(\t\"\211\001\n\023AccountBlockApplied\022\030\n\020actor_ac"
     "count_id\030\001 \001(\t\022\031\n\021target_account_id\030\002 \001("
     "\t\022\017\n\007blocked\030\003 \001(\010\022\017\n\007changed\030\004 \001(\010\022\033\n\023c"
-    "lient_operation_id\030\005 \001(\tB4\n!com.fallingn"
-    "ight.chat.protocol.v2B\rContactSchemaP\001b\006"
-    "proto3"
+    "lient_operation_id\030\005 \001(\t\"C\n\021ListAccountB"
+    "locks\022\037\n\027after_target_account_id\030\001 \001(\t\022\r"
+    "\n\005limit\030\002 \001(\r\"j\n\023AccountBlockSummary\022\031\n\021"
+    "target_account_id\030\001 \001(\t\022\033\n\023target_displa"
+    "y_name\030\002 \001(\t\022\033\n\023blocked_at_epoch_ms\030\003 \001("
+    "\003\"\201\001\n\031AccountBlockDirectoryPage\022,\n\006block"
+    "s\030\001 \003(\0132\034.chat.v2.AccountBlockSummary\022$\n"
+    "\034next_after_target_account_id\030\002 \001(\t\022\020\n\010h"
+    "as_more\030\003 \001(\010B4\n!com.fallingnight.chat.p"
+    "rotocol.v2B\rContactSchemaP\001b\006proto3"
 };
 static ::absl::once_flag descriptor_table_chat_2fv2_2fcontact_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_chat_2fv2_2fcontact_2eproto = {
     false,
     false,
-    326,
+    635,
     descriptor_table_protodef_chat_2fv2_2fcontact_2eproto,
     "chat/v2/contact.proto",
     &descriptor_table_chat_2fv2_2fcontact_2eproto_once,
     nullptr,
     0,
-    2,
+    5,
     schemas,
     file_message_globals,
     TableStruct_chat_2fv2_2fcontact_2eproto::offsets,
@@ -1080,6 +1612,810 @@ void AccountBlockApplied::InternalSwap(AccountBlockApplied* PROTOBUF_RESTRICT PR
 }
 
 ::google::protobuf::Metadata AccountBlockApplied::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+ListAccountBlocks::ListAccountBlocks(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, ListAccountBlocks_get_class_data()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:chat.v2.ListAccountBlocks)
+}
+PROTOBUF_NDEBUG_INLINE ListAccountBlocks::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::chat::v2::ListAccountBlocks& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        after_target_account_id_(arena, from.after_target_account_id_) {}
+
+ListAccountBlocks::ListAccountBlocks(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const ListAccountBlocks& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, ListAccountBlocks_get_class_data()) {
+
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  ListAccountBlocks* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  _impl_.limit_ = from._impl_.limit_;
+
+  // @@protoc_insertion_point(copy_constructor:chat.v2.ListAccountBlocks)
+}
+PROTOBUF_NDEBUG_INLINE ListAccountBlocks::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        after_target_account_id_(arena) {}
+
+inline void ListAccountBlocks::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  _impl_.limit_ = {};
+}
+ListAccountBlocks::~ListAccountBlocks() {
+  // @@protoc_insertion_point(destructor:chat.v2.ListAccountBlocks)
+  SharedDtor(*this);
+}
+inline void ListAccountBlocks::SharedDtor(MessageLite& self) {
+  ListAccountBlocks& this_ = static_cast<ListAccountBlocks&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.after_target_account_id_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull ListAccountBlocks_class_data_ =
+        ListAccountBlocks::InternalGenerateClassData_(ListAccountBlocks_globals_._default);
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+ListAccountBlocks::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&ListAccountBlocks_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(ListAccountBlocks_class_data_.tc_table);
+  return ListAccountBlocks_class_data_.base();
+}
+#else
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+ListAccountBlocks::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&ListAccountBlocks_globals_);
+  ::google::protobuf::internal::PrefetchToLocalCache(
+      ::google::protobuf::internal::MessageGlobalsBase::ToParseTableBase(&ListAccountBlocks_globals_));
+  return ListAccountBlocks_globals_.GetClassData();
+}
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ListAccountBlocks::ParseTableT_
+    ListAccountBlocks::_table_ =
+        ListAccountBlocks::InternalGenerateParseTable_(ListAccountBlocks_class_data_.base());
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_NOINLINE void ListAccountBlocks::Clear() {
+// @@protoc_insertion_point(message_clear_start:chat.v2.ListAccountBlocks)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    _impl_.after_target_account_id_.ClearNonDefaultToEmpty();
+  }
+  _impl_.limit_ = 0u;
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL ListAccountBlocks::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const ListAccountBlocks& this_ = static_cast<const ListAccountBlocks&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL ListAccountBlocks::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const ListAccountBlocks& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:chat.v2.ListAccountBlocks)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // string after_target_account_id = 1;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    if (!this_._internal_after_target_account_id().empty()) {
+      const ::std::string& _s = this_._internal_after_target_account_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.ListAccountBlocks.after_target_account_id");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  // uint32 limit = 2;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (this_._internal_limit() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+          2, this_._internal_limit(), target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:chat.v2.ListAccountBlocks)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t ListAccountBlocks::ByteSizeLong(const MessageLite& base) {
+  const ListAccountBlocks& this_ = static_cast<const ListAccountBlocks&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t ListAccountBlocks::ByteSizeLong() const {
+  const ListAccountBlocks& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:chat.v2.ListAccountBlocks)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    // string after_target_account_id = 1;
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!this_._internal_after_target_account_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_after_target_account_id());
+      }
+    }
+    // uint32 limit = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (this_._internal_limit() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+            this_._internal_limit());
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void ListAccountBlocks::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                      const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this = static_cast<ListAccountBlocks*>(&to_msg);
+  auto& from = static_cast<const ListAccountBlocks&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(class_specific_merge_from_start:chat.v2.ListAccountBlocks)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!from._internal_after_target_account_id().empty()) {
+        _this->_internal_set_after_target_account_id(from._internal_after_target_account_id());
+      } else {
+        if (_this->_impl_.after_target_account_id_.IsDefault()) {
+          _this->_internal_set_after_target_account_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (from._internal_limit() != 0) {
+        _this->_impl_.limit_ = from._impl_.limit_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void ListAccountBlocks::CopyFrom(const ListAccountBlocks& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:chat.v2.ListAccountBlocks)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void ListAccountBlocks::InternalSwap(ListAccountBlocks* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.after_target_account_id_, &other->_impl_.after_target_account_id_, arena);
+  swap(_impl_.limit_, other->_impl_.limit_);
+}
+
+::google::protobuf::Metadata ListAccountBlocks::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+AccountBlockSummary::AccountBlockSummary(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, AccountBlockSummary_get_class_data()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:chat.v2.AccountBlockSummary)
+}
+PROTOBUF_NDEBUG_INLINE AccountBlockSummary::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::chat::v2::AccountBlockSummary& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        target_account_id_(arena, from.target_account_id_),
+        target_display_name_(arena, from.target_display_name_) {}
+
+AccountBlockSummary::AccountBlockSummary(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const AccountBlockSummary& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, AccountBlockSummary_get_class_data()) {
+
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  AccountBlockSummary* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  _impl_.blocked_at_epoch_ms_ = from._impl_.blocked_at_epoch_ms_;
+
+  // @@protoc_insertion_point(copy_constructor:chat.v2.AccountBlockSummary)
+}
+PROTOBUF_NDEBUG_INLINE AccountBlockSummary::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        target_account_id_(arena),
+        target_display_name_(arena) {}
+
+inline void AccountBlockSummary::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  _impl_.blocked_at_epoch_ms_ = {};
+}
+AccountBlockSummary::~AccountBlockSummary() {
+  // @@protoc_insertion_point(destructor:chat.v2.AccountBlockSummary)
+  SharedDtor(*this);
+}
+inline void AccountBlockSummary::SharedDtor(MessageLite& self) {
+  AccountBlockSummary& this_ = static_cast<AccountBlockSummary&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.target_account_id_.Destroy();
+  this_._impl_.target_display_name_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull AccountBlockSummary_class_data_ =
+        AccountBlockSummary::InternalGenerateClassData_(AccountBlockSummary_globals_._default);
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+AccountBlockSummary::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&AccountBlockSummary_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(AccountBlockSummary_class_data_.tc_table);
+  return AccountBlockSummary_class_data_.base();
+}
+#else
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+AccountBlockSummary::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&AccountBlockSummary_globals_);
+  ::google::protobuf::internal::PrefetchToLocalCache(
+      ::google::protobuf::internal::MessageGlobalsBase::ToParseTableBase(&AccountBlockSummary_globals_));
+  return AccountBlockSummary_globals_.GetClassData();
+}
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const AccountBlockSummary::ParseTableT_
+    AccountBlockSummary::_table_ =
+        AccountBlockSummary::InternalGenerateParseTable_(AccountBlockSummary_class_data_.base());
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_NOINLINE void AccountBlockSummary::Clear() {
+// @@protoc_insertion_point(message_clear_start:chat.v2.AccountBlockSummary)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.target_account_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.target_display_name_.ClearNonDefaultToEmpty();
+    }
+  }
+  _impl_.blocked_at_epoch_ms_ = ::int64_t{0};
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL AccountBlockSummary::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const AccountBlockSummary& this_ = static_cast<const AccountBlockSummary&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL AccountBlockSummary::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const AccountBlockSummary& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:chat.v2.AccountBlockSummary)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // string target_account_id = 1;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    if (!this_._internal_target_account_id().empty()) {
+      const ::std::string& _s = this_._internal_target_account_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.AccountBlockSummary.target_account_id");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  // string target_display_name = 2;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_target_display_name().empty()) {
+      const ::std::string& _s = this_._internal_target_display_name();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.AccountBlockSummary.target_display_name");
+      target = stream->WriteStringMaybeAliased(2, _s, target);
+    }
+  }
+
+  // int64 blocked_at_epoch_ms = 3;
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (this_._internal_blocked_at_epoch_ms() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt64ToArrayWithField<3>(
+              stream, this_._internal_blocked_at_epoch_ms(), target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:chat.v2.AccountBlockSummary)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t AccountBlockSummary::ByteSizeLong(const MessageLite& base) {
+  const AccountBlockSummary& this_ = static_cast<const AccountBlockSummary&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t AccountBlockSummary::ByteSizeLong() const {
+  const AccountBlockSummary& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:chat.v2.AccountBlockSummary)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
+    // string target_account_id = 1;
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!this_._internal_target_account_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_target_account_id());
+      }
+    }
+    // string target_display_name = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_target_display_name().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_target_display_name());
+      }
+    }
+    // int64 blocked_at_epoch_ms = 3;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (this_._internal_blocked_at_epoch_ms() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+            this_._internal_blocked_at_epoch_ms());
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void AccountBlockSummary::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                      const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this = static_cast<AccountBlockSummary*>(&to_msg);
+  auto& from = static_cast<const AccountBlockSummary&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(class_specific_merge_from_start:chat.v2.AccountBlockSummary)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!from._internal_target_account_id().empty()) {
+        _this->_internal_set_target_account_id(from._internal_target_account_id());
+      } else {
+        if (_this->_impl_.target_account_id_.IsDefault()) {
+          _this->_internal_set_target_account_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_target_display_name().empty()) {
+        _this->_internal_set_target_display_name(from._internal_target_display_name());
+      } else {
+        if (_this->_impl_.target_display_name_.IsDefault()) {
+          _this->_internal_set_target_display_name("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (from._internal_blocked_at_epoch_ms() != 0) {
+        _this->_impl_.blocked_at_epoch_ms_ = from._impl_.blocked_at_epoch_ms_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void AccountBlockSummary::CopyFrom(const AccountBlockSummary& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:chat.v2.AccountBlockSummary)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void AccountBlockSummary::InternalSwap(AccountBlockSummary* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_account_id_, &other->_impl_.target_account_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_display_name_, &other->_impl_.target_display_name_, arena);
+  swap(_impl_.blocked_at_epoch_ms_, other->_impl_.blocked_at_epoch_ms_);
+}
+
+::google::protobuf::Metadata AccountBlockSummary::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+AccountBlockDirectoryPage::AccountBlockDirectoryPage(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, AccountBlockDirectoryPage_get_class_data()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:chat.v2.AccountBlockDirectoryPage)
+}
+PROTOBUF_NDEBUG_INLINE AccountBlockDirectoryPage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::chat::v2::AccountBlockDirectoryPage& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        blocks_ {
+          visibility, ::_pbi::InternalMetadataOffset::Build<
+              ::chat::v2::AccountBlockDirectoryPage,
+              PROTOBUF_FIELD_OFFSET(::chat::v2::AccountBlockDirectoryPage, _impl_.blocks_)>()
+          , from.blocks_
+        }
+        ,
+        next_after_target_account_id_(arena, from.next_after_target_account_id_) {}
+
+AccountBlockDirectoryPage::AccountBlockDirectoryPage(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const AccountBlockDirectoryPage& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, AccountBlockDirectoryPage_get_class_data()) {
+
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  AccountBlockDirectoryPage* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  _impl_.has_more_ = from._impl_.has_more_;
+
+  // @@protoc_insertion_point(copy_constructor:chat.v2.AccountBlockDirectoryPage)
+}
+PROTOBUF_NDEBUG_INLINE AccountBlockDirectoryPage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        blocks_ { visibility, ::_pbi::InternalMetadataOffset::Build<
+            ::chat::v2::AccountBlockDirectoryPage,
+            PROTOBUF_FIELD_OFFSET(::chat::v2::AccountBlockDirectoryPage, _impl_.blocks_)>()
+         }
+        ,
+        next_after_target_account_id_(arena) {}
+
+inline void AccountBlockDirectoryPage::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  _impl_.has_more_ = {};
+}
+AccountBlockDirectoryPage::~AccountBlockDirectoryPage() {
+  // @@protoc_insertion_point(destructor:chat.v2.AccountBlockDirectoryPage)
+  SharedDtor(*this);
+}
+inline void AccountBlockDirectoryPage::SharedDtor(MessageLite& self) {
+  AccountBlockDirectoryPage& this_ = static_cast<AccountBlockDirectoryPage&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.next_after_target_account_id_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull AccountBlockDirectoryPage_class_data_ =
+        AccountBlockDirectoryPage::InternalGenerateClassData_(AccountBlockDirectoryPage_globals_._default);
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+AccountBlockDirectoryPage::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&AccountBlockDirectoryPage_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(AccountBlockDirectoryPage_class_data_.tc_table);
+  return AccountBlockDirectoryPage_class_data_.base();
+}
+#else
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+AccountBlockDirectoryPage::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&AccountBlockDirectoryPage_globals_);
+  ::google::protobuf::internal::PrefetchToLocalCache(
+      ::google::protobuf::internal::MessageGlobalsBase::ToParseTableBase(&AccountBlockDirectoryPage_globals_));
+  return AccountBlockDirectoryPage_globals_.GetClassData();
+}
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const AccountBlockDirectoryPage::ParseTableT_
+    AccountBlockDirectoryPage::_table_ =
+        AccountBlockDirectoryPage::InternalGenerateParseTable_(AccountBlockDirectoryPage_class_data_.base());
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_NOINLINE void AccountBlockDirectoryPage::Clear() {
+// @@protoc_insertion_point(message_clear_start:chat.v2.AccountBlockDirectoryPage)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.blocks_.Clear();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.next_after_target_account_id_.ClearNonDefaultToEmpty();
+    }
+  }
+  _impl_.has_more_ = false;
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL AccountBlockDirectoryPage::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const AccountBlockDirectoryPage& this_ = static_cast<const AccountBlockDirectoryPage&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL AccountBlockDirectoryPage::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const AccountBlockDirectoryPage& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:chat.v2.AccountBlockDirectoryPage)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // repeated .chat.v2.AccountBlockSummary blocks = 1;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    for (unsigned i = 0, n = static_cast<unsigned>(
+                             this_._internal_blocks_size());
+         i < n; i++) {
+      const auto& repfield = this_._internal_blocks().Get(i);
+      target =
+          ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+              1, repfield, repfield.GetCachedSize(),
+              target, stream);
+    }
+  }
+
+  // string next_after_target_account_id = 2;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_next_after_target_account_id().empty()) {
+      const ::std::string& _s = this_._internal_next_after_target_account_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.AccountBlockDirectoryPage.next_after_target_account_id");
+      target = stream->WriteStringMaybeAliased(2, _s, target);
+    }
+  }
+
+  // bool has_more = 3;
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (this_._internal_has_more() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteBoolToArray(
+          3, this_._internal_has_more(), target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:chat.v2.AccountBlockDirectoryPage)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t AccountBlockDirectoryPage::ByteSizeLong(const MessageLite& base) {
+  const AccountBlockDirectoryPage& this_ = static_cast<const AccountBlockDirectoryPage&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t AccountBlockDirectoryPage::ByteSizeLong() const {
+  const AccountBlockDirectoryPage& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:chat.v2.AccountBlockDirectoryPage)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
+    // repeated .chat.v2.AccountBlockSummary blocks = 1;
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      total_size += 1UL * this_._internal_blocks_size();
+      for (const auto& msg : this_._internal_blocks()) {
+        total_size += ::google::protobuf::internal::WireFormatLite::MessageSize(msg);
+      }
+    }
+    // string next_after_target_account_id = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_next_after_target_account_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_next_after_target_account_id());
+      }
+    }
+    // bool has_more = 3;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (this_._internal_has_more() != 0) {
+        total_size += 2;
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void AccountBlockDirectoryPage::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                      const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this = static_cast<AccountBlockDirectoryPage*>(&to_msg);
+  auto& from = static_cast<const AccountBlockDirectoryPage&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  ::google::protobuf::Arena* arena = _this->GetArena();
+  // @@protoc_insertion_point(class_specific_merge_from_start:chat.v2.AccountBlockDirectoryPage)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _this->_internal_mutable_blocks()->InternalMergeFromWithArena(
+          ::google::protobuf::MessageLite::internal_visibility(), arena,
+          from._internal_blocks());
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_next_after_target_account_id().empty()) {
+        _this->_internal_set_next_after_target_account_id(from._internal_next_after_target_account_id());
+      } else {
+        if (_this->_impl_.next_after_target_account_id_.IsDefault()) {
+          _this->_internal_set_next_after_target_account_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (from._internal_has_more() != 0) {
+        _this->_impl_.has_more_ = from._impl_.has_more_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void AccountBlockDirectoryPage::CopyFrom(const AccountBlockDirectoryPage& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:chat.v2.AccountBlockDirectoryPage)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void AccountBlockDirectoryPage::InternalSwap(AccountBlockDirectoryPage* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _impl_.blocks_.InternalSwap(&other->_impl_.blocks_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.next_after_target_account_id_, &other->_impl_.next_after_target_account_id_, arena);
+  swap(_impl_.has_more_, other->_impl_.has_more_);
+}
+
+::google::protobuf::Metadata AccountBlockDirectoryPage::GetMetadata() const {
   return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
 }
 // @@protoc_insertion_point(namespace_scope)

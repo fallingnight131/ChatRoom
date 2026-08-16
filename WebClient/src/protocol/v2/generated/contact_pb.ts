@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file chat/v2/contact.proto.
  */
 export const file_chat_v2_contact: GenFile = /*@__PURE__*/
-  fileDesc("ChVjaGF0L3YyL2NvbnRhY3QucHJvdG8SB2NoYXQudjIiWgoPU2V0QWNjb3VudEJsb2NrEhkKEXRhcmdldF9hY2NvdW50X2lkGAEgASgJEg8KB2Jsb2NrZWQYAiABKAgSGwoTY2xpZW50X29wZXJhdGlvbl9pZBgDIAEoCSKJAQoTQWNjb3VudEJsb2NrQXBwbGllZBIYChBhY3Rvcl9hY2NvdW50X2lkGAEgASgJEhkKEXRhcmdldF9hY2NvdW50X2lkGAIgASgJEg8KB2Jsb2NrZWQYAyABKAgSDwoHY2hhbmdlZBgEIAEoCBIbChNjbGllbnRfb3BlcmF0aW9uX2lkGAUgASgJQjQKIWNvbS5mYWxsaW5nbmlnaHQuY2hhdC5wcm90b2NvbC52MkINQ29udGFjdFNjaGVtYVABYgZwcm90bzM");
+  fileDesc("ChVjaGF0L3YyL2NvbnRhY3QucHJvdG8SB2NoYXQudjIiWgoPU2V0QWNjb3VudEJsb2NrEhkKEXRhcmdldF9hY2NvdW50X2lkGAEgASgJEg8KB2Jsb2NrZWQYAiABKAgSGwoTY2xpZW50X29wZXJhdGlvbl9pZBgDIAEoCSKJAQoTQWNjb3VudEJsb2NrQXBwbGllZBIYChBhY3Rvcl9hY2NvdW50X2lkGAEgASgJEhkKEXRhcmdldF9hY2NvdW50X2lkGAIgASgJEg8KB2Jsb2NrZWQYAyABKAgSDwoHY2hhbmdlZBgEIAEoCBIbChNjbGllbnRfb3BlcmF0aW9uX2lkGAUgASgJIkMKEUxpc3RBY2NvdW50QmxvY2tzEh8KF2FmdGVyX3RhcmdldF9hY2NvdW50X2lkGAEgASgJEg0KBWxpbWl0GAIgASgNImoKE0FjY291bnRCbG9ja1N1bW1hcnkSGQoRdGFyZ2V0X2FjY291bnRfaWQYASABKAkSGwoTdGFyZ2V0X2Rpc3BsYXlfbmFtZRgCIAEoCRIbChNibG9ja2VkX2F0X2Vwb2NoX21zGAMgASgDIoEBChlBY2NvdW50QmxvY2tEaXJlY3RvcnlQYWdlEiwKBmJsb2NrcxgBIAMoCzIcLmNoYXQudjIuQWNjb3VudEJsb2NrU3VtbWFyeRIkChxuZXh0X2FmdGVyX3RhcmdldF9hY2NvdW50X2lkGAIgASgJEhAKCGhhc19tb3JlGAMgASgIQjQKIWNvbS5mYWxsaW5nbmlnaHQuY2hhdC5wcm90b2NvbC52MkINQ29udGFjdFNjaGVtYVABYgZwcm90bzM");
 
 /**
  * The authenticated session is always the blocker; clients cannot select it.
@@ -79,3 +79,84 @@ export type AccountBlockApplied = Message<"chat.v2.AccountBlockApplied"> & {
  */
 export const AccountBlockAppliedSchema: GenMessage<AccountBlockApplied> = /*@__PURE__*/
   messageDesc(file_chat_v2_contact, 1);
+
+/**
+ * Lists only blocks owned by the authenticated actor. Empty cursor starts at
+ * the beginning; subsequent pages continue after a server-returned target ID.
+ *
+ * @generated from message chat.v2.ListAccountBlocks
+ */
+export type ListAccountBlocks = Message<"chat.v2.ListAccountBlocks"> & {
+  /**
+   * @generated from field: string after_target_account_id = 1;
+   */
+  afterTargetAccountId: string;
+
+  /**
+   * @generated from field: uint32 limit = 2;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message chat.v2.ListAccountBlocks.
+ * Use `create(ListAccountBlocksSchema)` to create a new message.
+ */
+export const ListAccountBlocksSchema: GenMessage<ListAccountBlocks> = /*@__PURE__*/
+  messageDesc(file_chat_v2_contact, 2);
+
+/**
+ * Current identity projection for one durable outgoing block edge.
+ *
+ * @generated from message chat.v2.AccountBlockSummary
+ */
+export type AccountBlockSummary = Message<"chat.v2.AccountBlockSummary"> & {
+  /**
+   * @generated from field: string target_account_id = 1;
+   */
+  targetAccountId: string;
+
+  /**
+   * @generated from field: string target_display_name = 2;
+   */
+  targetDisplayName: string;
+
+  /**
+   * @generated from field: int64 blocked_at_epoch_ms = 3;
+   */
+  blockedAtEpochMs: bigint;
+};
+
+/**
+ * Describes the message chat.v2.AccountBlockSummary.
+ * Use `create(AccountBlockSummarySchema)` to create a new message.
+ */
+export const AccountBlockSummarySchema: GenMessage<AccountBlockSummary> = /*@__PURE__*/
+  messageDesc(file_chat_v2_contact, 3);
+
+/**
+ * @generated from message chat.v2.AccountBlockDirectoryPage
+ */
+export type AccountBlockDirectoryPage = Message<"chat.v2.AccountBlockDirectoryPage"> & {
+  /**
+   * @generated from field: repeated chat.v2.AccountBlockSummary blocks = 1;
+   */
+  blocks: AccountBlockSummary[];
+
+  /**
+   * @generated from field: string next_after_target_account_id = 2;
+   */
+  nextAfterTargetAccountId: string;
+
+  /**
+   * @generated from field: bool has_more = 3;
+   */
+  hasMore: boolean;
+};
+
+/**
+ * Describes the message chat.v2.AccountBlockDirectoryPage.
+ * Use `create(AccountBlockDirectoryPageSchema)` to create a new message.
+ */
+export const AccountBlockDirectoryPageSchema: GenMessage<AccountBlockDirectoryPage> = /*@__PURE__*/
+  messageDesc(file_chat_v2_contact, 4);

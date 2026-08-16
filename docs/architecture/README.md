@@ -140,9 +140,11 @@ mutation service only when exact `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true
 is supplied; it then negotiates capability 7 only with a requesting client,
 binds the actor from authentication, serializes a bounded command queue, maps
 private denials to a generic result, and exports fixed-cardinality outcomes.
-Default Web and Windows clients still omit capability 7. An explicit Web V2
-candidate can now request it and expose accessible direct-account management;
-Windows and real endpoint activation remain later gates.
+Default Web and Windows clients still omit capability 7. Explicit Web and
+Windows candidates can request it and expose accessible DIRECT-account
+management; real endpoint activation remains a later gate. Types 134/135 now
+reserve a bounded outgoing-block directory contract, but its PostgreSQL query,
+gateway handler, and client views remain uncomposed.
 
 Keep module calls in-process at first. Split a deployable service only for one of
 these reasons:

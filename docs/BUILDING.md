@@ -1552,6 +1552,12 @@ V2 IndexedDB, replay the same target and client ID after sync, merge the
 authoritative server reference, and render recalled or absent targets without a
 copied quote body. The preview UI exposes keyboard buttons for reply and cancel
 while remaining behind the existing default-off gate (ADR-0330).
+The same binding gate reserves account-block directory types 134/135 under
+capability 7. Java policy tests require a canonical optional target cursor,
+limit 1..100, unique strictly ordered rows, bounded UTF-8 display names, positive
+block times, and an exact continuation cursor. Java, TypeScript, and C++ pin the
+same type-134 request bytes. No gateway handler or client route is composed by
+this protocol-only expand step (ADR-0408).
 Web reaction tests additionally verify account-scoped IndexedDB persistence,
 stable optimistic replay after reconnect history, ACK/history/live convergence,
 bounded fixed-kind aggregates, keyboard-native controls, pressed state, and

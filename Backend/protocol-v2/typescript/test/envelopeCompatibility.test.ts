@@ -11,7 +11,10 @@ import {
   ClientPlatform
 } from '../generated/typescript/chat/v2/control_pb.js'
 import { AuthenticateSchema } from '../generated/typescript/chat/v2/authentication_pb.js'
-import { SetAccountBlockSchema } from '../generated/typescript/chat/v2/contact_pb.js'
+import {
+  ListAccountBlocksSchema,
+  SetAccountBlockSchema
+} from '../generated/typescript/chat/v2/contact_pb.js'
 import {
   MessageReactionKind,
   EditMessageSchema,
@@ -66,6 +69,8 @@ const SEARCH_MESSAGES_GOLDEN_HEX =
 const SET_ACCOUNT_BLOCK_GOLDEN_HEX =
   '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
   '10011a2430303030303030302d303030302d303030302d303030302d303030303030303030303032'
+const LIST_ACCOUNT_BLOCKS_GOLDEN_HEX =
+  '0a2430303030303030302d303030302d303030302d303030302d3030303030303030303030311019'
 const LIST_CONVERSATIONS_GOLDEN_HEX = '0880d095ffbc31122430303030303030302d303030302d' +
   '303030302d303030302d3030303030303030303030321819'
 const LIST_PARTICIPANTS_GOLDEN_HEX =
@@ -267,6 +272,24 @@ test('keeps the server-bound account block payload compatible across bindings', 
   assert.equal(
     Buffer.from(toBinary(SetAccountBlockSchema, encoded)).toString('hex'),
     SET_ACCOUNT_BLOCK_GOLDEN_HEX
+  )
+})
+
+test('keeps the bounded server-bound account block directory request compatible', () => {
+  const decoded = fromBinary(
+    ListAccountBlocksSchema,
+    bytesFromHex(LIST_ACCOUNT_BLOCKS_GOLDEN_HEX)
+  )
+  assert.equal(decoded.afterTargetAccountId, '00000000-0000-0000-0000-000000000001')
+  assert.equal(decoded.limit, 25)
+
+  const encoded = create(ListAccountBlocksSchema, {
+    afterTargetAccountId: '00000000-0000-0000-0000-000000000001',
+    limit: 25
+  })
+  assert.equal(
+    Buffer.from(toBinary(ListAccountBlocksSchema, encoded)).toString('hex'),
+    LIST_ACCOUNT_BLOCKS_GOLDEN_HEX
   )
 })
 

@@ -56,6 +56,12 @@ server candidate without activating an incomplete client product path.
   `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true` is supplied, and advertises
   capability 7 only when the client also requested it. The absent/default-false
   setting preserves the previous handshake and pipeline.
+- Permanent types 134/135 reserve an additive, bounded outgoing-block directory
+  under capability 7. Authentication supplies the actor; clients provide only
+  an empty or server-returned target cursor and a limit of 1..100. Rows are
+  unique and target-ID ordered, carry a bounded current display-name projection
+  plus the authoritative block time, and expose no inbound block relationship.
+  This expand slice installs no handler and changes no client behavior.
 - The handler binds the actor from authenticated connection state, validates
   canonical payload identities, serializes at most eight pending mutations on
   the bounded messaging executor, and clears pending work at disconnect.
@@ -132,6 +138,11 @@ changed/no-op telemetry. The real TLS/WSS PostgreSQL gate negotiates capability
 7 behind the exact server flag, applies a block, returns the identical exact
 retry, verifies one durable row, and then denies a new direct message with the
 generic result.
+Java policy tests additionally pin types 134/135, canonical cursor and page
+bounds, strict ordering, duplicate rejection, UTF-8 display-name limits, and
+continuation consistency. Generated Java, TypeScript, and C++ bindings parse and
+re-emit the same list request bytes. Runtime and product clients remain absent,
+so this is protocol compatibility evidence rather than a block-list feature.
 TypeScript protocol and application tests additionally prove the default-off
 flag, strict actor/target/desired/operation correlation, authoritative unique
 DIRECT target, disconnect failure containment, and same-operation retry.

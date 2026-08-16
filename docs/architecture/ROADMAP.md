@@ -2304,6 +2304,9 @@ Candidate slices:
   - [x] Reserve permanent V2 capability 7 and message types 128/129 for a
     server-bound, idempotent account-block command/result; keep runtime
     advertisement and handling absent during the protocol expand step.
+  - [x] Reserve permanent types 134/135 for a server-bound, bounded outgoing
+    block-list read model with canonical target pagination and cross-language
+    golden bytes; keep persistence queries, runtime, and clients uncomposed.
   - [x] Add an exact-default-off V2 gateway handler, negotiated capability,
     bounded execution, privacy-safe errors and metrics, plus real TLS/WSS and
     PostgreSQL mutation/direct-denial evidence.

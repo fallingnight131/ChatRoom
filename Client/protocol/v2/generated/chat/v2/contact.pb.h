@@ -63,6 +63,30 @@ extern const ::google::protobuf::internal::ClassDataFull AccountBlockApplied_cla
 #else
 extern const AccountBlockAppliedGlobalsTypeInternal AccountBlockApplied_globals_;
 #endif  // PROTOBUF_MESSAGE_GLOBALS
+class AccountBlockDirectoryPage;
+struct AccountBlockDirectoryPageGlobalsTypeInternal;
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+extern AccountBlockDirectoryPageGlobalsTypeInternal AccountBlockDirectoryPage_globals_;
+extern const ::google::protobuf::internal::ClassDataFull AccountBlockDirectoryPage_class_data_;
+#else
+extern const AccountBlockDirectoryPageGlobalsTypeInternal AccountBlockDirectoryPage_globals_;
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+class AccountBlockSummary;
+struct AccountBlockSummaryGlobalsTypeInternal;
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+extern AccountBlockSummaryGlobalsTypeInternal AccountBlockSummary_globals_;
+extern const ::google::protobuf::internal::ClassDataFull AccountBlockSummary_class_data_;
+#else
+extern const AccountBlockSummaryGlobalsTypeInternal AccountBlockSummary_globals_;
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+class ListAccountBlocks;
+struct ListAccountBlocksGlobalsTypeInternal;
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+extern ListAccountBlocksGlobalsTypeInternal ListAccountBlocks_globals_;
+extern const ::google::protobuf::internal::ClassDataFull ListAccountBlocks_class_data_;
+#else
+extern const ListAccountBlocksGlobalsTypeInternal ListAccountBlocks_globals_;
+#endif  // PROTOBUF_MESSAGE_GLOBALS
 class SetAccountBlock;
 struct SetAccountBlockGlobalsTypeInternal;
 #ifndef PROTOBUF_MESSAGE_GLOBALS
@@ -314,6 +338,459 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED SetAccountBlock final : public ::go
     ::google::protobuf::internal::ArenaStringPtr target_account_id_;
     ::google::protobuf::internal::ArenaStringPtr client_operation_id_;
     bool blocked_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_chat_2fv2_2fcontact_2eproto;
+};
+// -------------------------------------------------------------------
+
+class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ListAccountBlocks final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:chat.v2.ListAccountBlocks) */ {
+ public:
+  inline ListAccountBlocks() : ListAccountBlocks(nullptr) {}
+  ~ListAccountBlocks() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(ListAccountBlocks* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(ListAccountBlocks));
+  }
+#endif
+
+  template <typename = void>
+  explicit constexpr ListAccountBlocks(::google::protobuf::internal::ConstantInitialized,
+                           const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+                               class_data);
+
+  inline ListAccountBlocks(const ListAccountBlocks& from) : ListAccountBlocks(nullptr, from) {}
+  inline ListAccountBlocks(ListAccountBlocks&& from) noexcept : ListAccountBlocks(nullptr, ::std::move(from)) {}
+  inline ListAccountBlocks& operator=(const ListAccountBlocks& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline ListAccountBlocks& operator=(ListAccountBlocks&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  [[nodiscard]] inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  [[nodiscard]] inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL
+  mutable_unknown_fields() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL
+  GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  [[nodiscard]] static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  [[nodiscard]] static const ListAccountBlocks& default_instance() {
+    return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<ListAccountBlocks>(&ListAccountBlocks_globals_);
+  }
+  static constexpr int kIndexInFileMessages = 2;
+  friend void swap(ListAccountBlocks& a, ListAccountBlocks& b) { a.Swap(&b); }
+  inline void Swap(ListAccountBlocks* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(ListAccountBlocks* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  [[nodiscard]] ListAccountBlocks* PROTOBUF_NONNULL
+  New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<ListAccountBlocks>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const ListAccountBlocks& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const ListAccountBlocks& from) { ListAccountBlocks::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  [[nodiscard]] bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  [[nodiscard]] static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  [[nodiscard]] static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  [[nodiscard]] ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] ::size_t ByteSizeLong() const final;
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] int GetCachedSize() const {
+    return _impl_._cached_size_.Get();
+  }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(ListAccountBlocks* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "chat.v2.ListAccountBlocks"; }
+
+  explicit ListAccountBlocks(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  ListAccountBlocks(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const ListAccountBlocks& from);
+  ListAccountBlocks(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, ListAccountBlocks&& from) noexcept
+      : ListAccountBlocks(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_(
+      const MessageLite& prototype,
+      const ::google::protobuf::internal::TcParseTableBase* PROTOBUF_NULLABLE tc_table = nullptr);
+
+  [[nodiscard]] ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kAfterTargetAccountIdFieldNumber = 1,
+    kLimitFieldNumber = 2,
+  };
+  // string after_target_account_id = 1;
+  void clear_after_target_account_id() ;
+  [[nodiscard]] const ::std::string& after_target_account_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_after_target_account_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_after_target_account_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_after_target_account_id();
+  void set_allocated_after_target_account_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_after_target_account_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_after_target_account_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_after_target_account_id();
+
+  public:
+  // uint32 limit = 2;
+  void clear_limit() ;
+  [[nodiscard]] ::uint32_t limit() const;
+  void set_limit(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_limit() const;
+  void _internal_set_limit(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:chat.v2.ListAccountBlocks)
+ private:
+  class _Internal;
+  using ParseTableT_ =
+      ::google::protobuf::internal::TcParseTable<1, 2,
+                          0, 57,
+                          2>;
+  static constexpr ParseTableT_ InternalGenerateParseTable_(
+      const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL class_data);
+  friend class ::google::protobuf::internal::TcParser;
+  #ifndef PROTOBUF_MESSAGE_GLOBALS
+  static const ParseTableT_ _table_;
+  #endif
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  friend ::google::protobuf::internal::PrivateAccess;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                                    ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const ListAccountBlocks& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr after_target_account_id_;
+    ::uint32_t limit_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_chat_2fv2_2fcontact_2eproto;
+};
+// -------------------------------------------------------------------
+
+class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED AccountBlockSummary final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:chat.v2.AccountBlockSummary) */ {
+ public:
+  inline AccountBlockSummary() : AccountBlockSummary(nullptr) {}
+  ~AccountBlockSummary() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(AccountBlockSummary* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(AccountBlockSummary));
+  }
+#endif
+
+  template <typename = void>
+  explicit constexpr AccountBlockSummary(::google::protobuf::internal::ConstantInitialized,
+                           const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+                               class_data);
+
+  inline AccountBlockSummary(const AccountBlockSummary& from) : AccountBlockSummary(nullptr, from) {}
+  inline AccountBlockSummary(AccountBlockSummary&& from) noexcept : AccountBlockSummary(nullptr, ::std::move(from)) {}
+  inline AccountBlockSummary& operator=(const AccountBlockSummary& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline AccountBlockSummary& operator=(AccountBlockSummary&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  [[nodiscard]] inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  [[nodiscard]] inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL
+  mutable_unknown_fields() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL
+  GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  [[nodiscard]] static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  [[nodiscard]] static const AccountBlockSummary& default_instance() {
+    return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<AccountBlockSummary>(&AccountBlockSummary_globals_);
+  }
+  static constexpr int kIndexInFileMessages = 3;
+  friend void swap(AccountBlockSummary& a, AccountBlockSummary& b) { a.Swap(&b); }
+  inline void Swap(AccountBlockSummary* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(AccountBlockSummary* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  [[nodiscard]] AccountBlockSummary* PROTOBUF_NONNULL
+  New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<AccountBlockSummary>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const AccountBlockSummary& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const AccountBlockSummary& from) { AccountBlockSummary::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  [[nodiscard]] bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  [[nodiscard]] static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  [[nodiscard]] static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  [[nodiscard]] ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] ::size_t ByteSizeLong() const final;
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] int GetCachedSize() const {
+    return _impl_._cached_size_.Get();
+  }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(AccountBlockSummary* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "chat.v2.AccountBlockSummary"; }
+
+  explicit AccountBlockSummary(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  AccountBlockSummary(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const AccountBlockSummary& from);
+  AccountBlockSummary(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, AccountBlockSummary&& from) noexcept
+      : AccountBlockSummary(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_(
+      const MessageLite& prototype,
+      const ::google::protobuf::internal::TcParseTableBase* PROTOBUF_NULLABLE tc_table = nullptr);
+
+  [[nodiscard]] ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kTargetAccountIdFieldNumber = 1,
+    kTargetDisplayNameFieldNumber = 2,
+    kBlockedAtEpochMsFieldNumber = 3,
+  };
+  // string target_account_id = 1;
+  void clear_target_account_id() ;
+  [[nodiscard]] const ::std::string& target_account_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_target_account_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_target_account_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_target_account_id();
+  void set_allocated_target_account_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_target_account_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_target_account_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_target_account_id();
+
+  public:
+  // string target_display_name = 2;
+  void clear_target_display_name() ;
+  [[nodiscard]] const ::std::string& target_display_name() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_target_display_name(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_target_display_name();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_target_display_name();
+  void set_allocated_target_display_name(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_target_display_name() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_target_display_name(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_target_display_name();
+
+  public:
+  // int64 blocked_at_epoch_ms = 3;
+  void clear_blocked_at_epoch_ms() ;
+  [[nodiscard]] ::int64_t blocked_at_epoch_ms() const;
+  void set_blocked_at_epoch_ms(::int64_t value);
+
+  private:
+  ::int64_t _internal_blocked_at_epoch_ms() const;
+  void _internal_set_blocked_at_epoch_ms(::int64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:chat.v2.AccountBlockSummary)
+ private:
+  class _Internal;
+  using ParseTableT_ =
+      ::google::protobuf::internal::TcParseTable<2, 3,
+                          0, 72,
+                          2>;
+  static constexpr ParseTableT_ InternalGenerateParseTable_(
+      const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL class_data);
+  friend class ::google::protobuf::internal::TcParser;
+  #ifndef PROTOBUF_MESSAGE_GLOBALS
+  static const ParseTableT_ _table_;
+  #endif
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  friend ::google::protobuf::internal::PrivateAccess;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                                    ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const AccountBlockSummary& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr target_account_id_;
+    ::google::protobuf::internal::ArenaStringPtr target_display_name_;
+    ::int64_t blocked_at_epoch_ms_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -578,6 +1055,247 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED AccountBlockApplied final : public 
     ::google::protobuf::internal::ArenaStringPtr client_operation_id_;
     bool blocked_;
     bool changed_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_chat_2fv2_2fcontact_2eproto;
+};
+// -------------------------------------------------------------------
+
+class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED AccountBlockDirectoryPage final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:chat.v2.AccountBlockDirectoryPage) */ {
+ public:
+  inline AccountBlockDirectoryPage() : AccountBlockDirectoryPage(nullptr) {}
+  ~AccountBlockDirectoryPage() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(AccountBlockDirectoryPage* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(AccountBlockDirectoryPage));
+  }
+#endif
+
+  template <typename = void>
+  explicit constexpr AccountBlockDirectoryPage(::google::protobuf::internal::ConstantInitialized,
+                           const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+                               class_data);
+
+  inline AccountBlockDirectoryPage(const AccountBlockDirectoryPage& from) : AccountBlockDirectoryPage(nullptr, from) {}
+  inline AccountBlockDirectoryPage(AccountBlockDirectoryPage&& from) noexcept : AccountBlockDirectoryPage(nullptr, ::std::move(from)) {}
+  inline AccountBlockDirectoryPage& operator=(const AccountBlockDirectoryPage& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline AccountBlockDirectoryPage& operator=(AccountBlockDirectoryPage&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  [[nodiscard]] inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  [[nodiscard]] inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL
+  mutable_unknown_fields() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL
+  GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  [[nodiscard]] static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  [[nodiscard]] static const AccountBlockDirectoryPage& default_instance() {
+    return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<AccountBlockDirectoryPage>(&AccountBlockDirectoryPage_globals_);
+  }
+  static constexpr int kIndexInFileMessages = 4;
+  friend void swap(AccountBlockDirectoryPage& a, AccountBlockDirectoryPage& b) { a.Swap(&b); }
+  inline void Swap(AccountBlockDirectoryPage* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(AccountBlockDirectoryPage* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  [[nodiscard]] AccountBlockDirectoryPage* PROTOBUF_NONNULL
+  New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<AccountBlockDirectoryPage>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const AccountBlockDirectoryPage& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const AccountBlockDirectoryPage& from) { AccountBlockDirectoryPage::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  [[nodiscard]] bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  [[nodiscard]] static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  [[nodiscard]] static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  [[nodiscard]] ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] ::size_t ByteSizeLong() const final;
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] int GetCachedSize() const {
+    return _impl_._cached_size_.Get();
+  }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(AccountBlockDirectoryPage* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "chat.v2.AccountBlockDirectoryPage"; }
+
+  explicit AccountBlockDirectoryPage(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  AccountBlockDirectoryPage(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const AccountBlockDirectoryPage& from);
+  AccountBlockDirectoryPage(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, AccountBlockDirectoryPage&& from) noexcept
+      : AccountBlockDirectoryPage(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_(
+      const MessageLite& prototype,
+      const ::google::protobuf::internal::TcParseTableBase* PROTOBUF_NULLABLE tc_table = nullptr);
+
+  [[nodiscard]] ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kBlocksFieldNumber = 1,
+    kNextAfterTargetAccountIdFieldNumber = 2,
+    kHasMoreFieldNumber = 3,
+  };
+  // repeated .chat.v2.AccountBlockSummary blocks = 1;
+  [[nodiscard]] int blocks_size()
+      const;
+  private:
+  int _internal_blocks_size() const;
+
+  public:
+  void clear_blocks() ;
+  [[nodiscard]] const ::chat::v2::AccountBlockSummary& blocks(int index) const;
+  [[nodiscard]] ::chat::v2::AccountBlockSummary* PROTOBUF_NONNULL mutable_blocks(int index);
+  ::chat::v2::AccountBlockSummary* PROTOBUF_NONNULL add_blocks();
+  [[nodiscard]] const ::google::protobuf::RepeatedPtrField<::chat::v2::AccountBlockSummary>&
+  blocks() const;
+  [[nodiscard]] ::google::protobuf::RepeatedPtrField<::chat::v2::AccountBlockSummary>* PROTOBUF_NONNULL
+  mutable_blocks();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<::chat::v2::AccountBlockSummary>& _internal_blocks() const;
+  ::google::protobuf::RepeatedPtrField<::chat::v2::AccountBlockSummary>* PROTOBUF_NONNULL _internal_mutable_blocks();
+
+  public:
+  // string next_after_target_account_id = 2;
+  void clear_next_after_target_account_id() ;
+  [[nodiscard]] const ::std::string& next_after_target_account_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_next_after_target_account_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_next_after_target_account_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_next_after_target_account_id();
+  void set_allocated_next_after_target_account_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_next_after_target_account_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_next_after_target_account_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_next_after_target_account_id();
+
+  public:
+  // bool has_more = 3;
+  void clear_has_more() ;
+  [[nodiscard]] bool has_more() const;
+  void set_has_more(bool value);
+
+  private:
+  bool _internal_has_more() const;
+  void _internal_set_has_more(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:chat.v2.AccountBlockDirectoryPage)
+ private:
+  class _Internal;
+  using ParseTableT_ =
+      ::google::protobuf::internal::TcParseTable<2, 3,
+                          1, 70,
+                          2>;
+  static constexpr ParseTableT_ InternalGenerateParseTable_(
+      const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL class_data);
+  friend class ::google::protobuf::internal::TcParser;
+  #ifndef PROTOBUF_MESSAGE_GLOBALS
+  static const ParseTableT_ _table_;
+  #endif
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  friend ::google::protobuf::internal::PrivateAccess;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                                    ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const AccountBlockDirectoryPage& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedPtrField< ::chat::v2::AccountBlockSummary > blocks_;
+    ::google::protobuf::internal::ArenaStringPtr next_after_target_account_id_;
+    bool has_more_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -994,6 +1712,401 @@ inline void AccountBlockApplied::set_allocated_client_operation_id(::std::string
     _impl_.client_operation_id_.Set("", GetArena());
   }
   // @@protoc_insertion_point(field_set_allocated:chat.v2.AccountBlockApplied.client_operation_id)
+}
+
+// -------------------------------------------------------------------
+
+// ListAccountBlocks
+
+// string after_target_account_id = 1;
+inline void ListAccountBlocks::clear_after_target_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.after_target_account_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+}
+inline const ::std::string& ListAccountBlocks::after_target_account_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.ListAccountBlocks.after_target_account_id)
+  return _internal_after_target_account_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void ListAccountBlocks::set_after_target_account_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  _impl_.after_target_account_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.ListAccountBlocks.after_target_account_id)
+}
+inline ::std::string* PROTOBUF_NONNULL ListAccountBlocks::mutable_after_target_account_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ::std::string* _s = _internal_mutable_after_target_account_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.ListAccountBlocks.after_target_account_id)
+  return _s;
+}
+inline const ::std::string& ListAccountBlocks::_internal_after_target_account_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.after_target_account_id_.Get();
+}
+inline void ListAccountBlocks::_internal_set_after_target_account_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.after_target_account_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL ListAccountBlocks::_internal_mutable_after_target_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.after_target_account_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE ListAccountBlocks::release_after_target_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.ListAccountBlocks.after_target_account_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000001U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  auto* released = _impl_.after_target_account_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.after_target_account_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void ListAccountBlocks::set_allocated_after_target_account_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  }
+  _impl_.after_target_account_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.after_target_account_id_.IsDefault()) {
+    _impl_.after_target_account_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.ListAccountBlocks.after_target_account_id)
+}
+
+// uint32 limit = 2;
+inline void ListAccountBlocks::clear_limit() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.limit_ = 0u;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+}
+inline ::uint32_t ListAccountBlocks::limit() const {
+  // @@protoc_insertion_point(field_get:chat.v2.ListAccountBlocks.limit)
+  return _internal_limit();
+}
+inline void ListAccountBlocks::set_limit(::uint32_t value) {
+  _internal_set_limit(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  // @@protoc_insertion_point(field_set:chat.v2.ListAccountBlocks.limit)
+}
+inline ::uint32_t ListAccountBlocks::_internal_limit() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.limit_;
+}
+inline void ListAccountBlocks::_internal_set_limit(::uint32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.limit_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// AccountBlockSummary
+
+// string target_account_id = 1;
+inline void AccountBlockSummary::clear_target_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.target_account_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+}
+inline const ::std::string& AccountBlockSummary::target_account_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.AccountBlockSummary.target_account_id)
+  return _internal_target_account_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void AccountBlockSummary::set_target_account_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  _impl_.target_account_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.AccountBlockSummary.target_account_id)
+}
+inline ::std::string* PROTOBUF_NONNULL AccountBlockSummary::mutable_target_account_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ::std::string* _s = _internal_mutable_target_account_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.AccountBlockSummary.target_account_id)
+  return _s;
+}
+inline const ::std::string& AccountBlockSummary::_internal_target_account_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.target_account_id_.Get();
+}
+inline void AccountBlockSummary::_internal_set_target_account_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.target_account_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL AccountBlockSummary::_internal_mutable_target_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.target_account_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE AccountBlockSummary::release_target_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.AccountBlockSummary.target_account_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000001U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  auto* released = _impl_.target_account_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.target_account_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void AccountBlockSummary::set_allocated_target_account_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  }
+  _impl_.target_account_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.target_account_id_.IsDefault()) {
+    _impl_.target_account_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.AccountBlockSummary.target_account_id)
+}
+
+// string target_display_name = 2;
+inline void AccountBlockSummary::clear_target_display_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.target_display_name_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+}
+inline const ::std::string& AccountBlockSummary::target_display_name() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.AccountBlockSummary.target_display_name)
+  return _internal_target_display_name();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void AccountBlockSummary::set_target_display_name(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  _impl_.target_display_name_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.AccountBlockSummary.target_display_name)
+}
+inline ::std::string* PROTOBUF_NONNULL AccountBlockSummary::mutable_target_display_name()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ::std::string* _s = _internal_mutable_target_display_name();
+  // @@protoc_insertion_point(field_mutable:chat.v2.AccountBlockSummary.target_display_name)
+  return _s;
+}
+inline const ::std::string& AccountBlockSummary::_internal_target_display_name() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.target_display_name_.Get();
+}
+inline void AccountBlockSummary::_internal_set_target_display_name(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.target_display_name_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL AccountBlockSummary::_internal_mutable_target_display_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.target_display_name_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE AccountBlockSummary::release_target_display_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.AccountBlockSummary.target_display_name)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  auto* released = _impl_.target_display_name_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.target_display_name_.Set("", GetArena());
+  }
+  return released;
+}
+inline void AccountBlockSummary::set_allocated_target_display_name(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  }
+  _impl_.target_display_name_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.target_display_name_.IsDefault()) {
+    _impl_.target_display_name_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.AccountBlockSummary.target_display_name)
+}
+
+// int64 blocked_at_epoch_ms = 3;
+inline void AccountBlockSummary::clear_blocked_at_epoch_ms() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.blocked_at_epoch_ms_ = ::int64_t{0};
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+}
+inline ::int64_t AccountBlockSummary::blocked_at_epoch_ms() const {
+  // @@protoc_insertion_point(field_get:chat.v2.AccountBlockSummary.blocked_at_epoch_ms)
+  return _internal_blocked_at_epoch_ms();
+}
+inline void AccountBlockSummary::set_blocked_at_epoch_ms(::int64_t value) {
+  _internal_set_blocked_at_epoch_ms(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  // @@protoc_insertion_point(field_set:chat.v2.AccountBlockSummary.blocked_at_epoch_ms)
+}
+inline ::int64_t AccountBlockSummary::_internal_blocked_at_epoch_ms() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.blocked_at_epoch_ms_;
+}
+inline void AccountBlockSummary::_internal_set_blocked_at_epoch_ms(::int64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.blocked_at_epoch_ms_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// AccountBlockDirectoryPage
+
+// repeated .chat.v2.AccountBlockSummary blocks = 1;
+inline int AccountBlockDirectoryPage::_internal_blocks_size() const {
+  return _internal_blocks().size();
+}
+inline int AccountBlockDirectoryPage::blocks_size() const {
+  return _internal_blocks_size();
+}
+inline void AccountBlockDirectoryPage::clear_blocks() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.blocks_.Clear();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+}
+inline const ::chat::v2::AccountBlockSummary& AccountBlockDirectoryPage::blocks(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.AccountBlockDirectoryPage.blocks)
+  return _internal_blocks().Get(index);
+}
+inline ::chat::v2::AccountBlockSummary* PROTOBUF_NONNULL AccountBlockDirectoryPage::mutable_blocks(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:chat.v2.AccountBlockDirectoryPage.blocks)
+  return _internal_mutable_blocks()->Mutable(index);
+}
+inline ::chat::v2::AccountBlockSummary* PROTOBUF_NONNULL AccountBlockDirectoryPage::add_blocks()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::chat::v2::AccountBlockSummary* _add =
+      _internal_mutable_blocks()->InternalAddWithArena(
+          ::google::protobuf::MessageLite::internal_visibility(), GetArena());
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_add:chat.v2.AccountBlockDirectoryPage.blocks)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::chat::v2::AccountBlockSummary>& AccountBlockDirectoryPage::blocks() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:chat.v2.AccountBlockDirectoryPage.blocks)
+  return _internal_blocks();
+}
+inline ::google::protobuf::RepeatedPtrField<::chat::v2::AccountBlockSummary>* PROTOBUF_NONNULL
+AccountBlockDirectoryPage::mutable_blocks() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_mutable_list:chat.v2.AccountBlockDirectoryPage.blocks)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_blocks();
+}
+inline const ::google::protobuf::RepeatedPtrField<::chat::v2::AccountBlockSummary>&
+AccountBlockDirectoryPage::_internal_blocks() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.blocks_;
+}
+inline ::google::protobuf::RepeatedPtrField<::chat::v2::AccountBlockSummary>* PROTOBUF_NONNULL
+AccountBlockDirectoryPage::_internal_mutable_blocks() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.blocks_;
+}
+
+// string next_after_target_account_id = 2;
+inline void AccountBlockDirectoryPage::clear_next_after_target_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.next_after_target_account_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+}
+inline const ::std::string& AccountBlockDirectoryPage::next_after_target_account_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.AccountBlockDirectoryPage.next_after_target_account_id)
+  return _internal_next_after_target_account_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void AccountBlockDirectoryPage::set_next_after_target_account_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  _impl_.next_after_target_account_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.AccountBlockDirectoryPage.next_after_target_account_id)
+}
+inline ::std::string* PROTOBUF_NONNULL AccountBlockDirectoryPage::mutable_next_after_target_account_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ::std::string* _s = _internal_mutable_next_after_target_account_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.AccountBlockDirectoryPage.next_after_target_account_id)
+  return _s;
+}
+inline const ::std::string& AccountBlockDirectoryPage::_internal_next_after_target_account_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.next_after_target_account_id_.Get();
+}
+inline void AccountBlockDirectoryPage::_internal_set_next_after_target_account_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.next_after_target_account_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL AccountBlockDirectoryPage::_internal_mutable_next_after_target_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.next_after_target_account_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE AccountBlockDirectoryPage::release_next_after_target_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.AccountBlockDirectoryPage.next_after_target_account_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  auto* released = _impl_.next_after_target_account_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.next_after_target_account_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void AccountBlockDirectoryPage::set_allocated_next_after_target_account_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  }
+  _impl_.next_after_target_account_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.next_after_target_account_id_.IsDefault()) {
+    _impl_.next_after_target_account_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.AccountBlockDirectoryPage.next_after_target_account_id)
+}
+
+// bool has_more = 3;
+inline void AccountBlockDirectoryPage::clear_has_more() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.has_more_ = false;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+}
+inline bool AccountBlockDirectoryPage::has_more() const {
+  // @@protoc_insertion_point(field_get:chat.v2.AccountBlockDirectoryPage.has_more)
+  return _internal_has_more();
+}
+inline void AccountBlockDirectoryPage::set_has_more(bool value) {
+  _internal_set_has_more(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  // @@protoc_insertion_point(field_set:chat.v2.AccountBlockDirectoryPage.has_more)
+}
+inline bool AccountBlockDirectoryPage::_internal_has_more() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.has_more_;
+}
+inline void AccountBlockDirectoryPage::_internal_set_has_more(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.has_more_ = value;
 }
 
 #ifdef __GNUC__

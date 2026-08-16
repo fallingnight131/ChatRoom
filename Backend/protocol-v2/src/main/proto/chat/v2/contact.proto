@@ -21,3 +21,23 @@ message AccountBlockApplied {
   bool changed = 4;
   string client_operation_id = 5;
 }
+
+// Lists only blocks owned by the authenticated actor. Empty cursor starts at
+// the beginning; subsequent pages continue after a server-returned target ID.
+message ListAccountBlocks {
+  string after_target_account_id = 1;
+  uint32 limit = 2;
+}
+
+// Current identity projection for one durable outgoing block edge.
+message AccountBlockSummary {
+  string target_account_id = 1;
+  string target_display_name = 2;
+  int64 blocked_at_epoch_ms = 3;
+}
+
+message AccountBlockDirectoryPage {
+  repeated AccountBlockSummary blocks = 1;
+  string next_after_target_account_id = 2;
+  bool has_more = 3;
+}

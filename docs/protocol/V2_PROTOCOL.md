@@ -83,6 +83,8 @@ reused:
 | 127 | `ConversationMessageSearchPage` | response | future correlated descending current-state results |
 | 128 | `SetAccountBlock` | command | inactive capable authenticated client; idempotent asymmetric desired state |
 | 129 | `AccountBlockApplied` | response | inactive correlated durable block-state result |
+| 134 | `ListAccountBlocks` | command | inactive capable authenticated client; bounded outgoing-block page |
+| 135 | `AccountBlockDirectoryPage` | response | inactive server-authored current identity projection |
 
 `SubmitMessage` carries a canonical conversation UUID and a registered content
 type. Content type 1 is permanently assigned to nonempty valid UTF-8 text with a
@@ -153,6 +155,18 @@ result whose authenticated actor, target, desired state, or operation ID differs
 from the request. It stores no durable block projection, so a new page treats
 current state as unknown until a desired-state result returns. Old handshakes
 and default product behavior remain unchanged.
+
+Types 134/135 extend the same capability with an inactive read model. The actor
+is still supplied only by the authenticated session. `ListAccountBlocks` accepts
+an empty first-page cursor or one canonical target UUID returned by the prior
+page, plus a limit of 1..100. `AccountBlockDirectoryPage` contains at most 100
+unique target UUIDs in strict ascending order, each with a server-authored
+current display name of 1..256 UTF-8 bytes and a positive database block time.
+A non-terminal page repeats its last target UUID as the next cursor; a terminal
+page carries no cursor. The cursor is a bounded traversal position, not a
+snapshot token: clients must refresh after concurrent block/unblock mutations.
+No gateway handler or client route consumes these types during this protocol
+expand step, so existing capability-7 behavior and rollback remain unchanged.
 
 The Web candidate correlates every search response with one active in-memory
 request and discards pages abandoned by disconnect or conversation change.

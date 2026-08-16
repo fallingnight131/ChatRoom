@@ -152,6 +152,8 @@ enum MessageType : int {
   MESSAGE_TYPE_DEVICE_DIRECTORY = 131,
   MESSAGE_TYPE_REVOKE_DEVICE = 132,
   MESSAGE_TYPE_DEVICE_REVOKED = 133,
+  MESSAGE_TYPE_LIST_ACCOUNT_BLOCKS = 134,
+  MESSAGE_TYPE_ACCOUNT_BLOCK_DIRECTORY_PAGE = 135,
   MessageType_INT_MIN_SENTINEL_DO_NOT_USE_ =
       ::std::numeric_limits<::int32_t>::min(),
   MessageType_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -162,11 +164,11 @@ extern const uint32_t MessageType_internal_data_[];
 inline constexpr MessageType MessageType_MIN =
     static_cast<MessageType>(0);
 inline constexpr MessageType MessageType_MAX =
-    static_cast<MessageType>(133);
+    static_cast<MessageType>(135);
 [[nodiscard]] inline bool MessageType_IsValid(int value) {
   return ::google::protobuf::internal::ValidateEnum(value, MessageType_internal_data_);
 }
-inline constexpr int MessageType_ARRAYSIZE = 133 + 1;
+inline constexpr int MessageType_ARRAYSIZE = 135 + 1;
 [[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
 MessageType_descriptor();
 [[nodiscard]] inline auto ProtobufInternalGetEnumDescriptor(MessageType) {

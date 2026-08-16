@@ -53,6 +53,8 @@ constexpr char kSearchMessagesGoldenHex[] =
 constexpr char kSetAccountBlockGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "10011a2430303030303030302d303030302d303030302d303030302d303030303030303030303032";
+constexpr char kListAccountBlocksGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d3030303030303030303030311019";
 constexpr char kListConversationsGoldenHex[] =
     "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
     "3030303030303030303030321819";
@@ -241,6 +243,16 @@ int main() {
                     != "00000000-0000-0000-0000-000000000002"
             || block.SerializeAsString() != blockGolden) {
         std::cerr << "generated C++ binding changed the account-block golden payload\n";
+        return 1;
+    }
+    const std::string blockListGolden = fromHex(kListAccountBlocksGoldenHex);
+    chat::v2::ListAccountBlocks blockList;
+    if (!blockList.ParseFromString(blockListGolden)
+            || blockList.after_target_account_id()
+                    != "00000000-0000-0000-0000-000000000001"
+            || blockList.limit() != 25
+            || blockList.SerializeAsString() != blockListGolden) {
+        std::cerr << "generated C++ binding changed the account-block-list golden payload\n";
         return 1;
     }
     chat::v2::ListConversations list;
