@@ -108,6 +108,12 @@ WindowsDeviceManagementController::accountBlockViewModel() const {
     return m_accountBlockController ? m_accountBlockController->viewModel() : nullptr;
 }
 
+V2WindowsAccountBlockDirectoryViewModel *
+WindowsDeviceManagementController::accountBlockDirectoryViewModel() const {
+    return m_accountBlockController
+        ? m_accountBlockController->directoryViewModel() : nullptr;
+}
+
 bool WindowsDeviceManagementController::start() {
     return m_service->start();
 }

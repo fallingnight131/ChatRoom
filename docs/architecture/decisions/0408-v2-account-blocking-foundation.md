@@ -118,6 +118,11 @@ server candidate without activating an incomplete client product path.
   route, and applies strictly correlated results. Disconnect clears protocol
   requests while retaining the same actor's explicit retry intent in page
   memory. Default composition constructs no account-block controller.
+- The enabled Windows controller also owns a separate outgoing-block directory
+  ViewModel. It issues only bounded cursor requests, keeps rows in page memory,
+  retains visible rows through transient disconnects, and clears them whenever
+  a new authenticated account is bound. This query state does not become the
+  authority for DIRECT mutation state and is not persisted to SQLite.
 - The Windows conversation surface exposes a native modal only when the
   immutable gate produced a ViewModel and the authorized directory row is
   DIRECT. It waits for the complete actor-filtered participant projection,

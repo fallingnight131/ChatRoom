@@ -13,6 +13,7 @@ class V2WindowsConversationParticipantViewModel;
 class V2WindowsMessagingViewModel;
 class V2WindowsMessageSearchViewModel;
 class V2WindowsAccountBlockViewModel;
+class V2WindowsAccountBlockDirectoryViewModel;
 class WindowsAccountBlockController;
 
 class WindowsDeviceManagementController final : public QObject {
@@ -40,6 +41,7 @@ public:
     V2WindowsMessagingViewModel *messagingViewModel() const;
     V2WindowsMessageSearchViewModel *messageSearchViewModel() const;
     V2WindowsAccountBlockViewModel *accountBlockViewModel() const;
+    V2WindowsAccountBlockDirectoryViewModel *accountBlockDirectoryViewModel() const;
     bool start();
     void stop();
 

@@ -2482,7 +2482,15 @@ ViewModel, binds both from the authenticated server session, sends only through
 the isolated type-128 route, and applies only strictly correlated type-129 or
 protocol-error results. Socket loss clears protocol correlations while leaving
 the same actor's failed page-memory operation available for explicit retry after
-resume. Disabled composition returns no account-block ViewModel. Widgets
+resume. The same controller exposes a separate page-memory directory ViewModel. It
+sends bounded type-134 refresh/load-more requests only after authentication,
+deduplicates appended target rows, retains already visible rows through a
+transient disconnect, and clears them before binding another authenticated
+account. The portable binding gate includes isolated pagination/failure tests
+and an end-to-end controller projection of type 135. Widgets does not consume
+this directory yet.
+
+Disabled composition returns neither account-block ViewModel. Widgets
 exposes this boundary only when that ViewModel exists and the authoritative
 directory row is DIRECT. The modal action waits for a complete participant
 projection, names the target, announces unknown/pending/applied/failure state,

@@ -2,6 +2,7 @@
 #include "DeviceManagementViewModel.h"
 #include "V2LocalMessageRepository.h"
 #include "V2WindowsAccountBlockViewModel.h"
+#include "V2WindowsAccountBlockDirectoryViewModel.h"
 
 #include "chat/v2/authentication.pb.h"
 #include "chat/v2/control.pb.h"
@@ -124,7 +125,8 @@ int main(int argc, char **argv) {
     if (!check(sent.size() == 2 && controller.viewModel()->authenticated()
                    && messagingReady && controller.messagingViewModel()
                    && !controller.messageSearchViewModel()
-                   && controller.accountBlockViewModel(),
+                   && controller.accountBlockViewModel()
+                   && controller.accountBlockDirectoryViewModel(),
                QStringLiteral("session establishment did not request devices and conversations"))) return 1;
     chat::v2::Envelope list;
     for (const auto &frame : std::as_const(sent)) {
@@ -179,6 +181,29 @@ int main(int argc, char **argv) {
         blockPayload.client_operation_id()));
     if (!check(blockViewModel->hasKnownState() && blockViewModel->blocked(),
                QStringLiteral("correlated account-block result was not projected"))) return 1;
+
+    auto *blockDirectory = controller.accountBlockDirectoryViewModel();
+    if (!check(blockDirectory->refresh() && sent.size() == 1,
+               QStringLiteral("account-block directory refresh was not composed"))) return 1;
+    const auto blockListCommand = parse(sent.takeFirst());
+    chat::v2::ListAccountBlocks blockListPayload;
+    if (!check(blockListCommand.message_type()
+                    == chat::v2::MESSAGE_TYPE_LIST_ACCOUNT_BLOCKS
+                   && blockListPayload.ParseFromString(blockListCommand.payload())
+                   && blockListPayload.after_target_account_id().empty()
+                   && blockListPayload.limit() == 100,
+               QStringLiteral("account-block directory request lost its bounds"))) return 1;
+    chat::v2::AccountBlockDirectoryPage blockPage;
+    auto *blockSummary = blockPage.add_blocks();
+    blockSummary->set_target_account_id(targetId.toStdString());
+    blockSummary->set_target_display_name("Blocked User");
+    blockSummary->set_blocked_at_epoch_ms(500);
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_DIRECTORY_PAGE,
+        blockListCommand.request_id(), sessionId, blockPage));
+    if (!check(!blockDirectory->busy() && blockDirectory->rows().size() == 1
+                   && blockDirectory->rows().first().targetAccountId == targetId,
+               QStringLiteral("account-block directory page was not projected"))) return 1;
 
     chat::v2::MessageRecord published;
     published.set_conversation_id("60000000-0000-4000-8000-000000000001");

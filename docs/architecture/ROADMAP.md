@@ -2353,6 +2353,10 @@ Candidate slices:
   - [x] Compose the enabled Windows account-block protocol and ViewModel from
     authenticated session state through the isolated Qt route, with default-off
     absence and same-operation reconnect retry; keep Widgets disconnected.
+  - [x] Add the Windows page-memory account-block directory state and compose
+    bounded refresh/load-more through the isolated controller route. Preserve
+    visible rows across transient disconnects, clear them across authenticated
+    account boundaries, and keep the directory detached from Widgets.
   - [x] Expose an accessible Windows DIRECT-only block/unblock dialog behind the
     same immutable product gate, with authoritative target loading, confirmation,
     announced status, pending disablement, and native Windows CI coverage.

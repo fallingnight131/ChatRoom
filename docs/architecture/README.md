@@ -147,8 +147,11 @@ reserve a bounded outgoing-block directory contract. The application query and
 repeatable-read PostgreSQL adapter now reauthorize the enabled actor and return
 only target-ordered outgoing edges with current display names. The same
 exact-default-off gateway boundary now serves types 134/135 through its
-connection-serialized bounded executor and fixed page/row telemetry; the Windows
-list view remains uncomposed. The exact-gated Web protocol client can
+connection-serialized bounded executor and fixed page/row telemetry. The Windows
+candidate now composes bounded directory refresh/load-more into a separate
+page-memory ViewModel, retaining visible rows during transient transport loss
+but clearing them at authenticated account boundaries; Widgets remains
+uncomposed. The exact-gated Web protocol client can
 now request and strictly validate a correlated page. Its application boundary
 retains at most 500 page-memory rows, refreshes after authentication/resume and
 successful mutation, and contains stale/disconnected requests. Its global
