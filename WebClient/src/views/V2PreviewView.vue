@@ -45,7 +45,8 @@
         <div class="account-block">
           <strong>{{ snapshot.session.displayName }}</strong>
           <span>{{ snapshot.session.accountId }}</span>
-          <button class="device-entry" type="button" @click="openDevices">
+          <button class="device-entry" type="button" aria-haspopup="dialog"
+                  :aria-expanded="devicesOpen" @click="openDevices">
             登录设备
             <span v-if="snapshot.devices.length">{{ snapshot.devices.length }}</span>
           </button>
@@ -279,18 +280,18 @@
             <button v-if="snapshot.participantsHasMore" class="btn btn-text" type="button"
                     @click="loadMoreParticipants">加载更多成员</button>
           </section>
-          <div v-if="forwardSource" class="dialog-backdrop" @click.self="closeForwardPicker"
-               @keydown.esc="closeForwardPicker">
-            <section class="forward-dialog" role="dialog" aria-modal="true"
+          <div v-if="forwardSource" class="dialog-backdrop" @click.self="closeForwardDialog">
+            <section ref="forwardDialogRef" class="forward-dialog" role="dialog" aria-modal="true"
                      aria-labelledby="forward-dialog-title"
-                     aria-describedby="forward-dialog-description">
+                     aria-describedby="forward-dialog-description" tabindex="-1"
+                     @keydown="onForwardDialogKeydown">
               <header>
                 <div>
                   <h2 id="forward-dialog-title">转发到会话</h2>
                   <p id="forward-dialog-description">服务器会复制最新的消息内容，不会暴露来源会话。</p>
                 </div>
-                <button ref="forwardCloseButton" class="icon-button" type="button"
-                        aria-label="关闭转发目标选择" @click="closeForwardPicker">×</button>
+                <button id="forward-dialog-close" class="icon-button" type="button"
+                        aria-label="关闭转发目标选择" @click="closeForwardDialog">×</button>
               </header>
               <ul role="listbox" aria-label="转发目标会话" :aria-busy="forwardPending">
                 <li v-for="conversation in snapshot.directory" :key="conversation.conversationId">
@@ -312,16 +313,17 @@
       </section>
     </section>
 
-    <div v-if="devicesOpen" class="dialog-backdrop" @click.self="closeDevices" @keydown.esc="closeDevices">
-      <section class="device-dialog" role="dialog" aria-modal="true"
-               aria-labelledby="device-dialog-title" aria-describedby="device-dialog-description">
+    <div v-if="devicesOpen" class="dialog-backdrop" @click.self="closeDeviceDialog">
+      <section ref="deviceDialogRef" class="device-dialog" role="dialog" aria-modal="true"
+               aria-labelledby="device-dialog-title" aria-describedby="device-dialog-description"
+               tabindex="-1" @keydown="onDeviceDialogKeydown">
         <header class="device-dialog-header">
           <div>
             <h2 id="device-dialog-title">登录设备</h2>
             <p id="device-dialog-description">发现陌生设备时，可撤销它的全部登录会话。</p>
           </div>
-          <button ref="deviceCloseButton" class="icon-button" type="button"
-                  aria-label="关闭登录设备" @click="closeDevices">×</button>
+          <button id="device-dialog-close" class="icon-button" type="button"
+                  aria-label="关闭登录设备" @click="closeDeviceDialog">×</button>
         </header>
         <p v-if="snapshot.deviceFailure" class="error-msg" role="alert">
           {{ snapshot.deviceFailure }}
@@ -356,7 +358,7 @@
         <footer class="device-dialog-footer">
           <button class="btn btn-secondary" type="button" :disabled="!canManageDevices || snapshot.devicesLoading"
                   @click="refreshDevices">刷新</button>
-          <button class="btn btn-primary" type="button" @click="closeDevices">完成</button>
+          <button class="btn btn-primary" type="button" @click="closeDeviceDialog">完成</button>
         </footer>
       </section>
     </div>
@@ -371,6 +373,7 @@ import { messageTextBudget, messageTextBudgetLabel } from '../messaging/messageT
 import { copyMessageText } from '../messaging/copyMessageText.js'
 import { addPendingNewMessages, pendingNewMessageLabel } from '../messaging/newMessageIndicator.js'
 import { classifyV2TailUpdate } from '../messaging/v2TailActivity'
+import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 import {
   anchorsFromMentionSpans,
   insertMention,
@@ -403,11 +406,29 @@ const editMentionAnchors = ref([])
 const mentionPickerMode = ref(null)
 const forwardSource = ref(null)
 const forwardPending = ref(false)
-const forwardCloseButton = ref(null)
 const authenticationPending = ref(false)
 const devicesOpen = ref(false)
 const confirmingDeviceId = ref(null)
-const deviceCloseButton = ref(null)
+const forwardDialogActive = computed(() => Boolean(forwardSource.value))
+const {
+  dialogRef: forwardDialogRef,
+  closeDialog: closeForwardDialog,
+  onDialogKeydown: onForwardDialogKeydown,
+} = useModalKeyboardBoundary({
+  onClose: closeForwardPicker,
+  canClose: () => !forwardPending.value,
+  initialFocusSelector: '#forward-dialog-close',
+  active: forwardDialogActive,
+})
+const {
+  dialogRef: deviceDialogRef,
+  closeDialog: closeDeviceDialog,
+  onDialogKeydown: onDeviceDialogKeydown,
+} = useModalKeyboardBoundary({
+  onClose: closeDevices,
+  initialFocusSelector: '#device-dialog-close',
+  active: devicesOpen,
+})
 const snapshot = ref({
   connectionState: 'idle', session: null, directory: [], directoryHasMore: false,
   activeConversationId: null, messages: [], reactionCommands: [], pinCommands: [], editCommands: [],
@@ -642,7 +663,6 @@ function openForwardPicker(message) {
       || message.deliveryState !== 'accepted' || message.availability !== 'available') return
   forwardSource.value = { id: message.id, content: message.content }
   forwardPending.value = false
-  nextTick(() => forwardCloseButton.value?.focus())
 }
 
 function closeForwardPicker() {
@@ -869,7 +889,6 @@ function openDevices() {
   devicesOpen.value = true
   confirmingDeviceId.value = null
   if (snapshot.value.devices.length === 0 && canManageDevices.value) refreshDevices()
-  nextTick(() => deviceCloseButton.value?.focus())
 }
 
 function closeDevices() {

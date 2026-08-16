@@ -1035,6 +1035,12 @@ closeable overlay. The server event has already disabled socket reconnection;
 focus enters and remains on its re-login boundary, and Escape cannot bypass the
 revoked session. Re-login ends the attachment session, clears in-memory account
 credentials, and navigates only after those local boundaries are clean.
+V2 forwarding and device management now use the same conditional modal
+boundary instead of one-time manual close-button focus. Both contain Tab and
+restore their invoking control; forwarding rejects overlay, Escape, and close
+actions while its durable operation is pending, while device management remains
+exit-safe during connectivity changes. The adjacent mention picker deliberately
+remains non-modal because it supplements an active composer.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

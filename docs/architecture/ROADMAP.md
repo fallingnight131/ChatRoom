@@ -2316,6 +2316,8 @@ Candidate slices:
     creation, clearing optional room-secret state on every exit path.
   - [x] Contain Web forced-offline state in a non-dismissible alert dialog and
     preserve attachment/credential cleanup ordering before re-login.
+  - [x] Apply the conditional boundary to V2 forwarding and device management,
+    preserving pending-forward guards while keeping mentions non-modal.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

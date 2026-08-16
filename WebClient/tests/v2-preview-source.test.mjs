@@ -26,8 +26,10 @@ test('owns explicit V2 start, transient authentication, and basic chat actions',
 test('exposes keyboard-operable server-authoritative device management', () => {
   assert.match(previewSource, /role="dialog" aria-modal="true"/)
   assert.match(previewSource, /aria-labelledby="device-dialog-title"/)
-  assert.match(previewSource, /@keydown\.esc="closeDevices"/)
-  assert.match(previewSource, /deviceCloseButton\.value\?\.focus\(\)/)
+  assert.match(previewSource, /ref="deviceDialogRef"/)
+  assert.match(previewSource, /@keydown="onDeviceDialogKeydown"/)
+  assert.match(previewSource, /initialFocusSelector: '#device-dialog-close'/)
+  assert.match(previewSource, /active: devicesOpen/)
   assert.match(previewSource, /application\.refreshDevices\(\)/)
   assert.match(previewSource, /application\.revokeDevice\(deviceId\)/)
   assert.match(previewSource, /device\.current/)
