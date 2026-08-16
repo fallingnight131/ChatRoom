@@ -2474,6 +2474,12 @@ Candidate slices:
         regular-file/no-symlink/POSIX checks, matching-pair proof, defensive
         public-key export, DER/signature clearing, closed-state refusal, and
         an explicit JCA best-effort-destroy/HSM limitation.
+      - [x] Add a detached synchronous provider HTTP adapter with an exact
+        canonical HTTPS origin allowlist, pre-crypto SSRF refusal, fixed
+        connect/request deadlines, no redirects, bounded TTL, identity-only
+        encrypted bodies, discarded responses, fixed status mapping, and
+        owned-byte clearing; retain network egress filtering and runtime
+        composition as open gates.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
     - [x] Add the pure Service Worker payload boundary with exact version/field/

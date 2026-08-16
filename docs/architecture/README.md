@@ -2060,7 +2060,7 @@ claim owner and 100-row cap, isolates individual claim failures, drains full
 batches with a nonzero cadence, backs off dependency/worker rejection, and
 cancels pending schedules on close. Its counters and scheduling gauges are
 fixed-name and label-free. These pieces are detached operational policy only:
-no real Web Push protocol adapter, owned scheduler/worker pool, readiness
+no provider is runtime-composed, and no owned scheduler/worker pool, readiness
 policy, metrics endpoint, or runtime composition exists.
 A detached identity-crypto slice now produces the provider body defined by RFC
 8291 and RFC 8188: one bounded `aes128gcm` record with a fresh ephemeral P-256
@@ -2077,8 +2077,16 @@ mounts, rejects links and group/other access, verifies that the public/private
 pair matches, clears file/signature buffers, exposes only defensive public-key
 copies, and closes the signer. Because the OpenJDK EC provider can refuse
 physical `Destroyable` erasure, process termination is still required for
-file-key rollback; stronger custody remains an HSM/KMS concern. HTTP transport,
-token reuse policy, and runtime composition remain open.
+file-key rollback; stronger custody remains an HSM/KMS concern. A detached
+gateway adapter now composes the encoder and signer into one synchronous RFC
+Web Push POST with fixed deadlines, no redirects, bounded TTL, discarded
+response bodies, fixed provider-status classification, and clearing of owned
+byte copies. It accepts only endpoints whose canonical HTTPS origin is in an
+exact configured allowlist before encryption or signing, while production
+network egress policy remains a required second SSRF boundary. Java's HTTP
+request retains its immutable Authorization header string until the synchronous
+call returns. Token reuse policy, owned bounded executors, readiness/backlog
+policy, provider canary, and runtime activation remain open.
 The Web client now has a pure Service Worker payload boundary. It accepts only
 schema version 1, three canonical stable UUIDs, and the structural mention
 boolean within 2 KiB; unknown fields, message text, malformed identity, and

@@ -1649,6 +1649,25 @@ and refuses signing after close. JCA private-key destruction is best-effort:
 OpenJDK providers may reject `Destroyable.destroy()`, so stronger physical key
 erasure remains an HSM/KMS provider requirement and process shutdown remains
 part of file-key rollback. No key files or key material belong in the repo.
+The detached provider HTTP adapter can be selected with:
+
+```bash
+cd Backend
+JAVA_HOME=/path/to/jdk-21 ./gradlew --no-daemon :im-gateway:test \
+  --tests '*RfcWebPushProviderAdapterTest'
+```
+
+It posts the RFC 8291 body only to an exact configured HTTPS provider-origin
+allowlist, refuses redirects, applies 10-second connect/request deadlines,
+caps TTL at 24 hours, discards response bodies, and maps only `201`/`202`,
+`404`/`410`, and `401`/`403` to delivered, invalid-subscription, and
+authentication outcomes. Other statuses and transport failures remain
+retryable. The encrypted payload and owned Authorization byte copies are
+cleared after the synchronous call; Java HTTP headers necessarily become an
+immutable `String` retained by the request until that call returns. Provider
+origin allowlisting is an application guard, not a replacement for production
+DNS/route-aware egress filtering. The adapter is not runtime-composed and this
+test makes no external provider-delivery claim.
 The detached gateway issuance and HTTP bridge can be selected with:
 
 ```bash

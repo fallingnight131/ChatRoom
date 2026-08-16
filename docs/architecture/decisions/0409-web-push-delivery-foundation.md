@@ -212,14 +212,15 @@ resume proof or activate a gateway/client path.
   known-answer test, invalid subscription key/auth shape fails closed, and
   clearable intermediate byte arrays are erased. VAPID signing, HTTP transport,
   provider status classification, key custody, and runtime composition remain
-  separate open work.
+  separate work slices.
 - A detached RFC 8292 signer now accepts only an exact P-256 signing key that is
   independent of per-message ECDH, derives `aud` from the canonical HTTPS push
   origin, bounds `exp` to at most 24 hours, restricts `sub` to reviewed
   `mailto:`/HTTPS contact URIs, converts JCA ECDSA DER to the required 64-byte
   JOSE form, and supplies the unpadded X9.62 public key as `k`. Authorization
   bytes use redacted, closeable copy ownership. Mounted-file signing-key
-  custody, reuse/cache policy, HTTP transport, and composition remain open.
+  custody, reuse/cache policy, HTTP transport, and composition remain separate
+  work slices.
 - Mounted-file VAPID custody now loads distinct bounded PKCS#8 private and X.509
   public DER files with no-follow regular-file and owner-only POSIX policy,
   verifies the pair through a local signature, validates exact P-256, clears
@@ -227,7 +228,17 @@ resume proof or activate a gateway/client path.
   and closes signing access. JCA provider key destruction is best-effort because
   OpenJDK EC keys can reject `Destroyable.destroy()`; an HSM/KMS provider is
   required for a stronger physical-erasure claim, and file-key rollback includes
-  process termination. Provider HTTP and runtime composition remain open.
+  process termination. Provider HTTP and runtime composition remain separate
+  work slices.
+- A detached gateway provider adapter now performs the synchronous standards-
+  based POST with fixed connect/request deadlines, redirect refusal, bounded
+  TTL, discarded response bodies, and fixed result classification. An exact
+  canonical HTTPS provider-origin allowlist rejects endpoints before encryption
+  or signing; deployment egress controls remain required against DNS/routing
+  attacks. Owned payload and Authorization byte copies are cleared after the
+  call, while the JDK request necessarily retains an immutable header string
+  until it returns. No runtime composition, provider canary, executor ownership,
+  or readiness claim follows from this adapter test.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,
