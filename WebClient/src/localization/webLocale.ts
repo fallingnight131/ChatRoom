@@ -658,6 +658,25 @@ const v2PreviewForwardCatalog = {
   },
 } as const;
 
+const v2PreviewDeviceCatalog = {
+  "zh-CN": {
+    title: "登录设备", description: "发现陌生设备时，可撤销它的全部登录会话。", close: "关闭登录设备",
+    retry: "重试", reconnectNotice: "连接恢复后才能管理设备。", windows: "Windows 客户端", web: "Web 浏览器",
+    currentDevice: "当前设备", recentActivity: (time: string) => `最近活动：${time}`, current: "当前", revoke: "撤销",
+    confirmGroup: "确认撤销设备", revokeAll: "撤销全部会话？", revoking: "撤销中…", confirm: "确认", cancel: "取消",
+    loading: "正在加载设备…", refresh: "刷新", done: "完成", loadFailed: "无法加载登录设备",
+    refreshFailed: "无法刷新设备", revokeFailed: "无法撤销该设备", revokeUnavailable: "当前无法撤销该设备",
+  },
+  "en-US": {
+    title: "Signed-in devices", description: "Revoke all sessions for a device you do not recognize.", close: "Close signed-in devices",
+    retry: "Retry", reconnectNotice: "Reconnect before managing devices.", windows: "Windows client", web: "Web browser",
+    currentDevice: "Current device", recentActivity: (time: string) => `Last active: ${time}`, current: "Current", revoke: "Revoke",
+    confirmGroup: "Confirm device revocation", revokeAll: "Revoke all sessions?", revoking: "Revoking…", confirm: "Confirm", cancel: "Cancel",
+    loading: "Loading devices…", refresh: "Refresh", done: "Done", loadFailed: "Unable to load signed-in devices",
+    refreshFailed: "Unable to refresh devices", revokeFailed: "Unable to revoke this device", revokeUnavailable: "This device cannot be revoked right now",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -780,6 +799,10 @@ export function v2PreviewMentionMessages(locale: WebLocale) {
 
 export function v2PreviewForwardMessages(locale: WebLocale) {
   return v2PreviewForwardCatalog[locale];
+}
+
+export function v2PreviewDeviceMessages(locale: WebLocale) {
+  return v2PreviewDeviceCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

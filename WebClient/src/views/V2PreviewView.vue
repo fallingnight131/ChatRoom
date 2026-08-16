@@ -341,46 +341,46 @@
                tabindex="-1" @keydown="onDeviceDialogKeydown">
         <header class="device-dialog-header">
           <div>
-            <h2 id="device-dialog-title">登录设备</h2>
-            <p id="device-dialog-description">发现陌生设备时，可撤销它的全部登录会话。</p>
+            <h2 id="device-dialog-title">{{ deviceMessages.title }}</h2>
+            <p id="device-dialog-description">{{ deviceMessages.description }}</p>
           </div>
           <button id="device-dialog-close" class="icon-button" type="button"
-                  aria-label="关闭登录设备" @click="closeDeviceDialog">×</button>
+                  :aria-label="deviceMessages.close" @click="closeDeviceDialog">×</button>
         </header>
         <p v-if="snapshot.deviceFailure" class="error-msg" role="alert">
-          {{ snapshot.deviceFailure }}
-          <button class="retry-link" type="button" :disabled="!canManageDevices" @click="refreshDevices">重试</button>
+          {{ visibleDeviceFailure }}
+          <button class="retry-link" type="button" :disabled="!canManageDevices" @click="refreshDevices">{{ deviceMessages.retry }}</button>
         </p>
-        <p v-if="!canManageDevices" class="device-notice" role="status">连接恢复后才能管理设备。</p>
+        <p v-if="!canManageDevices" class="device-notice" role="status">{{ deviceMessages.reconnectNotice }}</p>
         <ul class="device-list" :aria-busy="snapshot.devicesLoading">
           <li v-for="device in snapshot.devices" :key="device.deviceId" class="device-row">
             <div class="device-icon" aria-hidden="true">{{ device.platform === 'windows' ? '▣' : '◎' }}</div>
             <div class="device-copy">
-              <strong>{{ device.platform === 'windows' ? 'Windows 客户端' : 'Web 浏览器' }}</strong>
-              <span>{{ device.current ? '当前设备' : `最近活动：${formatDeviceTime(device.lastSeenAtEpochMs)}` }}</span>
+              <strong>{{ device.platform === 'windows' ? deviceMessages.windows : deviceMessages.web }}</strong>
+              <span>{{ device.current ? deviceMessages.currentDevice : deviceMessages.recentActivity(formatDeviceTime(device.lastSeenAtEpochMs)) }}</span>
               <small>{{ shortDeviceId(device.deviceId) }}</small>
             </div>
-            <span v-if="device.current" class="current-device">当前</span>
+            <span v-if="device.current" class="current-device">{{ deviceMessages.current }}</span>
             <button v-else-if="confirmingDeviceId !== device.deviceId" class="btn btn-danger-outline"
                     type="button" :disabled="!canManageDevices || Boolean(snapshot.revokingDeviceId)"
-                    @click="confirmingDeviceId = device.deviceId">撤销</button>
-            <div v-else class="revoke-confirm" role="group" aria-label="确认撤销设备">
-              <span>撤销全部会话？</span>
+                    @click="confirmingDeviceId = device.deviceId">{{ deviceMessages.revoke }}</button>
+            <div v-else class="revoke-confirm" role="group" :aria-label="deviceMessages.confirmGroup">
+              <span>{{ deviceMessages.revokeAll }}</span>
               <button class="btn btn-danger" type="button"
                       :disabled="snapshot.revokingDeviceId === device.deviceId"
                       @click="revokeDevice(device.deviceId)">
-                {{ snapshot.revokingDeviceId === device.deviceId ? '撤销中…' : '确认' }}
+                {{ snapshot.revokingDeviceId === device.deviceId ? deviceMessages.revoking : deviceMessages.confirm }}
               </button>
               <button class="btn btn-text" type="button" :disabled="Boolean(snapshot.revokingDeviceId)"
-                      @click="confirmingDeviceId = null">取消</button>
+                      @click="confirmingDeviceId = null">{{ deviceMessages.cancel }}</button>
             </div>
           </li>
         </ul>
-        <p v-if="snapshot.devicesLoading && snapshot.devices.length === 0" class="empty-copy" role="status">正在加载设备…</p>
+        <p v-if="snapshot.devicesLoading && snapshot.devices.length === 0" class="empty-copy" role="status">{{ deviceMessages.loading }}</p>
         <footer class="device-dialog-footer">
           <button class="btn btn-secondary" type="button" :disabled="!canManageDevices || snapshot.devicesLoading"
-                  @click="refreshDevices">刷新</button>
-          <button class="btn btn-primary" type="button" @click="closeDeviceDialog">完成</button>
+                  @click="refreshDevices">{{ deviceMessages.refresh }}</button>
+          <button class="btn btn-primary" type="button" @click="closeDeviceDialog">{{ deviceMessages.done }}</button>
         </footer>
       </section>
     </div>
@@ -402,6 +402,7 @@ import {
   composerMessages as composerCatalogMessages,
   v2PreviewBasicActionMessages,
   v2PreviewComposerMessages,
+  v2PreviewDeviceMessages,
   v2PreviewForwardMessages,
   v2PreviewMentionMessages,
   v2PreviewSearchMessages,
@@ -425,6 +426,7 @@ const v2TimelineMessages = computed(() => v2PreviewTimelineMessages(userStore.lo
 const basicActionMessages = computed(() => v2PreviewBasicActionMessages(userStore.locale))
 const composerMessages = computed(() => composerCatalogMessages(userStore.locale))
 const v2ComposerMessages = computed(() => v2PreviewComposerMessages(userStore.locale))
+const deviceMessages = computed(() => v2PreviewDeviceMessages(userStore.locale))
 const mentionMessages = computed(() => v2PreviewMentionMessages(userStore.locale))
 const forwardMessages = computed(() => v2PreviewForwardMessages(userStore.locale))
 const username = ref('')
@@ -508,6 +510,10 @@ const visibleSearchFailure = computed(() => ({
 const visibleParticipantFailure = computed(() => ({
   '无法加载会话成员': mentionMessages.value.loadFailed,
 }[snapshot.value.participantFailure] || snapshot.value.participantFailure))
+const visibleDeviceFailure = computed(() => ({
+  '无法加载登录设备': deviceMessages.value.loadFailed,
+  '无法撤销该设备': deviceMessages.value.revokeFailed,
+}[snapshot.value.deviceFailure] || snapshot.value.deviceFailure))
 const activeConversationName = computed(() => snapshot.value.directory.find(
   item => item.conversationId === snapshot.value.activeConversationId
 )?.displayName || shellMessages.value.conversation)
@@ -983,15 +989,15 @@ function closeDevices() {
 function refreshDevices() {
   actionError.value = ''
   try { runtimeRef.value.application.refreshDevices() }
-  catch (error) { actionError.value = error instanceof Error ? error.message : '无法刷新设备' }
+  catch (error) { actionError.value = error instanceof Error ? error.message : deviceMessages.value.refreshFailed }
 }
 
 function revokeDevice(deviceId) {
   actionError.value = ''
   try {
-    if (!runtimeRef.value.application.revokeDevice(deviceId)) actionError.value = '当前无法撤销该设备'
+    if (!runtimeRef.value.application.revokeDevice(deviceId)) actionError.value = deviceMessages.value.revokeUnavailable
   } catch (error) {
-    actionError.value = error instanceof Error ? error.message : '无法撤销该设备'
+    actionError.value = error instanceof Error ? error.message : deviceMessages.value.revokeFailed
   }
 }
 

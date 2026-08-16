@@ -171,6 +171,11 @@ The default-off V2 forwarding slice localizes its trigger, modal description,
 target kinds, pending state, and local durable-outbox feedback. Source contracts
 retain the independent capability flag, stable source/target IDs, cache-failure
 cancellation, one pending operation, dismissal blocking, and focus containment.
+The V2 device-management slice localizes its security guidance, platform/current
+state, locale-aware recent activity, reconnect restriction, revoke confirmation,
+loading/actions, and known application failure adapter. Source contracts retain
+authenticated-state gating, stable device IDs, current-device protection,
+single-revoke disabling, server application calls, and modal focus containment.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

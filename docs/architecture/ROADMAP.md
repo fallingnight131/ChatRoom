@@ -2400,6 +2400,8 @@ Candidate slices:
     identity, Unicode mention spans, paging, and keyboard focus ownership.
   - [x] Migrate the capability-gated Web V2 forwarding dialog while preserving
     durable-outbox, stable-identity, pending, dismissal, and focus boundaries.
+  - [x] Migrate the Web V2 device-management dialog while preserving
+    authenticated authority, stable IDs, current-device and pending guards.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

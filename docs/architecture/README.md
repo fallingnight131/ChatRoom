@@ -2072,7 +2072,12 @@ slice now localizes its trigger, privacy description, stable target list,
 pending state, and durable-outbox failure feedback. It still forwards the
 stable source message ID to one stable target conversation ID, cancels when the
 outbox cannot persist, and blocks duplicate actions/dismissal while pending. V2
-edit/reaction/pin mutations and device dialogs remain later slices.
+device management now also follows the locale for security guidance, platform
+and current-device presentation, recent activity, connection restrictions,
+revoke confirmation, and known application failures. Authentication state,
+stable device IDs, current-device protection, one revocation at a time, and all
+server-authoritative refresh/revoke decisions remain unchanged. V2
+edit/reaction/pin mutations remain later slices.
 
 ### Product consistency
 
