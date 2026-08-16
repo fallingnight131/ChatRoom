@@ -434,6 +434,9 @@ test("switches the authenticated shell locale from profile and persists it", asy
   await expect(page.getByLabel("Low-bandwidth mode")).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("chat.web.locale"))).toBe("en-US");
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("Friend list", { exact: true })).toBeVisible();
+  await expect(page.getByText("Online", { exact: true })).toBeVisible();
 });
 
 test("pauses an offline login attempt and requires explicit retry after recovery", async ({ context, page }) => {

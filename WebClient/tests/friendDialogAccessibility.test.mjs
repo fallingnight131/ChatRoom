@@ -18,7 +18,7 @@ test('supports focus cycles for conditional dialogs without changing independent
 
 test('names and contains friend search and pending-request dialogs', () => {
   for (const marker of [
-    'aria-label="搜索好友" aria-haspopup="dialog"',
+    ':aria-label="messages.searchFriends" aria-haspopup="dialog"',
     'aria-labelledby="add-friend-title"',
     'aria-labelledby="pending-friend-title"',
     'initialFocusSelector: \'#friend-search-keyword\'',

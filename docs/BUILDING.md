@@ -71,7 +71,9 @@ on the typed catalog and keeps local error identity separate from raw server
 errors; `authenticatedShellLocalization.test.mjs` locks the authenticated shell
 chrome and complete profile surface to the same live preference, including
 stable local identity-feedback keys. Server errors stay verbatim. Feature-owned
-friend/room lists and message tools are still outside this localization slice.
+friend navigation is also catalog-backed; the browser gate closes the profile
+and verifies the localized friend-list heading and presence text. Room lists
+and message tools are still outside these localization slices.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

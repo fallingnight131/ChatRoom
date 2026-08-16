@@ -2356,6 +2356,8 @@ Candidate slices:
     expose its persistent language selector from the profile dialog.
   - [x] Complete the Web profile catalog, including identity/password forms,
     low-bandwidth guidance, actions, and language-stable local feedback.
+  - [x] Migrate the Web friend sidebar, search/request dialogs, presence text,
+    accessible actions, and local removal confirmation to the live catalog.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

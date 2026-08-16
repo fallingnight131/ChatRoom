@@ -193,6 +193,35 @@ const profileCatalog = {
   },
 } as const;
 
+const friendListCatalog = {
+  "zh-CN": {
+    title: "好友列表", searchFriends: "搜索好友", requests: "好友申请",
+    pendingRequests: "好友申请（有待处理申请）", refresh: "刷新好友列表",
+    online: "在线", offline: "离线", empty: "暂无好友，点击搜索按钮查找好友",
+    avatarPrefix: "", avatarSuffix: " 的头像", searchLabel: "用户 ID 或昵称",
+    searchPlaceholder: "输入用户ID或昵称搜索", searching: "搜索中…", search: "搜索",
+    searchHint: "输入关键词后点击搜索", noResults: "未找到匹配的用户",
+    userId: "ID", added: "已添加", sendRequest: "发送申请",
+    pendingTitle: "待处理的好友申请", noPending: "暂无待处理的好友申请",
+    accept: "接受", reject: "拒绝", close: "关闭", menu: "好友操作",
+    viewInfo: "查看信息", remove: "删除好友", removeConfirmPrefix: "确定要删除好友 ",
+    removeConfirmSuffix: " 吗？",
+  },
+  "en-US": {
+    title: "Friend list", searchFriends: "Find friends", requests: "Friend requests",
+    pendingRequests: "Friend requests (pending)", refresh: "Refresh friend list",
+    online: "Online", offline: "Offline", empty: "No friends yet. Use Find friends to get started.",
+    avatarPrefix: "Avatar for ", avatarSuffix: "", searchLabel: "User ID or display name",
+    searchPlaceholder: "Search by user ID or display name", searching: "Searching…", search: "Search",
+    searchHint: "Enter a keyword and select Search", noResults: "No matching users",
+    userId: "ID", added: "Added", sendRequest: "Send request",
+    pendingTitle: "Pending friend requests", noPending: "No pending friend requests",
+    accept: "Accept", reject: "Decline", close: "Close", menu: "Friend actions",
+    viewInfo: "View profile", remove: "Remove friend", removeConfirmPrefix: "Remove ",
+    removeConfirmSuffix: " from your friends?",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -227,6 +256,10 @@ export function chatShellMessages(locale: WebLocale) {
 
 export function profileMessages(locale: WebLocale) {
   return profileCatalog[locale];
+}
+
+export function friendListMessages(locale: WebLocale) {
+  return friendListCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

@@ -11,7 +11,7 @@ test('uses native friend rows and exposes the current conversation', () => {
     'type="button"',
     ':aria-current="chatStore.isFriendChat',
     '@contextmenu.prevent="openFriendMenuFromPointer($event, fr)"',
-    ':alt="`${fr.displayName || fr.username} 的头像`"',
+    ':alt="avatarLabel(fr.displayName || fr.username)"',
   ]) assert.ok(source.includes(marker), `missing friend row marker: ${marker}`)
 })
 
@@ -30,4 +30,15 @@ test('opens and navigates a keyboard menu with focus restoration', () => {
     'if (event.key === "Escape")',
     'if (restoreFocus) nextTick(() => restoreTarget?.focus())',
   ]) assert.ok(menuSource.includes(marker), `missing shared menu marker: ${marker}`)
+})
+
+test('renders friend navigation and actions from the live locale catalog', () => {
+  for (const marker of [
+    'friendListMessages(userStore.locale)',
+    '{{ messages.title }}',
+    'fr.isOnline ? messages.online : messages.offline',
+    ':aria-label="messages.menu"',
+    '{{ messages.viewInfo }}',
+    'messages.value.removeConfirmPrefix',
+  ]) assert.ok(source.includes(marker), `missing friend locale marker: ${marker}`)
 })

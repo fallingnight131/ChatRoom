@@ -1,17 +1,17 @@
 <template>
   <div class="friend-list">
     <div class="friend-list-header">
-      <span class="friend-list-title">好友列表</span>
+      <span class="friend-list-title">{{ messages.title }}</span>
       <div class="friend-actions-row">
-        <button class="btn-icon" type="button" aria-label="搜索好友" aria-haspopup="dialog"
-                :aria-expanded="showAddFriend" @click="showAddFriend = true" title="搜索好友">🔍</button>
+        <button class="btn-icon" type="button" :aria-label="messages.searchFriends" aria-haspopup="dialog"
+                :aria-expanded="showAddFriend" @click="showAddFriend = true" :title="messages.searchFriends">🔍</button>
         <button class="btn-icon" type="button" aria-haspopup="dialog" :aria-expanded="showPendingDialog"
-                :aria-label="chatStore.hasPendingFriendReq ? '好友申请（有待处理申请）' : '好友申请'"
-                @click="showPending" title="好友申请">
+                :aria-label="chatStore.hasPendingFriendReq ? messages.pendingRequests : messages.requests"
+                @click="showPending" :title="messages.requests">
           📩
           <span v-if="chatStore.hasPendingFriendReq" class="req-dot" aria-hidden="true"></span>
         </button>
-        <button class="btn-icon" type="button" aria-label="刷新好友列表" @click="refreshFriends" title="刷新">🔄</button>
+        <button class="btn-icon" type="button" :aria-label="messages.refresh" @click="refreshFriends" :title="messages.refresh">🔄</button>
       </div>
     </div>
 
@@ -25,7 +25,7 @@
            @contextmenu.prevent="openFriendMenuFromPointer($event, fr)">
         <span class="friend-avatar-wrap" :class="{ online: fr.isOnline }">
           <img v-if="getAvatarSrc(fr.username)" :src="getAvatarSrc(fr.username)" class="avatar avatar-sm"
-               :alt="`${fr.displayName || fr.username} 的头像`" />
+               :alt="avatarLabel(fr.displayName || fr.username)" />
           <span v-else class="avatar avatar-sm avatar-placeholder" aria-hidden="true"
                 :style="{ background: hashColor(fr.username) }">
             {{ (fr.displayName || fr.username).charAt(0) }}
@@ -33,12 +33,12 @@
         </span>
         <span class="friend-info">
           <span class="friend-name text-ellipsis">{{ fr.displayName || fr.username }}</span>
-          <span class="friend-status">{{ fr.isOnline ? '在线' : '离线' }}</span>
+          <span class="friend-status">{{ fr.isOnline ? messages.online : messages.offline }}</span>
         </span>
         <span v-if="(chatStore.friendUnread[fr.username] || 0) > 0" class="badge">{{ chatStore.friendUnread[fr.username] > 99 ? '99+' : chatStore.friendUnread[fr.username] }}</span>
       </button>
       <div v-if="chatStore.friends.length === 0" class="friend-empty">
-        暂无好友，点击 🔍 搜索
+        {{ messages.empty }}
       </div>
     </div>
 
@@ -46,39 +46,39 @@
     <div class="modal-overlay" v-if="showAddFriend" @click.self="closeAddFriend">
       <div ref="addFriendDialogRef" class="modal friend-dialog" role="dialog" aria-modal="true"
            aria-labelledby="add-friend-title" tabindex="-1" @keydown="onAddFriendKeydown">
-        <div id="add-friend-title" class="modal-title">搜索好友</div>
+        <div id="add-friend-title" class="modal-title">{{ messages.searchFriends }}</div>
         <form class="search-row" @submit.prevent="doSearch">
-          <label class="visually-hidden" for="friend-search-keyword">用户 ID 或昵称</label>
+          <label class="visually-hidden" for="friend-search-keyword">{{ messages.searchLabel }}</label>
           <input id="friend-search-keyword" class="input search-input" v-model="searchKeyword"
-                 placeholder="输入用户ID或昵称搜索" />
+                 :placeholder="messages.searchPlaceholder" />
           <button class="btn btn-primary" type="submit" :disabled="searching || !searchKeyword.trim()">
-            {{ searching ? '搜索中…' : '搜索' }}
+            {{ searching ? messages.searching : messages.search }}
           </button>
         </form>
         <div class="search-results" aria-live="polite">
-          <div v-if="searchResults === null" class="search-hint">输入关键词后点击搜索</div>
-          <div v-else-if="searchResults.length === 0" class="search-hint">未找到匹配的用户</div>
+          <div v-if="searchResults === null" class="search-hint">{{ messages.searchHint }}</div>
+          <div v-else-if="searchResults.length === 0" class="search-hint">{{ messages.noResults }}</div>
           <div v-for="u in searchResults" :key="u.username" class="search-result-item">
             <div class="search-avatar-wrap">
               <img v-if="getAvatarSrc(u.username)" :src="getAvatarSrc(u.username)" class="avatar avatar-sm"
-                   :alt="`${u.displayName || u.username} 的头像`" />
+                   :alt="avatarLabel(u.displayName || u.username)" />
               <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(u.username) }">
                 {{ (u.displayName || u.username).charAt(0) }}
               </div>
             </div>
             <div class="search-user-info">
               <div class="search-display-name text-ellipsis">{{ u.displayName }}</div>
-              <div class="search-username">ID: {{ u.username }}</div>
+              <div class="search-username">{{ messages.userId }}: {{ u.username }}</div>
             </div>
             <div class="search-user-status" v-if="u.online">
               <span class="online-dot"></span>
             </div>
-            <button v-if="isFriend(u.username)" class="btn btn-secondary btn-sm" type="button" disabled>已添加</button>
-            <button v-else class="btn btn-primary btn-sm" type="button" @click="sendRequestTo(u.username)">发送申请</button>
+            <button v-if="isFriend(u.username)" class="btn btn-secondary btn-sm" type="button" disabled>{{ messages.added }}</button>
+            <button v-else class="btn btn-primary btn-sm" type="button" @click="sendRequestTo(u.username)">{{ messages.sendRequest }}</button>
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" type="button" @click="closeAddFriendDialog">关闭</button>
+          <button class="btn btn-secondary" type="button" @click="closeAddFriendDialog">{{ messages.close }}</button>
         </div>
       </div>
     </div>
@@ -87,56 +87,58 @@
     <div class="modal-overlay" v-if="showPendingDialog" @click.self="closePendingDialog">
       <div ref="pendingDialogRef" class="modal friend-dialog" role="dialog" aria-modal="true"
            aria-labelledby="pending-friend-title" tabindex="-1" @keydown="onPendingKeydown">
-        <div id="pending-friend-title" class="modal-title">待处理的好友申请</div>
+        <div id="pending-friend-title" class="modal-title">{{ messages.pendingTitle }}</div>
         <div class="search-results" aria-live="polite">
-          <div v-if="pendingRequests.length === 0" class="search-hint">暂无待处理的好友申请</div>
+          <div v-if="pendingRequests.length === 0" class="search-hint">{{ messages.noPending }}</div>
           <div v-for="req in pendingRequests" :key="req.requestId" class="search-result-item">
             <div class="search-avatar-wrap">
               <img v-if="getAvatarSrc(req.fromUsername)" :src="getAvatarSrc(req.fromUsername)" class="avatar avatar-sm"
-                   :alt="`${req.fromDisplayName || req.fromUsername} 的头像`" />
+                   :alt="avatarLabel(req.fromDisplayName || req.fromUsername)" />
               <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(req.fromUsername) }">
                 {{ (req.fromDisplayName || req.fromUsername).charAt(0) }}
               </div>
             </div>
             <div class="search-user-info">
               <div class="search-display-name text-ellipsis">{{ req.fromDisplayName || req.fromUsername }}</div>
-              <div class="search-username">ID: {{ req.fromUsername }}</div>
+              <div class="search-username">{{ messages.userId }}: {{ req.fromUsername }}</div>
             </div>
             <div class="pending-actions">
-              <button class="btn btn-primary btn-sm" type="button" @click="acceptRequest(req)">接受</button>
-              <button class="btn btn-secondary btn-sm" type="button" @click="rejectRequest(req)">拒绝</button>
+              <button class="btn btn-primary btn-sm" type="button" @click="acceptRequest(req)">{{ messages.accept }}</button>
+              <button class="btn btn-secondary btn-sm" type="button" @click="rejectRequest(req)">{{ messages.reject }}</button>
             </div>
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" type="button" @click="closePendingDialog">关闭</button>
+          <button class="btn btn-secondary" type="button" @click="closePendingDialog">{{ messages.close }}</button>
         </div>
       </div>
     </div>
 
     <!-- 右键菜单 -->
     <div v-if="friendMenu.show" ref="friendMenuRef" class="context-menu" role="menu"
-         aria-label="好友操作"
+         :aria-label="messages.menu"
          :style="{ left: friendMenu.x + 'px', top: friendMenu.y + 'px' }"
          @keydown="onFriendMenuKeydown">
       <button class="context-menu-item" type="button" role="menuitem"
-              @click="viewContextFriendInfo">查看信息</button>
+              @click="viewContextFriendInfo">{{ messages.viewInfo }}</button>
       <button v-if="canRemoveFriend(friendMenu.item)" class="context-menu-item danger"
-              type="button" role="menuitem" @click="removeContextFriend">删除好友</button>
+              type="button" role="menuitem" @click="removeContextFriend">{{ messages.remove }}</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, onMounted, onUnmounted } from 'vue'
+import { computed, ref, inject, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
 import { chatWs } from '../services/websocket'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 import { useKeyboardContextMenu } from '../ui/useKeyboardContextMenu'
+import { friendListMessages } from '../localization/webLocale'
 
 const chatStore = useChatStore()
 const userStore = useUserStore()
+const messages = computed(() => friendListMessages(userStore.locale))
 const hashColor = inject('hashColor', (str) => {
   let hash = 0
   for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash)
@@ -148,6 +150,10 @@ function getAvatarSrc(username) {
   if (data) return 'data:image/png;base64,' + data
   userStore.requestAvatarIfAllowed(username)
   return ''
+}
+
+function avatarLabel(name) {
+  return `${messages.value.avatarPrefix}${name}${messages.value.avatarSuffix}`
 }
 
 const emit = defineEmits(['friend-selected', 'view-user-info'])
@@ -250,7 +256,8 @@ function viewFriendInfo(fr) {
 
 function removeFriend(fr) {
   if (!canRemoveFriend(fr)) return
-  if (fr && confirm(`确定要删除好友 ${fr.displayName || fr.username} 吗？`)) {
+  const name = fr?.displayName || fr?.username || ''
+  if (fr && confirm(`${messages.value.removeConfirmPrefix}${name}${messages.value.removeConfirmSuffix}`)) {
     chatWs.removeFriend(fr.username)
   }
 }
