@@ -18,7 +18,10 @@ import {
 import { ProtocolErrorCode, ProtocolErrorSchema } from "../src/protocol/v2/generated/control_pb";
 import { ClientPlatform } from "../src/protocol/v2/generated/control_pb";
 import { DeviceDirectorySchema, DeviceRevokedSchema } from "../src/protocol/v2/generated/device_management_pb";
-import { AccountBlockAppliedSchema } from "../src/protocol/v2/generated/contact_pb";
+import {
+  AccountBlockAppliedSchema,
+  AccountBlockDirectoryPageSchema,
+} from "../src/protocol/v2/generated/contact_pb";
 import {
   ConversationEntryRecordSchema,
   MessageAcceptedSchema,
@@ -139,6 +142,11 @@ class FakeTransport {
   setAccountBlock(targetAccountId: string, blocked: boolean, clientOperationId: string): string {
     const requestId = `account-block-${this.calls.length}`;
     this.calls.push(["account-block", targetAccountId, blocked, clientOperationId, requestId]);
+    return requestId;
+  }
+  listAccountBlocks(afterTargetAccountId = "", limit = 100): string {
+    const requestId = `account-block-directory-${this.calls.length}`;
+    this.calls.push(["account-block-directory", afterTargetAccountId, limit, requestId]);
     return requestId;
   }
   listDevices(): string {
@@ -1120,6 +1128,85 @@ test("binds account blocking to the unique direct participant and retries one st
     state: application.snapshot.accountBlockCommand?.deliveryState,
     changed: application.snapshot.accountBlockCommand?.changed,
   }, { state: "applied", changed: true });
+  assert.deepEqual(transport.calls.at(-1)?.slice(0, 3),
+    ["account-block-directory", "", 100],
+    "an applied mutation refreshes durable server state instead of inventing a local list");
+});
+
+test("pages authoritative account blocks and abandons ambiguous refreshes", () => {
+  const transport = new FakeTransport();
+  const application = new V2WebChatApplication({
+    transport, cache: new FakeCache(), enableAccountBlocking: true,
+  });
+  transport.transition("authenticated");
+  establish(transport);
+  const firstCall = transport.calls.at(-1)!;
+  assert.deepEqual(firstCall.slice(0, 3), ["account-block-directory", "", 100]);
+  const firstRequest = firstCall[3] as string;
+  transport.emit({
+    requestId: firstRequest,
+    clientMessageId: "",
+    type: "account-block-directory-page",
+    value: create(AccountBlockDirectoryPageSchema, {
+      blocks: [{
+        targetAccountId: SECOND_ACCOUNT_ID,
+        targetDisplayName: "Bob",
+        blockedAtEpochMs: BigInt(NOW - 1000),
+      }],
+      nextAfterTargetAccountId: SECOND_ACCOUNT_ID,
+      hasMore: true,
+    }),
+  });
+  assert.deepEqual(application.snapshot.accountBlocks, [{
+    targetAccountId: SECOND_ACCOUNT_ID,
+    targetDisplayName: "Bob",
+    blockedAtEpochMs: NOW - 1000,
+  }]);
+  assert.equal(application.snapshot.accountBlocksHasMore, true);
+  assert.equal(application.loadMoreAccountBlocks(), true);
+  const moreCall = transport.calls.at(-1)!;
+  assert.deepEqual(moreCall.slice(0, 3), [
+    "account-block-directory", SECOND_ACCOUNT_ID, 100,
+  ]);
+  const thirdAccountId = "20000000-0000-4000-8000-000000000003";
+  transport.emit({
+    requestId: moreCall[3] as string,
+    clientMessageId: "",
+    type: "account-block-directory-page",
+    value: create(AccountBlockDirectoryPageSchema, {
+      blocks: [{
+        targetAccountId: thirdAccountId,
+        targetDisplayName: "Carol",
+        blockedAtEpochMs: BigInt(NOW),
+      }],
+    }),
+  });
+  assert.deepEqual(application.snapshot.accountBlocks.map((value) => value.targetAccountId),
+    [SECOND_ACCOUNT_ID, thirdAccountId]);
+  assert.equal(application.snapshot.accountBlocksHasMore, false);
+
+  assert.equal(application.refreshAccountBlocks(), true);
+  transport.transition("reconnect-wait");
+  assert.equal(application.snapshot.accountBlocksLoading, false);
+  application.dispose();
+});
+
+test("contains account block directory denial and permits explicit refresh", () => {
+  const transport = new FakeTransport();
+  const application = new V2WebChatApplication({
+    transport, cache: new FakeCache(), enableAccountBlocking: true,
+  });
+  transport.transition("authenticated");
+  establish(transport);
+  const requestId = transport.calls.at(-1)![3] as string;
+  transport.emit({
+    type: "protocol-error", requestId, clientMessageId: "",
+    value: create(ProtocolErrorSchema, { code: ProtocolErrorCode.NOT_AUTHORIZED }),
+  });
+  assert.equal(application.snapshot.accountBlocksLoading, false);
+  assert.equal(application.snapshot.accountBlocksFailure, "无法加载黑名单");
+  assert.equal(application.refreshAccountBlocks(), true);
+  application.dispose();
 });
 
 test("keeps bounded search results in memory and abandons stale pages on disconnect", async () => {

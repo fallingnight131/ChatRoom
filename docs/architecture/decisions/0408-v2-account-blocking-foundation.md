@@ -71,6 +71,11 @@ server candidate without activating an incomplete client product path.
   now exposes a correlated request primitive and strictly validates the returned
   bound, target order, display-name encoding, block time, and continuation before
   application state can observe it.
+- The exact-gated Web application retains at most 500 directory rows in page
+  memory only. It refreshes on authentication/resume and after a correlated
+  mutation result, supports bounded explicit pagination, ignores stale response
+  identities, abandons ambiguous work on disconnect, and exposes only generic
+  failure. IndexedDB does not store the block graph and the UI remains separate.
 - The handler binds the actor from authenticated connection state, validates
   canonical payload identities, serializes at most eight pending mutations on
   the bounded messaging executor, and clears pending work at disconnect.
@@ -160,7 +165,10 @@ block-list evidence.
 TypeScript protocol tests additionally prove the list primitive is default-off,
 encodes only a canonical optional cursor and bound, correlates type 135 to the
 pending request, and rejects oversized or inconsistent pages. No Web application
-or UI list projection is composed by this transport-only step.
+or UI list projection was composed by that transport-only step. Application
+tests now prove authentication refresh, bounded merge/load-more, generic denial,
+disconnect abandonment, defensive snapshots, and authoritative refresh after a
+successful mutation; UI list presentation remains absent.
 Application tests reject oversized, unordered, duplicate, malformed-Unicode,
 and inconsistent-continuation projections. The disposable PostgreSQL gate proves
 target-ordered pagination independent of insertion order, current display-name

@@ -586,6 +586,21 @@ test("encodes and strictly validates the capability-gated account block director
   ));
   assert.equal(event.type, "account-block-directory-page");
 
+  const nonProgressing = client.listAccountBlocks(SECOND_ACCOUNT_ID, 2);
+  const nonProgressingRequest = decodeEnvelope(nonProgressing.bytes);
+  assert.throws(() => client.receive(response(
+    nonProgressingRequest,
+    MessageType.ACCOUNT_BLOCK_DIRECTORY_PAGE,
+    toBinary(AccountBlockDirectoryPageSchema, create(AccountBlockDirectoryPageSchema, {
+      blocks: [{
+        targetAccountId: SECOND_ACCOUNT_ID,
+        targetDisplayName: "Two",
+        blockedAtEpochMs: 1n,
+      }],
+    })),
+    { sessionId: SESSION_ID },
+  )), /invalid account block directory row/);
+
   const oversized = client.listAccountBlocks("", 1);
   const oversizedRequest = decodeEnvelope(oversized.bytes);
   assert.throws(() => client.receive(response(

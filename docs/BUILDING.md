@@ -1563,7 +1563,9 @@ this protocol-only expand step. The later gateway slice composes the request/pag
 behind the existing exact-default-off capability-7 boundary. The exact-gated Web
 protocol client now encodes type 134 and rejects uncorrelated, oversized,
 unordered, malformed-name, invalid-time, or inconsistent-cursor type-135 pages;
-application and UI list state remain uncomposed (ADR-0408).
+the application now owns a 500-row page-memory projection, refresh/load-more,
+disconnect containment, and post-mutation authoritative refresh. UI list state
+remains uncomposed (ADR-0408).
 Web reaction tests additionally verify account-scoped IndexedDB persistence,
 stable optimistic replay after reconnect history, ACK/history/live convergence,
 bounded fixed-kind aggregates, keyboard-native controls, pressed state, and

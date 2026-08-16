@@ -751,7 +751,8 @@ export class V2WebProtocolClient {
     if (event.type === "account-block-directory-page") {
       const expected = pending?.accountBlockDirectory;
       if (!expected) throw new Error("account block directory does not match a pending request");
-      validateAccountBlockDirectoryPage(event.value, expected.limit);
+      validateAccountBlockDirectoryPage(
+        event.value, expected.afterTargetAccountId, expected.limit);
     }
     if (event.type === "session-established" && envelope.sessionId !== event.value.sessionId) {
       throw new Error("established session does not match its envelope");
@@ -1209,6 +1210,7 @@ function validateMessageSearchPage(
 
 function validateAccountBlockDirectoryPage(
   page: AccountBlockDirectoryPage,
+  requestedAfterTargetAccountId: string,
   requestedLimit: number,
 ): void {
   if (page.blocks.length > requestedLimit
@@ -1226,6 +1228,8 @@ function validateAccountBlockDirectoryPage(
         || [...block.targetDisplayName].length > 100
         || block.blockedAtEpochMs <= 0n
         || targets.has(block.targetAccountId)
+        || (requestedAfterTargetAccountId
+          && block.targetAccountId <= requestedAfterTargetAccountId)
         || (previous && block.targetAccountId <= previous)) {
       throw new Error("invalid account block directory row");
     }

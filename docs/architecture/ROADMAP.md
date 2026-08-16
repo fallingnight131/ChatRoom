@@ -2319,6 +2319,10 @@ Candidate slices:
   - [x] Add the exact-gated Web type-134 transport command and strict correlated
     type-135 validation for bounded rows, current display names, ordering, block
     times, and continuation; keep application state and UI uncomposed.
+  - [x] Add a bounded page-memory Web block-directory application state with
+    authenticate/resume refresh, explicit refresh/load-more, stale response and
+    disconnect containment, generic failure, and authoritative refresh after a
+    mutation result; keep the UI uncomposed.
   - [x] Add an exact-default-off V2 gateway handler, negotiated capability,
     bounded execution, privacy-safe errors and metrics, plus real TLS/WSS and
     PostgreSQL mutation/direct-denial evidence.

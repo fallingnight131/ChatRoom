@@ -24,6 +24,8 @@ const HISTORY_PAGE_SIZE = 100;
 const DIRECTORY_PAGE_SIZE = 50;
 const PARTICIPANT_PAGE_SIZE = 100;
 const MAX_RETAINED_PARTICIPANTS = 500;
+const ACCOUNT_BLOCK_DIRECTORY_PAGE_SIZE = 100;
+const MAX_RETAINED_ACCOUNT_BLOCKS = 500;
 const SEARCH_PAGE_SIZE = 50;
 const MAX_RETAINED_SEARCH_HITS = 100;
 const MAX_RETAINED_ACCEPTED_MESSAGES = 500;
@@ -179,6 +181,7 @@ export interface V2ChatTransport {
     mentions?: readonly V2ConversationMention[]): string;
   setAccountBlock?(
     targetAccountId: string, blocked: boolean, clientOperationId: string): string;
+  listAccountBlocks?(afterTargetAccountId?: string, limit?: number): string;
   listDevices(): string;
   revokeDevice(targetDeviceId: string): string;
 }
@@ -215,6 +218,12 @@ export interface V2AccountBlockCommand {
   deliveryState: "sending" | "failed" | "applied";
   changed: boolean | null;
   errorCode: string;
+}
+
+export interface V2AccountBlockDirectoryItem {
+  targetAccountId: string;
+  targetDisplayName: string;
+  blockedAtEpochMs: number;
 }
 
 export interface V2WebChatSnapshot {
@@ -254,6 +263,10 @@ export interface V2WebChatSnapshot {
   notificationsEnabled: boolean;
   accountBlockingEnabled: boolean;
   accountBlockCommand: V2AccountBlockCommand | null;
+  accountBlocks: V2AccountBlockDirectoryItem[];
+  accountBlocksLoading: boolean;
+  accountBlocksHasMore: boolean;
+  accountBlocksFailure: string;
 }
 
 export interface V2WebChatApplicationOptions {
@@ -294,6 +307,14 @@ type SearchState = {
   failure: string;
 };
 
+type AccountBlockDirectoryState = {
+  values: V2AccountBlockDirectoryItem[];
+  nextTargetAccountId: string;
+  hasMore: boolean;
+  loading: boolean;
+  failure: string;
+};
+
 export class V2WebChatApplication {
   private readonly transport: V2ChatTransport;
   private readonly cache: V2ConversationCache;
@@ -328,6 +349,8 @@ export class V2WebChatApplication {
   private searchRequest: { requestId: string; conversationId: string; append: boolean } | null = null;
   private searchContextRequest: { requestId: string; conversationId: string } | null = null;
   private accountBlockCommandValue: V2AccountBlockCommand | null = null;
+  private accountBlockDirectoryState = emptyAccountBlockDirectoryState();
+  private accountBlockDirectoryRequest: { requestId: string; append: boolean } | null = null;
   private selectionGeneration = 0;
   private sessionGeneration = 0;
   private readonly replayedAtGeneration = new Map<string, number>();
@@ -393,6 +416,10 @@ export class V2WebChatApplication {
       accountBlockCommand: this.accountBlockCommandValue
         ? { ...this.accountBlockCommandValue }
         : null,
+      accountBlocks: this.accountBlockDirectoryState.values.map((value) => ({ ...value })),
+      accountBlocksLoading: this.accountBlockDirectoryState.loading,
+      accountBlocksHasMore: this.accountBlockDirectoryState.hasMore,
+      accountBlocksFailure: this.accountBlockDirectoryState.failure,
     };
   }
 
@@ -652,6 +679,29 @@ export class V2WebChatApplication {
       this.accountBlockCommandValue = null;
       this.emit();
     }
+  }
+
+  refreshAccountBlocks(): boolean {
+    this.requireActive();
+    if (!this.enableAccountBlocking || !this.transport.listAccountBlocks
+        || !this.sessionValue || this.connectionStateValue !== "authenticated"
+        || this.accountBlockDirectoryState.loading) return false;
+    this.accountBlockDirectoryState = {
+      values: [], nextTargetAccountId: "", hasMore: false, loading: true, failure: "",
+    };
+    return this.requestAccountBlockDirectoryPage(false);
+  }
+
+  loadMoreAccountBlocks(): boolean {
+    this.requireActive();
+    const state = this.accountBlockDirectoryState;
+    if (!this.enableAccountBlocking || !this.transport.listAccountBlocks
+        || !this.sessionValue || this.connectionStateValue !== "authenticated"
+        || state.loading || !state.hasMore || !state.nextTargetAccountId
+        || state.values.length >= MAX_RETAINED_ACCOUNT_BLOCKS) return false;
+    state.loading = true;
+    state.failure = "";
+    return this.requestAccountBlockDirectoryPage(true);
   }
 
   sendText(
@@ -1028,6 +1078,7 @@ export class V2WebChatApplication {
     this.searchContextRequest = null;
     this.searchState = emptySearchState();
     this.accountBlockCommandValue = null;
+    this.clearAccountBlockDirectory();
     this.clearDeviceState();
     this.replayedAtGeneration.clear();
     this.replayQueues.clear();
@@ -1052,6 +1103,7 @@ export class V2WebChatApplication {
     this.searchContextRequest = null;
     this.searchState = emptySearchState();
     this.accountBlockCommandValue = null;
+    this.clearAccountBlockDirectory();
     this.clearDeviceState();
   }
 
@@ -1072,6 +1124,7 @@ export class V2WebChatApplication {
       this.abandonParticipantRequest();
       this.abandonSearchRequest();
       this.searchContextRequest = null;
+      this.abandonAccountBlockDirectoryRequest();
     }
     this.emit();
   }
@@ -1113,6 +1166,7 @@ export class V2WebChatApplication {
           this.replayedAtGeneration.clear();
           this.clearDeviceState();
           this.accountBlockCommandValue = null;
+          this.clearAccountBlockDirectory();
         } else if (this.activeConversationIdValue) {
           const active = this.conversations.get(this.activeConversationIdValue);
           if (active) {
@@ -1127,6 +1181,7 @@ export class V2WebChatApplication {
         this.resetDeviceRequests();
         this.transport.listConversations(DIRECTORY_PAGE_SIZE);
         this.refreshDevices();
+        if (this.enableAccountBlocking) this.refreshAccountBlocks();
         break;
         }
       case "conversation-directory-page":
@@ -1173,7 +1228,13 @@ export class V2WebChatApplication {
           this.accountBlockCommandValue.deliveryState = "applied";
           this.accountBlockCommandValue.changed = event.value.changed;
           this.accountBlockCommandValue.errorCode = "";
+          this.accountBlockDirectoryState.loading = false;
+          this.accountBlockDirectoryRequest = null;
+          this.refreshAccountBlocks();
         }
+        break;
+      case "account-block-directory-page":
+        this.applyAccountBlockDirectoryPage(event);
         break;
       case "device-directory":
         if (event.requestId !== this.deviceListRequestId) break;
@@ -1212,6 +1273,7 @@ export class V2WebChatApplication {
         this.participantRequest = null;
         this.clearDeviceState();
         this.accountBlockCommandValue = null;
+        this.clearAccountBlockDirectory();
         break;
       default:
         break;
@@ -1514,6 +1576,12 @@ export class V2WebChatApplication {
       this.accountBlockCommandValue.errorCode = `PROTOCOL_${event.value.code}`;
       return;
     }
+    if (event.requestId === this.accountBlockDirectoryRequest?.requestId) {
+      this.accountBlockDirectoryRequest = null;
+      this.accountBlockDirectoryState.loading = false;
+      this.accountBlockDirectoryState.failure = "无法加载黑名单";
+      return;
+    }
     if (event.requestId === this.searchContextRequest?.requestId) {
       this.searchContextRequest = null;
       this.searchState.failure = "无法加载消息上下文";
@@ -1758,6 +1826,52 @@ export class V2WebChatApplication {
     }
   }
 
+  private requestAccountBlockDirectoryPage(append: boolean): boolean {
+    const listAccountBlocks = this.transport.listAccountBlocks;
+    if (!listAccountBlocks) return false;
+    const afterTargetAccountId = append
+      ? this.accountBlockDirectoryState.nextTargetAccountId : "";
+    try {
+      const requestId = listAccountBlocks.call(
+        this.transport, afterTargetAccountId, ACCOUNT_BLOCK_DIRECTORY_PAGE_SIZE);
+      this.accountBlockDirectoryRequest = { requestId, append };
+      this.emit();
+      return true;
+    } catch {
+      this.accountBlockDirectoryRequest = null;
+      this.accountBlockDirectoryState.loading = false;
+      this.accountBlockDirectoryState.failure = "无法加载黑名单";
+      this.emit();
+      return false;
+    }
+  }
+
+  private applyAccountBlockDirectoryPage(
+    event: Extract<V2WebProtocolEvent, { type: "account-block-directory-page" }>,
+  ): void {
+    const pending = this.accountBlockDirectoryRequest;
+    if (!pending || event.requestId !== pending.requestId) return;
+    this.accountBlockDirectoryRequest = null;
+    const existing = pending.append ? this.accountBlockDirectoryState.values : [];
+    const merged = new Map(existing.map((value) => [value.targetAccountId, value]));
+    for (const block of event.value.blocks) {
+      merged.set(block.targetAccountId, {
+        targetAccountId: block.targetAccountId,
+        targetDisplayName: block.targetDisplayName,
+        blockedAtEpochMs: Number(block.blockedAtEpochMs),
+      });
+    }
+    this.accountBlockDirectoryState.values = [...merged.values()]
+      .sort((left, right) => left.targetAccountId.localeCompare(right.targetAccountId))
+      .slice(0, MAX_RETAINED_ACCOUNT_BLOCKS);
+    this.accountBlockDirectoryState.nextTargetAccountId =
+      event.value.nextAfterTargetAccountId;
+    this.accountBlockDirectoryState.hasMore = event.value.hasMore
+      && this.accountBlockDirectoryState.values.length < MAX_RETAINED_ACCOUNT_BLOCKS;
+    this.accountBlockDirectoryState.loading = false;
+    this.accountBlockDirectoryState.failure = "";
+  }
+
   private clearDeviceState(): void {
     this.devicesValue = [];
     this.deviceFailureValue = "";
@@ -1897,6 +2011,16 @@ export class V2WebChatApplication {
     this.deviceRevokeRequestId = null;
   }
 
+  private abandonAccountBlockDirectoryRequest(): void {
+    this.accountBlockDirectoryRequest = null;
+    this.accountBlockDirectoryState.loading = false;
+  }
+
+  private clearAccountBlockDirectory(): void {
+    this.accountBlockDirectoryRequest = null;
+    this.accountBlockDirectoryState = emptyAccountBlockDirectoryState();
+  }
+
   private emit(): void {
     try { this.onChange?.(this.snapshot); } catch { /* views do not own application state */ }
     for (const observer of this.observers) {
@@ -1931,6 +2055,12 @@ function emptySearchState(): SearchState {
     hasMore: false,
     loading: false,
     failure: "",
+  };
+}
+
+function emptyAccountBlockDirectoryState(): AccountBlockDirectoryState {
+  return {
+    values: [], nextTargetAccountId: "", hasMore: false, loading: false, failure: "",
   };
 }
 

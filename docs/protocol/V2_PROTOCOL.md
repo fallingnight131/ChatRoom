@@ -171,8 +171,10 @@ returns type 135 through the same connection-serialized bounded executor as
 mutation. It rebinds the actor from authentication; client list routes remain
 uncomposed except for an exact-gated Web protocol/transport primitive that
 strictly validates correlation, rows, ordering, timestamps, and continuation.
-No Web application or UI state consumes it yet, so ordinary clients and rollback
-behavior are unchanged.
+The exact-gated Web application retains a bounded page-memory projection,
+refreshes it after authentication/resume and successful mutation, and abandons
+ambiguous requests on disconnect. No Web UI or durable client cache consumes it
+yet, so ordinary clients and rollback behavior are unchanged.
 
 The Web candidate correlates every search response with one active in-memory
 request and discards pages abandoned by disconnect or conversation change.
