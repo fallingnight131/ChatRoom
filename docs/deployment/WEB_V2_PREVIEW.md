@@ -93,8 +93,10 @@ The deterministic browser boundary uses Playwright WebSocket routing and exact
 generated Protobuf envelopes. It verifies the current view/application/transport
 composition without opening a real network connection, including a controlled
 socket close, memory-only session resume, ordered history repair, and browser
-offline/online simulation with a single explicit optimistic-message retry. It
-does not satisfy the real TLS, Origin/Host, gateway, database, physical network,
+offline/online simulation with a single explicit optimistic-message retry. The
+authenticated path also persists low-bandwidth mode and proves text submission
+remains available after enablement. It does not satisfy the real TLS, Origin/Host,
+gateway, database, physical network,
 edge-failover, or deployment checks above and must not be reported as release or
 capacity evidence.
 

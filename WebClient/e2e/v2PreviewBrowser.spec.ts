@@ -84,6 +84,12 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
   await expect(page.getByRole("button", { name: "复制消息 1 正文" })).toBeVisible();
   await expect(page.getByRole("button", { name: "回复消息 1" })).toBeVisible();
 
+  const lowBandwidth = page.getByLabel("省流量模式");
+  await expect(lowBandwidth).not.toBeChecked();
+  await lowBandwidth.check();
+  await expect(lowBandwidth).toBeChecked();
+  expect(await page.evaluate(() => localStorage.getItem("lowBandwidthMode"))).toBe("true");
+
   await page.getByLabel("消息内容").fill("Fixture outgoing message");
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(log.getByText("Fixture outgoing message")).toBeVisible();

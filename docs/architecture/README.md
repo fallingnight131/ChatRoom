@@ -2116,9 +2116,12 @@ configured WSS authority to a deterministic responder built from the generated
 Protobuf schemas, then drives the production view, application, transport, and
 protocol client through rejection, negotiation, authentication, directory and
 device synchronization, history rendering, optimistic text submission, and
-acceptance. A controlled socket restart additionally verifies memory-only session
-resume and sequence-based active-history repair while keeping the authenticated
-shell available. Browser offline/online simulation separately proves that the
+acceptance. The authenticated journey also persists the native low-bandwidth
+control and then sends successfully, guarding the rule that optional-media policy
+cannot gate messaging or synchronization. A controlled socket restart
+additionally verifies memory-only session resume and sequence-based active-history
+repair while keeping the authenticated shell available. Browser offline/online
+simulation separately proves that the
 transport creates no retry socket while offline, preserves a failed optimistic
 message for user-controlled retry, resumes once on recovery, and submits that
 stable message identity once. This browser boundary exposed and now guards two

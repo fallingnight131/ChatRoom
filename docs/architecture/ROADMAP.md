@@ -2427,6 +2427,9 @@ Candidate slices:
   - [x] Verify Web V2 browser offline/online behavior: no offline retry socket,
     retained failed optimistic text, one resumed connection, and one explicit
     stable-identity retry to acceptance.
+  - [x] Verify the authenticated V2 low-bandwidth control in Chromium/Firefox,
+    including persistence and a successful text send after enablement so the
+    optional-media policy cannot regress into a messaging gate.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

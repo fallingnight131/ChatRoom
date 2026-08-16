@@ -222,7 +222,9 @@ The tests are skipped in the ordinary default-off browser run. In Chromium and
 Firefox they verify the exact configured WSS URL, generated-Protobuf hello and
 authentication exchange, safe authentication rejection without credential
 persistence, directory/device synchronization, history rendering and accessible
-message actions, optimistic text submission, and server acceptance. Playwright
+message actions, persisted low-bandwidth preference, optimistic text submission,
+and server acceptance. The send after enabling low-bandwidth mode proves that the
+preference remains optional-media policy rather than a messaging gate. Playwright
 also closes the first routed socket, verifies automatic same-session resume with
 the memory-only proof, and repairs the active conversation from sequence 1 to 2
 without clearing the visible session. A separate browser offline/online case
