@@ -134,7 +134,10 @@ acceptance, stall synchronization, or reduce gateway readiness.
 - The subscription application use case consumes an account-free, zeroable
   request, binds only its authenticated caller, applies exact default-off and
   admission before protection, returns fixed outcomes, and closes secrets on
-  every path. HTTP authentication/Origin/CSRF and rate-limit adapters remain
+  every path. The detached HTTP contract adds an exact-default-off policy, one
+  bounded exact canonical-HTTPS Origin, a fixed server-session/CSRF decision,
+  and strict bounded JSON decoding with transport-byte clearing. The Netty
+  route, token issuer/store, worker executor, and rate-limit adapters remain
   uncomposed.
 - PostgreSQL recipient resolution now starts from the exact committed message,
   rechecks current membership/account/bilateral-block/recall truth, and returns

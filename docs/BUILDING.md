@@ -1489,6 +1489,18 @@ exact default-off behavior, admission before protection/persistence, bounded
 rate-limit results, quota/availability/delete mapping, and request cleanup after
 success, denial, or persistence failure. It is not an HTTP authentication,
 Origin/CSRF, parser/body-limit, Redis rate-limit, or endpoint integration gate.
+The detached HTTP policy and subscription JSON boundary are covered by:
+
+```bash
+cd Backend
+./gradlew --no-daemon :im-gateway:test --tests '*WebPushHttpBoundary*'
+```
+
+It proves exact-default-off configuration, one exact canonical HTTPS Origin,
+duplicate/unknown/malformed/oversized JSON rejection, browser field and key
+bounds, and transport-byte clearing. Its session/CSRF port is only a contract;
+this test does not issue tokens, install a Netty route, invoke PostgreSQL, or
+activate the API.
 The disposable PostgreSQL gate also verifies current Web Push recipient policy:
 complete ordered results or explicit saturation, sender/block/disabled-member
 exclusion, durable mention classification, recall suppression, active-only

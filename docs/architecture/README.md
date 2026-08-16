@@ -2002,7 +2002,16 @@ default-off policy and account/install/action admission boundary run before
 protection or persistence; fixed results represent disabled, rate-limited,
 quota, unavailable-account, replace, delete, and unchanged outcomes. Success,
 rejection, and exceptions all close request and registration secrets. No HTTP
-route, token/Origin/CSRF policy, or rate-limiter adapter is composed yet.
+route, token store, or rate-limiter adapter is composed yet.
+The detached HTTP transport contract is exact-default-off and accepts only one
+exact member of a bounded canonical-HTTPS Origin allowlist. Its synchronous
+server-issued session boundary returns only a fixed session/CSRF decision and
+an authenticated account/session actor. The strict streaming JSON decoder
+accepts only the browser subscription subset, detects duplicate and unknown
+fields, caps body/nesting/string/number sizes, validates Base64URL material via
+the application credential model, and clears its transport and decoded byte
+copies on success or rejection. No Netty route, token issuer/store, worker
+executor, status mapping, or runtime composition exists yet.
 The PostgreSQL notification read boundary now resolves only a committed,
 non-deleted, non-recalled source message and rechecks current active membership,
 enabled accounts, sender exclusion, and bilateral block policy. Results are

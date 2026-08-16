@@ -2425,8 +2425,11 @@ Candidate slices:
     - [x] Add the account-free, zeroable subscription request and authenticated-
       account application use case with exact default-off, pre-protection
       admission/rate-limit boundary, fixed outcomes, and failure-path cleanup.
-    - [ ] Add the default-off Netty HTTP route with strict session/token, Origin,
-      CSRF, JSON/body bounds, status mapping, and secret-free telemetry.
+    - [x] Add the exact-default-off HTTP policy, bounded exact canonical-HTTPS
+      Origin allowlist, server-issued session/CSRF authentication result port,
+      and strict zeroing browser-subscription JSON decoder.
+    - [ ] Add the Netty HTTP route with off-event-loop session/token and mutation
+      work, method/body bounds, status mapping, and secret-free telemetry.
     - [x] Add complete, ordered, limit+1 current-policy recipient resolution
       from committed non-recalled messages, rechecking membership, disabled
       accounts, bilateral block policy, mention classification, and explicit
