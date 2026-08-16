@@ -2402,6 +2402,8 @@ Candidate slices:
     durable-outbox, stable-identity, pending, dismissal, and focus boundaries.
   - [x] Migrate the Web V2 device-management dialog while preserving
     authenticated authority, stable IDs, current-device and pending guards.
+  - [x] Migrate Web V2 optimistic reactions while preserving protocol enums,
+    actor identity, per-reaction pending state, and stable-operation retry.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

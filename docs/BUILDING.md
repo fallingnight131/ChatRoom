@@ -176,6 +176,10 @@ state, locale-aware recent activity, reconnect restriction, revoke confirmation,
 loading/actions, and known application failure adapter. Source contracts retain
 authenticated-state gating, stable device IDs, current-device protection,
 single-revoke disabling, server application calls, and modal focus containment.
+The V2 optimistic-reaction slice localizes the fixed reaction names, compound
+message/count labels, retry action, and local failure feedback. Source contracts
+retain the protocol enum set, current-account pressed state, per-message and
+per-reaction pending lookup, stable operation-ID retry, and application calls.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

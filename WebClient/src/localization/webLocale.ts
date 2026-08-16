@@ -677,6 +677,23 @@ const v2PreviewDeviceCatalog = {
   },
 } as const;
 
+const v2PreviewReactionCatalog = {
+  "zh-CN": {
+    groupLabel: (sequence: string) => `回应消息 ${sequence}`, countLabel: (label: string, count: number) => `${label}，${count} 人`,
+    retryLabel: (sequence: string) => `重试消息 ${sequence} 的回应`, retry: "重试回应",
+    like: "赞", love: "喜欢", laugh: "好笑", surprised: "惊讶", sad: "难过", angry: "生气",
+    unavailable: "当前无法回应这条消息", failed: "回应失败",
+    retryUnavailable: "该回应暂时无法重试", retryFailed: "回应重试失败",
+  },
+  "en-US": {
+    groupLabel: (sequence: string) => `Reactions for message ${sequence}`, countLabel: (label: string, count: number) => `${label}, ${count} people`,
+    retryLabel: (sequence: string) => `Retry the reaction for message ${sequence}`, retry: "Retry reaction",
+    like: "Like", love: "Love", laugh: "Laugh", surprised: "Surprised", sad: "Sad", angry: "Angry",
+    unavailable: "This message cannot be reacted to right now", failed: "Reaction failed",
+    retryUnavailable: "This reaction cannot be retried right now", retryFailed: "Reaction retry failed",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -803,6 +820,10 @@ export function v2PreviewForwardMessages(locale: WebLocale) {
 
 export function v2PreviewDeviceMessages(locale: WebLocale) {
   return v2PreviewDeviceCatalog[locale];
+}
+
+export function v2PreviewReactionMessages(locale: WebLocale) {
+  return v2PreviewReactionCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

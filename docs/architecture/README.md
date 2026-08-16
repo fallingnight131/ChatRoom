@@ -2076,8 +2076,11 @@ device management now also follows the locale for security guidance, platform
 and current-device presentation, recent activity, connection restrictions,
 revoke confirmation, and known application failures. Authentication state,
 stable device IDs, current-device protection, one revocation at a time, and all
-server-authoritative refresh/revoke decisions remain unchanged. V2
-edit/reaction/pin mutations remain later slices.
+server-authoritative refresh/revoke decisions remain unchanged. Optimistic
+reactions now localize their fixed names, compound counts, retry and local
+failures while preserving protocol enums, current-account pressed state,
+per-message/per-reaction pending identity, and stable operation-ID retry. V2
+edit and pin mutations remain later slices.
 
 ### Product consistency
 

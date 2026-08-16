@@ -187,11 +187,11 @@
                   </template>
                 </div>
                 <div v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
-                     class="reaction-bar" role="group" :aria-label="`回应消息 ${message.sequence}`">
+                     class="reaction-bar" role="group" :aria-label="reactionMessages.groupLabel(message.sequence)">
                   <button v-for="reaction in reactionChoices" :key="reaction.kind"
                           :class="['reaction-button', { active: reactionActive(message, reaction.kind) }]"
                           type="button" :aria-pressed="reactionActive(message, reaction.kind)"
-                          :aria-label="`${reaction.label}，${reactionCount(message, reaction.kind)} 人`"
+                          :aria-label="reactionMessages.countLabel(reaction.label, reactionCount(message, reaction.kind))"
                           :disabled="reactionPending(message, reaction.kind)"
                           @click="toggleReaction(message, reaction.kind)">
                     <span aria-hidden="true">{{ reaction.emoji }}</span>
@@ -199,9 +199,9 @@
                   </button>
                 </div>
                 <button v-if="failedReaction(message)" class="retry-link" type="button"
-                        :aria-label="`重试消息 ${message.sequence} 的回应`"
+                        :aria-label="reactionMessages.retryLabel(message.sequence)"
                         @click="retryReaction(failedReaction(message).clientOperationId)">
-                  重试回应
+                  {{ reactionMessages.retry }}
                 </button>
                 <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
                         class="pin-link" type="button" :aria-pressed="message.pinned"
@@ -405,6 +405,7 @@ import {
   v2PreviewDeviceMessages,
   v2PreviewForwardMessages,
   v2PreviewMentionMessages,
+  v2PreviewReactionMessages,
   v2PreviewSearchMessages,
   v2PreviewShellMessages,
   v2PreviewTimelineMessages,
@@ -428,6 +429,7 @@ const composerMessages = computed(() => composerCatalogMessages(userStore.locale
 const v2ComposerMessages = computed(() => v2PreviewComposerMessages(userStore.locale))
 const deviceMessages = computed(() => v2PreviewDeviceMessages(userStore.locale))
 const mentionMessages = computed(() => v2PreviewMentionMessages(userStore.locale))
+const reactionMessages = computed(() => v2PreviewReactionMessages(userStore.locale))
 const forwardMessages = computed(() => v2PreviewForwardMessages(userStore.locale))
 const username = ref('')
 const password = ref('')
@@ -527,14 +529,14 @@ const connectionLabel = computed(() => ({
 const connectionTone = computed(() => snapshot.value.connectionState === 'authenticated'
   ? 'ok' : ['offline', 'reconnect-wait'].includes(snapshot.value.connectionState) ? 'warn' : '')
 const canManageDevices = computed(() => snapshot.value.connectionState === 'authenticated')
-const reactionChoices = [
-  { kind: MessageReactionKind.LIKE, emoji: '👍', label: '赞' },
-  { kind: MessageReactionKind.LOVE, emoji: '❤️', label: '喜欢' },
-  { kind: MessageReactionKind.LAUGH, emoji: '😂', label: '好笑' },
-  { kind: MessageReactionKind.SURPRISED, emoji: '😮', label: '惊讶' },
-  { kind: MessageReactionKind.SAD, emoji: '😢', label: '难过' },
-  { kind: MessageReactionKind.ANGRY, emoji: '😠', label: '生气' }
-]
+const reactionChoices = computed(() => [
+  { kind: MessageReactionKind.LIKE, emoji: '👍', label: reactionMessages.value.like },
+  { kind: MessageReactionKind.LOVE, emoji: '❤️', label: reactionMessages.value.love },
+  { kind: MessageReactionKind.LAUGH, emoji: '😂', label: reactionMessages.value.laugh },
+  { kind: MessageReactionKind.SURPRISED, emoji: '😮', label: reactionMessages.value.surprised },
+  { kind: MessageReactionKind.SAD, emoji: '😢', label: reactionMessages.value.sad },
+  { kind: MessageReactionKind.ANGRY, emoji: '😠', label: reactionMessages.value.angry },
+])
 
 function attachRuntime(runtime) {
   unsubscribe?.()
@@ -781,10 +783,10 @@ function toggleReaction(message, reaction) {
   actionError.value = ''
   try {
     if (!runtimeRef.value.application.setReaction(message.id, reaction)) {
-      actionError.value = '当前无法回应这条消息'
+      actionError.value = reactionMessages.value.unavailable
     }
   } catch (error) {
-    actionError.value = error instanceof Error ? error.message : '回应失败'
+    actionError.value = error instanceof Error ? error.message : reactionMessages.value.failed
   }
 }
 
@@ -792,10 +794,10 @@ function retryReaction(clientOperationId) {
   actionError.value = ''
   try {
     if (!runtimeRef.value.application.retryReaction(clientOperationId)) {
-      actionError.value = '该回应暂时无法重试'
+      actionError.value = reactionMessages.value.retryUnavailable
     }
   } catch (error) {
-    actionError.value = error instanceof Error ? error.message : '回应重试失败'
+    actionError.value = error instanceof Error ? error.message : reactionMessages.value.retryFailed
   }
 }
 
