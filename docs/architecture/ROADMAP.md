@@ -2461,6 +2461,10 @@ Candidate slices:
       emits fixed-cardinality loop telemetry; keep executor ownership detached.
     - [ ] Add the real provider adapter, owned bounded scheduler/worker pool,
       readiness/backlog policy, and failure canary.
+      - [x] Add a detached RFC 8291/RFC 8188 single-record `aes128gcm`
+        encoder with fresh ephemeral P-256 key/salt, the 3993-byte provider
+        bound, secret-intermediate clearing, malformed-key refusal, and the
+        complete RFC Appendix A known-answer vector; VAPID/HTTP remain open.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
     - [x] Add the pure Service Worker payload boundary with exact version/field/

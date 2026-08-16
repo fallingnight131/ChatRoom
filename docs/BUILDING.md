@@ -1619,6 +1619,21 @@ authenticated-actor binding, unavailable-session mapping, redaction, and
 cleanup. Regenerate all client bindings with
 `:protocol-v2:generateClientBindings`. No default client capability or Web
 credential lease bridge exists yet.
+
+The detached RFC 8291 payload encoder can be verified independently with:
+
+```bash
+cd Backend
+JAVA_HOME=/path/to/jdk-21 ./gradlew --no-daemon :identity-crypto:test \
+  --tests '*Rfc8291WebPushPayloadEncoderTest'
+```
+
+It reproduces the complete RFC 8291 Appendix A `aes128gcm` body byte-for-byte,
+including the 86-byte RFC 8188 header, and rejects empty/over-3993-byte content,
+malformed P-256 keys, and non-16-byte authentication secrets. Production calls
+generate a fresh ephemeral P-256 key pair and 16-byte salt. This encoder is
+detached: it does not create VAPID assertions, send HTTP, retain endpoint data,
+or activate a provider worker.
 The detached gateway issuance and HTTP bridge can be selected with:
 
 ```bash

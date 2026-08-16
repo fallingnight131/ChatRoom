@@ -205,6 +205,14 @@ resume proof or activate a gateway/client path.
   validates claim ownership, isolates claims, applies capped polling/backoff,
   and cancels pending scheduling on close. Real provider, owned executors,
   readiness policy, metrics endpoint, and runtime composition remain open.
+- A detached identity-crypto encoder now implements the RFC 8291 profile of
+  RFC 8188: one `aes128gcm` record, a fresh ephemeral P-256 key pair and random
+  16-byte salt, exact 86-byte header, 3993-byte plaintext ceiling, and fixed
+  HKDF/AES-GCM inputs. The complete RFC 8291 Appendix A body is a byte-for-byte
+  known-answer test, invalid subscription key/auth shape fails closed, and
+  clearable intermediate byte arrays are erased. VAPID signing, HTTP transport,
+  provider status classification, key custody, and runtime composition remain
+  separate open work.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

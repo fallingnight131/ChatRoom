@@ -2062,6 +2062,13 @@ cancels pending schedules on close. Its counters and scheduling gauges are
 fixed-name and label-free. These pieces are detached operational policy only:
 no real Web Push protocol adapter, owned scheduler/worker pool, readiness
 policy, metrics endpoint, or runtime composition exists.
+A detached identity-crypto slice now produces the provider body defined by RFC
+8291 and RFC 8188: one bounded `aes128gcm` record with a fresh ephemeral P-256
+key and salt, an exact content-coding header, and code-owned generic identity
+payload input. The complete RFC Appendix A output is locked byte-for-byte and
+invalid key/auth shapes fail closed. This is encryption evidence only; VAPID,
+HTTP delivery/status mapping, provider key custody, owned executors, readiness,
+and runtime activation remain open.
 The Web client now has a pure Service Worker payload boundary. It accepts only
 schema version 1, three canonical stable UUIDs, and the structural mention
 boolean within 2 KiB; unknown fields, message text, malformed identity, and
