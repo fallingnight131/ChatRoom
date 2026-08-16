@@ -2430,6 +2430,9 @@ Candidate slices:
   - [x] Verify the authenticated V2 low-bandwidth control in Chromium/Firefox,
     including persistence and a successful text send after enablement so the
     optional-media policy cannot regress into a messaging gate.
+  - [x] Verify authenticated V2 multi-conversation Arrow/Home focus without
+    accidental activation, plus named navigation and polite-live log semantics,
+    in Chromium and Firefox.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

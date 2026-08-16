@@ -225,6 +225,9 @@ persistence, directory/device synchronization, history rendering and accessible
 message actions, persisted low-bandwidth preference, optimistic text submission,
 and server acceptance. The send after enabling low-bandwidth mode proves that the
 preference remains optional-media policy rather than a messaging gate. Playwright
+also exposes two server-directory entries and verifies Arrow Down/Home move only
+browser focus, leave `aria-current` unset until activation, and retain the named
+polite-live message log after opening the selected conversation. The fixture
 also closes the first routed socket, verifies automatic same-session resume with
 the memory-only proof, and repairs the active conversation from sequence 1 to 2
 without clearing the visible session. A separate browser offline/online case

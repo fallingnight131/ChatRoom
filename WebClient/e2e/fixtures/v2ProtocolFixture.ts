@@ -49,6 +49,7 @@ const PEER_ACCOUNT_ID = "20000000-0000-4000-8000-000000000002";
 const PEER_DEVICE_ID = "30000000-0000-4000-8000-000000000002";
 const SESSION_ID = "40000000-0000-4000-8000-000000000001";
 export const FIXTURE_CONVERSATION_ID = "50000000-0000-4000-8000-000000000001";
+const KEYBOARD_CONVERSATION_ID = "50000000-0000-4000-8000-000000000002";
 const INCOMING_MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 const OUTGOING_MESSAGE_ID = "60000000-0000-4000-8000-000000000002";
 const EXPECTED_USERNAME = "browser_v2_user";
@@ -132,9 +133,17 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
                 latestSequence: resumed ? 2n : 1n,
                 lastReadSequence: 0n,
                 updatedAtEpochMs: NOW,
+              }, {
+                conversationId: KEYBOARD_CONVERSATION_ID,
+                kind: ConversationKind.DIRECT,
+                displayName: "Keyboard Target Conversation",
+                role: ConversationRole.MEMBER,
+                latestSequence: 0n,
+                lastReadSequence: 0n,
+                updatedAtEpochMs: NOW - 1_000n,
               }],
-              nextUpdatedAtEpochMs: NOW,
-              nextConversationId: FIXTURE_CONVERSATION_ID,
+              nextUpdatedAtEpochMs: NOW - 1_000n,
+              nextConversationId: KEYBOARD_CONVERSATION_ID,
               hasMore: false,
             }, { sessionId: SESSION_ID });
         case MessageType.LIST_DEVICES:

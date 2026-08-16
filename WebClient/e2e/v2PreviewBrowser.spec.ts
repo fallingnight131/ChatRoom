@@ -76,10 +76,20 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
 
   const navigation = page.getByRole("navigation", { name: "V2 会话导航" });
   await expect(navigation).toBeVisible();
-  await expect(page.getByRole("button", { name: /Browser Fixture Conversation/ })).toBeVisible();
-  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+  const primaryConversation = page.getByRole("button", { name: /Browser Fixture Conversation/ });
+  const keyboardConversation = page.getByRole("button", { name: /Keyboard Target Conversation/ });
+  await expect(primaryConversation).toBeVisible();
+  await primaryConversation.focus();
+  await primaryConversation.press("ArrowDown");
+  await expect(keyboardConversation).toBeFocused();
+  await keyboardConversation.press("Home");
+  await expect(primaryConversation).toBeFocused();
+  await expect(primaryConversation).not.toHaveAttribute("aria-current", "page");
+  await expect(keyboardConversation).not.toHaveAttribute("aria-current", "page");
+  await primaryConversation.click();
 
   const log = page.getByRole("log", { name: "消息记录" });
+  await expect(log).toHaveAttribute("aria-live", "polite");
   await expect(log.getByText("Fixture incoming message")).toBeVisible();
   await expect(page.getByRole("button", { name: "复制消息 1 正文" })).toBeVisible();
   await expect(page.getByRole("button", { name: "回复消息 1" })).toBeVisible();

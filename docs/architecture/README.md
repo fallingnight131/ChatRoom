@@ -2118,11 +2118,15 @@ protocol client through rejection, negotiation, authentication, directory and
 device synchronization, history rendering, optimistic text submission, and
 acceptance. The authenticated journey also persists the native low-bandwidth
 control and then sends successfully, guarding the rule that optional-media policy
-cannot gate messaging or synchronization. A controlled socket restart
+cannot gate messaging or synchronization. The same authenticated browser
+boundary verifies that two server-authoritative
+conversation buttons expose a named navigation landmark, Arrow/Home moves focus
+without mutating selection, and the opened timeline is a named polite-live log.
+A controlled socket restart
 additionally verifies memory-only session resume and sequence-based active-history
 repair while keeping the authenticated shell available. Browser offline/online
-simulation separately proves that the
-transport creates no retry socket while offline, preserves a failed optimistic
+simulation separately proves that the transport creates no retry socket while
+offline, preserves a failed optimistic
 message for user-controlled retry, resumes once on recovery, and submits that
 stable message identity once. This browser boundary exposed and now guards two
 composition defects: deep-readonly proxying of mutable application instances and

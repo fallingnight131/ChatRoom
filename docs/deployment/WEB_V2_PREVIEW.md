@@ -95,10 +95,11 @@ composition without opening a real network connection, including a controlled
 socket close, memory-only session resume, ordered history repair, and browser
 offline/online simulation with a single explicit optimistic-message retry. The
 authenticated path also persists low-bandwidth mode and proves text submission
-remains available after enablement. It does not satisfy the real TLS, Origin/Host,
-gateway, database, physical network,
-edge-failover, or deployment checks above and must not be reported as release or
-capacity evidence.
+remains available after enablement. It also verifies multi-conversation keyboard
+focus is non-activating and that navigation/log landmarks reach the browser
+accessibility tree. It does not satisfy the real TLS, Origin/Host, gateway,
+database, physical network, edge-failover, or deployment checks above and must
+not be reported as release or capacity evidence.
 
 Use the gateway-first activation and client-first rollback sequence in
 [`MESSAGE_FORWARDING_ACTIVATION.md`](MESSAGE_FORWARDING_ACTIVATION.md). A Web
