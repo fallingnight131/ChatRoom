@@ -117,6 +117,18 @@ target_include_directories(
 target_link_libraries(v2_windows_conversation_participant_view_model_test PRIVATE Qt6::Core)
 
 add_executable(
+  v2_windows_message_search_view_model_test
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsMessageSearchViewModelTest.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessageSearchViewModel.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessageSearchViewModel.h"
+)
+set_target_properties(v2_windows_message_search_view_model_test PROPERTIES AUTOMOC ON)
+target_compile_features(v2_windows_message_search_view_model_test PRIVATE cxx_std_17)
+target_include_directories(v2_windows_message_search_view_model_test PRIVATE
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client")
+target_link_libraries(v2_windows_message_search_view_model_test PRIVATE Qt6::Core)
+
+add_executable(
   v2_windows_mention_composer_test
   "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsMentionComposerTest.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMentionComposer.cpp"
@@ -331,6 +343,7 @@ if(MSVC)
   target_compile_options(v2_windows_conversation_directory_protocol_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_conversation_participant_protocol_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_conversation_participant_view_model_test PRIVATE /W4 /WX)
+  target_compile_options(v2_windows_message_search_view_model_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_mention_composer_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_messaging_application_test PRIVATE /W4 /WX)
 else()
@@ -342,6 +355,8 @@ else()
     v2_windows_conversation_participant_protocol_test PRIVATE -Wall -Wextra -Werror)
   target_compile_options(
     v2_windows_conversation_participant_view_model_test PRIVATE -Wall -Wextra -Werror)
+  target_compile_options(
+    v2_windows_message_search_view_model_test PRIVATE -Wall -Wextra -Werror)
   target_compile_options(v2_windows_mention_composer_test PRIVATE -Wall -Wextra -Werror)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(
@@ -379,6 +394,9 @@ add_test(
 add_test(
   NAME v2_windows_conversation_participant_view_model
   COMMAND v2_windows_conversation_participant_view_model_test)
+add_test(
+  NAME v2_windows_message_search_view_model
+  COMMAND v2_windows_message_search_view_model_test)
 add_test(NAME v2_windows_mention_composer COMMAND v2_windows_mention_composer_test)
 add_test(NAME v2_windows_messaging_application COMMAND v2_windows_messaging_application_test)
 add_test(NAME v2_windows_session_protocol COMMAND v2_windows_session_protocol_test)

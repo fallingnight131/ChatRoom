@@ -2229,6 +2229,9 @@ Progress:
       - [x] Admit Windows type 126 only for the immutable search candidate and
         route correlated type 127 responses through the existing authenticated
         WSS request bound; ordinary builds reject search and reconnect clears it.
+      - [x] Add a detached Windows search ViewModel with 100-hit in-memory
+        bounds, stable-ID deduplication, conversation/query correlation,
+        continuation state, disconnect clearing, and no SQLite dependency.
 
 Candidate slices:
 

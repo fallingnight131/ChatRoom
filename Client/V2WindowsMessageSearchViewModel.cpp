@@ -1,0 +1,99 @@
+#include "V2WindowsMessageSearchViewModel.h"
+
+#include <QSet>
+#include <stdexcept>
+#include <utility>
+
+V2WindowsMessageSearchViewModel::V2WindowsMessageSearchViewModel(
+        Request request, QObject *parent)
+    : QObject(parent), m_request(std::move(request)) {
+    if (!m_request) throw std::invalid_argument("invalid Windows search view model");
+}
+
+bool V2WindowsMessageSearchViewModel::activate(const QString &conversationId) {
+    if (conversationId.isEmpty()) return false;
+    if (conversationId == m_conversationId) return true;
+    m_conversationId = conversationId;
+    m_query.clear();
+    m_rows.clear();
+    m_nextBeforeSequence = 0;
+    m_busy = false;
+    m_hasMore = false;
+    m_failure.clear();
+    emit changed();
+    return true;
+}
+
+bool V2WindowsMessageSearchViewModel::search(const QString &literalQuery) {
+    const QString query = literalQuery.trimmed();
+    if (m_conversationId.isEmpty() || m_busy || query.isEmpty()
+            || query.toUtf8().size() > 128)
+        return false;
+    m_query = query;
+    m_rows.clear();
+    m_nextBeforeSequence = 0;
+    m_hasMore = false;
+    m_failure.clear();
+    m_busy = true;
+    emit changed();
+    if (m_request(m_conversationId, m_query, 0, false)) return true;
+    m_busy = false;
+    m_failure = QStringLiteral("无法搜索消息");
+    emit changed();
+    return false;
+}
+
+bool V2WindowsMessageSearchViewModel::loadMore() {
+    if (m_conversationId.isEmpty() || m_query.isEmpty() || m_busy
+            || !m_hasMore || m_rows.size() >= MaximumRows
+            || m_nextBeforeSequence == 0)
+        return false;
+    m_busy = true;
+    m_failure.clear();
+    emit changed();
+    if (m_request(m_conversationId, m_query, m_nextBeforeSequence, true)) return true;
+    m_busy = false;
+    m_failure = QStringLiteral("无法加载更多搜索结果");
+    emit changed();
+    return false;
+}
+
+void V2WindowsMessageSearchViewModel::applyPage(
+        const QString &conversationId, const QString &query,
+        QVector<Row> rows, bool append,
+        quint64 nextBeforeSequence, bool hasMore) {
+    if (conversationId != m_conversationId || query != m_query) return;
+    if (!append) m_rows.clear();
+    QSet<QString> identities;
+    for (const auto &row : std::as_const(m_rows)) identities.insert(row.messageId);
+    for (auto &row : rows) {
+        if (!identities.contains(row.messageId) && m_rows.size() < MaximumRows) {
+            identities.insert(row.messageId);
+            m_rows.append(std::move(row));
+        }
+    }
+    m_nextBeforeSequence = nextBeforeSequence;
+    m_busy = false;
+    m_hasMore = hasMore && nextBeforeSequence > 0 && m_rows.size() < MaximumRows;
+    m_failure.clear();
+    emit changed();
+}
+
+void V2WindowsMessageSearchViewModel::applyFailure(
+        const QString &conversationId, const QString &query,
+        const QString &safeReason) {
+    if (conversationId != m_conversationId || query != m_query) return;
+    m_busy = false;
+    m_failure = safeReason.isEmpty() ? QStringLiteral("搜索请求失败") : safeReason;
+    emit changed();
+}
+
+void V2WindowsMessageSearchViewModel::setUnavailable() {
+    m_query.clear();
+    m_rows.clear();
+    m_nextBeforeSequence = 0;
+    m_busy = false;
+    m_hasMore = false;
+    m_failure = QStringLiteral("搜索服务已断开，请重连后重试");
+    emit changed();
+}

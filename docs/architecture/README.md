@@ -872,6 +872,11 @@ WSS transport now admits type 126 only for an enabled candidate and routes its
 correlated type 127 response under the shared 32-request bound; ordinary builds
 reject the command and reconnect abandons it. Application state and UI remain
 detached in this slice.
+The detached Windows search ViewModel now owns a maximum of 100 transient hits,
+deduplicates by stable message ID, correlates late pages to both conversation
+and normalized query, and clears all query/result memory on disconnect. It has
+no SQLite dependency and cannot advance the ordinary message synchronization
+cursor. Controller composition and Widgets presentation remain separate.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

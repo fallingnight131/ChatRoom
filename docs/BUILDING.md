@@ -2100,6 +2100,11 @@ search controller is composed. The authenticated WSS transport now admits type
 correlated type 127 response through its existing 32-request bound. The ordinary
 transport rejects type 126. Socket loss clears the shared correlation set, so a
 query is never guessed or replayed after resume.
+The detached Windows search ViewModel keeps only the active conversation and
+trimmed query plus at most 100 deduplicated message projections in memory. It
+correlates pages to both conversation and query, caps continuation at the last
+validated cursor, and clears query/results on disconnect. It has no repository
+dependency and therefore cannot write search terms or result pages to SQLite.
 CI compiles a separate, non-published forwarding-enabled `ChatClient` and runs
 the target-dialog Widgets test without replacing the ordinary default-off
 Windows verification payload. The Web baseline likewise compiles an enabled
