@@ -90,11 +90,13 @@
 <script setup>
 import { ref, inject, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
 import { chatWs, MsgType } from '../services/websocket'
 
 const emit = defineEmits(['close'])
 const router = useRouter()
+const chatStore = useChatStore()
 const userStore = useUserStore()
 const hashColor = inject('hashColor')
 
