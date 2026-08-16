@@ -109,7 +109,8 @@ int main(int argc, char **argv) {
         chat::v2::MESSAGE_TYPE_SESSION_ESTABLISHED,
         authentication.request_id(), sessionId, established));
     if (!check(sent.size() == 2 && controller.viewModel()->authenticated()
-                   && messagingReady && controller.messagingViewModel(),
+                   && messagingReady && controller.messagingViewModel()
+                   && !controller.messageSearchViewModel(),
                QStringLiteral("session establishment did not request devices and conversations"))) return 1;
     chat::v2::Envelope list;
     for (const auto &frame : std::as_const(sent)) {

@@ -2232,6 +2232,9 @@ Progress:
       - [x] Add a detached Windows search ViewModel with 100-hit in-memory
         bounds, stable-ID deduplication, conversation/query correlation,
         continuation state, disconnect clearing, and no SQLite dependency.
+      - [x] Compose search only in an enabled authenticated Windows controller,
+        route bounded queries over the shared WSS transport, project correlated
+        pages in memory, and expose no search state from ordinary controllers.
 
 Candidate slices:
 

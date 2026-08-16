@@ -41,6 +41,7 @@ public:
     Command search(const std::string &conversationId, const std::string &literalQuery,
                    std::uint64_t beforeSequence, std::uint32_t limit);
     Event receive(const std::string &bytes);
+    void abandon(const std::string &requestId);
     std::size_t pendingCount() const { return m_pending.size(); }
 
 private:

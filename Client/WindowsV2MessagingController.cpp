@@ -7,6 +7,8 @@
 #include "V2WindowsConversationDirectoryViewModel.h"
 #include "V2WindowsConversationParticipantProtocolClient.h"
 #include "V2WindowsConversationParticipantViewModel.h"
+#include "V2WindowsMessageSearchProtocolClient.h"
+#include "V2WindowsMessageSearchViewModel.h"
 #include "chat/v2/control.pb.h"
 #include "chat/v2/envelope.pb.h"
 
@@ -17,14 +19,16 @@ WindowsV2MessagingController::WindowsV2MessagingController(
         V2WindowsDeviceManagementTransport *transport,
         RepositoryFactory repositoryFactory,
         QObject *parent,
-        bool enableMessageForwarding)
+        bool enableMessageForwarding,
+        bool enableMessageSearch)
     : QObject(parent), m_transport(transport),
       m_repositoryFactory(repositoryFactory ? std::move(repositoryFactory)
           : [](const QString &accountId) {
               return std::make_unique<V2LocalMessageRepository>(
                   V2LocalMessageRepository::defaultDatabasePath(accountId));
           }),
-      m_messageForwardingEnabled(enableMessageForwarding) {
+      m_messageForwardingEnabled(enableMessageForwarding),
+      m_messageSearchEnabled(enableMessageSearch) {
     if (!m_transport || !m_repositoryFactory)
         throw std::invalid_argument("invalid Windows V2 messaging controller");
     connect(m_transport, &V2WindowsDeviceManagementTransport::authenticated,
@@ -56,6 +60,18 @@ WindowsV2MessagingController::WindowsV2MessagingController(
             [this](const QString &conversationId, bool continuation) {
                 return requestParticipants(conversationId, continuation);
             });
+    if (m_messageSearchEnabled) {
+        m_searchProtocol = std::make_unique<V2WindowsMessageSearchProtocolClient>(
+            V2WindowsMessageSearchProtocolClient::RequestIdFactory{},
+            V2WindowsMessageSearchProtocolClient::Clock{},
+            m_messageForwardingEnabled);
+        m_searchViewModel = std::make_unique<V2WindowsMessageSearchViewModel>(
+            [this](const QString &conversationId, const QString &query,
+                   quint64 beforeSequence, bool continuation) {
+                return requestSearch(
+                    conversationId, query, beforeSequence, continuation);
+            });
+    }
 }
 
 WindowsV2MessagingController::~WindowsV2MessagingController() {
@@ -76,10 +92,16 @@ WindowsV2MessagingController::participantViewModel() const {
     return m_participantViewModel.get();
 }
 
+V2WindowsMessageSearchViewModel *
+WindowsV2MessagingController::searchViewModel() const {
+    return m_searchViewModel.get();
+}
+
 bool WindowsV2MessagingController::openConversation(const QString &conversationId) {
     if (!m_viewModel || !m_service || !m_viewModel->openConversation(conversationId))
         return false;
     if (m_service->connected()) m_service->requestHistory(conversationId);
+    if (m_searchViewModel) m_searchViewModel->activate(conversationId);
     return true;
 }
 
@@ -180,6 +202,7 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
     try {
         m_directoryProtocol->bindSession(sessionId.toStdString());
         m_participantProtocol->bindSession(sessionId.toStdString());
+        if (m_searchProtocol) m_searchProtocol->bindSession(sessionId.toStdString());
     } catch (...) {
         m_transport->rejectMessagingProtocol();
         return;
@@ -201,6 +224,39 @@ void WindowsV2MessagingController::receiveFrame(const QByteArray &frame) {
         return;
     }
     const QString requestId = QString::fromStdString(envelope.request_id());
+    if (m_searchProtocol && (envelope.message_type()
+            == chat::v2::MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE
+            || (envelope.message_type() == chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR
+                && m_searchRequests.contains(requestId)))) {
+        const SearchRequest context = m_searchRequests.take(requestId);
+        try {
+            const auto event = m_searchProtocol->receive(
+                std::string(frame.constData(), static_cast<std::size_t>(frame.size())));
+            if (event.type == V2WindowsMessageSearchProtocolClient::EventType::ProtocolError) {
+                m_searchViewModel->applyFailure(
+                    context.conversationId, context.query,
+                    QStringLiteral("无法搜索该会话"));
+                return;
+            }
+            QVector<V2WindowsMessageSearchViewModel::Row> rows;
+            rows.reserve(static_cast<qsizetype>(event.hits.size()));
+            for (const auto &hit : event.hits) {
+                rows.append({QString::fromStdString(hit.messageId),
+                    hit.conversationSequence,
+                    QString::fromStdString(hit.senderAccountId),
+                    QString::fromStdString(hit.text), hit.acceptedAtEpochMs,
+                    hit.contentRevision, hit.editedAtEpochMs});
+            }
+            m_searchViewModel->applyPage(
+                QString::fromStdString(event.conversationId), context.query,
+                std::move(rows), context.continuation,
+                event.nextBeforeSequence, event.hasMore);
+            return;
+        } catch (...) {
+            m_transport->rejectMessagingProtocol();
+            return;
+        }
+    }
     if (envelope.message_type()
             == chat::v2::MESSAGE_TYPE_CONVERSATION_PARTICIPANT_PAGE
             || (envelope.message_type() == chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR
@@ -307,6 +363,9 @@ void WindowsV2MessagingController::abandonSession() {
     m_participantCursor.clear();
     m_participantRequests.clear();
     m_participantViewModel->setUnavailable();
+    if (m_searchProtocol) m_searchProtocol->clearSession();
+    m_searchRequests.clear();
+    if (m_searchViewModel) m_searchViewModel->setUnavailable();
 }
 
 bool WindowsV2MessagingController::requestParticipants(
@@ -342,5 +401,23 @@ bool WindowsV2MessagingController::requestDirectory(bool continuation) {
         m_directoryProtocol->clearSession();
     } catch (...) {}
     m_directoryContinuationPending = false;
+    return false;
+}
+
+bool WindowsV2MessagingController::requestSearch(
+        const QString &conversationId, const QString &query,
+        quint64 beforeSequence, bool continuation) {
+    if (!m_searchProtocol || !m_searchViewModel) return false;
+    try {
+        const auto command = m_searchProtocol->search(
+            conversationId.toStdString(), query.toStdString(), beforeSequence, 20);
+        if (m_transport->sendMessagingFrame(QByteArray(
+                command.bytes.data(), static_cast<qsizetype>(command.bytes.size())))) {
+            m_searchRequests.insert(QString::fromStdString(command.requestId),
+                {conversationId, query, continuation});
+            return true;
+        }
+        m_searchProtocol->abandon(command.requestId);
+    } catch (...) {}
     return false;
 }

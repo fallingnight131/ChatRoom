@@ -3,6 +3,7 @@
 #include "V2WindowsDeviceManagementTransport.h"
 #include "V2WindowsConversationDirectoryProtocolClient.h"
 #include "V2WindowsConversationParticipantProtocolClient.h"
+#include "V2WindowsMessageSearchProtocolClient.h"
 
 #include <QObject>
 #include <QHash>
@@ -16,6 +17,7 @@ class V2WindowsConversationDirectoryViewModel;
 class V2WindowsConversationParticipantViewModel;
 class V2WindowsMessagingApplicationService;
 class V2WindowsMessagingViewModel;
+class V2WindowsMessageSearchViewModel;
 
 class WindowsV2MessagingController final : public QObject {
     Q_OBJECT
@@ -27,12 +29,14 @@ public:
         V2WindowsDeviceManagementTransport *transport,
         RepositoryFactory repositoryFactory = {},
         QObject *parent = nullptr,
-        bool enableMessageForwarding = false);
+        bool enableMessageForwarding = false,
+        bool enableMessageSearch = false);
     ~WindowsV2MessagingController() override;
 
     V2WindowsMessagingViewModel *viewModel() const;
     V2WindowsConversationDirectoryViewModel *directoryViewModel() const;
     V2WindowsConversationParticipantViewModel *participantViewModel() const;
+    V2WindowsMessageSearchViewModel *searchViewModel() const;
     bool openConversation(const QString &conversationId);
 
 signals:
@@ -48,6 +52,8 @@ private:
     void abandonSession();
     bool requestDirectory(bool continuation);
     bool requestParticipants(const QString &conversationId, bool continuation);
+    bool requestSearch(const QString &conversationId, const QString &query,
+                       quint64 beforeSequence, bool continuation);
 
     V2WindowsDeviceManagementTransport *m_transport;
     RepositoryFactory m_repositoryFactory;
@@ -60,10 +66,19 @@ private:
     std::unique_ptr<V2WindowsConversationDirectoryViewModel> m_directoryViewModel;
     std::unique_ptr<V2WindowsConversationParticipantProtocolClient> m_participantProtocol;
     std::unique_ptr<V2WindowsConversationParticipantViewModel> m_participantViewModel;
+    std::unique_ptr<V2WindowsMessageSearchProtocolClient> m_searchProtocol;
+    std::unique_ptr<V2WindowsMessageSearchViewModel> m_searchViewModel;
     V2WindowsConversationDirectoryProtocolClient::Cursor m_directoryCursor;
     QSet<QString> m_directoryRequestIds;
     bool m_directoryContinuationPending = false;
     std::string m_participantCursor;
     QHash<QString, bool> m_participantRequests;
+    struct SearchRequest {
+        QString conversationId;
+        QString query;
+        bool continuation = false;
+    };
+    QHash<QString, SearchRequest> m_searchRequests;
     bool m_messageForwardingEnabled = false;
+    bool m_messageSearchEnabled = false;
 };

@@ -2105,6 +2105,12 @@ trimmed query plus at most 100 deduplicated message projections in memory. It
 correlates pages to both conversation and query, caps continuation at the last
 validated cursor, and clears query/results on disconnect. It has no repository
 dependency and therefore cannot write search terms or result pages to SQLite.
+The enabled Windows messaging controller now composes that protocol and
+ViewModel, binds them only after authentication, routes type 126 through the
+shared WSS transport, and consumes type 127 into transient rows. Ordinary
+controllers expose no search ViewModel. A conversation switch changes the
+application correlation key, while disconnect clears protocol requests,
+queries, and results; neither path changes the durable history cursor.
 CI compiles a separate, non-published forwarding-enabled `ChatClient` and runs
 the target-dialog Widgets test without replacing the ordinary default-off
 Windows verification payload. The Web baseline likewise compiles an enabled

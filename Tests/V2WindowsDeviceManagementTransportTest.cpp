@@ -89,8 +89,7 @@ int main(int argc, char **argv) {
     V2WindowsDeviceManagementTransport transport(
         QUrl(QStringLiteral("wss://chat.example.test/v2/windows")),
         QStringLiteral("2.0.0-test"), deviceId, &socket, std::move(hooks), nullptr,
-        false, {QUrl(QStringLiteral("wss://chat-secondary.example.test/v2/windows"))},
-        true);
+        false, {QUrl(QStringLiteral("wss://chat-secondary.example.test/v2/windows"))});
     transport.start();
     check(openedEndpoints == QList<QUrl>{
               QUrl(QStringLiteral("wss://chat.example.test/v2/windows"))},
@@ -111,7 +110,6 @@ int main(int argc, char **argv) {
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS);
-    hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_SEARCH);
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
         helloEnvelope.request_id(), "", hello));
@@ -159,6 +157,17 @@ int main(int argc, char **argv) {
     messagingCommand.set_sent_at_epoch_ms(901);
     messagingCommand.set_payload("history-request");
     const auto messagingBytes = serialize(messagingCommand);
+    auto disabledSearchCommand = messagingCommand;
+    disabledSearchCommand.set_message_type(
+        chat::v2::MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES);
+    disabledSearchCommand.set_request_id(
+        "50000000-0000-4000-8000-000000000003");
+    disabledSearchCommand.set_payload("search-request");
+    const auto disabledSearchBytes = serialize(disabledSearchCommand);
+    check(!transport.sendMessagingFrame(QByteArray(
+              disabledSearchBytes.data(),
+              static_cast<qsizetype>(disabledSearchBytes.size()))),
+          QStringLiteral("default transport must reject an unnegotiated search command"));
     auto disabledForwardCommand = messagingCommand;
     disabledForwardCommand.set_message_type(chat::v2::MESSAGE_TYPE_FORWARD_MESSAGE);
     disabledForwardCommand.set_request_id("50000000-0000-4000-8000-000000000009");
@@ -222,31 +231,6 @@ int main(int argc, char **argv) {
               == static_cast<qsizetype>(participantResponseBytes.size())
               && !aborted,
           QStringLiteral("correlated participant response must bypass device decoding"));
-
-    auto searchCommand = messagingCommand;
-    searchCommand.set_message_type(
-        chat::v2::MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES);
-    searchCommand.set_request_id("50000000-0000-4000-8000-000000000003");
-    searchCommand.set_payload("search-request");
-    const auto searchBytes = serialize(searchCommand);
-    check(transport.sendMessagingFrame(QByteArray(
-              searchBytes.data(), static_cast<qsizetype>(searchBytes.size())))
-              && sent.size() == 1,
-          QStringLiteral("negotiated search command must share the product socket"));
-    sent.clear();
-    auto searchResponse = messagingResponse;
-    searchResponse.set_message_type(
-        chat::v2::MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE);
-    searchResponse.set_request_id(searchCommand.request_id());
-    searchResponse.set_payload("search-page");
-    const auto searchResponseBytes = serialize(searchResponse);
-    routedMessagingFrame.clear();
-    socket.binaryMessageReceived(QByteArray(searchResponseBytes.data(),
-        static_cast<qsizetype>(searchResponseBytes.size())));
-    check(routedMessagingFrame.size()
-              == static_cast<qsizetype>(searchResponseBytes.size())
-              && !aborted,
-          QStringLiteral("correlated search response must bypass device decoding"));
 
     const QString listRequest = transport.listDevices();
     sent.clear();

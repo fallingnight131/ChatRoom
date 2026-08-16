@@ -4,6 +4,7 @@
 #include "V2WindowsMessagingViewModel.h"
 #include "V2WindowsConversationDirectoryViewModel.h"
 #include "V2WindowsConversationParticipantViewModel.h"
+#include "V2WindowsMessageSearchViewModel.h"
 #include "chat/v2/authentication.pb.h"
 #include "chat/v2/control.pb.h"
 #include "chat/v2/conversation.pb.h"
@@ -75,12 +76,12 @@ int main(int argc, char **argv) {
     V2WindowsDeviceManagementTransport transport(
         QUrl(QStringLiteral("wss://chat.example.test/v2/windows")),
         QStringLiteral("2.0.0-test"), deviceId, &socket, std::move(hooks),
-        nullptr, true);
+        nullptr, true, {}, true);
     WindowsV2MessagingController controller(
         &transport, [&](const QString &) {
             return std::make_unique<V2LocalMessageRepository>(
                 directory.filePath(QStringLiteral("messages.sqlite")));
-        }, nullptr, true);
+        }, nullptr, true, true);
     int readyCount = 0;
     bool unavailable = false;
     QObject::connect(&controller, &WindowsV2MessagingController::ready,
@@ -101,6 +102,7 @@ int main(int argc, char **argv) {
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_FORWARDING);
+    hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_SEARCH);
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
         command.request_id(), "", hello));
@@ -122,27 +124,6 @@ int main(int argc, char **argv) {
         command.request_id(), sessionId, established));
     check(readyCount == 1 && controller.viewModel(),
           QStringLiteral("authentication must compose the account-isolated message runtime"));
-
-    chat::v2::SearchConversationMessages disabledSearch;
-    disabledSearch.set_conversation_id(
-        "60000000-0000-4000-8000-000000000001");
-    disabledSearch.set_literal_query("hello");
-    disabledSearch.set_limit(20);
-    chat::v2::Envelope disabledSearchEnvelope;
-    disabledSearchEnvelope.set_protocol_version(2);
-    disabledSearchEnvelope.set_kind(chat::v2::MESSAGE_KIND_COMMAND);
-    disabledSearchEnvelope.set_message_type(
-        chat::v2::MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES);
-    disabledSearchEnvelope.set_request_id(
-        "50000000-0000-4000-8000-000000000099");
-    disabledSearchEnvelope.set_session_id(sessionId);
-    disabledSearchEnvelope.set_sent_at_epoch_ms(901);
-    disabledSearchEnvelope.set_payload(serialize(disabledSearch));
-    const auto disabledSearchBytes = serialize(disabledSearchEnvelope);
-    check(!transport.sendMessagingFrame(QByteArray(
-              disabledSearchBytes.data(),
-              static_cast<qsizetype>(disabledSearchBytes.size()))),
-          QStringLiteral("default-off transport must reject search type 126"));
 
     check(sent.size() == 1,
           QStringLiteral("authenticated runtime must request the first conversation page"));
@@ -210,6 +191,35 @@ int main(int argc, char **argv) {
     check(rows.size() == 1 && rows.first().text == QStringLiteral("hello")
               && rows.first().canForward,
           QStringLiteral("routed server history must commit before refreshing the view model"));
+
+    check(controller.searchViewModel()
+              && controller.searchViewModel()->conversationId() == conversationId
+              && controller.searchViewModel()->search(QStringLiteral("聊天"))
+              && sent.size() == 1,
+          QStringLiteral("enabled controller must start one bounded search"));
+    command = parseEnvelope(sent.takeFirst());
+    chat::v2::SearchConversationMessages searchRequest;
+    check(command.message_type()
+              == chat::v2::MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES
+              && searchRequest.ParseFromString(command.payload())
+              && searchRequest.conversation_id() == conversationId.toStdString()
+              && searchRequest.literal_query() == "\xe8\x81\x8a\xe5\xa4\xa9"
+              && searchRequest.limit() == 20,
+          QStringLiteral("controller search lost canonical query fields"));
+    chat::v2::ConversationMessageSearchPage searchPage;
+    searchPage.set_conversation_id(conversationId.toStdString());
+    auto *searchHit = searchPage.add_hits();
+    *searchHit = *message;
+    searchPage.set_next_before_sequence(message->conversation_sequence());
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE,
+        chat::v2::MESSAGE_KIND_RESPONSE, command.request_id(), sessionId,
+        searchPage));
+    check(controller.searchViewModel()->rows().size() == 1
+              && controller.searchViewModel()->rows().first().messageId
+                  == QStringLiteral("70000000-0000-4000-8000-000000000001")
+              && !controller.searchViewModel()->busy(),
+          QStringLiteral("correlated search page was not projected in memory"));
 
     const QString forwardTargetId =
         QStringLiteral("60000000-0000-4000-8000-000000000002");

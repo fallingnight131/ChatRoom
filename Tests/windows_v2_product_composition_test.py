@@ -72,6 +72,8 @@ def main() -> int:
         "m_participantProtocol->abandon(command.requestId)",
         "m_participantViewModel->refresh()",
         "configureForwarding(",
+        "V2WindowsMessageSearchProtocolClient",
+        "requestSearch(",
     ), "Client/WindowsV2MessagingController.cpp")
     require(panel, (
         "m_mentionsEnabled && composing",

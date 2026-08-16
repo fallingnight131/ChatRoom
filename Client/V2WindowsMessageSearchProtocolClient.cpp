@@ -156,6 +156,10 @@ V2WindowsMessageSearchProtocolClient::receive(const std::string &bytes) {
     return result;
 }
 
+void V2WindowsMessageSearchProtocolClient::abandon(const std::string &requestId) {
+    m_pending.erase(requestId);
+}
+
 bool V2WindowsMessageSearchProtocolClient::canonicalUuid(const std::string &value) {
     if (value.size() != 36) return false;
     bool nonzero = false;

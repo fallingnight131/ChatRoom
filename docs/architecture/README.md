@@ -877,6 +877,12 @@ deduplicates by stable message ID, correlates late pages to both conversation
 and normalized query, and clears all query/result memory on disconnect. It has
 no SQLite dependency and cannot advance the ordinary message synchronization
 cursor. Controller composition and Widgets presentation remain separate.
+The enabled Windows messaging controller now binds the search protocol only to
+the authenticated session, activates the transient ViewModel with the opened
+conversation, and projects correlated pages without a repository write. The
+ordinary controller exposes no search state. Late pages are matched against the
+captured conversation/query and disconnect clears both controller and protocol
+correlations. Widgets presentation remains separate.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

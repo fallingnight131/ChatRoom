@@ -34,7 +34,7 @@ WindowsDeviceManagementController::WindowsDeviceManagementController(
         });
     m_messagingController = std::make_unique<WindowsV2MessagingController>(
         m_transport.get(), std::move(messagingRepositoryFactory), nullptr,
-        enableMessageForwarding);
+        enableMessageForwarding, enableMessageSearch);
     connect(m_messagingController.get(), &WindowsV2MessagingController::ready,
             this, &WindowsDeviceManagementController::messagingReady);
     connect(m_messagingController.get(), &WindowsV2MessagingController::unavailable,
@@ -88,6 +88,11 @@ WindowsDeviceManagementController::conversationParticipantViewModel() const {
 V2WindowsMessagingViewModel *
 WindowsDeviceManagementController::messagingViewModel() const {
     return m_messagingController->viewModel();
+}
+
+V2WindowsMessageSearchViewModel *
+WindowsDeviceManagementController::messageSearchViewModel() const {
+    return m_messagingController->searchViewModel();
 }
 
 bool WindowsDeviceManagementController::start() {
