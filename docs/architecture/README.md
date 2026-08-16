@@ -1050,6 +1050,12 @@ That repeatable menu behavior is now owned by a typed shared UI boundary rather
 than the friend feature. Room rows consume the same boundary and are native
 buttons with `aria-current`; room settings and administrator-only file
 management are keyboard reachable without changing their server authorization.
+The Web chat shell now exposes its friend/room switch as a named tablist with
+selected tabs and matching tabpanels. Mobile conversation/member controls,
+room settings, panel close, and theme actions are explicitly named native
+buttons rather than icon/title-only actions. Layout and conversation state
+ownership remain unchanged. Left/Right and Home/End move selection and focus
+through the two-tab set, including the existing friend refresh behavior.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

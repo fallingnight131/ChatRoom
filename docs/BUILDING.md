@@ -2270,6 +2270,9 @@ Escape dismissal, and focus return.
 The same gate now locks the typed shared context-menu boundary;
 `roomListKeyboardNavigation.test.mjs` locks native room rows, current state, and
 keyboard access to the existing server-authoritative room actions.
+`chatShellNavigationAccessibility.test.mjs` locks friend/room tab-to-panel
+relationships and explicit names/types for mobile conversation, member,
+settings, close, and theme controls.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

@@ -23,37 +23,48 @@
             <div class="user-id text-ellipsis">@{{ userStore.username }}</div>
           </div>
         </button>
-        <button class="btn-icon theme-btn" @click="userStore.toggleDarkMode()" title="切换主题"
+        <button class="btn-icon theme-btn" type="button" @click="userStore.toggleDarkMode()" title="切换主题"
                 :aria-label="userStore.darkMode ? '切换到浅色主题' : '切换到深色主题'">
           {{ userStore.darkMode ? '☀️' : '🌙' }}
         </button>
       </div>
-      <div class="tab-bar">
-        <button class="tab-btn" :class="{ active: activeTab === 'friends' }" @click="switchToFriends">
+      <div class="tab-bar" role="tablist" aria-label="会话类型">
+        <button id="friends-tab" class="tab-btn" type="button" role="tab"
+                :class="{ active: activeTab === 'friends' }" :aria-selected="activeTab === 'friends'"
+                :tabindex="activeTab === 'friends' ? 0 : -1"
+                aria-controls="friends-panel" @click="switchToFriends" @keydown="onTabKeydown">
           好友
-          <span v-if="chatStore.totalFriendUnread > 0 || chatStore.hasPendingFriendReq" class="tab-dot"></span>
+          <span v-if="chatStore.totalFriendUnread > 0 || chatStore.hasPendingFriendReq" class="tab-dot" aria-hidden="true"></span>
         </button>
-        <button class="tab-btn" :class="{ active: activeTab === 'rooms' }" @click="activeTab = 'rooms'">
+        <button id="rooms-tab" class="tab-btn" type="button" role="tab"
+                :class="{ active: activeTab === 'rooms' }" :aria-selected="activeTab === 'rooms'"
+                :tabindex="activeTab === 'rooms' ? 0 : -1"
+                aria-controls="rooms-panel" @click="activeTab = 'rooms'" @keydown="onTabKeydown">
           房间
-          <span v-if="chatStore.totalRoomUnread > 0" class="tab-dot"></span>
+          <span v-if="chatStore.totalRoomUnread > 0" class="tab-dot" aria-hidden="true"></span>
         </button>
       </div>
-      <RoomList v-if="activeTab === 'rooms'"
+      <RoomList v-if="activeTab === 'rooms'" id="rooms-panel" role="tabpanel"
+            aria-labelledby="rooms-tab"
             @room-selected="onRoomSelected"
             @open-room-settings="showRoomSettings = true"
             @open-room-files="showRoomFiles = true" />
-      <FriendList v-else @friend-selected="onFriendSelected" @view-user-info="onViewUserInfo" />
+      <FriendList v-else id="friends-panel" role="tabpanel" aria-labelledby="friends-tab"
+            @friend-selected="onFriendSelected" @view-user-info="onViewUserInfo" />
     </div>
 
     <!-- 中间面板：消息区域（房间模式） -->
     <div class="center-panel" v-if="chatStore.currentRoomId && !chatStore.isFriendChat">
       <!-- 房间标题栏 -->
       <div class="room-header">
-        <button class="btn-icon mobile-menu-btn" @click="mobilePanel = 'left'" title="房间列表">☰</button>
+        <button class="btn-icon mobile-menu-btn" type="button" aria-label="打开会话列表"
+                @click="mobilePanel = 'left'" title="房间列表">☰</button>
         <div class="room-title text-ellipsis">{{ chatStore.currentRoomName }}</div>
         <div class="room-actions">
-          <button class="btn-icon mobile-members-btn" @click="mobilePanel = 'right'" title="成员列表">👥</button>
-          <button class="btn-icon" @click="showRoomSettings = true" title="房间设置">⋯</button>
+          <button class="btn-icon mobile-members-btn" type="button" aria-label="打开成员列表"
+                  @click="mobilePanel = 'right'" title="成员列表">👥</button>
+          <button class="btn-icon" type="button" aria-label="打开房间设置" aria-haspopup="dialog"
+                  :aria-expanded="showRoomSettings" @click="showRoomSettings = true" title="房间设置">⋯</button>
         </div>
       </div>
       <!-- 消息列表 -->
@@ -65,7 +76,8 @@
     <!-- 中间面板：好友私聊模式 -->
     <div class="center-panel" v-else-if="chatStore.isFriendChat && chatStore.currentFriendUsername">
       <div class="room-header">
-        <button class="btn-icon mobile-menu-btn" @click="mobilePanel = 'left'" title="好友列表">☰</button>
+        <button class="btn-icon mobile-menu-btn" type="button" aria-label="打开会话列表"
+                @click="mobilePanel = 'left'" title="好友列表">☰</button>
         <div class="room-title text-ellipsis">私聊 - {{ chatStore.currentFriendDisplayName || chatStore.currentFriendUsername }}</div>
       </div>
       <MessageList :friend-mode="true" />
@@ -73,7 +85,8 @@
     </div>
 
     <div class="center-panel empty-state" v-else>
-      <button class="btn-icon mobile-menu-btn empty-menu-btn" @click="mobilePanel = 'left'" title="房间列表">☰</button>
+      <button class="btn-icon mobile-menu-btn empty-menu-btn" type="button" aria-label="打开会话列表"
+              @click="mobilePanel = 'left'" title="房间列表">☰</button>
       <div v-if="networkOffline" class="empty-icon" aria-hidden="true">📴</div>
       <div v-else-if="reconnecting" class="empty-icon" aria-hidden="true">⏳</div>
       <div v-else class="empty-icon">💬</div>
@@ -83,7 +96,8 @@
     <!-- 右侧面板：成员列表（仅房间模式） -->
     <div class="right-panel" :class="{ 'panel-open': mobilePanel === 'right' }" v-if="chatStore.currentRoomId && !chatStore.isFriendChat">
       <div class="right-panel-header">
-        <button class="btn-icon mobile-back-btn" @click="mobilePanel = ''" title="关闭">✕</button>
+        <button class="btn-icon mobile-back-btn" type="button" aria-label="关闭成员列表"
+                @click="mobilePanel = ''" title="关闭">✕</button>
         <span>成员列表</span>
       </div>
       <UserList />
@@ -116,7 +130,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted, provide } from 'vue'
+import { computed, nextTick, ref, onMounted, onUnmounted, provide } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
@@ -175,6 +189,19 @@ function onRoomSelected() {
 function switchToFriends() {
   activeTab.value = 'friends'
   chatWs.requestFriendList()
+}
+
+function selectNavigationTab(tab) {
+  if (tab === 'friends') switchToFriends()
+  else activeTab.value = 'rooms'
+  nextTick(() => document.getElementById(`${tab}-tab`)?.focus())
+}
+
+function onTabKeydown(event) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  const nextTab = event.key === 'ArrowLeft' || event.key === 'Home' ? 'friends' : 'rooms'
+  selectNavigationTab(nextTab)
 }
 
 function onFriendSelected() {
