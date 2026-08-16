@@ -2366,6 +2366,8 @@ Candidate slices:
     upload recovery, progress actions, and local file-limit feedback.
   - [x] Migrate the Web emoji dialog, grid, and per-emoji action names while
     preserving the shared ordering and roving keyboard interaction.
+  - [x] Migrate Web V1 timeline landmarks, sender/recall summaries, delivery
+    states, new-message history feedback, and copy announcements.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

@@ -1995,8 +1995,12 @@ upload/recovery state, and local file-limit feedback use the catalog while the
 existing draft, attachment, and transport state machines remain unchanged.
 The emoji picker is the eighth migrated slice: its dialog, grid, and per-emoji
 action names follow the live preference while the shared 96-emoji ordering and
-roving keyboard behavior stay unchanged. The message timeline remains a later
-slice.
+roving keyboard behavior stay unchanged. The message timeline is split into
+smaller slices. Its first core-semantics slice is now migrated: log/loading landmarks,
+recall and sender/profile descriptions, delivery/retry/read states, bounded new-
+message history feedback, copy announcements, and compound message summaries
+use catalog-owned punctuation. Attachment cards and the message action menu
+remain later slices.
 
 ### Product consistency
 

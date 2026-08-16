@@ -8,6 +8,7 @@ import {
   friendListMessages,
   loginMessages,
   memberListMessages,
+  messageTimelineMessages,
   persistWebLocale,
   profileMessages,
   roomListMessages,
@@ -68,6 +69,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(emojiPickerMessages("en-US")).sort(),
     Object.keys(emojiPickerMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(messageTimelineMessages("en-US")).sort(),
+    Object.keys(messageTimelineMessages("zh-CN")).sort(),
   );
 });
 

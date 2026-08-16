@@ -444,6 +444,7 @@ test("switches the authenticated shell locale from profile and persists it", asy
   await expect(page.getByText("0 online", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Online members" })).toBeVisible();
   await expect(page.getByRole("toolbar", { name: "Message tools" })).toBeVisible();
+  await expect(page.getByRole("log", { name: "Chat messages" })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Message content" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
   await page.getByRole("button", { name: "Choose emoji" }).click();

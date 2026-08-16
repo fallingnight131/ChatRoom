@@ -19,8 +19,8 @@ test('exposes the message timeline as an announced busy-aware log', () => {
   assert.match(messages, /:aria-busy="loadingMore"/)
   assert.match(messages, /:aria-label="messageAriaLabel\(msg\)"/)
   assert.match(messages, /v-if="pendingNewMessages"/)
-  assert.ok(messages.includes(':aria-label="`${pendingNewMessagesLabel}，回到最新消息`"'))
-  assert.match(messages, /当前仍在阅读历史消息/)
+  assert.ok(messages.includes(':aria-label="`${pendingNewMessagesLabel}${messages.backToLatestSuffix}`"'))
+  assert.match(messages, /messages\.readingHistorySuffix/)
   assert.match(messages, /pendingNewMessages\.value = 0/)
   assert.match(messages, /listRef\.value\?\.focus\(\{ preventScroll: true \}\)/)
 })
@@ -46,7 +46,7 @@ test('supports keyboard access to files, profiles, retry, and message actions', 
   assert.match(messages, /event\.key === 'Escape'/)
   assert.match(messages, /closeMenu\(true\)/)
   assert.match(messages, /contextMenuTrigger\?\.focus\(\)/)
-  assert.match(messages, /已发送/)
+  assert.match(messages, /messages\.sent/)
 })
 
 test('labels composer controls and honors focus and reduced-motion preferences', () => {

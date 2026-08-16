@@ -2,8 +2,8 @@
   <div class="message-list-shell">
     <div class="message-list" ref="listRef" @scroll="onScroll" tabindex="-1"
          role="log" aria-live="polite" aria-relevant="additions text"
-         :aria-busy="loadingMore" aria-label="聊天消息">
-    <div v-if="loadingMore" class="loading-more" role="status">加载中...</div>
+         :aria-busy="loadingMore" :aria-label="messages.timeline">
+    <div v-if="loadingMore" class="loading-more" role="status">{{ messages.loading }}</div>
     <div v-if="virtualWindow.top > 0" class="virtual-spacer" aria-hidden="true"
          :style="{ height: virtualWindow.top + 'px' }"></div>
 
@@ -18,16 +18,16 @@
 
       <!-- 已撤回 -->
       <div v-else-if="msg.recalled" class="system-message recalled">
-        {{ msg.senderName || msg.sender }} 撤回了一条消息
+        {{ msg.senderName || msg.sender }}{{ messages.recalledSuffix }}
       </div>
 
       <!-- 普通消息 -->
       <div v-else class="message-row" :class="{ mine: isMine(msg) }">
         <!-- 头像 -->
         <button type="button" class="msg-avatar" @click="openUser(msg)"
-                :aria-label="`查看 ${msg.senderName || msg.sender} 的资料`">
+                :aria-label="`${messages.viewProfilePrefix}${msg.senderName || msg.sender}${messages.viewProfileSuffix}`">
           <img v-if="getAvatarSrc(msg.sender)" :src="getAvatarSrc(msg.sender)" class="avatar"
-               :alt="`${msg.senderName || msg.sender} 的头像`" />
+               :alt="`${messages.avatarPrefix}${msg.senderName || msg.sender}${messages.avatarSuffix}`" />
           <div v-else class="avatar avatar-placeholder"
                :style="{ background: hashColor(msg.sender) }">
             {{ (msg.senderName || msg.sender || '?').charAt(0) }}
@@ -126,13 +126,13 @@
           <!-- 时间 -->
           <div class="msg-time" :class="{ 'time-mine': isMine(msg) }">
             {{ formatTime(msg.timestamp) }}
-            <span v-if="msg.deliveryState === 'sending'" class="delivery-state"> 发送中…</span>
+            <span v-if="msg.deliveryState === 'sending'" class="delivery-state"> {{ messages.sending }}</span>
             <button v-else-if="msg.deliveryState === 'failed'" type="button" class="delivery-retry"
-                    @click="chatStore.retryMessage(msg)" aria-label="发送失败，重试这条消息">
-              发送失败，点击重试</button>
+                    @click="chatStore.retryMessage(msg)" :aria-label="messages.failedRetryLabel">
+              {{ messages.failedRetry }}</button>
             <span v-else-if="isMine(msg) && msg.deliveryState === 'read'"
-                  class="delivery-state"> 已读</span>
-            <span v-else-if="isMine(msg) && msg.id" class="delivery-state"> 已发送</span>
+                  class="delivery-state"> {{ messages.read }}</span>
+            <span v-else-if="isMine(msg) && msg.id" class="delivery-state"> {{ messages.sent }}</span>
           </div>
         </div>
       </div>
@@ -144,12 +144,12 @@
     </div>
 
     <button v-if="pendingNewMessages" class="new-message-jump" type="button"
-            :aria-label="`${pendingNewMessagesLabel}，回到最新消息`"
+            :aria-label="`${pendingNewMessagesLabel}${messages.backToLatestSuffix}`"
             @click="revealNewMessages">
       {{ pendingNewMessagesLabel }} ↓
     </button>
     <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
-      {{ pendingNewMessages ? `${pendingNewMessagesLabel}，当前仍在阅读历史消息` : '' }}
+      {{ pendingNewMessages ? `${pendingNewMessagesLabel}${messages.readingHistorySuffix}` : '' }}
     </p>
 
     <!-- 右键菜单 -->
@@ -246,10 +246,12 @@ import FilePreview from './FilePreview.vue'
 import ForwardDialog from './ForwardDialog.vue'
 import { calculateVirtualWindow } from '../ui/virtualWindow'
 import { copyMessageText } from '../messaging/copyMessageText'
-import { addPendingNewMessages, pendingNewMessageLabel } from '../messaging/newMessageIndicator'
+import { addPendingNewMessages } from '../messaging/newMessageIndicator'
+import { messageTimelineMessages } from '../localization/webLocale'
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
+const messages = computed(() => messageTimelineMessages(userStore.locale))
 const openUserInfo = inject('openUserInfo')
 const hashColor = inject('hashColor')
 
@@ -277,7 +279,9 @@ const viewportHeight = ref(600)
 const measuredHeights = shallowRef(new Map())
 const stickToBottom = ref(true)
 const pendingNewMessages = ref(0)
-const pendingNewMessagesLabel = computed(() => pendingNewMessageLabel(pendingNewMessages.value))
+const pendingNewMessagesLabel = computed(() => pendingNewMessages.value > 0
+  ? `${pendingNewMessages.value >= 99 ? '99+' : pendingNewMessages.value}${messages.value.newMessagesSuffix}`
+  : '')
 let historyAnchor = null
 let historyTimer = null
 let messageResizeObserver = null
@@ -360,17 +364,20 @@ function formatTime(ts) {
 }
 
 function messageAriaLabel(msg) {
-  if (msg.contentType === 'system') return `系统消息：${msg.content || ''}`
-  if (msg.recalled) return `${msg.senderName || msg.sender || '用户'} 撤回了一条消息`
-  const sender = isMine(msg) ? '我' : (msg.senderName || msg.sender || '用户')
+  if (msg.contentType === 'system') return `${messages.value.systemPrefix}${msg.content || ''}`
+  if (msg.recalled) return `${msg.senderName || msg.sender || messages.value.user}${messages.value.recalledSuffix}`
+  const sender = isMine(msg) ? messages.value.self : (msg.senderName || msg.sender || messages.value.user)
   const content = isFileType(msg)
-    ? `文件 ${msg.fileName || ''}`
+    ? `${messages.value.filePrefix}${msg.fileName || ''}`
     : (msg.content || '')
-  const state = msg.deliveryState === 'sending' ? '，发送中'
-    : (msg.deliveryState === 'failed' ? '，发送失败'
-      : (isMine(msg) && msg.deliveryState === 'read' ? '，已读'
-        : (isMine(msg) && msg.id ? '，已发送' : '')))
-  return `${sender}：${content}${state}，${formatTime(msg.timestamp)}`
+  const state = msg.deliveryState === 'sending' ? messages.value.sending
+    : (msg.deliveryState === 'failed' ? messages.value.failedRetry
+      : (isMine(msg) && msg.deliveryState === 'read' ? messages.value.read
+        : (isMine(msg) && msg.id ? messages.value.sent : '')))
+  const time = formatTime(msg.timestamp)
+  return `${sender}${messages.value.contentSeparator}${content}`
+    + `${state ? messages.value.separator + state : ''}`
+    + `${time ? messages.value.separator + time : ''}`
 }
 
 function formatSize(size) {
@@ -441,7 +448,7 @@ async function copyText(msg) {
   await nextTick()
   const copied = await copyMessageText(msg.content)
   copyFailed.value = !copied
-  copyAnnouncement.value = copied ? '消息正文已复制' : '无法复制消息正文，请检查浏览器权限'
+  copyAnnouncement.value = copied ? messages.value.copySucceeded : messages.value.copyFailed
 }
 
 function previewFromMenu(msg) {

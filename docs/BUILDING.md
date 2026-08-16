@@ -84,6 +84,10 @@ source tests additionally lock upload/recovery actions and local size errors to
 the catalog without changing byte-budget or transport behavior. The same
 browser journey opens the localized emoji dialog, verifies its named grid, and
 closes it with Escape; source tests retain the existing roving-focus contract.
+It also verifies the localized V1 message-log landmark. Source tests bind
+loading, recall, delivery/retry/read states, bounded history feedback, copy
+announcements, and compound article summaries to catalog keys; attachment cards
+and the context menu remain separate localization slices.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

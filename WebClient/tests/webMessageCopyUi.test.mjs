@@ -11,7 +11,7 @@ test('guards V1 copy availability and announces its browser result', () => {
     '!msg.recalled',
     "msg.contentType !== 'system'",
     'await copyMessageText(msg.content)',
-    '无法复制消息正文，请检查浏览器权限'
+    'messages.value.copyFailed'
   ]) assert.ok(v1.includes(marker), `missing V1 copy UI marker: ${marker}`)
 })
 

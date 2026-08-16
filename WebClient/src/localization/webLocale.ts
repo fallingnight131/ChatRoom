@@ -308,6 +308,29 @@ const emojiPickerCatalog = {
   },
 } as const;
 
+const messageTimelineCatalog = {
+  "zh-CN": {
+    timeline: "聊天消息", loading: "加载中...", recalledSuffix: " 撤回了一条消息",
+    viewProfilePrefix: "查看 ", viewProfileSuffix: " 的资料", avatarPrefix: "", avatarSuffix: " 的头像",
+    sending: "发送中…", failedRetryLabel: "发送失败，重试这条消息",
+    failedRetry: "发送失败，点击重试", read: "已读", sent: "已发送",
+    systemPrefix: "系统消息：", user: "用户", self: "我", filePrefix: "文件 ",
+    separator: "，", contentSeparator: "：", newMessagesSuffix: " 条新消息",
+    backToLatestSuffix: "，回到最新消息", readingHistorySuffix: "，当前仍在阅读历史消息",
+    copySucceeded: "消息正文已复制", copyFailed: "无法复制消息正文，请检查浏览器权限",
+  },
+  "en-US": {
+    timeline: "Chat messages", loading: "Loading...", recalledSuffix: " recalled a message",
+    viewProfilePrefix: "View ", viewProfileSuffix: " profile", avatarPrefix: "Avatar for ", avatarSuffix: "",
+    sending: "Sending…", failedRetryLabel: "Send failed; retry this message",
+    failedRetry: "Send failed. Select to retry.", read: "Read", sent: "Sent",
+    systemPrefix: "System message: ", user: "User", self: "Me", filePrefix: "File ",
+    separator: ", ", contentSeparator: ": ", newMessagesSuffix: " new messages",
+    backToLatestSuffix: "; return to latest", readingHistorySuffix: "; still reading message history",
+    copySucceeded: "Message text copied", copyFailed: "Unable to copy message text. Check browser permissions.",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -362,6 +385,10 @@ export function composerMessages(locale: WebLocale) {
 
 export function emojiPickerMessages(locale: WebLocale) {
   return emojiPickerCatalog[locale];
+}
+
+export function messageTimelineMessages(locale: WebLocale) {
+  return messageTimelineCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {
