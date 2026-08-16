@@ -9,6 +9,7 @@
     "test": "node --test tests/*.test.mjs && npm run test:v2",
     "test:v2": "tsc -p tsconfig.v2.json --noEmit && node --import tsx --test tests/*.test.ts",
     "test:browser": "tsc -p tsconfig.e2e.json --noEmit && playwright test",
+    "validate:v2-browser-performance": "tsx tools/validate_v2_browser_performance.ts",
     "preview": "vite preview"
   },
   "dependencies": {

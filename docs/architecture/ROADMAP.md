@@ -2439,6 +2439,9 @@ Candidate slices:
     reconnect after returning to stable V1 in Chromium and Firefox.
   - [x] Verify authenticated V2 locale switching updates browser semantics in
     place without emitting a protocol command in Chromium and Firefox.
+  - [x] Add a clean-revision, generated-Protobuf Chromium V2 client-performance
+    harness for raw preview/auth/open/send samples, optional heap observations,
+    and validated nearest-rank P50/P95/P99 without a capacity threshold.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

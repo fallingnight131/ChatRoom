@@ -22,8 +22,23 @@ account-scoped conversation. Retention and rendering are separate limits:
 
 The pure window calculation is covered by source-independent unit tests for
 short lists, variable heights, invalid dimensions, end-of-list behavior, and a
-500-message retained conversation. Browser interaction and memory measurements
-remain release evidence to add before making a user-visible performance claim.
+500-message retained conversation.
+
+An opt-in Chromium harness now records 20--50 isolated-context samples for V2
+preview readiness, authentication-to-directory, conversation-open-to-history,
+and send-to-acceptance latency. When Chromium exposes `performance.memory`, the
+same run records used-JS-heap samples. Evidence is accepted only from a clean Git
+tree, binds the compiled client hello app version to the exact 40-character
+revision, uses generated Protobuf over the in-process deterministic fixture, and
+stores nearest-rank P50/P95/P99 with raw samples. The schema validator rejects
+dirty, undersampled, misidentified, or forged-percentile results.
+
+This isolates browser composition, rendering, IndexedDB, and client state-machine
+cost. It does not traverse TLS, a real gateway, PostgreSQL, physical networks, or
+branded release browsers and therefore is not release, capacity, or user-visible
+performance evidence. Native current/previous browser interaction, realistic
+datasets/networks, and release-host memory measurements remain required before a
+performance claim.
 
 ## Protocol Semantics Boundary
 

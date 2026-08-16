@@ -247,6 +247,31 @@ deterministic protocol fixture: this is real browser/application-state-machine
 evidence, but not TLS, gateway, PostgreSQL, physical network/edge failover,
 deployment compatibility, or capacity evidence.
 
+To collect deterministic client-only timing evidence, first commit all harness
+and product changes, ensure `git status --short` is empty, and build the V2
+preview with `VITE_CHAT_APP_VERSION` equal to the first 12 characters of the
+current 40-character revision. Then run only Chromium with one worker:
+
+```bash
+git rev-parse HEAD
+env VITE_CHAT_V2_PREVIEW=true \
+  VITE_CHAT_V2_WSS_URL=wss://fixture.invalid/v2/web \
+  VITE_CHAT_APP_VERSION=<first-12-characters-from-the-command-above> \
+  npm run build
+CHATROOM_V2_BROWSER_PERFORMANCE=true \
+  CHATROOM_V2_PERFORMANCE_OUTPUT=../docs/baselines/M6_WEB_V2_BROWSER_PERFORMANCE.json \
+  npm run test:browser -- e2e/v2PreviewPerformance.spec.ts \
+  --project=chromium --workers=1
+npm run validate:v2-browser-performance -- \
+  ../docs/baselines/M6_WEB_V2_BROWSER_PERFORMANCE.json
+```
+
+The harness refuses a dirty tree, an app-version/revision mismatch, fewer than
+20 or more than 50 iterations, an existing output file, or non-Chromium use.
+It records raw samples and nearest-rank P50/P95/P99 without enforcing a latency
+threshold. See [`architecture/CLIENT_PERFORMANCE.md`](architecture/CLIENT_PERFORMANCE.md)
+for the evidence boundary.
+
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and
 Firefox. Each host must expose one preinstalled non-symlink executable through

@@ -60,16 +60,19 @@ export type V2ProtocolFixtureMode = "accept" | "reject";
 
 export interface V2ProtocolFixture {
   readonly receivedTypes: MessageType[];
+  readonly clientHelloAppVersions: string[];
   respond(bytes: number[]): number[];
 }
 
 export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2ProtocolFixture {
   const receivedTypes: MessageType[] = [];
+  const clientHelloAppVersions: string[] = [];
   let clientDeviceId = "";
   let resumed = false;
 
   return {
     receivedTypes,
+    clientHelloAppVersions,
     respond(raw) {
       const request = fromBinary(EnvelopeSchema, Uint8Array.from(raw));
       if (request.protocolVersion !== 2 || request.kind !== MessageKind.COMMAND
@@ -87,6 +90,7 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
             throw new Error("invalid V2 fixture client hello");
           }
           clientDeviceId = hello.clientDeviceId;
+          clientHelloAppVersions.push(hello.appVersion);
           return response(request, MessageType.SERVER_HELLO, ServerHelloSchema, {
             selectedProtocolVersion: 2,
             connectionId: "browser-fixture-connection",
