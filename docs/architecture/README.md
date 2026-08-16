@@ -976,6 +976,12 @@ an explicit action and may still fetch that avatar. The policy never disables
 message delivery, history repair, attachment commands, or user-initiated file
 access. A denied storage write leaves the choice effective for the page session
 and reports that limitation instead of claiming persistence.
+The Web profile surface now behaves as a modal keyboard boundary: it takes
+programmatic focus, cycles Tab/Shift+Tab within enabled controls, closes on
+Escape or overlay activation, and restores the previously focused trigger after
+unmount. Avatar replacement is a native button backed by an accessibly named
+file input rather than a pointer-only `div`. These are local presentation
+semantics and do not change profile authorization or upload validation.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

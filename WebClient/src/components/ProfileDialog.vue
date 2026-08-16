@@ -1,21 +1,24 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal" style="min-width: 420px;">
-      <div class="modal-title">个人资料</div>
+  <div class="modal-overlay" @click.self="closeDialog">
+    <div ref="dialogRef" class="modal profile-modal" role="dialog" aria-modal="true"
+         aria-labelledby="profile-dialog-title" tabindex="-1" @keydown="onDialogKeydown">
+      <div id="profile-dialog-title" class="modal-title">个人资料</div>
 
       <!-- 头像 -->
       <div class="profile-avatar-section">
-        <div class="profile-avatar-wrap" @click="triggerAvatarInput">
+        <button type="button" class="profile-avatar-wrap" aria-label="更换头像"
+                @click="triggerAvatarInput">
           <img v-if="userStore.avatarData"
                :src="'data:image/png;base64,' + userStore.avatarData"
-               class="avatar avatar-xl" />
+               class="avatar avatar-xl" alt="当前头像" />
           <div v-else class="avatar avatar-xl avatar-placeholder"
                :style="{ background: hashColor(userStore.username) }">
             {{ (userStore.displayName || userStore.username).charAt(0) }}
           </div>
           <div class="avatar-overlay">📷</div>
-        </div>
-        <input ref="avatarInput" type="file" accept="image/*" style="display:none"
+        </button>
+        <input ref="avatarInput" type="file" accept="image/*" class="visually-hidden" tabindex="-1"
+               aria-label="选择新头像"
                @change="onAvatarSelected" />
       </div>
 
@@ -81,14 +84,14 @@
 
       <div class="modal-actions">
         <button class="btn btn-danger" @click="doLogout">退出登录</button>
-        <button class="btn btn-secondary" @click="$emit('close')">关闭</button>
+        <button class="btn btn-secondary" @click="closeDialog">关闭</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, onMounted, onUnmounted } from 'vue'
+import { ref, inject, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
@@ -113,6 +116,38 @@ const confirmPassword = ref('')
 const avatarInput = ref(null)
 const uidError = ref('')
 const uidSuccess = ref('')
+const dialogRef = ref(null)
+let previousFocus = null
+
+function closeDialog() {
+  emit('close')
+}
+
+function onDialogKeydown(event) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeDialog()
+    return
+  }
+  if (event.key !== 'Tab') return
+  const focusable = Array.from(dialogRef.value?.querySelectorAll(
+    'button:not([disabled]), input:not([disabled]):not([tabindex="-1"])'
+  ) || [])
+  if (!focusable.length) {
+    event.preventDefault()
+    return
+  }
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  const activeIndex = focusable.indexOf(document.activeElement)
+  if (event.shiftKey && activeIndex <= 0) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && (activeIndex < 0 || activeIndex === focusable.length - 1)) {
+    event.preventDefault()
+    first.focus()
+  }
+}
 
 function triggerAvatarInput() {
   avatarInput.value?.click()
@@ -209,10 +244,13 @@ function doLogout() {
 }
 
 onMounted(() => {
+  previousFocus = document.activeElement
+  nextTick(() => dialogRef.value?.focus())
   chatWs.on(MsgType.CHANGE_UID_RSP, onUidChangeRsp)
 })
 onUnmounted(() => {
   chatWs.off(MsgType.CHANGE_UID_RSP, onUidChangeRsp)
+  if (typeof previousFocus?.focus === 'function') previousFocus.focus()
 })
 </script>
 
@@ -228,6 +266,10 @@ onUnmounted(() => {
 .profile-avatar-wrap {
   position: relative;
   cursor: pointer;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
 }
 .avatar-overlay {
   position: absolute;

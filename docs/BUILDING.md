@@ -2231,6 +2231,9 @@ suppression for avatars only, not a claim that V1 inline media bytes are saved.
 `profileLogoutUi.test.mjs` also locks the profile-dialog logout cleanup order and
 requires both Pinia stores to be initialized before attachment-session cleanup,
 credential clearing, and navigation.
+`profileDialogAccessibility.test.mjs` locks modal naming, focus entry/cycling/
+restoration, Escape dismissal, and the native avatar-picker action. Production
+build verification compiles the same dialog used by the V1 Web product.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

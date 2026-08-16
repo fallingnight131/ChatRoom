@@ -2296,6 +2296,8 @@ Candidate slices:
     server sequences without counting initial history or search-context repair.
   - [x] Add the first Web low-bandwidth slice with a browser-data-saver default,
     persistent override, and suppression of automatic avatar fetches only.
+  - [x] Add complete modal semantics, bounded Tab focus, Escape dismissal,
+    trigger restoration, and keyboard-native avatar replacement to Web profile.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
