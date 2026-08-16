@@ -72,6 +72,7 @@ public final class GatewayRuntime implements AutoCloseable {
     private final AutoCloseable messagingWorkers;
     private final AutoCloseable dataSource;
     private final AutoCloseable webPushResources;
+    private final ManagedDependency webPushDelivery;
     private final ManagedDependency distributedRouting;
     private final AutoCloseable residentMemorySampler;
     private final Duration drainTimeout;
@@ -87,6 +88,7 @@ public final class GatewayRuntime implements AutoCloseable {
             AutoCloseable messagingWorkers,
             AutoCloseable dataSource,
             AutoCloseable webPushResources,
+            ManagedDependency webPushDelivery,
             ManagedDependency distributedRouting,
             AutoCloseable residentMemorySampler,
             BooleanSupplier dependencyReadiness,
@@ -99,6 +101,7 @@ public final class GatewayRuntime implements AutoCloseable {
         this.messagingWorkers = Objects.requireNonNull(messagingWorkers, "messagingWorkers");
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
         this.webPushResources = Objects.requireNonNull(webPushResources, "webPushResources");
+        this.webPushDelivery = Objects.requireNonNull(webPushDelivery, "webPushDelivery");
         this.distributedRouting = Objects.requireNonNull(distributedRouting, "distributedRouting");
         this.residentMemorySampler = Objects.requireNonNull(
                 residentMemorySampler, "residentMemorySampler");
@@ -121,6 +124,7 @@ public final class GatewayRuntime implements AutoCloseable {
         GatewayAdminServer adminServer = null;
         V2GatewayServer productServer = null;
         ManagedDependency distributedRouting = null;
+        ManagedDependency webPushDelivery = null;
         ResidentMemorySampler residentMemorySampler = null;
         FileWebPushKeyCustody webPushKeyCustody = null;
         try {
@@ -163,6 +167,8 @@ public final class GatewayRuntime implements AutoCloseable {
             WebPushHttpTelemetry webPushSubscriptionTelemetry = new WebPushHttpTelemetry();
             WebPushSubscriptionHttpGatewayComponent webPushSubscriptions =
                     WebPushSubscriptionHttpGatewayComponent.disabled();
+            AesGcmWebPushCredentialProtector webPushProtector = null;
+            PostgresWebPushSubscriptionAdapter webPushSubscriptionStore = null;
             if (config.webPushSubscriptions().enabled()) {
                 WebPushSubscriptionRuntimeConfig subscriptionConfig =
                         config.webPushSubscriptions();
@@ -170,12 +176,14 @@ public final class GatewayRuntime implements AutoCloseable {
                         subscriptionConfig.activeEncryptionKeyId(),
                         subscriptionConfig.encryptionKeyFiles(),
                         subscriptionConfig.endpointLookupKeyFile());
-                var protector = new AesGcmWebPushCredentialProtector(webPushKeyCustody);
+                webPushProtector = new AesGcmWebPushCredentialProtector(webPushKeyCustody);
+                webPushSubscriptionStore = new PostgresWebPushSubscriptionAdapter(
+                        dataSource, webPushProtector);
                 var mutationService = new WebPushSubscriptionMutationService(
                         new WebPushDeliveryPolicy(true),
                         new InMemoryWebPushSubscriptionAdmission(
                                 subscriptionConfig.admissionLimits()),
-                        new PostgresWebPushSubscriptionAdapter(dataSource, protector),
+                        webPushSubscriptionStore,
                         clock);
                 webPushSubscriptions = WebPushSubscriptionHttpGatewayComponent.enabled(
                         subscriptionConfig.httpPolicy(),
@@ -184,6 +192,15 @@ public final class GatewayRuntime implements AutoCloseable {
                         clock,
                         webPushSubscriptionTelemetry);
             }
+            var webPushDeliveryComponents = WebPushDeliveryComponentsFactory.create(
+                    config.webPushDelivery(), dataSource, webPushProtector,
+                    webPushSubscriptionStore, webPushSubscriptionStore, clock);
+            webPushDelivery = webPushDeliveryComponents
+                    .<ManagedDependency>map(GatewayRuntime::managed)
+                    .orElseGet(GatewayRuntime::disabledDependency);
+            Supplier<String> webPushDeliveryMetrics = webPushDeliveryComponents
+                    .<Supplier<String>>map(components -> components::metrics)
+                    .orElse(() -> "");
             AuthenticationService authentication = new AuthenticationService(
                     identity,
                     new CompatibleCredentialVerifier(),
@@ -283,6 +300,7 @@ public final class GatewayRuntime implements AutoCloseable {
                             webPushCredentialTelemetry.snapshot())
                             + PrometheusWebPushSubscriptionHttpMetrics.render(
                                     webPushSubscriptionTelemetry)
+                            + webPushDeliveryMetrics.get()
                             + distributedMetrics.get(),
                     config.releaseIdentity());
             return new GatewayRuntime(
@@ -293,6 +311,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     messagingWorkers,
                     dataSource,
                     webPushKeyCustody == null ? () -> { } : webPushKeyCustody,
+                    webPushDelivery,
                     distributedRouting,
                     residentMemorySampler,
                     dependencyReadiness,
@@ -300,6 +319,7 @@ public final class GatewayRuntime implements AutoCloseable {
         } catch (RuntimeException exception) {
             closeQuietly(adminServer);
             closeQuietly(productServer);
+            closeQuietly(webPushDelivery);
             closeQuietly(distributedRouting);
             closeQuietly(residentMemorySampler);
             closeQuietly(messagingWorkers);
@@ -319,15 +339,25 @@ public final class GatewayRuntime implements AutoCloseable {
             AutoCloseable dataSource) {
         return new GatewayRuntime(
                 readiness, admin, product, authenticationWorkers, messagingWorkers, dataSource,
-                () -> { }, disabledDependency(), () -> { }, () -> true, Duration.ZERO);
+                () -> { }, disabledDependency(), disabledDependency(),
+                () -> { }, () -> true, Duration.ZERO);
     }
 
     static GatewayRuntime forTest(
             AtomicBoolean readiness, ManagedServer admin, BlockingServer product,
             AutoCloseable authenticationWorkers, AutoCloseable messagingWorkers,
             AutoCloseable dataSource, ManagedDependency distributedRouting) {
+        return forTest(readiness, admin, product, authenticationWorkers,
+                messagingWorkers, dataSource, distributedRouting, disabledDependency());
+    }
+
+    static GatewayRuntime forTest(
+            AtomicBoolean readiness, ManagedServer admin, BlockingServer product,
+            AutoCloseable authenticationWorkers, AutoCloseable messagingWorkers,
+            AutoCloseable dataSource, ManagedDependency distributedRouting,
+            ManagedDependency webPushDelivery) {
         return new GatewayRuntime(readiness, admin, product, authenticationWorkers,
-                messagingWorkers, dataSource, () -> { }, distributedRouting,
+                messagingWorkers, dataSource, () -> { }, webPushDelivery, distributedRouting,
                 () -> { }, distributedRouting::ready, Duration.ZERO);
     }
 
@@ -341,6 +371,7 @@ public final class GatewayRuntime implements AutoCloseable {
             distributedRouting.start();
             product.start();
             productStarted = true;
+            webPushDelivery.start();
             readiness.set(true);
         } catch (RuntimeException exception) {
             close();
@@ -370,6 +401,7 @@ public final class GatewayRuntime implements AutoCloseable {
         readiness.set(false);
         if (productStarted) drainProduct();
         closeQuietly(product);
+        closeQuietly(webPushDelivery);
         closeQuietly(distributedRouting);
         closeQuietly(admin);
         closeQuietly(residentMemorySampler);
@@ -413,6 +445,14 @@ public final class GatewayRuntime implements AutoCloseable {
             @Override public void start() { runtime.start(); }
             @Override public boolean ready() { return runtime.readyForTraffic(); }
             @Override public void close() { runtime.close(); }
+        };
+    }
+
+    private static ManagedDependency managed(WebPushDeliveryComponents components) {
+        return new ManagedDependency() {
+            @Override public void start() { components.start(); }
+            @Override public boolean ready() { return components.readiness().ready(); }
+            @Override public void close() { components.close(); }
         };
     }
 

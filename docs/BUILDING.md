@@ -1742,8 +1742,13 @@ adapters, shared subscription protection ports, RFC encryption/VAPID/HTTP,
 worker policy, retry, loop resources, readiness, and metrics without starting
 them. Disabled config touches no dependency. The component owns only its VAPID
 custody and delivery runtime, closes the loop before signing custody, and never
-adds push health to core gateway readiness. `GatewayRuntime` activation and a
-real-provider canary remain open.
+adds push health to core gateway readiness. `GatewayRuntime` now creates and
+starts this graph only under the exact delivery gate, reuses the subscription
+protector/store, adds its fixed metrics to the loopback admin endpoint, and
+closes delivery before subscription-key custody and PostgreSQL. The disposable
+PostgreSQL gate proves this enabled lifecycle with real VAPID DER files, an
+empty healthy outbox, TLS/WSS, and subscription persistence. It makes no
+external provider-delivery claim; the real-provider canary remains open.
 The detached gateway issuance and HTTP bridge can be selected with:
 
 ```bash

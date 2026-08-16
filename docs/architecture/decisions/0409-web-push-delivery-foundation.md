@@ -269,6 +269,13 @@ resume proof or activate a gateway/client path.
   construction owns only the separate VAPID custody and delivery runtime and
   closes delivery before signing custody. Main gateway activation and the
   external provider canary remain open.
+- `GatewayRuntime` now activates the composed graph only under the exact
+  delivery gate, after the product listener starts. It reuses subscription
+  protection/storage, exports only fixed metrics on the loopback admin server,
+  does not include optional push health in core readiness, and closes delivery
+  before shared subscription custody and PostgreSQL. Disposable PostgreSQL,
+  TLS/WSS, real mounted VAPID DER files, subscription persistence, and an empty
+  healthy outbox prove lifecycle composition without claiming provider delivery.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

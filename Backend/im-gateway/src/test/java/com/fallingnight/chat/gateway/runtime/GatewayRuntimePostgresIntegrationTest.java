@@ -97,8 +97,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
+import java.security.KeyPairGenerator;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
+import java.security.spec.ECGenParameterSpec;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -503,6 +505,15 @@ class GatewayRuntimePostgresIntegrationTest {
                 keyDirectory.resolve("encryption-enc-v1.key"), 1);
         Path lookupKey = writeProtectedKey(
                 keyDirectory.resolve("endpoint-lookup.key"), 2);
+        KeyPairGenerator vapidGenerator = KeyPairGenerator.getInstance("EC");
+        vapidGenerator.initialize(new ECGenParameterSpec("secp256r1"));
+        var vapidPair = vapidGenerator.generateKeyPair();
+        Path vapidPrivate = writeProtectedBytes(
+                keyDirectory.resolve("vapid-private.der"),
+                vapidPair.getPrivate().getEncoded());
+        Path vapidPublic = writeProtectedBytes(
+                keyDirectory.resolve("vapid-public.der"),
+                vapidPair.getPublic().getEncoded());
         GatewayRuntime runtime = null;
         WebSocket socket = null;
         try {
@@ -525,6 +536,15 @@ class GatewayRuntimePostgresIntegrationTest {
                     keyDirectory.toString());
             environment.put(WebPushSubscriptionRuntimeConfig.ACTIVE_KEY_ID, "enc-v1");
             environment.put(WebPushSubscriptionRuntimeConfig.KEY_IDS, "enc-v1");
+            environment.put(WebPushDeliveryRuntimeConfig.ENABLED, "true");
+            environment.put(WebPushDeliveryRuntimeConfig.VAPID_PRIVATE_KEY,
+                    vapidPrivate.toString());
+            environment.put(WebPushDeliveryRuntimeConfig.VAPID_PUBLIC_KEY,
+                    vapidPublic.toString());
+            environment.put(WebPushDeliveryRuntimeConfig.VAPID_SUBJECT,
+                    "mailto:push@example.com");
+            environment.put(WebPushDeliveryRuntimeConfig.PROVIDER_ORIGINS,
+                    "https://push.example");
 
             runtime = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(environment));
             runtime.start();
@@ -592,12 +612,17 @@ class GatewayRuntimePostgresIntegrationTest {
                     "chat_gateway_web_push_http_credentials_issued_total 1\n"));
             assertTrue(metrics.contains(
                     "chat_gateway_web_push_subscription_http_replaced_total 1\n"));
+            awaitMetricAtLeast(adminPort,
+                    "chat_gateway_web_push_delivery_reason_healthy", 1,
+                    Duration.ofSeconds(3));
         } finally {
             if (socket != null) socket.abort();
             if (runtime != null) runtime.close();
             certificate.delete();
             Files.deleteIfExists(encryptionKey);
             Files.deleteIfExists(lookupKey);
+            Files.deleteIfExists(vapidPrivate);
+            Files.deleteIfExists(vapidPublic);
             Files.deleteIfExists(keyDirectory);
         }
     }
@@ -5325,6 +5350,23 @@ class GatewayRuntimePostgresIntegrationTest {
                         + "; observed=" + observed);
     }
 
+    private static void awaitMetricAtLeast(
+            int adminPort, String name, long minimum, Duration timeout) throws Exception {
+        Pattern pattern = Pattern.compile(
+                "^" + Pattern.quote(name) + " ([0-9]+)$", Pattern.MULTILINE);
+        long deadline = System.nanoTime() + timeout.toNanos();
+        long observed = -1;
+        do {
+            var matcher = pattern.matcher(adminMetrics(adminPort));
+            if (matcher.find()) observed = Long.parseLong(matcher.group(1));
+            if (observed >= minimum) return;
+            Thread.sleep(25);
+        } while (System.nanoTime() < deadline);
+        assertTrue(observed >= minimum,
+                "metric " + name + " did not reach " + minimum
+                        + "; observed=" + observed);
+    }
+
     private static String adminMetrics(int adminPort) throws Exception {
         return HttpClient.newHttpClient().send(
                 HttpRequest.newBuilder(URI.create(
@@ -5917,6 +5959,12 @@ class GatewayRuntimePostgresIntegrationTest {
         } finally {
             Arrays.fill(value, (byte) 0);
         }
+    }
+
+    private static Path writeProtectedBytes(Path path, byte[] value) throws Exception {
+        Files.write(path, value);
+        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
+        return path;
     }
 
     private static byte[] webPushSubscriptionJson() {

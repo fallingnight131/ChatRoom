@@ -101,6 +101,31 @@ class GatewayRuntimeTest {
                 events);
     }
 
+    @Test
+    void startsOptionalPushAfterProductWithoutGatingCoreReadinessAndClosesItFirst() {
+        List<String> events = new ArrayList<>();
+        AtomicBoolean readiness = new AtomicBoolean();
+        GatewayRuntime.ManagedDependency routing = dependency("routing", events, true);
+        GatewayRuntime.ManagedDependency push = dependency("push", events, false);
+        GatewayRuntime runtime = GatewayRuntime.forTest(readiness,
+                managed("admin", events, readiness),
+                blocking("product", events, readiness, false),
+                closeable("authentication-workers", events),
+                closeable("messaging-workers", events), closeable("database", events),
+                routing, push);
+
+        runtime.start();
+        assertTrue(runtime.isReady());
+        runtime.close();
+
+        assertEquals(List.of(
+                "admin:start:false", "routing:start", "product:start:false", "push:start",
+                "product:stop-accepting:false", "product:await-drained:PT0S:false",
+                "product:close", "push:close", "routing:close", "admin:close",
+                "messaging-workers:close", "authentication-workers:close", "database:close"),
+                events);
+    }
+
     private static GatewayRuntime.ManagedServer managed(
             String name, List<String> events, AtomicBoolean readiness) {
         return new GatewayRuntime.ManagedServer() {
@@ -155,5 +180,14 @@ class GatewayRuntimeTest {
 
     private static AutoCloseable closeable(String name, List<String> events) {
         return () -> events.add(name + ":close");
+    }
+
+    private static GatewayRuntime.ManagedDependency dependency(
+            String name, List<String> events, boolean ready) {
+        return new GatewayRuntime.ManagedDependency() {
+            @Override public void start() { events.add(name + ":start"); }
+            @Override public boolean ready() { return ready; }
+            @Override public void close() { events.add(name + ":close"); }
+        };
     }
 }

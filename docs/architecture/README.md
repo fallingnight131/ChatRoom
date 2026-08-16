@@ -2115,7 +2115,13 @@ component-readiness, and metric graph. Disabled configuration constructs
 nothing; enabled construction loads and owns only the separate VAPID custody
 and delivery runtime, which remain stopped until explicitly started. Failure
 cleanup and normal close stop delivery before closing signing custody. Main
-gateway lifecycle activation and the external provider canary remain open.
+gateway lifecycle now activates this graph only under the exact gate, after the
+product listener starts and before core readiness is published. It reuses the
+same subscription protector/store, exposes fixed push metrics on the loopback
+admin endpoint, and closes delivery before subscription custody and PostgreSQL.
+Push component unready state remains observable but cannot make core chat
+unready. Disposable PostgreSQL plus TLS/WSS proves the empty healthy lifecycle;
+the external provider canary remains open.
 The Web client now has a pure Service Worker payload boundary. It accepts only
 schema version 1, three canonical stable UUIDs, and the structural mention
 boolean within 2 KiB; unknown fields, message text, malformed identity, and

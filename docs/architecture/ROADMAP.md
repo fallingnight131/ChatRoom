@@ -2500,6 +2500,11 @@ Candidate slices:
         recipient policy, shared protected subscriptions, RFC provider, worker,
         retry, owned loop, readiness, and metrics; disabled mode touches no
         dependency and cleanup stops delivery before VAPID custody.
+      - [x] Activate the full graph in `GatewayRuntime` only under the exact
+        delivery gate, reuse subscription custody/store, expose fixed admin
+        metrics, preserve core readiness isolation, close in dependency order,
+        and prove the empty healthy lifecycle over disposable PostgreSQL and
+        TLS/WSS with real mounted VAPID DER files.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
     - [x] Add the pure Service Worker payload boundary with exact version/field/
