@@ -2095,7 +2095,11 @@ signed-range cursor, and 1..50 limit. It retains at most four correlations and
 accepts only type 127 pages for the same session and conversation with strictly
 descending current text records and a last-hit cursor. Disconnect clears all
 pending state. This codec is not routed to the socket until the application
-search controller is composed.
+search controller is composed. The authenticated WSS transport now admits type
+126 only when the immutable Windows search gate is enabled and routes only a
+correlated type 127 response through its existing 32-request bound. The ordinary
+transport rejects type 126. Socket loss clears the shared correlation set, so a
+query is never guessed or replayed after resume.
 CI compiles a separate, non-published forwarding-enabled `ChatClient` and runs
 the target-dialog Widgets test without replacing the ordinary default-off
 Windows verification payload. The Web baseline likewise compiles an enabled

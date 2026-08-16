@@ -123,6 +123,27 @@ int main(int argc, char **argv) {
     check(readyCount == 1 && controller.viewModel(),
           QStringLiteral("authentication must compose the account-isolated message runtime"));
 
+    chat::v2::SearchConversationMessages disabledSearch;
+    disabledSearch.set_conversation_id(
+        "60000000-0000-4000-8000-000000000001");
+    disabledSearch.set_literal_query("hello");
+    disabledSearch.set_limit(20);
+    chat::v2::Envelope disabledSearchEnvelope;
+    disabledSearchEnvelope.set_protocol_version(2);
+    disabledSearchEnvelope.set_kind(chat::v2::MESSAGE_KIND_COMMAND);
+    disabledSearchEnvelope.set_message_type(
+        chat::v2::MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES);
+    disabledSearchEnvelope.set_request_id(
+        "50000000-0000-4000-8000-000000000099");
+    disabledSearchEnvelope.set_session_id(sessionId);
+    disabledSearchEnvelope.set_sent_at_epoch_ms(901);
+    disabledSearchEnvelope.set_payload(serialize(disabledSearch));
+    const auto disabledSearchBytes = serialize(disabledSearchEnvelope);
+    check(!transport.sendMessagingFrame(QByteArray(
+              disabledSearchBytes.data(),
+              static_cast<qsizetype>(disabledSearchBytes.size()))),
+          QStringLiteral("default-off transport must reject search type 126"));
+
     check(sent.size() == 1,
           QStringLiteral("authenticated runtime must request the first conversation page"));
     command = parseEnvelope(sent.takeFirst());

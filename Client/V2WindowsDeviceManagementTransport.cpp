@@ -149,20 +149,26 @@ bool V2WindowsDeviceManagementTransport::sendMessagingFrame(const QByteArray &fr
             || m_pendingMessagingRequestIds.size() >= 32)
         return false;
     chat::v2::Envelope envelope;
-    if (!envelope.ParseFromArray(frame.constData(), static_cast<int>(frame.size()))
-            || envelope.protocol_version() != 2
+    if (!envelope.ParseFromArray(frame.constData(), static_cast<int>(frame.size())))
+        return false;
+    const bool allowedMessageType =
+        envelope.message_type() == chat::v2::MESSAGE_TYPE_SUBMIT_MESSAGE
+        || envelope.message_type() == chat::v2::MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE
+        || (envelope.message_type() == chat::v2::MESSAGE_TYPE_FORWARD_MESSAGE
+            && m_messageForwardingEnabled)
+        || envelope.message_type() == chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY
+        || envelope.message_type() == chat::v2::MESSAGE_TYPE_LIST_CONVERSATIONS
+        || envelope.message_type()
+            == chat::v2::MESSAGE_TYPE_LIST_CONVERSATION_PARTICIPANTS
+        || (envelope.message_type()
+                == chat::v2::MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES
+            && m_messageSearchEnabled);
+    if (envelope.protocol_version() != 2
             || envelope.kind() != chat::v2::MESSAGE_KIND_COMMAND
             || qt(envelope.session_id()) != m_resumeSessionId
             || envelope.request_id().empty()
             || envelope.payload().empty()
-            || (envelope.message_type() != chat::v2::MESSAGE_TYPE_SUBMIT_MESSAGE
-                && envelope.message_type() != chat::v2::MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE
-                && (envelope.message_type() != chat::v2::MESSAGE_TYPE_FORWARD_MESSAGE
-                    || !m_messageForwardingEnabled)
-                && envelope.message_type() != chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY
-                && envelope.message_type() != chat::v2::MESSAGE_TYPE_LIST_CONVERSATIONS
-                && envelope.message_type()
-                    != chat::v2::MESSAGE_TYPE_LIST_CONVERSATION_PARTICIPANTS))
+            || !allowedMessageType)
         return false;
     const QString requestId = qt(envelope.request_id());
     if (m_pendingMessagingRequestIds.contains(requestId)) return false;
@@ -368,7 +374,9 @@ bool V2WindowsDeviceManagementTransport::routeAuthenticatedMessagingFrame(
         || envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE
         || envelope.message_type() == chat::v2::MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE
         || envelope.message_type()
-            == chat::v2::MESSAGE_TYPE_CONVERSATION_PARTICIPANT_PAGE;
+            == chat::v2::MESSAGE_TYPE_CONVERSATION_PARTICIPANT_PAGE
+        || envelope.message_type()
+            == chat::v2::MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE;
     const QString requestId = qt(envelope.request_id());
     const bool correlated = m_pendingMessagingRequestIds.contains(requestId);
     const bool messagingError = envelope.message_type()

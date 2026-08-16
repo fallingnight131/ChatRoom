@@ -2225,7 +2225,10 @@ Progress:
         diagnostic evidence; query/state/UI remain off.
       - [x] Add the detached bounded Windows type 126/127 codec with strict
         query, correlation, current-message, descending-page, cursor, and
-        disconnect-abandonment validation; transport/state/UI remain off.
+        disconnect-abandonment validation; state/UI remain off.
+      - [x] Admit Windows type 126 only for the immutable search candidate and
+        route correlated type 127 responses through the existing authenticated
+        WSS request bound; ordinary builds reject search and reconnect clears it.
 
 Candidate slices:
 

@@ -867,8 +867,11 @@ The independent Windows search codec now validates bounded Unicode-stripped
 queries before type 126 encoding and validates session/request correlation,
 same-conversation descending current-text hits, optional negotiated markers,
 and last-hit pagination cursors on type 127. Its four-request bound and session
-clear behavior prevent ambiguous reconnect replay. It remains detached from the
-WSS transport and UI in this slice.
+clear behavior prevent ambiguous reconnect replay. The existing authenticated
+WSS transport now admits type 126 only for an enabled candidate and routes its
+correlated type 127 response under the shared 32-request bound; ordinary builds
+reject the command and reconnect abandons it. Application state and UI remain
+detached in this slice.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
