@@ -189,6 +189,11 @@ state, conflict-preserved draft, server-version rebase, failed-command retry,
 discard, and local feedback. Source contracts retain author/availability gates,
 local overlay and `contentRevision`, structured mentions, and stable operation
 IDs across retry, rebase, and discard.
+The current V2 preview view is now closed over the locale boundary: a source
+guard rejects fixed Chinese literals in the Vue file. Known legacy application
+failure strings are translated inside `webLocale.ts`; unknown runtime/server
+diagnostics remain verbatim. Authentication, directory-open, and directory-page
+fallbacks also use catalog keys.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

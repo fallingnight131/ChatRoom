@@ -540,7 +540,8 @@ const v2PreviewShellCatalog = {
     cacheSync: "缓存消息会先显示，然后按服务器序列增量同步。", conversation: "会话", runtimeUnavailable: "V2 预览未启用",
     idle: "尚未连接", connecting: "连接中", negotiating: "协商协议中", connected: "可登录",
     resuming: "恢复会话中", authenticated: "已安全连接", offline: "网络离线", reconnectWait: "等待重连",
-    stopped: "已停止", unknownState: "未知状态", syncing: "同步中…",
+    stopped: "已停止", unknownState: "未知状态", syncing: "同步中…", authStartFailed: "无法发起认证",
+    openConversationFailed: "无法打开会话", loadConversationsFailed: "无法加载会话",
   },
   "en-US": {
     engineeringPreview: "V2 engineering preview", loadingSecure: "Loading secure connection components", backV1Login: "Back to V1 login",
@@ -557,6 +558,8 @@ const v2PreviewShellCatalog = {
     connecting: "Connecting", negotiating: "Negotiating protocol", connected: "Ready to sign in",
     resuming: "Resuming session", authenticated: "Securely connected", offline: "Network offline",
     reconnectWait: "Waiting to reconnect", stopped: "Stopped", unknownState: "Unknown state", syncing: "Syncing…",
+    authStartFailed: "Unable to start authentication", openConversationFailed: "Unable to open the conversation",
+    loadConversationsFailed: "Unable to load conversations",
   },
 } as const;
 
@@ -836,6 +839,13 @@ export function v2PreviewSearchMessages(locale: WebLocale) {
   return v2PreviewSearchCatalog[locale];
 }
 
+export function localizeV2PreviewSearchFailure(locale: WebLocale, failure: string): string {
+  if (failure === "无法加载消息上下文") return v2PreviewSearchCatalog[locale].contextFailed;
+  if (failure === "无法搜索当前会话") return v2PreviewSearchCatalog[locale].searchFailed;
+  if (failure === "搜索暂不可用") return v2PreviewSearchCatalog[locale].unavailable;
+  return failure;
+}
+
 export function v2PreviewTimelineMessages(locale: WebLocale) {
   return v2PreviewTimelineCatalog[locale];
 }
@@ -852,12 +862,22 @@ export function v2PreviewMentionMessages(locale: WebLocale) {
   return v2PreviewMentionCatalog[locale];
 }
 
+export function localizeV2PreviewParticipantFailure(locale: WebLocale, failure: string): string {
+  return failure === "无法加载会话成员" ? v2PreviewMentionCatalog[locale].loadFailed : failure;
+}
+
 export function v2PreviewForwardMessages(locale: WebLocale) {
   return v2PreviewForwardCatalog[locale];
 }
 
 export function v2PreviewDeviceMessages(locale: WebLocale) {
   return v2PreviewDeviceCatalog[locale];
+}
+
+export function localizeV2PreviewDeviceFailure(locale: WebLocale, failure: string): string {
+  if (failure === "无法加载登录设备") return v2PreviewDeviceCatalog[locale].loadFailed;
+  if (failure === "无法撤销该设备") return v2PreviewDeviceCatalog[locale].revokeFailed;
+  return failure;
 }
 
 export function v2PreviewReactionMessages(locale: WebLocale) {

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  localizeV2PreviewDeviceFailure,
+  localizeV2PreviewParticipantFailure,
+  localizeV2PreviewSearchFailure,
   applyDocumentLocale,
   chatShellMessages,
   composerMessages,
@@ -180,4 +183,11 @@ test("applies the selected locale to the document language boundary", () => {
   const root = { lang: "" };
   applyDocumentLocale("en-US", root);
   assert.equal(root.lang, "en-US");
+});
+
+test("localizes known V2 application failures and preserves unknown diagnostics", () => {
+  assert.equal(localizeV2PreviewSearchFailure("en-US", "无法搜索当前会话"), "Unable to search this conversation");
+  assert.equal(localizeV2PreviewParticipantFailure("en-US", "无法加载会话成员"), "Unable to load members");
+  assert.equal(localizeV2PreviewDeviceFailure("en-US", "无法撤销该设备"), "Unable to revoke this device");
+  assert.equal(localizeV2PreviewSearchFailure("en-US", "gateway diagnostic"), "gateway diagnostic");
 });

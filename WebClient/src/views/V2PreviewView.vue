@@ -400,6 +400,9 @@ import { useUserStore } from '../stores/user'
 import {
   messageTimelineMessages,
   composerMessages as composerCatalogMessages,
+  localizeV2PreviewDeviceFailure,
+  localizeV2PreviewParticipantFailure,
+  localizeV2PreviewSearchFailure,
   v2PreviewBasicActionMessages,
   v2PreviewComposerMessages,
   v2PreviewDeviceMessages,
@@ -511,18 +514,12 @@ const authenticating = computed(() => authenticationPending.value
   || ['connecting', 'negotiating', 'resuming'].includes(snapshot.value.connectionState))
 const canAuthenticate = computed(() => Boolean(connectionReady.value && username.value && password.value && !authenticating.value))
 const visibleFailure = computed(() => actionError.value || snapshot.value.lastFailure)
-const visibleSearchFailure = computed(() => ({
-  '无法加载消息上下文': searchMessages.value.contextFailed,
-  '无法搜索当前会话': searchMessages.value.searchFailed,
-  '搜索暂不可用': searchMessages.value.unavailable,
-}[snapshot.value.searchFailure] || snapshot.value.searchFailure))
-const visibleParticipantFailure = computed(() => ({
-  '无法加载会话成员': mentionMessages.value.loadFailed,
-}[snapshot.value.participantFailure] || snapshot.value.participantFailure))
-const visibleDeviceFailure = computed(() => ({
-  '无法加载登录设备': deviceMessages.value.loadFailed,
-  '无法撤销该设备': deviceMessages.value.revokeFailed,
-}[snapshot.value.deviceFailure] || snapshot.value.deviceFailure))
+const visibleSearchFailure = computed(() => localizeV2PreviewSearchFailure(
+  userStore.locale, snapshot.value.searchFailure))
+const visibleParticipantFailure = computed(() => localizeV2PreviewParticipantFailure(
+  userStore.locale, snapshot.value.participantFailure))
+const visibleDeviceFailure = computed(() => localizeV2PreviewDeviceFailure(
+  userStore.locale, snapshot.value.deviceFailure))
 const activeConversationName = computed(() => snapshot.value.directory.find(
   item => item.conversationId === snapshot.value.activeConversationId
 )?.displayName || shellMessages.value.conversation)
@@ -604,7 +601,7 @@ function login() {
     runtimeRef.value.application.authenticate(username.value, passwordBytes)
   } catch (error) {
     authenticationPending.value = false
-    actionError.value = error instanceof Error ? error.message : '无法发起认证'
+    actionError.value = error instanceof Error ? error.message : shellMessages.value.authStartFailed
   } finally {
     passwordBytes.fill(0)
   }
@@ -620,7 +617,7 @@ async function openConversation(conversationId) {
   searchOpen.value = false
   searchDraft.value = ''
   try { await runtimeRef.value.application.openConversation(conversationId) }
-  catch (error) { actionError.value = error instanceof Error ? error.message : '无法打开会话' }
+  catch (error) { actionError.value = error instanceof Error ? error.message : shellMessages.value.openConversationFailed }
 }
 
 function toggleSearch() {
@@ -668,7 +665,7 @@ function locateSearchHit(hit) {
 
 function loadMoreDirectory() {
   try { runtimeRef.value.application.loadMoreDirectory() }
-  catch (error) { actionError.value = error instanceof Error ? error.message : '无法加载会话' }
+  catch (error) { actionError.value = error instanceof Error ? error.message : shellMessages.value.loadConversationsFailed }
 }
 
 function sendMessage() {

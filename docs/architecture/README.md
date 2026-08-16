@@ -2087,7 +2087,13 @@ message editing now also localizes its author action, form and UTF-8 budget,
 save/cancel state, conflict-preserved draft, server-version rebase, retry,
 discard, and local failures. Author/availability gates, local proposed-content
 overlay, `contentRevision`, structured mentions, and stable operation IDs across
-retry/rebase/discard are unchanged.
+retry/rebase/discard are unchanged. The current V2 preview Vue boundary now has
+no fixed Chinese UI literals. Known legacy application failure strings are
+adapted inside the localization module, unknown runtime/server diagnostics stay
+verbatim, and a source guard prevents presentation literals from returning to
+the view. This completes catalog migration of the current default-off V2
+surface; it does not remove its product-cutover blockers or constitute an
+authenticated V2 browser run.
 
 ### Product consistency
 
