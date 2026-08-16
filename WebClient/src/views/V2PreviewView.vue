@@ -140,7 +140,8 @@
                   <label :for="`edit-${message.id}`">编辑消息</label>
                   <textarea :id="`edit-${message.id}`" :value="editDraft" class="input"
                             rows="3" required
-                            @input="updateEditDraft"></textarea>
+                            @input="updateEditDraft"
+                            @keydown.esc="cancelEditFromKeyboard"></textarea>
                   <small role="status" aria-live="polite" aria-label="编辑消息字节数">
                     {{ editBudgetLabel }}
                   </small>
@@ -149,7 +150,8 @@
                             @click="openMentionPicker('edit')">@ 提及成员</button>
                     <button class="btn btn-primary" type="submit"
                             :disabled="!editDraft.trim() || !editBudget.withinBudget">保存</button>
-                    <button class="btn btn-text" type="button" @click="cancelEdit">取消</button>
+                    <button class="btn btn-text" type="button" title="取消编辑（Esc）"
+                            @click="cancelEdit">取消</button>
                   </div>
                 </form>
                 <div v-if="editCommand(message)" class="edit-state" aria-live="polite">
@@ -226,18 +228,20 @@
                 <strong>回复消息 #{{ replyTarget.sequence }}</strong>
                 <span>{{ replyTarget.content }}</span>
               </div>
-              <button class="icon-button" type="button" aria-label="取消回复" @click="cancelReply">×</button>
+              <button class="icon-button" type="button" aria-label="取消回复"
+                      title="取消回复（Esc）" @click="cancelReply">×</button>
             </div>
             <label class="visually-hidden" for="v2-message">输入消息</label>
             <textarea id="v2-message" :value="draft" class="input" rows="2"
                       placeholder="输入消息" @input="updateDraft"
-                      @keydown.enter.exact.prevent="sendMessage"></textarea>
+                      @keydown.enter.exact.prevent="sendMessage"
+                      @keydown.esc="cancelReplyFromKeyboard"></textarea>
             <small role="status" aria-live="polite" aria-label="消息字节数">
               {{ draftBudgetLabel }}
             </small>
             <button class="btn btn-text" type="button"
                     aria-haspopup="dialog" @click="openMentionPicker('draft')">@ 提及成员</button>
-            <button class="btn btn-primary" type="submit"
+            <button class="btn btn-primary" type="submit" title="发送（Enter）"
                     :disabled="!draft.trim() || !draftBudget.withinBudget">发送</button>
           </form>
           <section v-if="mentionPickerOpen" class="mention-picker" role="dialog"
@@ -545,6 +549,12 @@ function cancelReply() {
   replyTarget.value = null
 }
 
+function cancelReplyFromKeyboard(event) {
+  if (!replyTarget.value) return
+  event.preventDefault()
+  cancelReply()
+}
+
 async function copyMessage(message) {
   if (message?.deliveryState !== 'accepted' || message.availability !== 'available'
       || typeof message.content !== 'string' || message.content.length === 0) return
@@ -694,6 +704,12 @@ function cancelEdit() {
   editDraft.value = ''
   editMentionAnchors.value = []
   if (mentionPickerMode.value === 'edit') closeMentionPicker()
+}
+
+function cancelEditFromKeyboard(event) {
+  if (!editingMessageId.value) return
+  event.preventDefault()
+  cancelEdit()
 }
 
 function submitEdit(message) {

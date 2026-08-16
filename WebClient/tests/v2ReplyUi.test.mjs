@@ -8,6 +8,9 @@ test('exposes keyboard-operable reply composition and unavailable target renderi
   for (const marker of [
     '@click="startReply(message)"',
     'type="button" aria-label="取消回复"',
+    '@keydown.esc="cancelReplyFromKeyboard"',
+    'if (!replyTarget.value) return',
+    'title="取消回复（Esc）"',
     'application.sendReply(replyTarget.value.id, text, mentions)',
     "return '原消息暂不可用'",
     "target.availability === 'recalled' ? '原消息已撤回'",

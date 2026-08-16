@@ -2286,6 +2286,8 @@ Candidate slices:
     message bodies without exposing recalled content.
   - [x] Give Web V1 and V2 the same available-body copy contract, exact plain-
     text semantics, Clipboard API fallback, and accessible success/failure feedback.
+  - [x] Add Web V2 Escape cancellation for active reply/edit composition while
+    preserving ordinary drafts and the browser-idiomatic Enter/Shift+Enter behavior.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

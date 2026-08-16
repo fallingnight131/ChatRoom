@@ -2207,6 +2207,10 @@ temporary-control cleanup, and fail-closed behavior when neither facility is
 available. Source gates require both V1 and V2 to hide copy for unavailable
 messages and expose accessible result feedback; `npm run build` compiles both
 surfaces against the shared helper.
+Web V2 source gates also require Escape to cancel an active reply/edit directly
+from its textarea, while the handlers explicitly do nothing for an ordinary
+draft. The Web contract intentionally retains Enter-to-send and Shift+Enter
+newline rather than copying the Windows desktop Ctrl+Enter convention.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

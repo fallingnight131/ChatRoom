@@ -945,6 +945,11 @@ back to a temporary readonly text control when the browser Clipboard API is
 unavailable or denied. The fallback is removed immediately and a failed copy is
 reported rather than treated as success; recalled/unavailable content is never
 offered by either Web surface.
+Web composition keeps its platform-idiomatic Enter-to-send and Shift+Enter
+newline behavior. In the V2 surface, Escape now cancels only an active reply or
+edit while focus remains in its text box; Escape on an ordinary draft is a
+no-op, so keyboard navigation cannot silently discard draft text. Visible
+control titles advertise the matching Enter and Escape shortcuts.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,
