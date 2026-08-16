@@ -134,7 +134,8 @@ resume proof or activate a gateway/client path.
   are bounded and tested concurrently; no scheduler or provider is composed.
 - The detached crypto adapter uses AES-256-GCM with fresh nonces and context/
   purpose/key-ID AAD, plus a separately keyed HMAC-SHA256 endpoint tag. It can
-  resolve old encryption key IDs for rotation, but production custody, lookup-
+  resolve old encryption key IDs for rotation. ADR-0411 adds strict mounted-file
+  custody with clearable callback copies, but runtime path composition, lookup-
   key rewrite, backup/restore, and rotation rehearsal remain open gates.
 - The subscription application use case consumes an account-free, zeroable
   request, binds only its authenticated caller, applies exact default-off and

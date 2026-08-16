@@ -2413,6 +2413,12 @@ Candidate slices:
       authenticated decryption, and old encryption key-ID resolution.
     - [ ] Add production key-custody configuration plus lookup/encryption-key
       rotation, backup/restore, and erasure composition/rehearsal.
+      - [x] Add strict mounted-file custody with one active and multiple prior
+        encryption key IDs, a cryptographically separate lookup key, POSIX
+        permission/symlink/length validation, callback-copy clearing, and
+        closed-state refusal (ADR-0411).
+      - [ ] Compose path-only runtime configuration and rehearse encryption-key
+        rollover, lookup-tag rewrite, backup/restore, and account erasure.
     - [x] Produce the outbox only under an explicit enabled policy in the
       new-message transaction; prove default-off behavior, stable message
       identity, mention metadata, idempotent replay, 24-hour expiry, and atomic

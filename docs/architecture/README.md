@@ -1994,8 +1994,12 @@ AES-256-GCM protector: every field has a fresh 96-bit nonce and account/install/
 purpose/key-ID AAD, while endpoint uniqueness uses a separate HMAC-SHA256 key.
 Authenticated unprotection resolves the stored encryption key ID, so an old key
 can remain decryptable during rotation. Key material is supplied only through a
-short-lived callback custody port. No production KMS/secret source, lookup-key
-rewrite, backup/restore, rotation rehearsal, or runtime composition exists yet.
+short-lived callback custody port. ADR-0411 adds a detached mounted-file custody
+adapter: raw keys never enter environment values, each file is a non-link exact
+32-byte POSIX-protected file, one active key coexists with prior decryption keys,
+the lookup key must be cryptographically distinct, and callback/owned copies are
+cleared. Path-only runtime configuration, lookup-tag rewrite, backup/restore,
+rotation rehearsal, and runtime composition remain open.
 The detached subscription mutation use case now consumes an account-free,
 zeroable request and binds identity only from its authenticated caller. Its exact
 default-off policy and account/install/action admission boundary run before

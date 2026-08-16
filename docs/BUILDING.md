@@ -1481,9 +1481,12 @@ cd Backend
 
 It proves AES-256-GCM round-trip, fresh nonce/ciphertext, account/install/purpose
 AAD separation, HMAC-SHA256 endpoint-tag stability, ciphertext/context tamper
-rejection, and decrypt-by-old-key-ID behavior. Fixture key custody uses cleared
-in-memory copies; this is not production KMS, secret provisioning, lookup-key
-rotation, backup/restore, or operational erasure evidence.
+rejection, and decrypt-by-old-key-ID behavior. It also proves the ADR-0411
+mounted-file custody rules: exact raw key length, strict POSIX permissions,
+symbolic-link refusal, active/prior encryption-key selection, independent lookup
+key, callback-copy clearing, and closed-state refusal. Runtime path configuration,
+external secret provisioning, lookup-key rotation, backup/restore, and
+operational erasure remain separate release evidence.
 The authenticated subscription application boundary is covered by:
 
 ```bash
