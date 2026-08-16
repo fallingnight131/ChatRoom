@@ -1,5 +1,7 @@
 package com.fallingnight.chat.gateway.runtime;
 
+import com.fallingnight.chat.application.contact.AccountBlockResult;
+import com.fallingnight.chat.application.contact.AccountBlockUseCase;
 import com.fallingnight.chat.application.identity.AuthenticationUseCase;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPort;
 import com.fallingnight.chat.application.conversation.ConversationParticipantPort;
@@ -86,6 +88,8 @@ public final class V2GatewayServer implements AutoCloseable {
     private final MessageEditPort edits;
     private final MessageForwardPort forwards;
     private final MessageSearchPort search;
+    private AccountBlockUseCase accountBlocks =
+            (actor, intent) -> AccountBlockResult.Rejected.TARGET_UNAVAILABLE;
     private final DeviceManagementService deviceManagement;
     private final Executor authenticationExecutor;
     private final Executor messagingExecutor;
@@ -279,6 +283,37 @@ public final class V2GatewayServer implements AutoCloseable {
                 authenticationExecutor, messagingExecutor, admission, events, messagingEvents,
                 deviceEvents, deviceConnections, createSslContext(config), liveRouter,
                 productReadiness);
+    }
+
+    V2GatewayServer(
+            GatewayRuntimeConfig config,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            MessageSearchPort search,
+            AccountBlockUseCase accountBlocks,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            BooleanSupplier productReadiness) {
+        this(config, authentication, sessionResume, submissions, history, directory,
+                participants, reactions, pins, edits, forwards, search, deviceManagement,
+                authenticationExecutor, messagingExecutor, admission, events, messagingEvents,
+                deviceEvents, deviceConnections, liveRouter, productReadiness);
+        this.accountBlocks = Objects.requireNonNull(accountBlocks, "accountBlocks");
     }
 
     V2GatewayServer(
@@ -632,6 +667,7 @@ public final class V2GatewayServer implements AutoCloseable {
                 edits,
                 forwards,
                 search,
+                accountBlocks,
                 deviceManagement,
                 authenticationExecutor,
                 messagingExecutor,
@@ -644,7 +680,8 @@ public final class V2GatewayServer implements AutoCloseable {
                 config.handshakeTimeout(),
                 config.authenticationTimeout(),
                 config.messageForwardingEnabled(),
-                config.messageSearchEnabled()));
+                config.messageSearchEnabled(),
+                config.accountBlockingEnabled()));
         pipeline.addLast("safe-channel-error", new GatewayChannelExceptionHandler());
     }
 

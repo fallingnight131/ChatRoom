@@ -3,14 +3,15 @@ package com.fallingnight.chat.application.contact;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Detached V2 account-block boundary; gateway and persistence composition remain off. */
-public final class AccountBlockService {
+/** Authenticated account-block application service independent of transport composition. */
+public final class AccountBlockService implements AccountBlockUseCase {
     private final AccountBlockMutationPort mutations;
 
     public AccountBlockService(AccountBlockMutationPort mutations) {
         this.mutations = Objects.requireNonNull(mutations, "mutations");
     }
 
+    @Override
     public AccountBlockResult apply(UUID authenticatedAccountId, AccountBlockIntent intent) {
         Objects.requireNonNull(authenticatedAccountId, "authenticatedAccountId");
         Objects.requireNonNull(intent, "intent");

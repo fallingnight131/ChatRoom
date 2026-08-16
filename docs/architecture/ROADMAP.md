@@ -2304,8 +2304,11 @@ Candidate slices:
   - [x] Reserve permanent V2 capability 7 and message types 128/129 for a
     server-bound, idempotent account-block command/result; keep runtime
     advertisement and handling absent during the protocol expand step.
-  - [ ] Add a default-off V2 gateway handler and accessible Web/Windows block
-    management only after migration and authorization gates pass.
+  - [x] Add an exact-default-off V2 gateway handler, negotiated capability,
+    bounded execution, privacy-safe errors and metrics, plus real TLS/WSS and
+    PostgreSQL mutation/direct-denial evidence.
+  - [ ] Add accessible Web and Windows block management behind independent
+    product gates, including retry, reconnect, and assistive-technology paths.
 - Windows native notifications;
   - [x] Add a persisted-live-only notification candidate boundary and a bounded,
     privacy-safe policy that suppresses duplicates, self echoes, and the active

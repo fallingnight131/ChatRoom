@@ -18,6 +18,8 @@ public interface MessagingEventSink {
 
     default void searchPage() { }
 
+    default void accountBlockApplied(boolean changed) { }
+
     void livePublished(int count);
 
     void liveSlowConsumerClosed(int count);

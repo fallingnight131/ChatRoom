@@ -1,5 +1,7 @@
 package com.fallingnight.chat.gateway.transport;
 
+import com.fallingnight.chat.application.contact.AccountBlockResult;
+import com.fallingnight.chat.application.contact.AccountBlockUseCase;
 import com.fallingnight.chat.application.identity.AuthenticationUseCase;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPort;
 import com.fallingnight.chat.application.conversation.ConversationParticipantPort;
@@ -216,13 +218,51 @@ public final class V2ApplicationPipeline {
             Duration authenticationTimeout,
             boolean messageForwardingEnabled,
             boolean messageSearchEnabled) {
+        install(pipeline, authentication, sessionResume, submissions, history, directory,
+                participants, reactions, pins, edits, forwards, search,
+                (actor, intent) -> AccountBlockResult.Rejected.TARGET_UNAVAILABLE,
+                deviceManagement, authenticationExecutor, messagingExecutor, admission,
+                events, messagingEvents, deviceEvents, deviceConnections, liveRouter,
+                handshakeTimeout, authenticationTimeout, messageForwardingEnabled,
+                messageSearchEnabled, false);
+    }
+
+    public static void install(
+            ChannelPipeline pipeline,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            MessageSearchPort search,
+            AccountBlockUseCase accountBlocks,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            Duration handshakeTimeout,
+            Duration authenticationTimeout,
+            boolean messageForwardingEnabled,
+            boolean messageSearchEnabled,
+            boolean accountBlockingEnabled) {
         Objects.requireNonNull(pipeline, "pipeline");
         Objects.requireNonNull(search, "search");
+        Objects.requireNonNull(accountBlocks, "accountBlocks");
         V2FramePipeline.install(pipeline);
         pipeline.addLast("v2-phase-timeouts", new V2ConnectionTimeoutHandler(
                 handshakeTimeout, authenticationTimeout));
         pipeline.addLast("v2-handshake", new V2HandshakeHandler(
-                messageForwardingEnabled, messageSearchEnabled));
+                messageForwardingEnabled, messageSearchEnabled, accountBlockingEnabled));
         pipeline.addLast("v2-authentication", new V2AuthenticationHandler(
                 authentication,
                 sessionResume,
@@ -239,6 +279,10 @@ public final class V2ApplicationPipeline {
         if (messageSearchEnabled) {
             pipeline.addLast("v2-message-search", new V2MessageSearchHandler(
                     search, messagingExecutor, messagingEvents));
+        }
+        if (accountBlockingEnabled) {
+            pipeline.addLast("v2-account-block", new V2AccountBlockHandler(
+                    accountBlocks, messagingExecutor, messagingEvents));
         }
         pipeline.addLast("v2-messaging", new V2MessagingHandler(
                 submissions, history, directory, reactions, pins, edits, forwards,

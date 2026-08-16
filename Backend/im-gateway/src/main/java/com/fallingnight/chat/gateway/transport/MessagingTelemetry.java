@@ -18,6 +18,8 @@ public final class MessagingTelemetry implements MessagingEventSink {
     private final LongAdder forwardAccepted = new LongAdder();
     private final LongAdder forwardDuplicates = new LongAdder();
     private final LongAdder forwardRateLimited = new LongAdder();
+    private final LongAdder accountBlockChanged = new LongAdder();
+    private final LongAdder accountBlockNoOp = new LongAdder();
     private final LongAdder livePublished = new LongAdder();
     private final LongAdder liveSlowConsumerClosed = new LongAdder();
     private final LongAccumulator liveSlowConsumerMaximumBytesBeforeWritable =
@@ -53,6 +55,10 @@ public final class MessagingTelemetry implements MessagingEventSink {
         else forwardAccepted.increment();
     }
     @Override public void forwardRateLimited() { forwardRateLimited.increment(); }
+    @Override public void accountBlockApplied(boolean changed) {
+        if (changed) accountBlockChanged.increment();
+        else accountBlockNoOp.increment();
+    }
     @Override public void livePublished(int count) { livePublished.add(count); }
     @Override public void liveSlowConsumerClosed(int count) { liveSlowConsumerClosed.add(count); }
     @Override public void liveSlowConsumerBacklog(long maximumBytesBeforeWritable) {
@@ -72,6 +78,7 @@ public final class MessagingTelemetry implements MessagingEventSink {
                 reactionChanged.sum(), reactionNoOp.sum(), reactionDuplicates.sum(),
                 editChanged.sum(), editNoOp.sum(), editDuplicates.sum(),
                 forwardAccepted.sum(), forwardDuplicates.sum(), forwardRateLimited.sum(),
+                accountBlockChanged.sum(), accountBlockNoOp.sum(),
                 livePublished.sum(), liveSlowConsumerClosed.sum(),
                 liveSlowConsumerMaximumBytesBeforeWritable.get(), denied.sum(),
                 conflicts.sum(), saturated.sum(), failed.sum());

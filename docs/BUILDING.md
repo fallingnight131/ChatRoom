@@ -1472,6 +1472,26 @@ only by an explicitly enabled candidate policy. Product composition remains off
 unless exact `CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED=true` is supplied; client
 advertisements are still absent, so this remains candidate rather than product
 evidence.
+
+The default-off account-block gateway boundary is covered by:
+
+```bash
+cd Backend
+./gradlew :protocol-v2:test :im-gateway:test \
+  --tests '*V2AccountBlockHandlerTest' \
+  --tests '*V2HandshakeHandlerTest'
+```
+
+It proves capability and authentication checks, server-bound actor identity,
+canonical payload validation, generic privacy denial, idempotency-conflict
+mapping, bounded-worker rejection, disconnect cleanup, and fixed changed/no-op
+telemetry. Product composition is absent unless exact
+`CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true` is supplied, and negotiation
+still requires a client request for capability 7. Ordinary Web and Windows
+builds do not request it. `python3 tools/verify_m0.py --postgres` additionally
+proves the route over real TLS/WSS against a disposable PostgreSQL database,
+including durable exact retry and generic denial of a later direct message.
+
 The Java gate includes embedded-channel tests for the bounded V2 binary
 WebSocket frame decoder, single-use ClientHello negotiation, and fresh-login
 connection state machine. They verify server-bound identity, secret cleanup,
@@ -1573,12 +1593,13 @@ delayed retry, expiry reclamation, attempt increments, stale-token/wrong-owner
 rejection, and idempotent publication. No scheduler, Redis connection,
 historical backfill, or product route is activated by these expand slices
 (ADR-0348, ADR-0349).
-V052 adds the detached asymmetric account-block state and immutable operation
+V052 adds the asymmetric account-block state and immutable operation
 ledger. The same disposable-database gate proves concurrent exact retry,
 opposite-direction lock ordering, conflicting operation reuse, convergent no-op,
 disabled-target denial, unblock, and the database self-edge constraint. Direct
-messaging, contact requests, gateway
-routing, and clients do not consume this state yet (ADR-0408).
+messaging and contact-request adapters enforce the graph transactionally. The
+gateway mutation route is independently default-off and requires capability 7;
+ordinary clients still do not consume it (ADR-0408).
 The application module also tests the scheduler-neutral relay pass: fixed
 publication outcomes, unexpected-exception redaction, capped exponential retry,
 duplicate-claim rejection, and fenced ownership loss. This class is not yet
@@ -2279,6 +2300,14 @@ The application layer keeps at most 100 search hits in page memory, never writes
 the query or results to IndexedDB, and ignores pages abandoned by a disconnect
 or conversation switch. Its focused test is included in `npm test`; context
 history and UI activation remain separate work.
+The Java gateway account-block route has its own exact runtime gate,
+`CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true`. Missing or exact `false`
+omits both the handler and capability policy; other values fail configuration
+parsing before bind. Changing it requires a gateway restart. Connections keep
+the capabilities negotiated for their lifetime, so a disable rollout must
+restart or drain the old gateway connections. Ordinary Web and Windows clients
+still omit capability 7, and server activation alone does not expose a product
+action.
 Web V2 browser notifications have the independent exact build-time gate
 `VITE_CHAT_V2_NOTIFICATIONS=true`. Missing, empty, or exact `false` keeps
 application candidate emission off; malformed values invalidate the V2 runtime.

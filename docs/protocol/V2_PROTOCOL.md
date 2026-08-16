@@ -141,8 +141,13 @@ session supplies the actor; envelope identity fields cannot override it.
 result, and operation UUID so clients can correlate exact retries. Target
 unavailability uses the generic `NOT_AUTHORIZED` error; conflicting operation
 reuse uses `IDEMPOTENCY_CONFLICT`. The capability is structurally valid but no
-gateway advertises or handles it yet, so old handshakes and product behavior
-remain unchanged.
+gateway handler is installed unless exact
+`CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true` is supplied. Even then,
+negotiation requires the client to request capability 7. The handler accepts
+only authenticated command envelopes, binds the actor from connection state,
+uses a bounded serialized queue, and emits fixed-cardinality changed/no-op
+outcomes. Ordinary Web and Windows clients do not request the capability, so
+old handshakes and product behavior remain unchanged.
 
 The Web candidate correlates every search response with one active in-memory
 request and discards pages abandoned by disconnect or conversation change.

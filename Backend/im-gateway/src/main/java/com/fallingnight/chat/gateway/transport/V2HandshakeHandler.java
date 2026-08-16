@@ -31,6 +31,7 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
     private final String connectionId;
     private final boolean messageForwardingEnabled;
     private final boolean messageSearchEnabled;
+    private final boolean accountBlockingEnabled;
     private boolean negotiated;
 
     public V2HandshakeHandler() {
@@ -39,32 +40,46 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
 
     public V2HandshakeHandler(boolean messageForwardingEnabled) {
         this(Clock.systemUTC(), () -> UUID.randomUUID().toString(),
-                messageForwardingEnabled, false);
+                messageForwardingEnabled, false, false);
     }
 
     public V2HandshakeHandler(boolean messageForwardingEnabled, boolean messageSearchEnabled) {
         this(Clock.systemUTC(), () -> UUID.randomUUID().toString(),
-                messageForwardingEnabled, messageSearchEnabled);
+                messageForwardingEnabled, messageSearchEnabled, false);
+    }
+
+    public V2HandshakeHandler(boolean messageForwardingEnabled, boolean messageSearchEnabled,
+            boolean accountBlockingEnabled) {
+        this(Clock.systemUTC(), () -> UUID.randomUUID().toString(),
+                messageForwardingEnabled, messageSearchEnabled, accountBlockingEnabled);
     }
 
     V2HandshakeHandler(Clock clock, Supplier<String> connectionIdSupplier) {
-        this(clock, connectionIdSupplier, false, false);
+        this(clock, connectionIdSupplier, false, false, false);
     }
 
     V2HandshakeHandler(
             Clock clock, Supplier<String> connectionIdSupplier,
             boolean messageForwardingEnabled) {
-        this(clock, connectionIdSupplier, messageForwardingEnabled, false);
+        this(clock, connectionIdSupplier, messageForwardingEnabled, false, false);
     }
 
     V2HandshakeHandler(
             Clock clock, Supplier<String> connectionIdSupplier,
             boolean messageForwardingEnabled, boolean messageSearchEnabled) {
+        this(clock, connectionIdSupplier, messageForwardingEnabled, messageSearchEnabled, false);
+    }
+
+    V2HandshakeHandler(
+            Clock clock, Supplier<String> connectionIdSupplier,
+            boolean messageForwardingEnabled, boolean messageSearchEnabled,
+            boolean accountBlockingEnabled) {
         this.clock = Objects.requireNonNull(clock, "clock");
         Objects.requireNonNull(connectionIdSupplier, "connectionIdSupplier");
         connectionId = requireConnectionId(connectionIdSupplier.get());
         this.messageForwardingEnabled = messageForwardingEnabled;
         this.messageSearchEnabled = messageSearchEnabled;
+        this.accountBlockingEnabled = accountBlockingEnabled;
     }
 
     @Override
@@ -156,7 +171,9 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
                         || (messageForwardingEnabled && capability
                                 == ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING)
                         || (messageSearchEnabled && capability
-                                == ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH))
+                                == ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH)
+                        || (accountBlockingEnabled && capability
+                                == ClientCapability.CLIENT_CAPABILITY_ACCOUNT_BLOCKING))
                 .toList();
         Set<ClientCapability> enabledCapabilities = Set.copyOf(enabledCapabilityList);
         context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES)

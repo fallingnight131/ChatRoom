@@ -49,6 +49,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.fallingnight.chat.routing.redis.LettuceGatewayRoutingAdapter;
 import com.fallingnight.chat.routing.redis.RedisRoutingConfig;
 import com.fallingnight.chat.protocol.v2.Authenticate;
+import com.fallingnight.chat.protocol.v2.AccountBlockApplied;
 import com.fallingnight.chat.protocol.v2.ClientHello;
 import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.ClientPlatform;
@@ -60,11 +61,14 @@ import com.fallingnight.chat.protocol.v2.MessageHistoryPage;
 import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
+import com.fallingnight.chat.protocol.v2.ProtocolError;
+import com.fallingnight.chat.protocol.v2.ProtocolErrorCode;
 import com.fallingnight.chat.protocol.v2.ConversationMessageSearchPage;
 import com.fallingnight.chat.protocol.v2.ReadMessageHistory;
 import com.fallingnight.chat.protocol.v2.ResumeSession;
 import com.fallingnight.chat.protocol.v2.SearchConversationMessages;
 import com.fallingnight.chat.protocol.v2.ServerHello;
+import com.fallingnight.chat.protocol.v2.SetAccountBlock;
 import com.fallingnight.chat.protocol.v2.SessionEstablished;
 import com.fallingnight.chat.protocol.v2.SubmitMessage;
 import com.google.protobuf.ByteString;
@@ -362,6 +366,91 @@ class GatewayRuntimePostgresIntegrationTest {
                     ConversationMessageSearchPage.parseFrom(result.getPayload());
             assertEquals(1, page.getHitsCount());
             assertEquals("Needle 世界", page.getHits(0).getContent().toStringUtf8());
+        } finally {
+            if (socket != null) socket.abort();
+            if (runtime != null) runtime.close();
+            certificate.delete();
+        }
+    }
+
+    @Test
+    void mutatesAccountBlocksOnlyBehindNegotiatedDefaultOffCapability() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String password = System.getenv().getOrDefault("CHATROOM_TEST_POSTGRES_PASSWORD", "");
+        Assumptions.assumeTrue(jdbcUrl != null && !jdbcUrl.isBlank());
+        Assumptions.assumeTrue(username != null && !username.isBlank());
+        new PostgresMigrator(jdbcUrl, username, password).migrate();
+
+        UUID accountId = UUID.randomUUID();
+        UUID peerAccountId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        UUID operationId = UUID.randomUUID();
+        String login = "wss-block-" + accountId;
+        seedV2NetworkAccounts(jdbcUrl, username, password, accountId, peerAccountId,
+                conversationId, login, "wss-block-" + peerAccountId);
+
+        int gatewayPort = availablePort();
+        int adminPort = availablePort();
+        SelfSignedCertificate certificate = new SelfSignedCertificate("localhost");
+        GatewayRuntime runtime = null;
+        WebSocket socket = null;
+        try {
+            Map<String, String> environment = new HashMap<>();
+            environment.put("CHATROOM_GATEWAY_PORT", Integer.toString(gatewayPort));
+            environment.put("CHATROOM_GATEWAY_ADMIN_PORT", Integer.toString(adminPort));
+            environment.put("CHATROOM_GATEWAY_TLS_CERTIFICATE",
+                    certificate.certificate().getAbsolutePath());
+            environment.put("CHATROOM_GATEWAY_TLS_PRIVATE_KEY",
+                    certificate.privateKey().getAbsolutePath());
+            environment.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "localhost:" + gatewayPort);
+            environment.put("CHATROOM_GATEWAY_WEB_ORIGINS", "https://chat.example.com");
+            environment.put("CHATROOM_POSTGRES_URL", jdbcUrl);
+            environment.put("CHATROOM_POSTGRES_USER", username);
+            environment.put("CHATROOM_POSTGRES_PASSWORD", "test-trust-password");
+            environment.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
+            environment.put("CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED", "true");
+
+            runtime = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(environment));
+            runtime.start();
+            awaitReady(runtime);
+            BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
+            socket = connectWebSocket(gatewayPort, listener);
+            socket.sendBinary(ByteBuffer.wrap(clientHelloWithBlocking(
+                    "network-block-device").toByteArray()), true).join();
+            ServerHello hello = ServerHello.parseFrom(listener.next().getPayload());
+            assertEquals(List.of(ClientCapability.CLIENT_CAPABILITY_ACCOUNT_BLOCKING),
+                    hello.getEnabledCapabilitiesList());
+            socket.sendBinary(ByteBuffer.wrap(authenticate(login).toByteArray()), true).join();
+            SessionEstablished session = SessionEstablished.parseFrom(
+                    listener.next().getPayload());
+
+            Envelope command = block(
+                    session.getSessionId(), peerAccountId, operationId, true, "block-1");
+            socket.sendBinary(ByteBuffer.wrap(command.toByteArray()), true).join();
+            AccountBlockApplied first = AccountBlockApplied.parseFrom(
+                    listener.next().getPayload());
+            assertEquals(accountId.toString(), first.getActorAccountId());
+            assertEquals(peerAccountId.toString(), first.getTargetAccountId());
+            assertTrue(first.getBlocked());
+            assertTrue(first.getChanged());
+
+            socket.sendBinary(ByteBuffer.wrap(command.toByteArray()), true).join();
+            AccountBlockApplied duplicate = AccountBlockApplied.parseFrom(
+                    listener.next().getPayload());
+            assertEquals(first, duplicate);
+            assertEquals(1, countQuery(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.account_block WHERE blocker_account_id='"
+                            + accountId + "' AND blocked_account_id='" + peerAccountId + "'"));
+
+            socket.sendBinary(ByteBuffer.wrap(submit(
+                    session.getSessionId(), conversationId, "blocked-submit",
+                    "blocked-message", "must fail").toByteArray()), true).join();
+            Envelope denied = listener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_PROTOCOL_ERROR_VALUE,
+                    denied.getMessageType());
+            assertEquals(ProtocolErrorCode.PROTOCOL_ERROR_CODE_NOT_AUTHORIZED,
+                    ProtocolError.parseFrom(denied.getPayload()).getCode());
         } finally {
             if (socket != null) socket.abort();
             if (runtime != null) runtime.close();
@@ -5627,6 +5716,19 @@ class GatewayRuntimePostgresIntegrationTest {
                 payload.toByteString());
     }
 
+    private static Envelope clientHelloWithBlocking(String deviceId) {
+        ClientHello payload = ClientHello.newBuilder()
+                .setMinimumProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                .setMaximumProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                .setPlatform(ClientPlatform.CLIENT_PLATFORM_WINDOWS)
+                .setAppVersion("integration-test")
+                .setClientDeviceId(deviceId)
+                .addCapabilities(ClientCapability.CLIENT_CAPABILITY_ACCOUNT_BLOCKING)
+                .build();
+        return command(MessageType.MESSAGE_TYPE_CLIENT_HELLO, "hello-block-1", "", "",
+                payload.toByteString());
+    }
+
     private static Envelope authenticate(String login) {
         Authenticate payload = Authenticate.newBuilder()
                 .setUsername(login)
@@ -5660,6 +5762,15 @@ class GatewayRuntimePostgresIntegrationTest {
                 .build();
         return command(MessageType.MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES,
                 "search-1", sessionId, "", payload.toByteString());
+    }
+
+    private static Envelope block(String sessionId, UUID target, UUID operation,
+            boolean blocked, String requestId) {
+        SetAccountBlock payload = SetAccountBlock.newBuilder()
+                .setTargetAccountId(target.toString()).setBlocked(blocked)
+                .setClientOperationId(operation.toString()).build();
+        return command(MessageType.MESSAGE_TYPE_SET_ACCOUNT_BLOCK, requestId,
+                sessionId, "", payload.toByteString());
     }
 
     private static MessageAccepted accepted(Envelope envelope) throws Exception {

@@ -146,6 +146,37 @@ class V2HandshakeHandlerTest {
     }
 
     @Test
+    void enablesAccountBlockingOnlyWhenBothServerPolicyAndClientRequestIt() throws Exception {
+        ClientHello capable = validHello().toBuilder()
+                .addCapabilities(ClientCapability.CLIENT_CAPABILITY_ACCOUNT_BLOCKING)
+                .build();
+        EmbeddedChannel disabled = channel();
+        try {
+            disabled.writeInbound(clientHelloEnvelope(capable));
+            assertEquals(List.of(), ServerHello.parseFrom(
+                    readEnvelope(disabled).getPayload()).getEnabledCapabilitiesList());
+        } finally {
+            disabled.finishAndReleaseAll();
+        }
+
+        EmbeddedChannel enabled = new EmbeddedChannel(
+                new V2EnvelopeDecoder(), new V2EnvelopeEncoder(),
+                new V2HandshakeHandler(
+                        Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC),
+                        () -> "connection-blocking", false, false, true));
+        try {
+            enabled.writeInbound(clientHelloEnvelope(capable));
+            ServerHello response = ServerHello.parseFrom(readEnvelope(enabled).getPayload());
+            assertEquals(List.of(ClientCapability.CLIENT_CAPABILITY_ACCOUNT_BLOCKING),
+                    response.getEnabledCapabilitiesList());
+            assertEquals(Set.of(ClientCapability.CLIENT_CAPABILITY_ACCOUNT_BLOCKING),
+                    enabled.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get());
+        } finally {
+            enabled.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void safelyRejectsWrongFirstFrameAndCloses() throws Exception {
         Envelope wrong = clientHelloEnvelope(validHello()).toBuilder()
                 .setMessageType(99)

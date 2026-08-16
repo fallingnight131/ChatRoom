@@ -1,5 +1,6 @@
 package com.fallingnight.chat.gateway.runtime;
 
+import com.fallingnight.chat.application.contact.AccountBlockService;
 import com.fallingnight.chat.application.identity.AuthenticationService;
 import com.fallingnight.chat.application.identity.SessionResumeService;
 import com.fallingnight.chat.application.identity.DeviceManagementService;
@@ -30,6 +31,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresMessagePinAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessageEditAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessageForwardAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessageSearchAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresAccountBlockAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresDeviceManagementAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.zaxxer.hikari.HikariDataSource;
@@ -111,6 +113,8 @@ public final class GatewayRuntime implements AutoCloseable {
             PostgresMessageForwardAdapter durableForwards =
                     new PostgresMessageForwardAdapter(dataSource);
             PostgresMessageSearchAdapter search = new PostgresMessageSearchAdapter(dataSource);
+            AccountBlockService accountBlocks =
+                    new AccountBlockService(new PostgresAccountBlockAdapter(dataSource));
             PostgresConversationDirectoryAdapter conversations =
                     new PostgresConversationDirectoryAdapter(dataSource);
             PostgresConversationParticipantAdapter participants =
@@ -179,6 +183,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     edits,
                     forwards,
                     search,
+                    accountBlocks,
                     deviceManagement,
                     workers,
                     messagingWorkers,

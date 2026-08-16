@@ -1,6 +1,7 @@
 package com.fallingnight.chat.protocol.v2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ class AccountBlockingProtocolTest {
                 .setBlocked(true)
                 .setClientOperationId("00000000-0000-0000-0000-000000000002")
                 .build();
+        ContactPayloadPolicy.requireValid(request);
         assertEquals(128, MessageType.MESSAGE_TYPE_SET_ACCOUNT_BLOCK_VALUE);
         assertEquals(129, MessageType.MESSAGE_TYPE_ACCOUNT_BLOCK_APPLIED_VALUE);
         assertEquals(7, ClientCapability.CLIENT_CAPABILITY_ACCOUNT_BLOCKING_VALUE);
@@ -38,9 +40,16 @@ class AccountBlockingProtocolTest {
                 .setChanged(false)
                 .setClientOperationId("00000000-0000-0000-0000-000000000002")
                 .build();
+        ContactPayloadPolicy.requireValid(applied);
         assertEquals("00000000-0000-0000-0000-000000000003", applied.getActorAccountId());
         assertEquals("00000000-0000-0000-0000-000000000001", applied.getTargetAccountId());
         assertEquals("00000000-0000-0000-0000-000000000002",
                 applied.getClientOperationId());
+        assertThrows(IllegalArgumentException.class, () -> ContactPayloadPolicy.requireValid(
+                SetAccountBlock.newBuilder().setTargetAccountId("not-a-uuid")
+                        .setClientOperationId(
+                                "00000000-0000-0000-0000-000000000002").build()));
+        assertThrows(IllegalArgumentException.class, () -> ContactPayloadPolicy.requireValid(
+                applied.toBuilder().setTargetAccountId(applied.getActorAccountId()).build()));
     }
 }

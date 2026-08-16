@@ -13,8 +13,8 @@ contact request or direct message, retries could diverge, and presence or error
 details could reveal private state. Blocking also must not rewrite durable
 message history or silently change shared-group membership.
 
-The first slice must establish server authority without activating an incomplete
-wire or storage path.
+The first slices must establish server authority and then expose a reversible
+server candidate without activating an incomplete client product path.
 
 ## Decision
 
@@ -52,22 +52,32 @@ wire or storage path.
 - Permanent V2 capability 7 and message types 128/129 define the additive block
   mutation command/result contract. The request contains target, desired state,
   and client operation UUID only; authentication supplies the actor. The
-  capability is accepted structurally but remains unadvertised and unhandled by
-  every gateway until an explicit default-off runtime gate is composed.
-- The block-mutation application service and runtime wire surface remain detached. The
-  durable write policy is nevertheless enforced by every current PostgreSQL
-  direct-contact adapter, including V1 compatibility, so later composition
-  cannot accidentally introduce an old-client bypass. This slice adds no block
-  active gateway handler or client UI.
+  gateway installs its handler only when exact
+  `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true` is supplied, and advertises
+  capability 7 only when the client also requested it. The absent/default-false
+  setting preserves the previous handshake and pipeline.
+- The handler binds the actor from authenticated connection state, validates
+  canonical payload identities, serializes at most eight pending mutations on
+  the bounded messaging executor, and clears pending work at disconnect.
+  Private target or policy denial maps to generic `NOT_AUTHORIZED`; operation-ID
+  reuse maps to `IDEMPOTENCY_CONFLICT`; malformed and saturated paths remain
+  distinct without disclosing account state.
+- Fixed-cardinality telemetry distinguishes changed and convergent no-op
+  mutations without account, target, or operation labels. The durable write
+  policy remains enforced by every PostgreSQL direct-contact adapter, including
+  V1 compatibility, so composition cannot introduce an old-client bypass.
+- Ordinary Web and Windows builds do not request capability 7 and expose no
+  block-management UI. Server activation alone therefore creates only an
+  explicitly testable candidate, not a product feature.
 
 ## Consequences
 
-The safety semantics and authenticated-actor boundary can evolve independently
-from transport. Existing deployments have no block rows until a controlled
-mutation surface is enabled, while direct-contact writes already fail closed if
-such rows exist. Old clients omit capability 7 and keep their prior handshake
-bytes. Later expand-migrate-contract steps can compose the default-off handler
-and Web/Windows surfaces without changing storage enforcement.
+The safety semantics and authenticated-actor boundary remain independent from
+transport. Existing deployments have no block rows until the default-off server
+candidate and an explicit compatible client are enabled, while direct-contact
+writes already fail closed if such rows exist. Old clients omit capability 7
+and keep their prior handshake bytes. Later expand-migrate-contract steps can
+add accessible Web and Windows surfaces without changing storage enforcement.
 
 ## Verification
 
@@ -83,14 +93,23 @@ non-effects, unblock behavior, and a deterministic block-commit/write race that
 waits on the account-pair lock before rejecting the write. The real TLS/WSS
 PostgreSQL gateway integration gate remains green with canonical DIRECT data.
 Protocol golden-byte tests pin the new numeric registry, capability identity,
-envelope kinds, and request field numbers independently of runtime activation.
+envelope kinds, and request field numbers. Focused handler tests prove
+authenticated actor binding, capability and kind checks, canonical validation,
+generic privacy denial, conflict mapping, executor saturation, and fixed
+changed/no-op telemetry. The real TLS/WSS PostgreSQL gate negotiates capability
+7 behind the exact server flag, applies a block, returns the identical exact
+retry, verifies one durable row, and then denies a new direct message with the
+generic result.
 
 ## Rollback
 
-Keep the forward migration and leave block mutation uncomposed. Disabling the
-new policy code while retaining block rows would reopen direct-contact paths, so
-rollback requires first disabling future mutations and proving the graph empty
-or applying an explicitly approved data policy. If V052 must be physically
-removed before product activation, restore the pre-migration database backup
-rather than editing Flyway history. No protocol, runtime configuration, or
-client state requires migration.
+Keep the forward migration and set
+`CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=false` (or remove it), then restart
+or drain gateways so no connection retains a previously negotiated capability.
+This stops new mutations but deliberately leaves existing block rows enforced.
+Removing the direct-write policy while retaining rows would reopen contact
+paths, so that deeper rollback requires first proving the graph empty or
+applying an explicitly approved data policy. If V052 must be physically removed
+before product activation, restore the pre-migration database backup rather
+than editing Flyway history. Client state requires no migration because product
+clients remain off.

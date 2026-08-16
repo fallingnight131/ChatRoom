@@ -124,19 +124,24 @@ independently.
 | Administration | Audit, reports, bans, operator actions | End-user authentication shortcuts |
 
 ADR-0408 starts the V2 account-safety path inside Contacts without yet exposing
-block management to products. A block is asymmetric durable desired state, the authenticated
-session binds the actor, and one stable client operation ID makes exact retries
-converge while conflicting reuse fails. Either direction now denies new direct
-submissions and contact requests with a generic result, but blocking
-does not rewrite message history, group membership, or shared-group delivery.
-The Java mutation service remains detached. V052 persists the asymmetric
-graph and immutable desired-state operation result atomically through its
-PostgreSQL port, including exact retry, conflicting operation reuse, disabled-
-account denial, and database self-edge constraints. PostgreSQL message,
-forward, V1 direct-message, and contact-request adapters now lock the account
-pair and enforce the graph inside their write transaction, preventing both
-gateway precheck races and legacy bypasses while preserving historical exact
-retries. Block wire capability and Web/Windows UI remain explicit later gates.
+block management to products. A block is asymmetric durable desired state, the
+authenticated session binds the actor, and one stable client operation ID makes
+exact retries converge while conflicting reuse fails. Either direction now
+denies new direct submissions and contact requests with a generic result, but
+blocking does not rewrite message history, group membership, or shared-group
+delivery. V052 persists the asymmetric graph and immutable desired-state
+operation result atomically through its PostgreSQL port, including exact retry,
+conflicting operation reuse, disabled-account denial, and database self-edge
+constraints. PostgreSQL message, forward, V1 direct-message, and contact-request
+adapters lock the account pair and enforce the graph inside their write
+transaction, preventing both gateway precheck races and legacy bypasses while
+preserving historical exact retries. The Java gateway can now compose the
+mutation service only when exact `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true`
+is supplied; it then negotiates capability 7 only with a requesting client,
+binds the actor from authentication, serializes a bounded command queue, maps
+private denials to a generic result, and exports fixed-cardinality outcomes.
+Ordinary Web and Windows clients still omit capability 7, so accessible product
+management remains a later gate.
 
 Keep module calls in-process at first. Split a deployable service only for one of
 these reasons:

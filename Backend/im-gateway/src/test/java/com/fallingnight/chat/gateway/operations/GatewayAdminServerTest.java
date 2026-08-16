@@ -23,6 +23,8 @@ class GatewayAdminServerTest {
         GatewayReadiness readiness = new GatewayReadiness();
         AuthenticationTelemetry telemetry = new AuthenticationTelemetry();
         MessagingTelemetry messaging = new MessagingTelemetry();
+        messaging.accountBlockApplied(true);
+        messaging.accountBlockApplied(false);
         DeviceManagementTelemetry devices = new DeviceManagementTelemetry();
         AttachmentCleanupTelemetry cleanup = new AttachmentCleanupTelemetry();
         telemetry.accepted(false);
@@ -104,6 +106,10 @@ class GatewayAdminServerTest {
                     "chat_gateway_messaging_total{outcome=\"forward_accepted\"} 1"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_messaging_total{outcome=\"forward_duplicate\"} 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_messaging_total{outcome=\"account_block_changed\"} 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_messaging_total{outcome=\"account_block_noop\"} 1"));
             assertTrue(metrics.body().contains("chat_gateway_messaging_workers_active 2"));
             assertTrue(metrics.body().contains("chat_gateway_messaging_queue_size 3"));
             assertTrue(metrics.body().contains(

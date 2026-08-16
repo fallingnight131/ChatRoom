@@ -683,9 +683,12 @@ canonical accounts. The adapter first returns an exact durable retry even if the
 target was disabled later; new operations lock both account rows in UUID order,
 require both accounts enabled, mutate current state only when necessary, and
 commit the desired-state result in the same transaction. Reusing an actor-scoped
-operation UUID for another target or desired state is a conflict. No gateway or
-client block-mutation path consumes these tables yet. Direct-contact write
-adapters do consume the graph: they take stable-order shared locks on the two
+operation UUID for another target or desired state is a conflict. The gateway
+can now compose the mutation adapter only behind exact
+`CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true` and a negotiated capability 7;
+ordinary Web and Windows clients remain off. Direct-contact write adapters
+consume the graph regardless of that mutation gate: they take stable-order
+shared locks on the two
 account rows, then check both block directions in the same transaction before a
 new V2 submit/reply/forward, V1 direct message, contact-request insertion, or
 pending-request acceptance. Those locks conflict with mutation's pairwise

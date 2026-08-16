@@ -58,6 +58,7 @@ class GatewayRuntimeConfigTest {
         assertEquals(10_000, config.forwardAdmissionLimits().maximumTrackedAccounts());
         assertFalse(config.messageForwardingEnabled());
         assertFalse(config.messageSearchEnabled());
+        assertFalse(config.accountBlockingEnabled());
         assertFalse(config.distributedRouting().enabled());
         assertEquals("development", config.releaseIdentity().releaseVersion());
         assertEquals("unknown", config.releaseIdentity().sourceRevision());
@@ -73,6 +74,10 @@ class GatewayRuntimeConfigTest {
         enabledSearch.put("CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED", "true");
         assertTrue(GatewayRuntimeConfig.fromEnvironment(enabledSearch)
                 .messageSearchEnabled());
+        Map<String, String> enabledBlocking = requiredEnvironment();
+        enabledBlocking.put("CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED", "true");
+        assertTrue(GatewayRuntimeConfig.fromEnvironment(enabledBlocking)
+                .accountBlockingEnabled());
         Map<String, String> enabledRouting = requiredEnvironment();
         enabledRouting.put(DistributedGatewayRoutingConfig.ENABLED, "true");
         enabledRouting.put(DistributedGatewayRoutingConfig.REDIS_URI,
@@ -134,6 +139,11 @@ class GatewayRuntimeConfigTest {
         searchFlag.put("CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED", "TRUE");
         assertThrows(IllegalArgumentException.class,
                 () -> GatewayRuntimeConfig.fromEnvironment(searchFlag));
+
+        Map<String, String> blockingFlag = requiredEnvironment();
+        blockingFlag.put("CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED", "TRUE");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(blockingFlag));
 
         Map<String, String> waterMarks = requiredEnvironment();
         waterMarks.put("CHATROOM_GATEWAY_WRITE_BUFFER_LOW_BYTES", "65536");
