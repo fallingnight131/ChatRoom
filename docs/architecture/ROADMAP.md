@@ -2209,8 +2209,11 @@ Progress:
     - [x] Add the strict default-off Web build/protocol gate with bounded query
       encoding, correlated descending-page validation, and shared application
       capability state; no UI or result cache is activated.
-    - [ ] Add Web search result orchestration, accessible UI, context-history
-      repair, and explicit endpoint activation evidence.
+    - [x] Add bounded Web in-memory result orchestration with correlation,
+      pagination, disconnect/conversation-switch abandonment, generic denial,
+      and no query/result persistence.
+    - [ ] Add the accessible Web UI, context-history repair, and explicit
+      endpoint activation evidence.
     - [ ] Add the equivalent Windows protocol, local state, accessible UI, and
       endpoint activation evidence.
 

@@ -126,6 +126,11 @@ see no new capability or unsolicited shape. The three generated
 bindings parse and re-emit one fixed mixed-language Unicode command fixture
 identically (ADR-0404).
 
+The Web candidate correlates every search response with one active in-memory
+request and discards pages abandoned by disconnect or conversation change.
+Search query/result state is not persisted and does not advance the ordinary
+history synchronization cursor.
+
 After authentication, the gateway dispatches types 100 and 102 through the
 transport-independent application ports and PostgreSQL adapter. It uses only
 the server-bound account/device identity, executes database work outside the

@@ -29,6 +29,7 @@ import {
   MessagePinChangedRecordSchema,
   MessageEditAppliedSchema,
   MessageEditedRecordSchema,
+  ConversationMessageSearchPageSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
 import type { V2WebProtocolEvent } from "../src/protocol/v2/webProtocolClient";
 import type {
@@ -69,6 +70,12 @@ class FakeTransport {
   }
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): void {
     this.calls.push(["history", conversationId, afterSequence, limit]);
+  }
+  searchConversationMessages(
+    conversationId: string, literalQuery: string, beforeSequence: bigint, limit: number): string {
+    const requestId = `search-${this.calls.length}`;
+    this.calls.push(["search", conversationId, literalQuery, beforeSequence, limit, requestId]);
+    return requestId;
   }
   submitText(conversationId: string, clientMessageId: string, text: string,
     mentions: readonly import("../src/application/v2WebChatApplication").V2ConversationMention[] = []): void {
@@ -913,6 +920,63 @@ test("contains participant denial and abandons ambiguous requests on disconnect"
   assert.equal(application.refreshParticipants(), true);
   transport.transition("reconnect-wait");
   assert.equal(application.snapshot.participantsLoading, false);
+  application.dispose();
+});
+
+test("keeps bounded search results in memory and abandons stale pages on disconnect", async () => {
+  const transport = new FakeTransport();
+  const application = new V2WebChatApplication({
+    transport, cache: new FakeCache(), enableMessageSearch: true,
+  });
+  transport.transition("authenticated"); establish(transport); directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+
+  assert.equal(application.searchMessages("  needle  "), true);
+  const first = transport.calls.at(-1)!;
+  assert.deepEqual(first.slice(0, 5), ["search", CONVERSATION_ID, "needle", 0n, 50]);
+  const hit = create(MessageRecordSchema, {
+    conversationId: CONVERSATION_ID,
+    messageId: MESSAGE_ID,
+    conversationSequence: 9n,
+    senderAccountId: ACCOUNT_ID,
+    senderDeviceId: DEVICE_ID,
+    clientMessageId: "search-hit-1",
+    contentType: MessageContentType.TEXT_UTF8,
+    content: new TextEncoder().encode("Needle one"),
+    acceptedAtEpochMs: BigInt(NOW),
+  });
+  transport.emit({
+    type: "conversation-message-search-page",
+    requestId: first[5] as string,
+    clientMessageId: "",
+    value: create(ConversationMessageSearchPageSchema, {
+      conversationId: CONVERSATION_ID,
+      hits: [hit],
+      nextBeforeSequence: 9n,
+      hasMore: true,
+    }),
+  });
+  assert.equal(application.snapshot.searchQuery, "needle");
+  assert.equal(application.snapshot.searchResults[0]?.content, "Needle one");
+  assert.equal(application.snapshot.searchHasMore, true);
+
+  assert.equal(application.loadMoreSearchResults(), true);
+  assert.deepEqual(transport.calls.at(-1)?.slice(0, 5),
+    ["search", CONVERSATION_ID, "needle", 9n, 50]);
+  const staleRequest = transport.calls.at(-1)![5] as string;
+  transport.transition("reconnect-wait");
+  assert.equal(application.snapshot.searchLoading, false);
+  transport.emit({
+    type: "conversation-message-search-page",
+    requestId: staleRequest,
+    clientMessageId: "",
+    value: create(ConversationMessageSearchPageSchema, {
+      conversationId: CONVERSATION_ID,
+      hits: [{ ...hit, messageId: SECOND_MESSAGE_ID, conversationSequence: 5n }],
+      nextBeforeSequence: 5n,
+    }),
+  });
+  assert.equal(application.snapshot.searchResults.length, 1);
   application.dispose();
 });
 

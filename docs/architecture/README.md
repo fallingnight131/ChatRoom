@@ -840,7 +840,14 @@ Web now has an independent immutable protocol-candidate gate,
 capability 6 in `ClientHello` and application `searchEnabled` state. The client
 encodes only bounded stripped literal queries and rejects uncorrelated,
 cross-conversation, non-descending, malformed-message, or invalid-cursor pages.
-The default and current UI remain off; search results are not cached yet.
+The default and current UI remain off; search results are not persisted.
+The Web application boundary now retains at most 100 server-authoritative hits
+in page memory, correlates each page to the active conversation, trims the user
+query before protocol dispatch, and abandons ambiguous work on disconnect or
+conversation switch. Queries and results are deliberately excluded from
+IndexedDB. Protocol denial becomes a generic user-facing failure; no server
+detail, identity, or query is logged. The UI and context-history repair remain
+uncomposed.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

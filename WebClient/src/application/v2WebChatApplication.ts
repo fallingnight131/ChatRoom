@@ -24,6 +24,8 @@ const HISTORY_PAGE_SIZE = 100;
 const DIRECTORY_PAGE_SIZE = 50;
 const PARTICIPANT_PAGE_SIZE = 100;
 const MAX_RETAINED_PARTICIPANTS = 500;
+const SEARCH_PAGE_SIZE = 50;
+const MAX_RETAINED_SEARCH_HITS = 100;
 const MAX_RETAINED_ACCEPTED_MESSAGES = 500;
 const MAX_PENDING_MESSAGES = 100;
 const MAX_PENDING_REACTIONS = 8;
@@ -135,6 +137,8 @@ export interface V2ChatTransport {
   listConversationParticipants(
     conversationId: string, limit: number, afterAccountId?: string): string;
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): void;
+  searchConversationMessages?(
+    conversationId: string, literalQuery: string, beforeSequence: bigint, limit: number): string;
   submitText(conversationId: string, clientMessageId: string, text: string,
     mentions?: readonly V2ConversationMention[]): void;
   submitReply(
@@ -219,6 +223,11 @@ export interface V2WebChatSnapshot {
   lastFailure: string;
   forwardingEnabled: boolean;
   searchEnabled: boolean;
+  searchQuery: string;
+  searchResults: V2ConversationCacheMessage[];
+  searchLoading: boolean;
+  searchHasMore: boolean;
+  searchFailure: string;
 }
 
 export interface V2WebChatApplicationOptions {
@@ -243,6 +252,15 @@ type ConversationState = {
 type ParticipantState = {
   values: V2ConversationParticipant[];
   nextAccountId: string;
+  hasMore: boolean;
+  loading: boolean;
+  failure: string;
+};
+
+type SearchState = {
+  query: string;
+  results: V2ConversationCacheMessage[];
+  nextBeforeSequence: string;
   hasMore: boolean;
   loading: boolean;
   failure: string;
@@ -274,6 +292,8 @@ export class V2WebChatApplication {
   private deviceListRequestId: string | null = null;
   private deviceRevokeRequestId: string | null = null;
   private participantRequest: { requestId: string; conversationId: string } | null = null;
+  private searchState: SearchState = emptySearchState();
+  private searchRequest: { requestId: string; conversationId: string; append: boolean } | null = null;
   private selectionGeneration = 0;
   private sessionGeneration = 0;
   private readonly replayedAtGeneration = new Map<string, number>();
@@ -326,6 +346,11 @@ export class V2WebChatApplication {
       lastFailure: this.lastFailureValue,
       forwardingEnabled: this.enableMessageForwarding,
       searchEnabled: this.enableMessageSearch,
+      searchQuery: this.searchState.query,
+      searchResults: this.searchState.results.map(cloneMessage),
+      searchLoading: this.searchState.loading,
+      searchHasMore: this.searchState.hasMore,
+      searchFailure: this.searchState.failure,
     };
   }
 
@@ -407,6 +432,7 @@ export class V2WebChatApplication {
     }
     const generation = ++this.selectionGeneration;
     this.abandonParticipantRequest();
+    this.clearSearch();
     this.activeConversationIdValue = conversationId;
     let state = this.conversations.get(conversationId);
     if (!state) {
@@ -443,6 +469,38 @@ export class V2WebChatApplication {
     }
     if (this.disposed || generation !== this.selectionGeneration) return;
     this.transport.readMessageHistory(conversationId, BigInt(state.cursorSequence), HISTORY_PAGE_SIZE);
+    this.emit();
+  }
+
+  searchMessages(literalQuery: string): boolean {
+    this.requireActive();
+    const query = literalQuery.trim();
+    if (!this.enableMessageSearch || !this.activeConversationIdValue
+        || this.connectionStateValue !== "authenticated"
+        || !this.transport.searchConversationMessages
+        || query.length === 0 || new TextEncoder().encode(query).byteLength > 128) {
+      return false;
+    }
+    this.searchRequest = null;
+    this.searchState = {
+      query, results: [], nextBeforeSequence: "0", hasMore: false,
+      loading: true, failure: "",
+    };
+    return this.requestSearchPage(false);
+  }
+
+  loadMoreSearchResults(): boolean {
+    this.requireActive();
+    if (!this.searchState.hasMore || this.searchState.loading
+        || this.searchState.results.length >= MAX_RETAINED_SEARCH_HITS) return false;
+    this.searchState.loading = true;
+    this.searchState.failure = "";
+    return this.requestSearchPage(true);
+  }
+
+  clearSearch(): void {
+    this.searchRequest = null;
+    this.searchState = emptySearchState();
     this.emit();
   }
 
@@ -839,6 +897,8 @@ export class V2WebChatApplication {
     this.conversations.clear();
     this.participants.clear();
     this.participantRequest = null;
+    this.searchRequest = null;
+    this.searchState = emptySearchState();
     this.clearDeviceState();
     this.replayedAtGeneration.clear();
     this.replayQueues.clear();
@@ -858,6 +918,8 @@ export class V2WebChatApplication {
     this.conversations.clear();
     this.participants.clear();
     this.participantRequest = null;
+    this.searchRequest = null;
+    this.searchState = emptySearchState();
     this.clearDeviceState();
   }
 
@@ -871,6 +933,7 @@ export class V2WebChatApplication {
     if (state !== "authenticated") {
       this.resetDeviceRequests();
       this.abandonParticipantRequest();
+      this.abandonSearchRequest();
     }
     this.emit();
   }
@@ -902,6 +965,8 @@ export class V2WebChatApplication {
         this.directoryValue = [];
         this.directoryCursor = null;
         this.directoryHasMoreValue = false;
+        this.searchRequest = null;
+        this.searchState = emptySearchState();
         if (!sameSession) {
           this.activeConversationIdValue = null;
           this.conversations.clear();
@@ -931,6 +996,9 @@ export class V2WebChatApplication {
         break;
       case "conversation-participant-page":
         this.applyParticipantPage(event);
+        break;
+      case "conversation-message-search-page":
+        this.applySearchPage(event);
         break;
       case "message-history-page":
         this.applyHistoryPage(event.value.conversationId, event.value.messages,
@@ -1246,6 +1314,12 @@ export class V2WebChatApplication {
   }
 
   private applyProtocolError(event: Extract<V2WebProtocolEvent, { type: "protocol-error" }>): void {
+    if (event.requestId === this.searchRequest?.requestId) {
+      this.searchRequest = null;
+      this.searchState.loading = false;
+      this.searchState.failure = "无法搜索当前会话";
+      return;
+    }
     if (event.requestId === this.participantRequest?.requestId) {
       const pending = this.participantRequest;
       this.participantRequest = null;
@@ -1494,6 +1568,60 @@ export class V2WebChatApplication {
     }
   }
 
+  private requestSearchPage(append: boolean): boolean {
+    const conversationId = this.activeConversationIdValue;
+    const search = this.transport.searchConversationMessages;
+    if (!conversationId || !search) {
+      this.searchState.loading = false;
+      this.searchState.failure = "搜索暂不可用";
+      this.emit();
+      return false;
+    }
+    try {
+      const requestId = search.call(
+        this.transport,
+        conversationId,
+        this.searchState.query,
+        append ? BigInt(this.searchState.nextBeforeSequence) : 0n,
+        SEARCH_PAGE_SIZE,
+      );
+      this.searchRequest = { requestId, conversationId, append };
+      this.emit();
+      return true;
+    } catch {
+      this.searchState.loading = false;
+      this.searchState.failure = "无法搜索当前会话";
+      this.emit();
+      return false;
+    }
+  }
+
+  private applySearchPage(
+    event: Extract<V2WebProtocolEvent, { type: "conversation-message-search-page" }>,
+  ): void {
+    const pending = this.searchRequest;
+    if (!pending || event.requestId !== pending.requestId
+        || event.value.conversationId !== pending.conversationId
+        || this.activeConversationIdValue !== pending.conversationId) return;
+    this.searchRequest = null;
+    const incoming = event.value.hits.map(mapMessageRecord);
+    const merged = pending.append
+      ? mergeSearchHits(this.searchState.results, incoming)
+      : incoming;
+    this.searchState.results = merged.slice(0, MAX_RETAINED_SEARCH_HITS);
+    this.searchState.nextBeforeSequence = event.value.nextBeforeSequence.toString();
+    this.searchState.hasMore = event.value.hasMore
+      && this.searchState.results.length < MAX_RETAINED_SEARCH_HITS;
+    this.searchState.loading = false;
+    this.searchState.failure = "";
+  }
+
+  private abandonSearchRequest(): void {
+    if (!this.searchRequest) return;
+    this.searchRequest = null;
+    this.searchState.loading = false;
+  }
+
   private abandonParticipantRequest(): void {
     if (!this.participantRequest) return;
     const state = this.participants.get(this.participantRequest.conversationId);
@@ -1532,6 +1660,31 @@ function mapDirectoryItem(record: ConversationDirectoryRecord): V2DirectoryItem 
     lastReadSequence: record.lastReadSequence.toString(),
     updatedAtEpochMs: Number(record.updatedAtEpochMs),
   };
+}
+
+function emptySearchState(): SearchState {
+  return {
+    query: "",
+    results: [],
+    nextBeforeSequence: "0",
+    hasMore: false,
+    loading: false,
+    failure: "",
+  };
+}
+
+function mergeSearchHits(
+  current: V2ConversationCacheMessage[],
+  incoming: V2ConversationCacheMessage[],
+): V2ConversationCacheMessage[] {
+  const byId = new Map(current.map((message) => [message.id, message]));
+  for (const message of incoming) byId.set(message.id, message);
+  return [...byId.values()].sort((left, right) => {
+    const leftSequence = BigInt(left.sequence);
+    const rightSequence = BigInt(right.sequence);
+    return leftSequence === rightSequence ? right.id.localeCompare(left.id)
+      : leftSequence > rightSequence ? -1 : 1;
+  });
 }
 
 function mapParticipant(record: ConversationParticipantRecord): V2ConversationParticipant {

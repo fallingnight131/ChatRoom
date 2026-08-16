@@ -2049,7 +2049,11 @@ Web message search has the independent exact build-time gate
 capability 6 and application search state off; malformed values invalidate the
 whole V2 runtime. The protocol client validates bounded literal queries,
 correlation, descending same-conversation hits, current message records, and the
-last-hit cursor. No search UI or cached result state exists in this slice.
+last-hit cursor. No search UI or persistent result state exists in this slice.
+The application layer keeps at most 100 search hits in page memory, never writes
+the query or results to IndexedDB, and ignores pages abandoned by a disconnect
+or conversation switch. Its focused test is included in `npm test`; context
+history and UI activation remain separate work.
 Windows now has a separate CMake configuration seam,
 `CHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON`. It is rejected unless both the
 Windows client and `CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON` are selected. The
