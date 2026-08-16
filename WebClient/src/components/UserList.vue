@@ -1,55 +1,65 @@
 <template>
   <div class="user-list">
     <div class="user-list-header">
-      <span>在线 {{ chatStore.onlineUsers.length }}</span>
+      <span role="status" aria-live="polite">在线 {{ chatStore.onlineUsers.length }}</span>
     </div>
 
     <!-- 在线用户 -->
-    <div class="user-section">
-      <div v-for="user in chatStore.onlineUsers" :key="user.username"
-           class="user-item" @click="openUserInfo(user)">
-        <div class="user-avatar-wrap">
+    <section class="user-section" aria-labelledby="online-members-title">
+      <h2 id="online-members-title" class="visually-hidden">在线成员</h2>
+      <ul class="member-list" role="list">
+      <li v-for="user in chatStore.onlineUsers" :key="user.username">
+        <button class="user-item" type="button" :aria-label="memberLabel(user, true)"
+                @click="openUserInfo(user)">
+        <span class="user-avatar-wrap">
           <img v-if="getAvatarSrc(user.username)" :src="getAvatarSrc(user.username)"
-               class="avatar avatar-sm" />
-          <div v-else class="avatar avatar-sm avatar-placeholder"
+               class="avatar avatar-sm" :alt="`${user.displayName || user.username} 的头像`" />
+          <span v-else class="avatar avatar-sm avatar-placeholder" aria-hidden="true"
                :style="{ background: hashColor(user.username) }">
             {{ (user.displayName || user.username).charAt(0) }}
-          </div>
-          <div class="online-dot online"></div>
-        </div>
-        <div class="user-item-info">
-          <div class="user-item-name text-ellipsis">
+          </span>
+          <span class="online-dot online" aria-hidden="true"></span>
+        </span>
+        <span class="user-item-info">
+          <span class="user-item-name text-ellipsis">
             {{ user.displayName }}
             <span v-if="user.isAdmin" class="admin-badge">管理员</span>
-          </div>
-          <div class="user-item-id text-ellipsis">@{{ user.username }}</div>
-        </div>
-      </div>
-    </div>
+          </span>
+          <span class="user-item-id text-ellipsis">@{{ user.username }}</span>
+        </span>
+        </button>
+      </li>
+      </ul>
+    </section>
 
     <!-- 离线用户 -->
-    <div v-if="chatStore.offlineUsers.length > 0" class="user-section">
-      <div class="section-label">离线 {{ chatStore.offlineUsers.length }}</div>
-      <div v-for="user in chatStore.offlineUsers" :key="user.username"
-           class="user-item offline" @click="openUserInfo(user)">
-        <div class="user-avatar-wrap">
+    <section v-if="chatStore.offlineUsers.length > 0" class="user-section"
+             aria-labelledby="offline-members-title">
+      <h2 id="offline-members-title" class="section-label">离线 {{ chatStore.offlineUsers.length }}</h2>
+      <ul class="member-list" role="list">
+      <li v-for="user in chatStore.offlineUsers" :key="user.username">
+        <button class="user-item offline" type="button" :aria-label="memberLabel(user, false)"
+                @click="openUserInfo(user)">
+        <span class="user-avatar-wrap">
           <img v-if="getAvatarSrc(user.username)" :src="getAvatarSrc(user.username)"
-               class="avatar avatar-sm" />
-          <div v-else class="avatar avatar-sm avatar-placeholder"
+               class="avatar avatar-sm" :alt="`${user.displayName || user.username} 的头像`" />
+          <span v-else class="avatar avatar-sm avatar-placeholder" aria-hidden="true"
                :style="{ background: hashColor(user.username), opacity: 0.5 }">
             {{ (user.displayName || user.username).charAt(0) }}
-          </div>
-          <div class="online-dot"></div>
-        </div>
-        <div class="user-item-info">
-          <div class="user-item-name text-ellipsis">
+          </span>
+          <span class="online-dot" aria-hidden="true"></span>
+        </span>
+        <span class="user-item-info">
+          <span class="user-item-name text-ellipsis">
             {{ user.displayName }}
             <span v-if="user.isAdmin" class="admin-badge">管理员</span>
-          </div>
-          <div class="user-item-id text-ellipsis">@{{ user.username }}</div>
-        </div>
-      </div>
-    </div>
+          </span>
+          <span class="user-item-id text-ellipsis">@{{ user.username }}</span>
+        </span>
+        </button>
+      </li>
+      </ul>
+    </section>
   </div>
 </template>
 
@@ -68,6 +78,11 @@ function getAvatarSrc(username) {
   if (data) return 'data:image/png;base64,' + data
   userStore.requestAvatarIfAllowed(username)
   return ''
+}
+
+function memberLabel(user, online) {
+  const displayName = user.displayName || user.username
+  return `${displayName}，@${user.username}，${online ? '在线' : '离线'}${user.isAdmin ? '，管理员' : ''}`
 }
 </script>
 
@@ -88,7 +103,13 @@ function getAvatarSrc(username) {
 .user-section {
   padding: 4px 8px;
 }
+.member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
 .section-label {
+  margin: 0;
   padding: 8px 12px 4px;
   font-size: 12px;
   color: var(--text-tertiary);
@@ -102,8 +123,18 @@ function getAvatarSrc(username) {
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s;
+  width: 100%;
+  border: 0;
+  text-align: left;
+  background: transparent;
+  color: inherit;
 }
 .user-item:hover {
+  background: var(--bg-hover);
+}
+.user-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
   background: var(--bg-hover);
 }
 .user-item.offline {
@@ -129,12 +160,16 @@ function getAvatarSrc(username) {
 .user-item-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 .user-item-name {
+  display: block;
   font-size: 13px;
   color: var(--text-primary);
 }
 .user-item-id {
+  display: block;
   font-size: 11px;
   color: var(--text-tertiary);
 }

@@ -2324,6 +2324,8 @@ Candidate slices:
     Web room rows and their server-authoritative management actions.
   - [x] Expose Web friend/room navigation as related tabs and panels, and name
     the mobile chat-shell icon controls without changing layout behavior.
+  - [x] Replace pointer-only Web member rows with named online/offline lists and
+    native profile actions that expose presence and role textually.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

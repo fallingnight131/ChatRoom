@@ -1056,6 +1056,11 @@ room settings, panel close, and theme actions are explicitly named native
 buttons rather than icon/title-only actions. Layout and conversation state
 ownership remain unchanged. Left/Right and Home/End move selection and focus
 through the two-tab set, including the existing friend refresh behavior.
+The Web member panel now exposes online and offline users as named lists of
+native profile buttons. Each action has explicit identity, presence, and
+administrator text plus a named avatar, so status does not depend on pointer
+activation or colored dots. The opened profile still consumes server-projected
+membership and role data; this presentation adds no authority.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

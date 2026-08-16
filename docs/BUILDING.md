@@ -2273,6 +2273,9 @@ keyboard access to the existing server-authoritative room actions.
 `chatShellNavigationAccessibility.test.mjs` locks friend/room tab-to-panel
 relationships and explicit names/types for mobile conversation, member,
 settings, close, and theme controls.
+`memberListAccessibility.test.mjs` locks named online/offline member groups,
+live online counts, native profile actions, avatar alternatives, and textual
+online/admin state independent of colored dots.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable
