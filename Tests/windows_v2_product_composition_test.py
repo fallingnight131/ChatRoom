@@ -77,6 +77,8 @@ def main() -> int:
         "messageSearchViewModel(),",
         "WindowsMessageNotificationPresenter",
         "accountBlockViewModel()",
+        "accountBlockDirectoryViewModel()",
+        "V2WindowsAccountBlockDirectoryDialog",
         "TrayManager::notificationActivated",
     ), "Client/ChatWindow.cpp")
     require(controller, (

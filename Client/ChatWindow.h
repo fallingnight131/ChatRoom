@@ -39,6 +39,7 @@ class LocalConversationRepository;
 class WindowsDeviceManagementController;
 class DeviceManagementDialog;
 class V2WindowsConversationDialog;
+class V2WindowsAccountBlockDirectoryDialog;
 class WindowsMessageNotificationPresenter;
 #endif
 
@@ -133,6 +134,7 @@ private slots:
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
     void showDeviceManagement();
     void showV2Conversations();
+    void showAccountBlockDirectory();
 #endif
 
     // 连接状态
@@ -341,6 +343,8 @@ private:
     QAction *m_deviceManagementAction = nullptr;
     V2WindowsConversationDialog *m_v2ConversationDialog = nullptr;
     QAction *m_v2ConversationAction = nullptr;
+    V2WindowsAccountBlockDirectoryDialog *m_accountBlockDirectoryDialog = nullptr;
+    QAction *m_accountBlockDirectoryAction = nullptr;
     bool m_v2MessagingWasReady = false;
     bool m_v2MessageForwardingEnabled = false;
     std::unique_ptr<WindowsMessageNotificationPresenter> m_v2NotificationPresenter;

@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <stdexcept>
+#include <utility>
 
 namespace {
 bool check(bool value, const QString &message) {
@@ -54,6 +55,18 @@ int main(int argc, char **argv) {
     viewModel.bindSession(true);
     if (!check(viewModel.available() && viewModel.rows().isEmpty(),
                QStringLiteral("新认证会话必须隔离旧账号目录"))) return 1;
+    send = true;
+    if (!check(viewModel.refresh(), QStringLiteral("上限测试刷新没有发起"))) return 1;
+    QVector<V2WindowsAccountBlockDirectoryViewModel::Row> oversized;
+    for (int index = 0; index < 501; ++index) {
+        oversized.append({QStringLiteral("target-%1").arg(index),
+                          QStringLiteral("用户 %1").arg(index), index + 1});
+    }
+    viewModel.applyPage(std::move(oversized), QStringLiteral("target-500"), true);
+    if (!check(viewModel.rows().size()
+                    == V2WindowsAccountBlockDirectoryViewModel::MaxRows
+                    && !viewModel.hasMore(),
+               QStringLiteral("页面内目录必须在 500 行停止继续分页"))) return 1;
     viewModel.clearSession();
     if (!check(!viewModel.available() && viewModel.rows().isEmpty(),
                QStringLiteral("退出必须清除敏感目录"))) return 1;

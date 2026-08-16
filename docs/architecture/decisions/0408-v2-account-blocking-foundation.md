@@ -123,6 +123,10 @@ server candidate without activating an incomplete client product path.
   retains visible rows through transient disconnects, and clears them whenever
   a new authenticated account is bound. This query state does not become the
   authority for DIRECT mutation state and is not persisted to SQLite.
+- The immutable Windows product gate exposes that query through a global
+  privacy dialog with bounded refresh/load-more and accessible status. This
+  first UI slice is read-only: it does not infer mutation state from list
+  absence and does not add a second unblock command path.
 - The Windows conversation surface exposes a native modal only when the
   immutable gate produced a ViewModel and the authorized directory row is
   DIRECT. It waits for the complete actor-filtered participant projection,

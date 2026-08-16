@@ -8,6 +8,7 @@
 class V2WindowsAccountBlockDirectoryViewModel final : public QObject {
     Q_OBJECT
 public:
+    static constexpr qsizetype MaxRows = 500;
     struct Row {
         QString targetAccountId;
         QString targetDisplayName;

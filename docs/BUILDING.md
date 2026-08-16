@@ -2487,10 +2487,15 @@ sends bounded type-134 refresh/load-more requests only after authentication,
 deduplicates appended target rows, retains already visible rows through a
 transient disconnect, and clears them before binding another authenticated
 account. The portable binding gate includes isolated pagination/failure tests
-and an end-to-end controller projection of type 135. Widgets does not consume
-this directory yet.
+and an end-to-end controller projection of type 135. The feature-gated Windows
+settings menu exposes a global privacy dialog with at most 500 accessible server rows,
+refresh/load-more single-flight controls, and honest empty/error/offline state.
+The dialog's native offscreen test is compiled and run by the Windows product
+CI; macOS protocol gates continue to avoid claiming native Widgets evidence.
+Row-level unblock is not exposed from this directory yet.
 
-Disabled composition returns neither account-block ViewModel. Widgets
+Disabled composition returns neither account-block ViewModel and omits the
+privacy menu entry. Widgets
 exposes this boundary only when that ViewModel exists and the authoritative
 directory row is DIRECT. The modal action waits for a complete participant
 projection, names the target, announces unknown/pending/applied/failure state,

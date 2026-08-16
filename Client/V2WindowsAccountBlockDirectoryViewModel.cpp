@@ -67,13 +67,14 @@ void V2WindowsAccountBlockDirectoryViewModel::applyPage(
     QSet<QString> identities;
     for (const auto &row : std::as_const(m_rows)) identities.insert(row.targetAccountId);
     for (auto &row : rows) {
+        if (m_rows.size() >= MaxRows) break;
         if (!identities.contains(row.targetAccountId)) {
             identities.insert(row.targetAccountId);
             m_rows.append(std::move(row));
         }
     }
     m_nextAfterTargetAccountId = nextAfterTargetAccountId;
-    m_hasMore = hasMore;
+    m_hasMore = hasMore && m_rows.size() < MaxRows;
     m_busy = false;
     m_appendPending = false;
     m_failure.clear();

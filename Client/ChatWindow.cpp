@@ -24,6 +24,8 @@
 #include "DeviceManagementViewModel.h"
 #include "V2WindowsConversationDialog.h"
 #include "V2WindowsConversationDirectoryViewModel.h"
+#include "V2WindowsAccountBlockDirectoryDialog.h"
+#include "V2WindowsAccountBlockDirectoryViewModel.h"
 #include "WindowsDeviceManagementController.h"
 #include "WindowsMessageNotificationPresenter.h"
 #endif
@@ -200,6 +202,12 @@ bool ChatWindow::configureDeviceManagement(
                     if (m_v2ConversationAction) {
                         m_v2ConversationAction->setVisible(true);
                         m_v2ConversationAction->setEnabled(true);
+                    }
+                    if (m_accountBlockDirectoryAction
+                            && m_deviceManagementController
+                                ->accountBlockDirectoryViewModel()) {
+                        m_accountBlockDirectoryAction->setVisible(true);
+                        m_accountBlockDirectoryAction->setEnabled(true);
                     }
                 });
         connect(m_deviceManagementController.get(),
@@ -676,6 +684,10 @@ void ChatWindow::setupMenuBar() {
         QStringLiteral("新版会话与回复（预览）(&V)..."), this,
         &ChatWindow::showV2Conversations);
     m_v2ConversationAction->setVisible(false);
+    m_accountBlockDirectoryAction = settingsMenu->addAction(
+        QStringLiteral("隐私与屏蔽账号(&B)..."), this,
+        &ChatWindow::showAccountBlockDirectory);
+    m_accountBlockDirectoryAction->setVisible(false);
 #endif
     settingsMenu->addSeparator();
     settingsMenu->addAction("缓存路径(&C)...", this, &ChatWindow::onChangeCacheDir);
@@ -4568,6 +4580,7 @@ void ChatWindow::onLogout() {
 
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
     if (m_v2ConversationDialog) m_v2ConversationDialog->close();
+    if (m_accountBlockDirectoryDialog) m_accountBlockDirectoryDialog->close();
     if (m_deviceManagementDialog) m_deviceManagementDialog->close();
     if (m_deviceManagementController) m_deviceManagementController->stop();
 #endif
@@ -4859,6 +4872,26 @@ void ChatWindow::showV2Conversations() {
         m_v2ConversationDialog = nullptr;
     });
     m_v2ConversationDialog->show();
+}
+
+void ChatWindow::showAccountBlockDirectory() {
+    if (!m_deviceManagementController || !m_accountBlockDirectoryAction
+            || !m_accountBlockDirectoryAction->isEnabled()) return;
+    auto *viewModel = m_deviceManagementController->accountBlockDirectoryViewModel();
+    if (!viewModel) return;
+    if (m_accountBlockDirectoryDialog) {
+        m_accountBlockDirectoryDialog->raise();
+        m_accountBlockDirectoryDialog->activateWindow();
+        return;
+    }
+    m_accountBlockDirectoryDialog =
+        new V2WindowsAccountBlockDirectoryDialog(viewModel, this);
+    m_accountBlockDirectoryDialog->setAttribute(Qt::WA_DeleteOnClose);
+    connect(m_accountBlockDirectoryDialog, &QObject::destroyed, this, [this] {
+        m_accountBlockDirectoryDialog = nullptr;
+    });
+    viewModel->refresh();
+    m_accountBlockDirectoryDialog->show();
 }
 #endif
 
