@@ -1982,7 +1982,11 @@ payload-free notification row inside the new-message
 transaction. Its ordinary constructor remains disabled; exact idempotent replay
 does not enqueue again, and notification insertion failure rolls back message,
 conversation entry/sequence, and both outboxes. No gateway composition currently
-selects the enabled constructor, and no worker claims these rows.
+selects the enabled constructor. The detached PostgreSQL lifecycle adapter now
+uses bounded `SKIP LOCKED` batches and owner/claim/expiry fencing for claims,
+lease-bound terminal or retry transitions, idempotent expiry, and capped
+retention deletion. It has no scheduler, recipient resolver, provider caller, or
+runtime composition.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

@@ -154,6 +154,24 @@ final class WebPushApplicationBoundaryTest {
                 () -> protectedSubscription.withCopies((endpoint, key, auth, tag) -> null));
     }
 
+    @Test
+    void boundsFencedOutboxClaimsToTheIntentLifetime() {
+        Instant committedAt = Instant.parse("2026-08-17T00:00:00Z");
+        var intent = new WebPushNotificationIntent(
+                MESSAGE_ID, CONVERSATION_ID, ACCOUNT_ID, committedAt,
+                committedAt.plusSeconds(60), Set.of());
+        var claim = new WebPushOutboxClaim(
+                intent, UUID.randomUUID(), UUID.randomUUID(), committedAt,
+                committedAt.plusSeconds(30), 1);
+        assertEquals(MESSAGE_ID, claim.intent().messageId());
+        assertThrows(IllegalArgumentException.class, () -> new WebPushOutboxClaim(
+                intent, UUID.randomUUID(), UUID.randomUUID(), committedAt,
+                committedAt.plusSeconds(61), 1));
+        assertThrows(IllegalArgumentException.class, () -> new WebPushOutboxClaim(
+                intent, UUID.randomUUID(), UUID.randomUUID(), committedAt,
+                committedAt.plusSeconds(1), 0));
+    }
+
     private static WebPushSubscriptionCredentials credentials(
             String endpoint, byte[] p256dh, byte[] auth) {
         return WebPushSubscriptionCredentials.copyOf(

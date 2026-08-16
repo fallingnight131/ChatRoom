@@ -2413,8 +2413,9 @@ Candidate slices:
       new-message transaction; prove default-off behavior, stable message
       identity, mention metadata, idempotent replay, 24-hour expiry, and atomic
       rollback on outbox failure.
-    - [ ] Add fenced bounded concurrent claims, retry/terminal transitions,
-      expiry, and retention deletion evidence.
+    - [x] Add fenced bounded concurrent `SKIP LOCKED` claims, lease-bound
+      retry/terminal transitions, idempotent expiry, and batch-capped retention
+      deletion without deleting message truth.
   - [ ] Add authenticated HTTP subscription management and a bounded provider
     worker with current-policy reauthorization and secret-free observability.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then

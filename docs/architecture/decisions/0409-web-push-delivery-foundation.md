@@ -122,6 +122,9 @@ acceptance, stall synchronization, or reduce gateway readiness.
   enabled policy writes one payload-free row in the new-message transaction;
   duplicate replay writes none, and a forced outbox failure rolls back all
   message/sequence/event state. No composition selects it yet.
+- The detached outbox adapter uses bounded `SKIP LOCKED` claims fenced by owner,
+  claim ID, and lease expiry. Retry, terminal completion, expiry, and retention
+  are bounded and tested concurrently; no scheduler or provider is composed.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

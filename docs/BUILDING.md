@@ -1458,7 +1458,11 @@ key rotation. The same real-database gate proves the message adapter's default-
 off path, explicit enabled transaction outbox, stable message identity, exact
 idempotent replay, bounded mention metadata, 24-hour expiry, and forced-insert
 rollback. No gateway enables this policy, and no HTTP caller or claim worker is
-composed.
+composed. PostgreSQL tests also race two detached claim adapters, assert
+non-overlapping bounded ownership and attempt increments, reject stale/out-of-
+lease completion, gate retry availability, terminally expire old rows, and
+purge completed rows in capped batches without deleting their messages. This is
+storage lifecycle evidence, not provider delivery or scheduler readiness.
 The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility

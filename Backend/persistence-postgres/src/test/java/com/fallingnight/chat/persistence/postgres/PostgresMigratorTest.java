@@ -124,7 +124,9 @@ import com.fallingnight.chat.application.messaging.MessageEditCommand;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
 import com.fallingnight.chat.application.notification.ProtectedWebPushSubscription;
 import com.fallingnight.chat.application.notification.WebPushDeliveryPolicy;
+import com.fallingnight.chat.application.notification.WebPushOutboxClaim;
 import com.fallingnight.chat.application.notification.WebPushSubscriptionRegistration;
+import com.fallingnight.chat.application.notification.WebPushTerminalOutcome;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataCommand;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataResult;
@@ -6020,6 +6022,97 @@ class PostgresMigratorTest {
                         "push-outbox-rollback", 1, new byte[] {9})));
         assertEquals(3, afterRollback.conversationSequence());
         assertEquals(2, count("SELECT count(*) FROM chat.web_push_notification_outbox"));
+    }
+
+    @Test
+    @Order(102)
+    void fencesConcurrentWebPushClaimsAndBoundsExpiryAndRetention() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID account = UUID.randomUUID(), device = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        seedMessageOwner(account, device, conversation);
+        var messages = new PostgresMessageAdapter(
+                dataSource(), new WebPushDeliveryPolicy(true));
+        for (int index = 0; index < 3; index++) {
+            accepted(messages.submit(new MessageSubmission(
+                    conversation, account, device, "push-claim-" + index, 1,
+                    new byte[] {(byte) index})));
+        }
+
+        Instant claimedAt = Instant.now();
+        UUID firstOwner = UUID.randomUUID(), secondOwner = UUID.randomUUID();
+        var firstWorker = new PostgresWebPushOutboxAdapter(dataSource());
+        var secondWorker = new PostgresWebPushOutboxAdapter(dataSource());
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService workers = Executors.newFixedThreadPool(2);
+        List<WebPushOutboxClaim> claims;
+        try {
+            Future<List<WebPushOutboxClaim>> first = workers.submit(() -> {
+                start.await();
+                return firstWorker.claim(firstOwner, claimedAt, Duration.ofSeconds(30), 2);
+            });
+            Future<List<WebPushOutboxClaim>> second = workers.submit(() -> {
+                start.await();
+                return secondWorker.claim(secondOwner, claimedAt, Duration.ofSeconds(30), 2);
+            });
+            start.countDown();
+            claims = java.util.stream.Stream.concat(
+                            first.get(10, TimeUnit.SECONDS).stream(),
+                            second.get(10, TimeUnit.SECONDS).stream())
+                    .toList();
+        } finally {
+            start.countDown(); workers.shutdownNow();
+            assertTrue(workers.awaitTermination(5, TimeUnit.SECONDS));
+        }
+        assertEquals(3, claims.size());
+        assertEquals(3, claims.stream().map(claim -> claim.intent().messageId())
+                .distinct().count());
+        assertTrue(claims.stream().allMatch(claim -> claim.attemptCount() == 1));
+
+        WebPushOutboxClaim completed = claims.get(0);
+        Instant transitionAt = claimedAt.plusMillis(100);
+        assertTrue(firstWorker.complete(
+                completed, transitionAt, WebPushTerminalOutcome.DELIVERED));
+        assertFalse(firstWorker.complete(
+                completed, transitionAt, WebPushTerminalOutcome.DELIVERED));
+        assertThrows(IllegalArgumentException.class, () -> firstWorker.complete(
+                claims.get(1), claims.get(1).claimExpiresAt().plusMillis(1),
+                WebPushTerminalOutcome.DELIVERED));
+        assertThrows(IllegalArgumentException.class, () -> firstWorker.complete(
+                claims.get(1), transitionAt, WebPushTerminalOutcome.EXPIRED));
+
+        WebPushOutboxClaim deferred = claims.get(1);
+        Instant retryAt = transitionAt.plusSeconds(2);
+        assertTrue(firstWorker.defer(deferred, transitionAt, retryAt, "PROVIDER_TIMEOUT"));
+        assertTrue(firstWorker.claim(
+                UUID.randomUUID(), retryAt.minusMillis(1), Duration.ofSeconds(30), 10).isEmpty());
+        WebPushOutboxClaim retried = firstWorker.claim(
+                UUID.randomUUID(), retryAt, Duration.ofSeconds(30), 10).getFirst();
+        assertEquals(deferred.intent().messageId(), retried.intent().messageId());
+        assertEquals(2, retried.attemptCount());
+        assertTrue(firstWorker.complete(
+                retried, retryAt.plusMillis(100), WebPushTerminalOutcome.DELIVERED));
+        assertTrue(firstWorker.complete(
+                claims.get(2), transitionAt, WebPushTerminalOutcome.INELIGIBLE));
+
+        MessageSubmissionResult.Accepted expiring = accepted(messages.submit(
+                new MessageSubmission(conversation, account, device,
+                        "push-expire", 1, new byte[] {9})));
+        Instant expiredAt = claimedAt.minusSeconds(1);
+        Instant oldCommittedAt = expiredAt.minus(Duration.ofHours(24));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.web_push_notification_outbox "
+                            + "SET committed_at=?, available_at=?, expires_at=? WHERE message_id=?",
+                    OffsetDateTime.ofInstant(oldCommittedAt, ZoneOffset.UTC),
+                    OffsetDateTime.ofInstant(oldCommittedAt, ZoneOffset.UTC),
+                    OffsetDateTime.ofInstant(expiredAt, ZoneOffset.UTC), expiring.messageId());
+        }
+        assertEquals(1, firstWorker.expire(claimedAt, 10));
+        assertEquals(0, firstWorker.expire(claimedAt, 10));
+        assertEquals(2, firstWorker.purgeCompletedBefore(retryAt.plusSeconds(1), 2));
+        assertEquals(2, firstWorker.purgeCompletedBefore(retryAt.plusSeconds(1), 10));
+        assertEquals(0, count("SELECT count(*) FROM chat.web_push_notification_outbox"));
+        assertEquals(4, count("SELECT count(*) FROM chat.message"));
     }
 
     private static Set<String> applicationTables(Connection connection) throws SQLException {
