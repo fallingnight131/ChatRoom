@@ -119,6 +119,10 @@ public final class IdentityMigrationMain {
             if (args.length == 4 && "profile-image-apply".equals(args[0])) {
                 return profileImageApply(args, environment, output, clock);
             }
+            if (args.length == 3 && "web-push-key-rotate".equals(args[0])) {
+                return WebPushKeyRotationCommand.run(
+                        args[1], args[2], environment, output);
+            }
             usage(error);
             return 64;
         } catch (RuntimeException exception) {
@@ -524,6 +528,8 @@ public final class IdentityMigrationMain {
                 + "<manifest-sha256>");
         error.println("  profile-image-apply <export-directory> <proof.properties> "
                 + "<manifest-sha256>");
+        error.println("  web-push-key-rotate <maximum-rows> "
+                + "ROTATE_WEB_PUSH_SUBSCRIPTIONS_OFFLINE");
     }
 
     private static int profileImageExport(String[] args, PrintStream output) {

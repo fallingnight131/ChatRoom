@@ -58,9 +58,13 @@ hardened to the documented POSIX policy rather than silently accepted.
 
 The runtime can now compose subscription writes and the HTTP route under both
 exact gates. This does not activate a default Web client, outbox production, or
-provider delivery. The rewrite primitive does not itself stop the gateway,
-provision/delete keys, take a database backup, or prove restore readiness; an
-operator-facing command and backup/restore rehearsal remain required.
+provider delivery. A `migration-cli` command now composes separate source and
+target mounted custodies after exact gateway-stopped, restorable-backup, and
+destructive-command confirmations, validates the schema and row ceiling, emits
+only identity-free counts/key IDs, and closes both rings. These values are
+operator assertions: the command does not itself stop the gateway,
+provision/delete keys, take a database backup, or prove restore readiness, so a
+backup/restore rehearsal remains required.
 
 ## Verification and rollback
 
@@ -78,6 +82,9 @@ operator-facing command and backup/restore rehearsal remain required.
   refuses an undersized row ceiling before mutation, rolls the entire table
   back after a mid-stream protection failure, and lets account deletion cascade
   through subscription ciphertext.
+- The same disposable database runs the operator command with real strict-
+  permission source/target key files, decrypts the result only through target
+  custody, and asserts that stdout contains no endpoint or key-directory path.
 - Rollback removes runtime references before removing this additive adapter.
   Before target-key activation, rollback keeps the source custody mounted and
   leaves existing ciphertext untouched. After a successful rewrite, rollback

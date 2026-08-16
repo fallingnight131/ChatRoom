@@ -2425,8 +2425,12 @@ Candidate slices:
           authenticates with source custody, re-protects encryption and lookup
           values with target custody, commits all rows or none, and proves
           account-deletion cascade in disposable PostgreSQL.
-        - [ ] Compose an operator command and rehearse backup, restore, forward
-          rotation, rollback, and old-key retirement with real mounted keys.
+        - [x] Compose a fail-closed offline operator command with real source/
+          target mounted-file custody, schema validation, row ceiling, exact
+          gateway-stopped/backup/destructive confirmations, redacted report,
+          and deterministic custody cleanup.
+        - [ ] Rehearse database backup, restore, forward rotation, rollback, and
+          old-key retirement with real mounted keys.
     - [x] Produce the outbox only under an explicit enabled policy in the
       new-message transaction; prove default-off behavior, stable message
       identity, mention metadata, idempotent replay, 24-hour expiry, and atomic

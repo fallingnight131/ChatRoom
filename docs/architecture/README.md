@@ -2005,8 +2005,12 @@ an `ACCESS EXCLUSIVE` table lock, enforces an operator row ceiling, authenticate
 every value with source custody, rewrites encryption and lookup protection with
 target custody, and commits all rows or none. Disposable PostgreSQL proves
 undersized-limit refusal, successful rewrite, mid-stream rollback, and account-
-deletion cascade. Operator command composition plus database backup/restore and
-full rotation rehearsal remain open.
+deletion cascade. The offline `migration-cli` now composes real source and
+target mounted-file custodies only after exact gateway-stopped, restorable-backup
+and destructive-command confirmations; it validates schema and bounded inputs,
+prints no credential/path data, and closes both custodies. Those confirmations
+are operator assertions: database backup/restore and full forward/reverse/key-
+retirement rehearsal remain open.
 The detached subscription mutation use case now consumes an account-free,
 zeroable request and binds identity only from its authenticated caller. Its exact
 default-off policy and account/install/action admission boundary run before

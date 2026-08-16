@@ -10,6 +10,7 @@ java {
 
 dependencies {
     implementation(project(":application"))
+    implementation(project(":identity-crypto"))
     implementation(project(":persistence-postgres"))
     implementation(project(":profile-image-codec"))
     implementation(project(":object-storage-s3"))

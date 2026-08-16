@@ -143,6 +143,16 @@ class IdentityMigrationMainTest {
         assertEquals("status=FAILED\nreason=migration_operation_failed\n",
                 importError.toString(StandardCharsets.UTF_8));
         assertFalse(importError.toString(StandardCharsets.UTF_8).contains("private-export"));
+
+        ByteArrayOutputStream rotationError = new ByteArrayOutputStream();
+        assertEquals(70, IdentityMigrationMain.run(
+                new String[] {"web-push-key-rotate", "10", "not-confirmed"},
+                Map.of(),
+                new PrintStream(new ByteArrayOutputStream()),
+                new PrintStream(rotationError, true, StandardCharsets.UTF_8),
+                Clock.systemUTC()));
+        assertEquals("status=FAILED\nreason=migration_operation_failed\n",
+                rotationError.toString(StandardCharsets.UTF_8));
     }
 
     @Test void exportsProofBoundProfileImageManifestWithoutPrintingPrivatePaths()

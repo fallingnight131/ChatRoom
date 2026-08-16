@@ -1495,6 +1495,33 @@ proves rollback, and account deletion proves ciphertext cascade. This primitive
 does not stop a running gateway, provision/delete keys, or take and restore a
 backup; do not activate target keys until those operator steps have been
 composed and rehearsed.
+
+The offline operator command is available through `migration-cli` only after
+the gateway has been stopped and a restorable database backup has been created:
+
+```bash
+cd Backend
+CHATROOM_MIGRATION_POSTGRES_URL='jdbc:postgresql://db.example/chatroom' \
+CHATROOM_MIGRATION_POSTGRES_USER='chatroom_migrator' \
+CHATROOM_MIGRATION_POSTGRES_PASSWORD='from-protected-launcher' \
+CHATROOM_WEB_PUSH_ROTATION_SOURCE_KEY_DIRECTORY='/run/secrets/web-push-source' \
+CHATROOM_WEB_PUSH_ROTATION_SOURCE_ENCRYPTION_KEY_IDS='enc-v1' \
+CHATROOM_WEB_PUSH_ROTATION_TARGET_KEY_DIRECTORY='/run/secrets/web-push-target' \
+CHATROOM_WEB_PUSH_ROTATION_TARGET_ACTIVE_ENCRYPTION_KEY_ID='enc-v2' \
+CHATROOM_WEB_PUSH_ROTATION_TARGET_ENCRYPTION_KEY_IDS='enc-v2' \
+CHATROOM_WEB_PUSH_ROTATION_GATEWAY_STOPPED='CONFIRMED' \
+CHATROOM_WEB_PUSH_ROTATION_RESTORABLE_BACKUP='CONFIRMED' \
+./gradlew --no-daemon :migration-cli:run --args='web-push-key-rotate 100000 ROTATE_WEB_PUSH_SUBSCRIPTIONS_OFFLINE'
+```
+
+Both directories use the ADR-0411 fixed filenames and strict mounted-file
+permissions. The decimal argument is an explicit 1--1,000,000 row ceiling, not
+a batch-size hint. The command validates the schema and both custodies before
+locking the table, prints only row counts and key IDs, and closes both key rings
+on success or failure. `CONFIRMED` values are operator assertions, not automatic
+proof that traffic is drained or a backup restores; the release rehearsal must
+independently establish those facts. Keep both source and target key directories
+until the forward result and rollback window have been reviewed.
 The authenticated subscription application boundary is covered by:
 
 ```bash

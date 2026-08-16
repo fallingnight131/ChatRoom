@@ -3,6 +3,7 @@
 # This file is expected to be part of source control.
 com.fasterxml.jackson.core:jackson-annotations:2.21=runtimeClasspath,testRuntimeClasspath
 org.apiguardian:apiguardian-api:1.1.2=testCompileClasspath
+org.bouncycastle:bcprov-jdk18on:1.85=runtimeClasspath,testRuntimeClasspath
 org.flywaydb:flyway-core:13.0.0=runtimeClasspath,testRuntimeClasspath
 org.flywaydb:flyway-database-postgresql:13.0.0=runtimeClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-api:5.12.2=testCompileClasspath,testRuntimeClasspath
