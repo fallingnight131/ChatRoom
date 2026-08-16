@@ -8,7 +8,7 @@
     "build": "vite build",
     "test": "node --test tests/*.test.mjs && npm run test:v2",
     "test:v2": "tsc -p tsconfig.v2.json --noEmit && node --import tsx --test tests/*.test.ts",
-    "test:browser": "playwright test",
+    "test:browser": "tsc -p tsconfig.e2e.json --noEmit && playwright test",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -1,4 +1,4 @@
-import { createApp, readonly, shallowRef } from 'vue'
+import { createApp, shallowReadonly, shallowRef } from 'vue'
 import App from './App.vue'
 import router from './router'
 import { pinia } from './stores'
@@ -9,7 +9,7 @@ const app = createApp(App)
 const v2Runtime = shallowRef({ enabled: false, reason: 'V2 preview is disabled', dispose() {} })
 app.use(pinia)
 app.use(router)
-app.provide(V2_RUNTIME_KEY, readonly(v2Runtime))
+app.provide(V2_RUNTIME_KEY, shallowReadonly(v2Runtime))
 app.mount('#app')
 
 let pageDisposed = false

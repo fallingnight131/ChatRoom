@@ -93,8 +93,10 @@ export class V2WebSocketTransport {
     this.endpoints = requireWebEndpoints(options.endpoint, options.fallbackEndpoints ?? []);
     this.createProtocolClient = options.createProtocolClient;
     this.createSocket = options.createSocket ?? ((endpoint, protocols) => new WebSocket(endpoint, protocols));
-    this.setTimer = options.setTimer ?? globalThis.setTimeout;
-    this.clearTimer = options.clearTimer ?? globalThis.clearTimeout;
+    this.setTimer = options.setTimer
+      ?? ((callback, delayMs) => globalThis.setTimeout(callback, delayMs));
+    this.clearTimer = options.clearTimer
+      ?? ((handle) => globalThis.clearTimeout(handle));
     this.random = options.random ?? Math.random;
     this.connectTimeoutMs = positiveDuration("connectTimeoutMs", options.connectTimeoutMs ?? 10_000);
     this.helloTimeoutMs = positiveDuration("helloTimeoutMs", options.helloTimeoutMs ?? 5_000);

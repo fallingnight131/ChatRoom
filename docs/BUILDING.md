@@ -147,8 +147,9 @@ remains V1 regression evidence rather than V2 authentication evidence.
 The next slice localizes the capability-gated in-conversation search controls,
 status/results, paging, and known application failure adapters. It preserves
 the 128-byte application validation, bounded result retention, context lookup,
-and keyboard focus behavior; the same enabled-build command is required as
-compile evidence until an authenticated V2 browser fixture exists.
+and keyboard focus behavior; the same enabled-build command remains compile
+evidence, while the authenticated fixture below exercises the current base
+authentication, directory, device, history, and text-send path.
 The V2 read-only timeline slice additionally localizes the log landmark,
 immutable pinned/forwarded/reply/edit markers, delivery states, locale-aware
 timestamps, and bounded new-message announcements. Tail classification and
@@ -207,16 +208,24 @@ The V2 header exposes the shared `zh-CN`/`en-US` preference before and after
 authentication. It delegates to the user preference store, which validates and
 persists the locale and updates the document language; it does not duplicate
 locale state inside the preview runtime.
-After an explicit V2-enabled build, run the pre-authentication browser locale
-evidence with:
+Build against the fixture's exact non-routable endpoint, then run the opt-in V2
+browser evidence with:
 
 ```bash
+env VITE_CHAT_V2_PREVIEW=true \
+  VITE_CHAT_V2_WSS_URL=wss://fixture.invalid/v2/web \
+  VITE_CHAT_APP_VERSION=0.0.0-browser-fixture npm run build
 CHATROOM_V2_BROWSER_PREVIEW=true npm run test:browser -- e2e/v2PreviewBrowser.spec.ts
 ```
 
-The test is skipped in the ordinary default-off browser run. It verifies the V2
-route, locale control, document language, and reload persistence in Chromium and
-Firefox; it does not authenticate a V2 session.
+The tests are skipped in the ordinary default-off browser run. In Chromium and
+Firefox they verify the exact configured WSS URL, generated-Protobuf hello and
+authentication exchange, safe authentication rejection without credential
+persistence, directory/device synchronization, history rendering and accessible
+message actions, optimistic text submission, and server acceptance. Playwright
+routes the socket to an in-process deterministic protocol fixture: this is real
+browser/application-state-machine evidence, but not TLS, gateway, PostgreSQL,
+deployment compatibility, or capacity evidence.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

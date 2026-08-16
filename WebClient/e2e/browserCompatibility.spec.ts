@@ -9,11 +9,15 @@ const tinyAudioBase64 = readFileSync(
 
 async function exerciseMediaDecode(page: Page) {
   const result = await page.evaluate(async ({ videoBase64, audioBase64 }) => {
-    const decode = (value: string) => {
+    const decode = (value: string): Uint8Array<ArrayBuffer> => {
       const binary = atob(value);
       return Uint8Array.from(binary, character => character.charCodeAt(0));
     };
-    const load = <T extends HTMLMediaElement>(element: T, bytes: Uint8Array, type: string) =>
+    const load = <T extends HTMLMediaElement>(
+      element: T,
+      bytes: Uint8Array<ArrayBuffer>,
+      type: string,
+    ) =>
       new Promise<T>((resolve, reject) => {
         const url = URL.createObjectURL(new Blob([bytes], { type }));
         const timeout = window.setTimeout(() => {

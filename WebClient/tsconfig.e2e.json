@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.v2.json",
+  "include": ["e2e/**/*.ts"]
+}

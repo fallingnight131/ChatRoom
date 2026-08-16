@@ -67,6 +67,9 @@ draft until the user explicitly rebases or discards it.
 Before serving preview assets:
 
 1. run `npm test` and both the default and preview production builds;
+   for the deterministic browser boundary, build with
+   `VITE_CHAT_V2_WSS_URL=wss://fixture.invalid/v2/web` and run
+   `CHATROOM_V2_BROWSER_PREVIEW=true npm run test:browser -- e2e/v2PreviewBrowser.spec.ts`;
 2. verify the deployed asset manifest keeps V2 in a separate lazy chunk;
 3. verify CSP/connect policy permits only the intended WSS authority;
 4. verify the preview gateway Origin, Host, TLS, health, and readiness policy;
@@ -85,6 +88,12 @@ Before serving preview assets:
    lifecycle denial, literal Unicode pagination, edit/recall/deletion current
    state, context non-persistence, late-response abandonment, and disable either
    side.
+
+The deterministic browser boundary uses Playwright WebSocket routing and exact
+generated Protobuf envelopes. It verifies the current view/application/transport
+composition without opening a real network connection. It does not satisfy the
+real TLS, Origin/Host, gateway, database, reconnect/failover, or deployment checks
+above and must not be reported as release or capacity evidence.
 
 Use the gateway-first activation and client-first rollback sequence in
 [`MESSAGE_FORWARDING_ACTIVATION.md`](MESSAGE_FORWARDING_ACTIVATION.md). A Web

@@ -2417,6 +2417,10 @@ Candidate slices:
   - [x] Expose the shared validated and persisted Web locale preference directly
     in the V2 header without introducing runtime-owned locale state, with
     opt-in Chromium/Firefox pre-authentication persistence evidence.
+  - [x] Add an opt-in generated-Protobuf Chromium/Firefox fixture for V2
+    authentication rejection, authenticated directory/device/history sync,
+    optimistic text send and acceptance; keep it explicitly below real
+    TLS/gateway/PostgreSQL and deployment compatibility evidence.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
