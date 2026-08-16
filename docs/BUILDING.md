@@ -233,7 +233,10 @@ boundary: initial close focus, reverse-Tab containment, current-device
 non-revocability, Escape dismissal, and trigger-focus restoration are verified.
 Finally, route-lifecycle evidence verifies that returning to stable V1 closes the
 only V2 socket with code 1000/reason `client stopped` and creates no background
-replacement. The fixture
+replacement. The authenticated journey switches to English after history and a
+successful send, verifies document/navigation/log/action semantics update in
+place, and confirms that presentation-only change emits no protocol command. The
+fixture
 also closes the first routed socket, verifies automatic same-session resume with
 the memory-only proof, and repairs the active conversation from sequence 1 to 2
 without clearing the visible session. A separate browser offline/online case

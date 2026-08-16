@@ -2437,6 +2437,8 @@ Candidate slices:
     restoration, and current-device non-revocability in Chromium and Firefox.
   - [x] Verify V2 route disposal closes its owned socket normally and does not
     reconnect after returning to stable V1 in Chromium and Firefox.
+  - [x] Verify authenticated V2 locale switching updates browser semantics in
+    place without emitting a protocol command in Chromium and Firefox.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

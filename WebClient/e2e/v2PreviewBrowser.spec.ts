@@ -120,6 +120,14 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
   await expect(log.getByText("Fixture outgoing message")).toBeVisible();
   await expect(page.getByLabel("消息 2：已接收")).toBeVisible();
 
+  const receivedBeforeLocaleChange = fixture.receivedTypes.length;
+  await page.getByLabel("界面语言").selectOption("en-US");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en-US");
+  await expect(page.getByRole("navigation", { name: "V2 conversation navigation" })).toBeVisible();
+  await expect(page.getByRole("log", { name: "Message history" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy message 1 text" })).toBeVisible();
+  expect(fixture.receivedTypes).toHaveLength(receivedBeforeLocaleChange);
+
   expect(fixture.receivedTypes).toEqual(expect.arrayContaining([
     MessageType.CLIENT_HELLO,
     MessageType.AUTHENTICATE,

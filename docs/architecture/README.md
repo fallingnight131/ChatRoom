@@ -2127,12 +2127,16 @@ interaction: focus enters on Close, reverse Tab wraps to Done, the current devic
 has no revoke action, and Escape restores the signed-in-devices trigger.
 Leaving the V2 route is also a verified ownership boundary: it closes the only
 socket normally, returns to stable V1, and does not create a background retry.
-A controlled socket restart
-additionally verifies memory-only session resume and sequence-based active-history
+After authenticated history and send acceptance, switching to English updates
+the document, navigation, log, and message-action semantics in place without
+emitting another protocol command; locale therefore remains a presentation-only
+preference across the live V2 state machine.
+A controlled socket restart additionally verifies memory-only session resume and
+sequence-based active-history
 repair while keeping the authenticated shell available. Browser offline/online
 simulation separately proves that the transport creates no retry socket while
-offline, preserves a failed optimistic
-message for user-controlled retry, resumes once on recovery, and submits that
+offline, preserves a failed optimistic message for user-controlled retry, resumes
+once on recovery, and submits that
 stable message identity once. This browser boundary exposed and now guards two
 composition defects: deep-readonly proxying of mutable application instances and
 unbound browser timer functions. The fixture is skipped for the default-off
