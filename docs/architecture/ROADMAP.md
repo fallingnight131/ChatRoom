@@ -2310,7 +2310,12 @@ Candidate slices:
   - [x] Add the actor-correlated application query and repeatable-read
     PostgreSQL outgoing-block directory with enabled-actor authorization,
     current display-name projection, stable target pagination, and real database
-    evidence; keep the gateway and clients uncomposed.
+    evidence; keep the gateway and clients uncomposed during this persistence
+    step.
+  - [x] Compose types 134/135 into the existing exact-default-off capability-7
+    gateway boundary, reuse its connection-serialized bounded executor, export
+    fixed page/row telemetry, and prove the outgoing-only page over real TLS/WSS
+    and PostgreSQL; keep client list views uncomposed.
   - [x] Add an exact-default-off V2 gateway handler, negotiated capability,
     bounded execution, privacy-safe errors and metrics, plus real TLS/WSS and
     PostgreSQL mutation/direct-denial evidence.

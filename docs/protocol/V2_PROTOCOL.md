@@ -166,8 +166,10 @@ plus a positive database block time.
 A non-terminal page repeats its last target UUID as the next cursor; a terminal
 page carries no cursor. The cursor is a bounded traversal position, not a
 snapshot token: clients must refresh after concurrent block/unblock mutations.
-No gateway handler or client route consumes these types during this protocol
-expand step, so existing capability-7 behavior and rollback remain unchanged.
+The exact-default-off capability-7 gateway handler now consumes type 134 and
+returns type 135 through the same connection-serialized bounded executor as
+mutation. It rebinds the actor from authentication; client list routes remain
+uncomposed, so ordinary clients and rollback behavior are unchanged.
 
 The Web candidate correlates every search response with one active in-memory
 request and discards pages abandoned by disconnect or conversation change.

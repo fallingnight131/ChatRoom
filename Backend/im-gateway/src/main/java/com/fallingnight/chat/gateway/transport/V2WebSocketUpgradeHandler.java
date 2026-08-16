@@ -1,6 +1,8 @@
 package com.fallingnight.chat.gateway.transport;
 
 import com.fallingnight.chat.application.contact.AccountBlockResult;
+import com.fallingnight.chat.application.contact.AccountBlockDirectoryResult;
+import com.fallingnight.chat.application.contact.AccountBlockDirectoryUseCase;
 import com.fallingnight.chat.application.contact.AccountBlockUseCase;
 import com.fallingnight.chat.application.identity.AuthenticationUseCase;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPort;
@@ -56,6 +58,8 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
     private final boolean messageSearchEnabled;
     private AccountBlockUseCase accountBlocks =
             (actor, intent) -> AccountBlockResult.Rejected.TARGET_UNAVAILABLE;
+    private AccountBlockDirectoryUseCase accountBlockDirectory =
+            (actor, request) -> AccountBlockDirectoryResult.Rejected.NOT_AUTHORIZED;
     private boolean accountBlockingEnabled;
     private ScheduledFuture<?> upgradeDeadline;
 
@@ -314,6 +318,44 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
         this.accountBlockingEnabled = accountBlockingEnabled;
     }
 
+    public V2WebSocketUpgradeHandler(
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            MessageSearchPort search,
+            AccountBlockUseCase accountBlocks,
+            AccountBlockDirectoryUseCase accountBlockDirectory,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            Duration handshakeTimeout,
+            Duration authenticationTimeout,
+            boolean messageForwardingEnabled,
+            boolean messageSearchEnabled,
+            boolean accountBlockingEnabled) {
+        this(authentication, sessionResume, submissions, history, directory, participants,
+                reactions, pins, edits, forwards, search, accountBlocks, deviceManagement,
+                authenticationExecutor, messagingExecutor, admission, events, messagingEvents,
+                deviceEvents, deviceConnections, liveRouter, handshakeTimeout,
+                authenticationTimeout, messageForwardingEnabled, messageSearchEnabled,
+                accountBlockingEnabled);
+        this.accountBlockDirectory = Objects.requireNonNull(
+                accountBlockDirectory, "accountBlockDirectory");
+    }
+
     @Override
     public void channelActive(ChannelHandlerContext context) {
         Runnable close = context::close;
@@ -346,6 +388,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                     forwards,
                     search,
                     accountBlocks,
+                    accountBlockDirectory,
                     deviceManagement,
                     authenticationExecutor,
                     messagingExecutor,

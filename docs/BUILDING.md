@@ -1483,16 +1483,18 @@ cd Backend
 ```
 
 It proves capability and authentication checks, server-bound actor identity,
-canonical payload validation, generic privacy denial, idempotency-conflict
-mapping, bounded-worker rejection, disconnect cleanup, and fixed changed/no-op
-telemetry. Product composition is absent unless exact
+canonical mutation and directory payload validation, generic privacy denial,
+idempotency-conflict mapping, bounded-worker rejection, disconnect cleanup, and
+fixed changed/no-op plus directory page/row telemetry. Product composition is
+absent unless exact
 `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true` is supplied, and negotiation
 still requires a client request for capability 7. Ordinary Web and Windows
 builds do not request it; exact-gated Web and Windows candidates can, although
 the Windows candidate exposes no user action yet. `python3
 tools/verify_m0.py --postgres` additionally
 proves the route over real TLS/WSS against a disposable PostgreSQL database,
-including durable exact retry and generic denial of a later direct message.
+including durable exact retry, a current outgoing-only type-135 directory page,
+and generic denial of a later direct message.
 
 The Web protocol/application/UI candidate is covered by `npm test`, both the
 default production build and this explicit candidate build:
@@ -1557,7 +1559,9 @@ capability 7. Java policy tests require a canonical optional target cursor,
 limit 1..100, unique strictly ordered rows, bounded UTF-8 display names, positive
 block times, and an exact continuation cursor. Java, TypeScript, and C++ pin the
 same type-134 request bytes. No gateway handler or client route is composed by
-this protocol-only expand step (ADR-0408).
+this protocol-only expand step. The later gateway slice composes the request/page
+behind the existing exact-default-off capability-7 boundary; client list routes
+remain uncomposed (ADR-0408).
 Web reaction tests additionally verify account-scoped IndexedDB persistence,
 stable optimistic replay after reconnect history, ACK/history/live convergence,
 bounded fixed-kind aggregates, keyboard-native controls, pressed state, and
@@ -1636,8 +1640,9 @@ migration. The application boundary enforces actor correlation, 1..100-row
 bounds, strict target ordering, UTF-8 display-name limits, and continuation
 consistency. The PostgreSQL gate additionally proves enabled-actor authorization,
 repeatable-read current-name projection, insertion-order-independent pagination,
-outbound-only isolation, and disabled/unknown actor denial. No gateway handler
-or client list view consumes it yet.
+outbound-only isolation, and disabled/unknown actor denial. The gateway now
+composes the adapter behind the existing exact-default-off flag and proves a
+real TLS/WSS page; client list views remain absent.
 The application module also tests the scheduler-neutral relay pass: fixed
 publication outcomes, unexpected-exception redaction, capped exponential retry,
 duplicate-claim rejection, and fenced ownership loss. This class is not yet

@@ -20,6 +20,8 @@ public final class MessagingTelemetry implements MessagingEventSink {
     private final LongAdder forwardRateLimited = new LongAdder();
     private final LongAdder accountBlockChanged = new LongAdder();
     private final LongAdder accountBlockNoOp = new LongAdder();
+    private final LongAdder accountBlockDirectoryPages = new LongAdder();
+    private final LongAdder accountBlockDirectoryRows = new LongAdder();
     private final LongAdder livePublished = new LongAdder();
     private final LongAdder liveSlowConsumerClosed = new LongAdder();
     private final LongAccumulator liveSlowConsumerMaximumBytesBeforeWritable =
@@ -59,6 +61,13 @@ public final class MessagingTelemetry implements MessagingEventSink {
         if (changed) accountBlockChanged.increment();
         else accountBlockNoOp.increment();
     }
+    @Override public void accountBlockDirectoryPage(int rows) {
+        if (rows < 0 || rows > 100) {
+            throw new IllegalArgumentException("account block directory rows are invalid");
+        }
+        accountBlockDirectoryPages.increment();
+        accountBlockDirectoryRows.add(rows);
+    }
     @Override public void livePublished(int count) { livePublished.add(count); }
     @Override public void liveSlowConsumerClosed(int count) { liveSlowConsumerClosed.add(count); }
     @Override public void liveSlowConsumerBacklog(long maximumBytesBeforeWritable) {
@@ -79,6 +88,7 @@ public final class MessagingTelemetry implements MessagingEventSink {
                 editChanged.sum(), editNoOp.sum(), editDuplicates.sum(),
                 forwardAccepted.sum(), forwardDuplicates.sum(), forwardRateLimited.sum(),
                 accountBlockChanged.sum(), accountBlockNoOp.sum(),
+                accountBlockDirectoryPages.sum(), accountBlockDirectoryRows.sum(),
                 livePublished.sum(), liveSlowConsumerClosed.sum(),
                 liveSlowConsumerMaximumBytesBeforeWritable.get(), denied.sum(),
                 conflicts.sum(), saturated.sum(), failed.sum());

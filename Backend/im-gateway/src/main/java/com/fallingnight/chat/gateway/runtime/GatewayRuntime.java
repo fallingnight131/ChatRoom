@@ -1,6 +1,7 @@
 package com.fallingnight.chat.gateway.runtime;
 
 import com.fallingnight.chat.application.contact.AccountBlockService;
+import com.fallingnight.chat.application.contact.AccountBlockDirectoryService;
 import com.fallingnight.chat.application.identity.AuthenticationService;
 import com.fallingnight.chat.application.identity.SessionResumeService;
 import com.fallingnight.chat.application.identity.DeviceManagementService;
@@ -32,6 +33,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresMessageEditAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessageForwardAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessageSearchAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresAccountBlockAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresAccountBlockDirectoryAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresDeviceManagementAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.zaxxer.hikari.HikariDataSource;
@@ -115,6 +117,9 @@ public final class GatewayRuntime implements AutoCloseable {
             PostgresMessageSearchAdapter search = new PostgresMessageSearchAdapter(dataSource);
             AccountBlockService accountBlocks =
                     new AccountBlockService(new PostgresAccountBlockAdapter(dataSource));
+            AccountBlockDirectoryService accountBlockDirectory =
+                    new AccountBlockDirectoryService(
+                            new PostgresAccountBlockDirectoryAdapter(dataSource));
             PostgresConversationDirectoryAdapter conversations =
                     new PostgresConversationDirectoryAdapter(dataSource);
             PostgresConversationParticipantAdapter participants =
@@ -184,6 +189,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     forwards,
                     search,
                     accountBlocks,
+                    accountBlockDirectory,
                     deviceManagement,
                     workers,
                     messagingWorkers,

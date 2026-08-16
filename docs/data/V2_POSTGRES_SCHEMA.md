@@ -700,8 +700,9 @@ still exists and is enabled, then joins only that actor's `blocker_account_id`
 edges to the current target account display name. Pages are ordered by
 `blocked_account_id`, fetch at most the requested 1..100 rows plus one look-ahead
 row, and expose `created_at` as the authoritative block time. Inbound blockers
-are never selected. This requires no schema change and remains outside the
-gateway runtime until its separately gated handler is implemented.
+are never selected. This requires no schema change. The same exact-default-off
+capability-7 gateway boundary now composes this adapter and serves bounded
+outgoing pages; Web and Windows list views remain uncomposed.
 
 At the current additive stage, rollback means disabling/removing the unused Java
 route while V1 SQLite remains authoritative. Once PostgreSQL owns a slice,

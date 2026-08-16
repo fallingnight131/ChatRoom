@@ -20,6 +20,8 @@ public interface MessagingEventSink {
 
     default void accountBlockApplied(boolean changed) { }
 
+    default void accountBlockDirectoryPage(int rows) { }
+
     void livePublished(int count);
 
     void liveSlowConsumerClosed(int count);

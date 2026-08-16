@@ -65,7 +65,9 @@ server candidate without activating an incomplete client product path.
   PostgreSQL adapter reauthorizes an enabled actor and reads current outgoing
   edges plus current target display names in one repeatable-read transaction.
   It fetches one look-ahead row to derive continuation and never queries inbound
-  blockers. No handler is installed and no client behavior changes.
+  blockers. The exact-default-off capability-7 gateway handler serves the
+  directory through the same connection-serialized bounded executor as mutation;
+  no client list behavior changes.
 - The handler binds the actor from authenticated connection state, validates
   canonical payload identities, serializes at most eight pending mutations on
   the bounded messaging executor, and clears pending work at disconnect.
@@ -73,7 +75,8 @@ server candidate without activating an incomplete client product path.
   reuse maps to `IDEMPOTENCY_CONFLICT`; malformed and saturated paths remain
   distinct without disclosing account state.
 - Fixed-cardinality telemetry distinguishes changed and convergent no-op
-  mutations without account, target, or operation labels. The durable write
+  mutations and counts directory pages/rows without account, target, cursor,
+  or operation labels. The durable write
   policy remains enforced by every PostgreSQL direct-contact adapter, including
   V1 compatibility, so composition cannot introduce an old-client bypass.
 - Default Web and Windows builds do not request capability 7. An independent
@@ -118,8 +121,8 @@ transport. Existing deployments have no block rows until the default-off server
 candidate and an explicit compatible client are enabled, while direct-contact
 writes already fail closed if such rows exist. Old clients omit capability 7
 and keep their prior handshake bytes. The Web and Windows candidates are now
-present; native Windows Release interaction, real endpoint canaries, and a future
-block-list read model remain separate expand-migrate-contract steps.
+present; native Windows Release interaction, real endpoint canaries, and client
+block-list projections remain separate expand-migrate-contract steps.
 
 ## Verification
 
@@ -145,8 +148,12 @@ generic result.
 Java policy tests additionally pin types 134/135, canonical cursor and page
 bounds, strict ordering, duplicate rejection, UTF-8 display-name limits, and
 continuation consistency. Generated Java, TypeScript, and C++ bindings parse and
-re-emit the same list request bytes. Runtime and product clients remain absent,
-so this is protocol compatibility evidence rather than a block-list feature.
+re-emit the same list request bytes. Focused handler tests prove capability and
+authentication gates, actor binding, pagination serialization, generic denial,
+and page/row telemetry. The real TLS/WSS PostgreSQL gate returns the durable
+outgoing edge with its current display name through type 135. Product client
+list views remain absent, so this is server-candidate rather than product
+block-list evidence.
 Application tests reject oversized, unordered, duplicate, malformed-Unicode,
 and inconsistent-continuation projections. The disposable PostgreSQL gate proves
 target-ordered pagination independent of insertion order, current display-name

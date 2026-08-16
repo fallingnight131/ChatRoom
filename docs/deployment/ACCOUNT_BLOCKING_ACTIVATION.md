@@ -16,9 +16,10 @@ endpoint gates below are retained for the exact revision.
   for durable block, exact retry, and generic direct-message denial.
 - Run Web tests, default and candidate builds, and the Chromium/Firefox account-
   blocking fixture described in `docs/BUILDING.md`.
-- Confirm metrics expose only fixed `account_block_changed` and
-  `account_block_noop` outcomes and no account, target, operation, or message
-  labels.
+- Confirm metrics expose only fixed `account_block_changed`,
+  `account_block_noop`, `account_block_directory_page`, and
+  `account_block_directory_row` outcomes and no account, target, cursor,
+  operation, or message labels.
 - Confirm support understands that the Web candidate has no persisted block
   list or initial-state read. A fresh page reports unknown state until a desired-
   state command succeeds.
@@ -39,7 +40,10 @@ endpoint gates below are retained for the exact revision.
 5. With a controlled protocol client, verify authenticated actor binding,
    generic target denial, exact operation retry, block/unblock, bilateral new
    direct-message and contact-request denial, unchanged history, and unaffected
-   shared-group delivery.
+   shared-group delivery. After blocking, request type 134 and verify type 135
+   contains only the actor's outgoing edge, current target display name, positive
+   block time, and a consistent bounded continuation cursor; never probe or
+   expose inbound blockers.
 
 ## Web candidate activation
 

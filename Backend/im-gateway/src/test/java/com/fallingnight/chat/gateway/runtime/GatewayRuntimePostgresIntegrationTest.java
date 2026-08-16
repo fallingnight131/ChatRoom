@@ -50,6 +50,7 @@ import com.fallingnight.chat.routing.redis.LettuceGatewayRoutingAdapter;
 import com.fallingnight.chat.routing.redis.RedisRoutingConfig;
 import com.fallingnight.chat.protocol.v2.Authenticate;
 import com.fallingnight.chat.protocol.v2.AccountBlockApplied;
+import com.fallingnight.chat.protocol.v2.AccountBlockDirectoryPage;
 import com.fallingnight.chat.protocol.v2.ClientHello;
 import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.ClientPlatform;
@@ -61,6 +62,7 @@ import com.fallingnight.chat.protocol.v2.MessageHistoryPage;
 import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
+import com.fallingnight.chat.protocol.v2.ListAccountBlocks;
 import com.fallingnight.chat.protocol.v2.ProtocolError;
 import com.fallingnight.chat.protocol.v2.ProtocolErrorCode;
 import com.fallingnight.chat.protocol.v2.ConversationMessageSearchPage;
@@ -442,6 +444,21 @@ class GatewayRuntimePostgresIntegrationTest {
             assertEquals(1, countQuery(jdbcUrl, username, password,
                     "SELECT count(*) FROM chat.account_block WHERE blocker_account_id='"
                             + accountId + "' AND blocked_account_id='" + peerAccountId + "'"));
+
+            socket.sendBinary(ByteBuffer.wrap(listAccountBlocks(
+                    session.getSessionId(), "", 1).toByteArray()), true).join();
+            Envelope directoryEnvelope = listener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_ACCOUNT_BLOCK_DIRECTORY_PAGE_VALUE,
+                    directoryEnvelope.getMessageType());
+            AccountBlockDirectoryPage directory = AccountBlockDirectoryPage.parseFrom(
+                    directoryEnvelope.getPayload());
+            assertEquals(1, directory.getBlocksCount());
+            assertEquals(peerAccountId.toString(),
+                    directory.getBlocks(0).getTargetAccountId());
+            assertEquals("Network Peer", directory.getBlocks(0).getTargetDisplayName());
+            assertTrue(directory.getBlocks(0).getBlockedAtEpochMs() > 0);
+            assertFalse(directory.getHasMore());
+            assertEquals("", directory.getNextAfterTargetAccountId());
 
             socket.sendBinary(ByteBuffer.wrap(submit(
                     session.getSessionId(), conversationId, "blocked-submit",
@@ -5770,6 +5787,13 @@ class GatewayRuntimePostgresIntegrationTest {
                 .setTargetAccountId(target.toString()).setBlocked(blocked)
                 .setClientOperationId(operation.toString()).build();
         return command(MessageType.MESSAGE_TYPE_SET_ACCOUNT_BLOCK, requestId,
+                sessionId, "", payload.toByteString());
+    }
+
+    private static Envelope listAccountBlocks(String sessionId, String afterTarget, int limit) {
+        ListAccountBlocks payload = ListAccountBlocks.newBuilder()
+                .setAfterTargetAccountId(afterTarget).setLimit(limit).build();
+        return command(MessageType.MESSAGE_TYPE_LIST_ACCOUNT_BLOCKS, "block-directory-1",
                 sessionId, "", payload.toByteString());
     }
 

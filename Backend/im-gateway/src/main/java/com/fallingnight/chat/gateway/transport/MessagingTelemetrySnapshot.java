@@ -17,6 +17,8 @@ public record MessagingTelemetrySnapshot(
         long forwardRateLimited,
         long accountBlockChanged,
         long accountBlockNoOp,
+        long accountBlockDirectoryPages,
+        long accountBlockDirectoryRows,
         long livePublished,
         long liveSlowConsumerClosed,
         long liveSlowConsumerMaximumBytesBeforeWritable,
