@@ -33,8 +33,10 @@ npm run build
 - `VITE_CHAT_V2_NOTIFICATIONS` is optional and disabled when missing, empty, or
   exactly `false`. Only exact `true` permits the application to emit a detached
   candidate after a remote live message is successfully saved; any other
-  spelling invalidates V2. The current slice does not request browser permission
-  or invoke `Notification`, so keep it false outside reviewed candidates.
+  spelling invalidates V2. An enabled build exposes an explicit browser
+  permission button and generic, content-free notifications. It persists only
+  the boolean user choice, never requests permission during startup, and opens a
+  validated conversation ID on click. Keep it false outside reviewed candidates.
 - `VITE_CHAT_V2_WSS_URL` must use `wss`, contain no credentials/query/fragment,
   and end at the exact `/v2/web` route. It is independent of the user-editable
   V1 host/port settings.

@@ -73,6 +73,17 @@
               {{ preferenceMessages.sessionOnly }}
             </small>
           </div>
+          <div v-if="snapshot.notificationsEnabled" class="notification-control">
+            <button class="device-entry" type="button" :disabled="notificationRequestPending"
+                    @click="toggleNotifications">
+              {{ notificationPreference.enabled ? notificationMessages.disable : notificationMessages.enable }}
+            </button>
+            <small id="v2-notification-description">{{ notificationMessages.description }}</small>
+            <small role="status" aria-live="polite">{{ notificationStateLabel }}</small>
+            <small v-if="notificationPreference.persistence === 'session' && notificationPreference.enabled" role="status">
+              {{ notificationMessages.sessionOnly }}
+            </small>
+          </div>
         </div>
         <ul class="conversation-list" :aria-label="shellMessages.availableConversations">
           <li v-for="conversation in snapshot.directory" :key="conversation.conversationId">
@@ -419,6 +430,8 @@ import { messageTextBudget } from '../messaging/messageTextBudget.js'
 import { copyMessageText } from '../messaging/copyMessageText.js'
 import { addPendingNewMessages } from '../messaging/newMessageIndicator.js'
 import { classifyV2TailUpdate } from '../messaging/v2TailActivity'
+import { WebMessageNotificationPresenter } from '../platform/webMessageNotification'
+import { WebNotificationPreferenceController } from '../platform/webNotificationPreference'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 import { nextWrappingFocusIndex } from '../ui/linearFocusNavigation'
 import { useUserStore } from '../stores/user'
@@ -435,6 +448,7 @@ import {
   v2PreviewEditMessages,
   v2PreviewForwardMessages,
   v2PreviewMentionMessages,
+  v2PreviewNotificationMessages,
   v2PreviewPinMessages,
   v2PreviewReactionMessages,
   v2PreviewSearchMessages,
@@ -462,6 +476,7 @@ const v2ComposerMessages = computed(() => v2PreviewComposerMessages(userStore.lo
 const deviceMessages = computed(() => v2PreviewDeviceMessages(userStore.locale))
 const editMessages = computed(() => v2PreviewEditMessages(userStore.locale))
 const mentionMessages = computed(() => v2PreviewMentionMessages(userStore.locale))
+const notificationMessages = computed(() => v2PreviewNotificationMessages(userStore.locale))
 const pinMessages = computed(() => v2PreviewPinMessages(userStore.locale))
 const reactionMessages = computed(() => v2PreviewReactionMessages(userStore.locale))
 const forwardMessages = computed(() => v2PreviewForwardMessages(userStore.locale))
@@ -501,6 +516,7 @@ let mentionPickerShouldFocusFirstOption = false
 const forwardSource = ref(null)
 const forwardPending = ref(false)
 const authenticationPending = ref(false)
+const notificationRequestPending = ref(false)
 const devicesOpen = ref(false)
 const confirmingDeviceId = ref(null)
 const forwardDialogActive = computed(() => Boolean(forwardSource.value))
@@ -536,7 +552,20 @@ const snapshot = ref({
 const forwardTargets = computed(() => snapshot.value.directory.filter(
   conversation => conversation.conversationId !== snapshot.value.activeConversationId))
 let unsubscribe = null
+let unsubscribeRemoteMessages = null
 let startedApplication = null
+let notificationPresenter = null
+let notificationAccountId = ''
+const notificationPreferenceController = new WebNotificationPreferenceController({
+  supported: () => typeof window !== 'undefined' && 'Notification' in window,
+  permission: () => window.Notification.permission,
+  requestPermission: () => window.Notification.requestPermission(),
+  storage: {
+    getItem: key => window.localStorage.getItem(key),
+    setItem: (key, value) => window.localStorage.setItem(key, value),
+  },
+})
+const notificationPreference = ref(notificationPreferenceController.snapshot)
 
 const runtimeReady = computed(() => runtimeRef?.value?.enabled === true)
 const runtimeReason = computed(() => runtimeRef?.value?.reason || shellMessages.value.runtimeUnavailable)
@@ -551,6 +580,13 @@ const visibleParticipantFailure = computed(() => localizeV2PreviewParticipantFai
   userStore.locale, snapshot.value.participantFailure))
 const visibleDeviceFailure = computed(() => localizeV2PreviewDeviceFailure(
   userStore.locale, snapshot.value.deviceFailure))
+const notificationStateLabel = computed(() => ({
+  enabled: notificationMessages.value.enabled,
+  disabled: notificationMessages.value.disabled,
+  denied: notificationMessages.value.denied,
+  unavailable: notificationMessages.value.unavailable,
+  'request-failed': notificationMessages.value.requestFailed,
+}[notificationPreference.value.state]))
 const activeConversationName = computed(() => snapshot.value.directory.find(
   item => item.conversationId === snapshot.value.activeConversationId
 )?.displayName || shellMessages.value.conversation)
@@ -574,14 +610,42 @@ const reactionChoices = computed(() => [
 ])
 
 function attachRuntime(runtime) {
+  if (runtime?.enabled && runtime.application === startedApplication) return
   unsubscribe?.()
   unsubscribe = null
-  if (!runtime?.enabled || runtime.application === startedApplication) return
+  unsubscribeRemoteMessages?.()
+  unsubscribeRemoteMessages = null
+  notificationPresenter?.clear()
+  notificationPresenter = null
+  notificationAccountId = ''
+  startedApplication = null
+  if (!runtime?.enabled) return
   startedApplication = runtime.application
+  notificationPresenter = new WebMessageNotificationPresenter({
+    permission: () => window.Notification.permission,
+    create: (title, options) => new window.Notification(title, options),
+    activateConversation: conversationId => {
+      window.focus()
+      void runtime.application.openConversation(conversationId).catch(() => {})
+    },
+  })
+  unsubscribeRemoteMessages = runtime.application.subscribeRemoteMessages(candidate => {
+    notificationPreference.value = notificationPreferenceController.refreshPermission()
+    if (!notificationPreference.value.enabled || !notificationPresenter) return
+    notificationPresenter.present(candidate, {
+      applicationActive: document.visibilityState === 'visible' && document.hasFocus(),
+      visibleConversationId: snapshot.value.activeConversationId || '',
+    }, notificationMessages.value)
+  })
   unsubscribe = runtime.application.subscribe(next => {
     const previous = snapshot.value
     const tailUpdate = classifyV2TailUpdate(previous, next)
     snapshot.value = next
+    const nextAccountId = next.session?.accountId || ''
+    if (nextAccountId !== notificationAccountId) {
+      notificationPresenter?.clear()
+      notificationAccountId = nextAccountId
+    }
     nextTick(() => {
       if (snapshot.value.activeConversationId !== next.activeConversationId) return
       if (tailUpdate.conversationChanged) {
@@ -597,6 +661,24 @@ function attachRuntime(runtime) {
     if (next.session || next.lastFailure || next.connectionState !== 'connected') authenticationPending.value = false
   })
   runtime.application.start()
+}
+
+async function toggleNotifications() {
+  if (notificationRequestPending.value) return
+  if (notificationPreference.value.enabled) {
+    notificationPreference.value = notificationPreferenceController.disable()
+    return
+  }
+  notificationRequestPending.value = true
+  try {
+    notificationPreference.value = await notificationPreferenceController.enableFromUserGesture()
+  } finally {
+    notificationRequestPending.value = false
+  }
+}
+
+function refreshNotificationPermission() {
+  notificationPreference.value = notificationPreferenceController.refreshPermission()
 }
 
 function onMessageListScroll() {
@@ -1094,12 +1176,20 @@ function deliveryLabel(state) {
     : state === 'sending' ? v2TimelineMessages.value.sending : v2TimelineMessages.value.failed
 }
 
-onMounted(() => attachRuntime(runtimeRef?.value))
+onMounted(() => {
+  attachRuntime(runtimeRef?.value)
+  document.addEventListener('visibilitychange', refreshNotificationPermission)
+  window.addEventListener('focus', refreshNotificationPermission)
+})
 const stopRuntimeWatch = watch(() => runtimeRef?.value, attachRuntime)
 onUnmounted(() => {
   stopRuntimeWatch()
   stopMentionParticipantWatch()
   unsubscribe?.()
+  unsubscribeRemoteMessages?.()
+  notificationPresenter?.clear()
+  document.removeEventListener('visibilitychange', refreshNotificationPermission)
+  window.removeEventListener('focus', refreshNotificationPermission)
   if (startedApplication) {
     try { startedApplication.stop() } catch { /* page disposal may already own shutdown */ }
   }
@@ -1131,6 +1221,9 @@ onUnmounted(() => {
 .low-bandwidth-control label { display: flex; gap: 8px; align-items: center; color: var(--text-primary); font-size: 12px; cursor: pointer; }
 .low-bandwidth-control input { margin: 0; }
 .low-bandwidth-control small { font-size: 10px; line-height: 1.35; }
+.notification-control { margin-top: 8px; display: grid; gap: 4px; color: var(--text-secondary); }
+.notification-control .device-entry { margin-top: 0; font-size: 12px; }
+.notification-control small { font-size: 10px; line-height: 1.35; }
 .conversation-button { width: 100%; display: grid; gap: 4px; padding: 14px 18px; border: 0; border-bottom: 1px solid var(--border-light); text-align: left; color: var(--text-primary); background: transparent; cursor: pointer; }
 .conversation-button:hover { background: var(--bg-hover); }.conversation-button.active { background: var(--bg-active); }
 .reply-reference { margin-bottom: 6px; padding: 6px 8px; display: grid; gap: 2px; border-left: 3px solid var(--accent); border-radius: 4px; color: var(--text-secondary); background: var(--bg-primary); font-size: 12px; }

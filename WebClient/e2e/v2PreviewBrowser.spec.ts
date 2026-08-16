@@ -15,6 +15,8 @@ const searchRollback = process.env.CHATROOM_V2_BROWSER_SEARCH_ROLLBACK === "true
 const forwardingCandidate = process.env.CHATROOM_V2_BROWSER_FORWARDING === "true";
 const forwardingRollback = process.env.CHATROOM_V2_BROWSER_FORWARDING_ROLLBACK === "true";
 const mentionsCandidate = process.env.CHATROOM_V2_BROWSER_MENTIONS === "true";
+const notificationsCandidate = process.env.CHATROOM_V2_BROWSER_NOTIFICATIONS === "true";
+const notificationsRollback = process.env.CHATROOM_V2_BROWSER_NOTIFICATIONS_ROLLBACK === "true";
 const FIXTURE_MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 
 async function installV2SocketFixture(
@@ -45,6 +47,44 @@ async function installV2SocketFixture(
     });
   });
   return { fixture, socketUrls, sockets, clientCloses };
+}
+
+async function installNotificationFixture(page: import("@playwright/test").Page) {
+  await page.addInitScript(() => {
+    const state = { requests: 0, notifications: [] as Array<{
+      title: string;
+      options: { body?: string; tag?: string };
+      closed: boolean;
+    }> };
+    const handles: Array<{ onclick: null | (() => void) }> = [];
+    class FakeNotification {
+      static permission: NotificationPermission = "default";
+      static async requestPermission(): Promise<NotificationPermission> {
+        state.requests += 1;
+        FakeNotification.permission = "granted";
+        return "granted";
+      }
+      onclick: null | (() => void) = null;
+      private readonly index: number;
+      constructor(title: string, options: NotificationOptions = {}) {
+        this.index = state.notifications.length;
+        state.notifications.push({
+          title,
+          options: { body: options.body, tag: options.tag },
+          closed: false,
+        });
+        handles.push(this);
+      }
+      close() { state.notifications[this.index]!.closed = true; }
+    }
+    Object.defineProperty(window, "Notification", { configurable: true, value: FakeNotification });
+    Object.assign(window, {
+      __chatNotificationFixture: {
+        state,
+        click(index: number) { handles[index]?.onclick?.(); },
+      },
+    });
+  });
 }
 
 test("switches and persists the V2 preview locale before authentication", async ({ page }) => {
@@ -175,6 +215,95 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
   expect(fixture.receivedTypes.filter(type => type === MessageType.SUBMIT_MESSAGE)).toHaveLength(1);
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain("non-secret-test-value");
   expect(socketUrls).toEqual(["wss://fixture.invalid/v2/web"]);
+});
+
+test("enables privacy-safe notifications from a gesture and opens the stable conversation", async ({ page }) => {
+  test.skip(!notificationsCandidate, "requires the notification candidate build");
+  await installNotificationFixture(page);
+  const { fixture, sockets } = await installV2SocketFixture(page, "accept");
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+
+  const enable = page.getByRole("button", { name: "启用桌面通知" });
+  await expect(enable).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as {
+    __chatNotificationFixture: { state: { requests: number } };
+  }).__chatNotificationFixture.state.requests)).toBe(0);
+  await enable.click();
+  await expect(page.getByText("桌面通知已启用", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("chat.v2.notifications-enabled"))).toBe("true");
+
+  const primary = page.getByRole("button", { name: /Browser Fixture Conversation/ });
+  const target = page.getByRole("button", { name: /Keyboard Target Conversation/ });
+  await target.click();
+  await expect(target).toHaveAttribute("aria-current", "page");
+  await primary.click();
+  await expect(primary).toHaveAttribute("aria-current", "page");
+
+  const event = fixture.publishedMessage({ mentioned: true, content: "@private fixture notification text" });
+  sockets.at(-1)?.send(Buffer.from(event));
+  await expect.poll(() => page.evaluate(() => (window as unknown as {
+    __chatNotificationFixture: { state: { notifications: unknown[] } };
+  }).__chatNotificationFixture.state.notifications.length)).toBe(1);
+  const shown = await page.evaluate(() => (window as unknown as {
+    __chatNotificationFixture: { state: { notifications: Array<{
+      title: string; options: { body?: string; tag?: string };
+    }> } };
+  }).__chatNotificationFixture.state.notifications[0]);
+  expect(shown).toEqual({
+    title: "ChatRoom 中有人提到了你",
+    closed: false,
+    options: {
+      body: "打开 ChatRoom 查看消息",
+      tag: "chat-v2-message-60000000-0000-4000-8000-000000000010",
+    },
+  });
+  expect(JSON.stringify(shown)).not.toContain("@private fixture notification text");
+  expect(JSON.stringify(shown)).not.toContain(PEER_ACCOUNT_ID);
+
+  sockets.at(-1)?.send(Buffer.from(event));
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => (window as unknown as {
+    __chatNotificationFixture: { state: { notifications: unknown[] } };
+  }).__chatNotificationFixture.state.notifications.length)).toBe(1);
+  await page.evaluate(() => (window as unknown as {
+    __chatNotificationFixture: { click(index: number): void };
+  }).__chatNotificationFixture.click(0));
+  await expect(target).toHaveAttribute("aria-current", "page");
+
+  await page.getByRole("button", { name: "关闭桌面通知" }).click();
+  await expect(page.getByText("桌面通知未启用", { exact: true })).toBeVisible();
+  sockets.at(-1)?.send(Buffer.from(fixture.publishedMessage({
+    messageId: "60000000-0000-4000-8000-000000000011",
+    conversationId: FIXTURE_CONVERSATION_ID,
+    conversationSequence: 2n,
+  })));
+  await page.waitForTimeout(100);
+  const finalNotificationState = await page.evaluate(() => (window as unknown as {
+    __chatNotificationFixture: { state: { notifications: unknown[]; requests: number } };
+  }).__chatNotificationFixture.state);
+  expect(finalNotificationState.requests).toBe(1);
+  expect(finalNotificationState.notifications).toHaveLength(1);
+  expect(await page.evaluate(() => localStorage.getItem("chat.v2.notifications-enabled"))).toBe("false");
+});
+
+test("keeps notification UI absent in the rollback build", async ({ page }) => {
+  test.skip(!notificationsRollback, "requires the notification rollback build");
+  await installNotificationFixture(page);
+  await installV2SocketFixture(page, "accept");
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page.getByRole("button", { name: "启用桌面通知" })).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as {
+    __chatNotificationFixture: { state: { requests: number } };
+  }).__chatNotificationFixture.state.requests)).toBe(0);
 });
 
 test("selects a non-self participant and sends one identity-backed Unicode mention", async ({ page }) => {

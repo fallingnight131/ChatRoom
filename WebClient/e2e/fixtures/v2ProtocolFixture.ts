@@ -98,6 +98,13 @@ export interface V2ProtocolFixture {
     clientMessageId: string;
   }>;
   respond(bytes: number[]): number[] | null;
+  publishedMessage(options?: {
+    messageId?: string;
+    conversationId?: string;
+    conversationSequence?: bigint;
+    content?: string;
+    mentioned?: boolean;
+  }): number[];
 }
 
 export function createV2ProtocolFixture(
@@ -116,6 +123,7 @@ export function createV2ProtocolFixture(
   let mentionedClientMessageId = "";
   let dropForwardAcceptance = options.dropFirstForwardAcceptance === true;
   let dropMentionAcceptance = options.dropFirstMentionAcceptance === true;
+  let keyboardLatestSequence = 0n;
 
   return {
     receivedTypes,
@@ -124,6 +132,32 @@ export function createV2ProtocolFixture(
     participantRequests,
     mentionSubmissions,
     forwardRequests,
+    publishedMessage(event = {}) {
+      const conversationId = event.conversationId ?? KEYBOARD_CONVERSATION_ID;
+      const conversationSequence = event.conversationSequence ?? 1n;
+      if (conversationId === KEYBOARD_CONVERSATION_ID && conversationSequence > keyboardLatestSequence) {
+        keyboardLatestSequence = conversationSequence;
+      }
+      const record = create(MessageRecordSchema, {
+        conversationId,
+        messageId: event.messageId ?? "60000000-0000-4000-8000-000000000010",
+        conversationSequence,
+        senderAccountId: PEER_ACCOUNT_ID,
+        senderDeviceId: PEER_DEVICE_ID,
+        clientMessageId: "70000000-0000-4000-8000-000000000010",
+        contentType: MessageContentType.TEXT_UTF8,
+        content: new TextEncoder().encode(event.content ?? (event.mentioned
+          ? "@private fixture notification text"
+          : "private fixture notification text")),
+        mentions: event.mentioned ? [{
+          targetAccountId: ACCOUNT_ID,
+          startUtf8Byte: 0,
+          lengthUtf8Bytes: 8,
+        }] : [],
+        acceptedAtEpochMs: NOW + conversationSequence,
+      });
+      return eventEnvelope(MessageType.MESSAGE_PUBLISHED, MessageRecordSchema, record);
+    },
     respond(raw) {
       const request = fromBinary(EnvelopeSchema, Uint8Array.from(raw));
       if (request.protocolVersion !== 2 || request.kind !== MessageKind.COMMAND
@@ -193,7 +227,7 @@ export function createV2ProtocolFixture(
                 kind: ConversationKind.DIRECT,
                 displayName: "Keyboard Target Conversation",
                 role: ConversationRole.MEMBER,
-                latestSequence: forwardedClientMessageId ? 1n : 0n,
+                latestSequence: forwardedClientMessageId ? 1n : keyboardLatestSequence,
                 lastReadSequence: 0n,
                 updatedAtEpochMs: NOW - 1_000n,
               }],
@@ -239,7 +273,20 @@ export function createV2ProtocolFixture(
           const history = fromBinary(ReadMessageHistorySchema, request.payload);
           requireSession(request);
           if (history.conversationId === KEYBOARD_CONVERSATION_ID) {
-            if (history.afterSequence !== 0n || !forwardedClientMessageId) {
+            if (!forwardedClientMessageId) {
+              if (history.afterSequence !== 0n && history.afterSequence !== keyboardLatestSequence) {
+                throw new Error("unexpected V2 fixture empty keyboard history cursor");
+              }
+              return response(request, MessageType.MESSAGE_HISTORY_PAGE,
+                MessageHistoryPageSchema, {
+                  conversationId: KEYBOARD_CONVERSATION_ID,
+                  messages: [],
+                  nextSequence: history.afterSequence,
+                  latestSequence: keyboardLatestSequence,
+                  hasMore: false,
+                }, { sessionId: SESSION_ID });
+            }
+            if (history.afterSequence !== 0n) {
               throw new Error("unexpected V2 fixture forwarded history cursor");
             }
             return response(request, MessageType.MESSAGE_HISTORY_PAGE,
@@ -466,4 +513,19 @@ function response<Desc extends DescMessage>(
     payload,
   }));
   return Array.from(envelope);
+}
+
+function eventEnvelope<Desc extends DescMessage>(
+  messageType: MessageType,
+  schema: Desc,
+  value: MessageInitShape<Desc>,
+): number[] {
+  return Array.from(toBinary(EnvelopeSchema, create(EnvelopeSchema, {
+    protocolVersion: 2,
+    kind: MessageKind.EVENT,
+    messageType,
+    sessionId: SESSION_ID,
+    sentAtEpochMs: NOW + 2n,
+    payload: toBinary(schema, create(schema, value)),
+  })));
 }

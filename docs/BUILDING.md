@@ -2277,8 +2277,13 @@ Web V2 browser notifications have the independent exact build-time gate
 `VITE_CHAT_V2_NOTIFICATIONS=true`. Missing, empty, or exact `false` keeps
 application candidate emission off; malformed values invalidate the V2 runtime.
 An enabled application emits identity-only remote-live candidates only after a
-successful IndexedDB save. The browser presenter and permission UI remain
-disconnected in this slice, so the flag alone cannot display a notification.
+successful IndexedDB save. The candidate view composes the browser presenter
+only behind that same gate. It restores only a non-secret boolean preference
+that still has browser permission, requests permission only from the native
+enable button, exposes disable/denied/unavailable/session-only state, and uses
+generic localized system copy. Notification clicks focus the page and open only
+the validated stable conversation ID; no contact or message text enters the
+presentation boundary.
 The candidate view now exposes the search surface only when application
 capability state is true. Static accessibility tests lock its native search
 form, live status, result-list label, pagination, and keyboard-focusable reveal;

@@ -563,6 +563,29 @@ const v2PreviewShellCatalog = {
   },
 } as const;
 
+const v2PreviewNotificationCatalog = {
+  "zh-CN": {
+    enable: "启用桌面通知", disable: "关闭桌面通知", enabled: "桌面通知已启用",
+    disabled: "桌面通知未启用", denied: "浏览器已拒绝通知权限，请在网站设置中重新允许。",
+    unavailable: "当前浏览器不支持桌面通知", requestFailed: "无法请求浏览器通知权限",
+    sessionOnly: "浏览器存储不可用；此设置仅在本次页面会话有效。",
+    description: "仅显示通用提示，不在系统通知中展示联系人或消息正文。",
+    messageTitle: "ChatRoom 新消息", mentionTitle: "ChatRoom 中有人提到了你",
+    body: "打开 ChatRoom 查看消息",
+  },
+  "en-US": {
+    enable: "Enable desktop notifications", disable: "Turn off desktop notifications",
+    enabled: "Desktop notifications are enabled", disabled: "Desktop notifications are not enabled",
+    denied: "Notifications are blocked. Allow them again in this site's browser settings.",
+    unavailable: "Desktop notifications are unavailable in this browser",
+    requestFailed: "Unable to request browser notification permission",
+    sessionOnly: "Browser storage is unavailable; this setting lasts only for this page session.",
+    description: "System notifications use generic copy and never show a contact or message body.",
+    messageTitle: "New ChatRoom message", mentionTitle: "You were mentioned in ChatRoom",
+    body: "Open ChatRoom to view the message",
+  },
+} as const;
+
 const v2PreviewSearchCatalog = {
   "zh-CN": {
     openSearch: "搜索消息", closeSearch: "关闭搜索", searchConversation: "搜索当前会话",
@@ -833,6 +856,10 @@ export function roomSettingsMessages(locale: WebLocale) {
 
 export function v2PreviewShellMessages(locale: WebLocale) {
   return v2PreviewShellCatalog[locale];
+}
+
+export function v2PreviewNotificationMessages(locale: WebLocale) {
+  return v2PreviewNotificationCatalog[locale];
 }
 
 export function v2PreviewSearchMessages(locale: WebLocale) {

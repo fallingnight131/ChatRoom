@@ -2308,7 +2308,7 @@ Candidate slices:
     activation in a detached policy/presenter boundary (ADR-0407).
   - [x] Emit candidates only after IndexedDB persistence succeeds and compose
     them behind an exact default-off Web build gate.
-  - [ ] Add user-gesture permission, visible enable/disable state, localized
+  - [x] Add user-gesture permission, visible enable/disable state, localized
     presentation, notification-click navigation, and Chromium/Firefox evidence.
   - [ ] Add service-worker/Web Push delivery only after a separate server,
     subscription, privacy, abuse, expiry, and operations design.

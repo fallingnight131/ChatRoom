@@ -39,6 +39,13 @@ persistence, sequence progress, reconnect, or the visible chat path.
   requested by a native user action with visible state and a disable path. This
   decision adds no service worker, Web Push, closed-browser delivery, server
   notification service, or delivery guarantee.
+- The candidate view persists only a non-secret boolean choice. It restores the
+  choice only while browser permission is still granted, fails closed when
+  permission is revoked, and reports session-only behavior when browser storage
+  is unavailable. The enable button is the only permission-request call site.
+- A notification click focuses the existing page and opens the already validated
+  stable conversation ID. Generic localized title/body copy contains no sender,
+  conversation name, account ID, or message text.
 
 ## Consequences
 
@@ -47,15 +54,19 @@ notification permission. Generic copy is intentionally less informative than a
 content preview but safer before per-conversation preferences and lock-screen
 controls exist. In-memory deduplication resets on account teardown or page
 restart; IndexedDB remains recoverable message truth, not a notification queue.
+Browser permission and the local preference do not imply background or closed-
+browser delivery.
 
 ## Verification
 
 Unit tests cover bounded eviction, duplicate and visible-conversation
 suppression, structured mention classification, malformed/self rejection,
-denied permission, platform failure, privacy-safe copy, and one-shot stable
-conversation activation. Application tests additionally require save-before-
-candidate ordering and silent duplicate/self/history/failed-save paths. User-
-gesture, browser, rollback, and deployment evidence remain separate.
+denied/revoked permission, storage denial, platform failure, privacy-safe copy,
+and one-shot stable conversation activation. Application tests additionally
+require save-before-candidate ordering and silent duplicate/self/history/failed-
+save paths. Deterministic Chromium and Firefox tests prove no startup prompt,
+explicit enable/disable persistence, generic mention copy, duplicate
+suppression, and click navigation. Deployment evidence remains separate.
 
 ## Rollback
 

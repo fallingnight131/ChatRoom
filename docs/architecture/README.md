@@ -1905,10 +1905,14 @@ accepts only stable remote-live identity, bounds duplicate memory, suppresses an
 active visible conversation while remembering the event, and classifies a
 structural mention without accepting message text. The browser presenter uses
 injected permission, creation, and stable-conversation activation ports with
-generic localized copy and one-shot click consumption. It is not yet composed:
-the strict default-false `VITE_CHAT_V2_NOTIFICATIONS` gate now controls whether
-the application may publish a candidate after its IndexedDB save succeeds, but
-the presenter, permission UI, and browser product behavior remain disconnected.
+generic localized copy and one-shot click consumption. The strict default-false
+`VITE_CHAT_V2_NOTIFICATIONS` gate controls both post-IndexedDB candidate
+publication and the user-visible composition. The native enable button is the
+only permission-request path; a non-secret boolean preference is restored only
+while permission remains granted, storage denial is reported as session-only,
+and disable or permission revocation fails closed. Notification clicks focus the
+existing page and open only the stable validated conversation ID. Chromium and
+Firefox fixtures prove this path without granting host notification permission.
 Duplicate live events, self echoes, history repair, save refusal, and a stale
 account generation do not emit candidates. The default build remains unchanged.
 
