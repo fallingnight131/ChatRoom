@@ -211,6 +211,34 @@ def run_summary_v4(run: dict[str, Any]) -> dict[str, Any]:
     return summary
 
 
+def run_summary_v5(run: dict[str, Any]) -> dict[str, Any]:
+    summary = run_summary_v4(run)
+    direct = run["results"]["directBufferActivity"]
+    summary["directBufferActivity"] = {
+        "availableSamples": direct["samples"]
+        - direct["metricsUnavailableSamples"],
+        "bufferCountBefore": direct["bufferCountBefore"],
+        "bufferCountAfter": direct["bufferCountAfter"],
+        "bufferCountMaximum": direct["bufferCountMaximum"],
+        "memoryUsedBytesBefore": direct["memoryUsedBytesBefore"],
+        "memoryUsedBytesAfter": direct["memoryUsedBytesAfter"],
+        "memoryUsedBytesMaximum": direct["memoryUsedBytesMaximum"],
+        "totalCapacityBytesBefore": direct["totalCapacityBytesBefore"],
+        "totalCapacityBytesAfter": direct["totalCapacityBytesAfter"],
+        "totalCapacityBytesMaximum": direct["totalCapacityBytesMaximum"],
+    }
+    return summary
+
+
+def summary_builder(schema: int):
+    return {
+        2: run_summary_v2,
+        3: run_summary_v3,
+        4: run_summary_v4,
+        5: run_summary_v5,
+    }[schema]
+
+
 def profile_summary_v2(profile: str, runs: list[dict[str, Any]],
                        baseline_p95: int | None,
                        summary_builder=run_summary_v2) -> dict[str, Any]:
@@ -271,7 +299,8 @@ def analysis_for_v2(run_evidence: dict[str, list[dict[str, Any]]],
 
 def build(run_evidence: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
     first = run_evidence["step-12"][0]
-    schema = {6: 1, 7: 2, 8: 3, 9: 4}.get(first["schemaVersion"], 0)
+    schema = {6: 1, 7: 2, 8: 3, 9: 4, 10: 5}.get(
+        first["schemaVersion"], 0)
     all_runs = [run for profile in PROFILES for run in run_evidence[profile]]
     return {
         "schemaVersion": schema,
@@ -286,11 +315,7 @@ def build(run_evidence: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
         "host": first["host"],
         "runEvidence": run_evidence,
         "analysis": (analysis_for_v1(run_evidence) if schema == 1
-                     else analysis_for_v2(
-                         run_evidence,
-                         run_summary_v4 if schema == 4
-                         else run_summary_v3 if schema == 3
-                         else run_summary_v2)),
+                     else analysis_for_v2(run_evidence, summary_builder(schema))),
     }
 
 
@@ -298,8 +323,8 @@ def validate(value: Any, expected_revision: str | None = None,
              require_clean: bool = False) -> dict[str, Any]:
     root = object_value(value, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4):
-        raise EvidenceError("ladder schemaVersion must be between 1 and 4")
+    if schema not in (1, 2, 3, 4, 5):
+        raise EvidenceError("ladder schemaVersion must be between 1 and 5")
     if root.get("benchmark") != "java-v2-haproxy-multi-edge-reconnect-ladder":
         raise EvidenceError("ladder benchmark identity is invalid")
     if root.get("warning") != WARNING:
@@ -349,11 +374,7 @@ def validate(value: Any, expected_revision: str | None = None,
     if root["worktreeDirty"] != dirty:
         raise EvidenceError("ladder dirty state does not reconcile child runs")
     expected_analysis = (analysis_for_v1(evidence) if schema == 1
-                         else analysis_for_v2(
-                             evidence,
-                             run_summary_v4 if schema == 4
-                             else run_summary_v3 if schema == 3
-                             else run_summary_v2))
+                         else analysis_for_v2(evidence, summary_builder(schema)))
     if root.get("analysis") != expected_analysis:
         raise EvidenceError("ladder analysis does not reconcile child runs")
     return root

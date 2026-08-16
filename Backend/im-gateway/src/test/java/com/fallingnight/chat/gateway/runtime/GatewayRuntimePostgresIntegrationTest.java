@@ -4658,6 +4658,16 @@ class GatewayRuntimePostgresIntegrationTest {
         long residentMemorySampleAgeMillisMaximum = 0;
         long residentMemoryReadFailuresBefore = -1;
         long residentMemoryReadFailuresAfter = -1;
+        int directBufferMetricsUnavailableSamples = 0;
+        long directBufferCountBefore = -1;
+        long directBufferCountAfter = -1;
+        long directBufferCountMaximum = 0;
+        long directBufferMemoryUsedBytesBefore = -1;
+        long directBufferMemoryUsedBytesAfter = -1;
+        long directBufferMemoryUsedBytesMaximum = 0;
+        long directBufferTotalCapacityBytesBefore = -1;
+        long directBufferTotalCapacityBytesAfter = -1;
+        long directBufferTotalCapacityBytesMaximum = 0;
         long sampleIntervalNanos = TimeUnit.MILLISECONDS.toNanos(5);
         long nextSampleNanos = System.nanoTime();
         do {
@@ -4814,6 +4824,39 @@ class GatewayRuntimePostgresIntegrationTest {
                     residentMemorySampleAgeMillisMaximum,
                     residentMemorySampleAgeMillis);
             residentMemoryReadFailuresAfter = residentMemoryReadFailures;
+            int directBufferAvailable = fixedGauge(
+                    metrics, "chat_gateway_jvm_direct_buffer_metrics_available");
+            long directBufferCount = fixedLongGauge(
+                    metrics, "chat_gateway_jvm_direct_buffer_count");
+            long directBufferMemoryUsedBytes = fixedLongGauge(
+                    metrics, "chat_gateway_jvm_direct_buffer_memory_used_bytes");
+            long directBufferTotalCapacityBytes = fixedLongGauge(
+                    metrics, "chat_gateway_jvm_direct_buffer_total_capacity_bytes");
+            if (directBufferAvailable == 0) {
+                directBufferMetricsUnavailableSamples++;
+                assertEquals(0, directBufferCount);
+                assertEquals(0, directBufferMemoryUsedBytes);
+                assertEquals(0, directBufferTotalCapacityBytes);
+            } else {
+                assertEquals(1, directBufferAvailable,
+                        "direct-buffer availability must be binary");
+            }
+            if (directBufferCountBefore < 0) {
+                directBufferCountBefore = directBufferCount;
+                directBufferMemoryUsedBytesBefore = directBufferMemoryUsedBytes;
+                directBufferTotalCapacityBytesBefore = directBufferTotalCapacityBytes;
+            }
+            directBufferCountAfter = directBufferCount;
+            directBufferCountMaximum = Math.max(
+                    directBufferCountMaximum, directBufferCount);
+            directBufferMemoryUsedBytesAfter = directBufferMemoryUsedBytes;
+            directBufferMemoryUsedBytesMaximum = Math.max(
+                    directBufferMemoryUsedBytesMaximum,
+                    directBufferMemoryUsedBytes);
+            directBufferTotalCapacityBytesAfter = directBufferTotalCapacityBytes;
+            directBufferTotalCapacityBytesMaximum = Math.max(
+                    directBufferTotalCapacityBytesMaximum,
+                    directBufferTotalCapacityBytes);
             if (heapUsedBytesBefore < 0) {
                 heapUsedBytesBefore = heapUsed;
                 heapCommittedBytesBefore = committed;
@@ -4862,7 +4905,16 @@ class GatewayRuntimePostgresIntegrationTest {
                 gcCollectionTimeMillisAfter, residentMemoryUnavailableSamples,
                 residentMemoryBytesBefore, residentMemoryBytesAfter,
                 residentMemoryBytesMaximum, residentMemorySampleAgeMillisMaximum,
-                residentMemoryReadFailuresBefore, residentMemoryReadFailuresAfter);
+                residentMemoryReadFailuresBefore, residentMemoryReadFailuresAfter,
+                directBufferMetricsUnavailableSamples,
+                directBufferCountBefore, directBufferCountAfter,
+                directBufferCountMaximum,
+                directBufferMemoryUsedBytesBefore,
+                directBufferMemoryUsedBytesAfter,
+                directBufferMemoryUsedBytesMaximum,
+                directBufferTotalCapacityBytesBefore,
+                directBufferTotalCapacityBytesAfter,
+                directBufferTotalCapacityBytesMaximum);
     }
 
     private static int fixedGauge(String metrics, String name) {
@@ -5146,7 +5198,7 @@ class GatewayRuntimePostgresIntegrationTest {
         int batches = (affected + batchSize - 1) / batchSize;
         String json = """
                 {
-                  "schemaVersion": 9,
+                  "schemaVersion": 10,
                   "benchmark": "java-v2-haproxy-multi-edge-reconnect",
                   "warning": "local dual-edge recovery evidence; not a production capacity claim",
                   "recordedAt": "%s",
@@ -5256,6 +5308,20 @@ class GatewayRuntimePostgresIntegrationTest {
                       "readFailuresAfter": %d,
                       "readFailuresDelta": %d
                     },
+                    "directBufferActivity": {
+                      "sampleIntervalMillis": 5,
+                      "samples": %d,
+                      "metricsUnavailableSamples": %d,
+                      "bufferCountBefore": %d,
+                      "bufferCountAfter": %d,
+                      "bufferCountMaximum": %d,
+                      "memoryUsedBytesBefore": %d,
+                      "memoryUsedBytesAfter": %d,
+                      "memoryUsedBytesMaximum": %d,
+                      "totalCapacityBytesBefore": %d,
+                      "totalCapacityBytesAfter": %d,
+                      "totalCapacityBytesMaximum": %d
+                    },
                     "elapsedMillis": %.3f,
                     "reconnectThroughputPerSecond": %.3f,
                     "sessionResumeLatencyMicros": %s,
@@ -5331,6 +5397,17 @@ class GatewayRuntimePostgresIntegrationTest {
                         saturation.residentMemoryReadFailuresAfter(),
                         saturation.residentMemoryReadFailuresAfter()
                                 - saturation.residentMemoryReadFailuresBefore(),
+                        saturation.samples(),
+                        saturation.directBufferMetricsUnavailableSamples(),
+                        saturation.directBufferCountBefore(),
+                        saturation.directBufferCountAfter(),
+                        saturation.directBufferCountMaximum(),
+                        saturation.directBufferMemoryUsedBytesBefore(),
+                        saturation.directBufferMemoryUsedBytesAfter(),
+                        saturation.directBufferMemoryUsedBytesMaximum(),
+                        saturation.directBufferTotalCapacityBytesBefore(),
+                        saturation.directBufferTotalCapacityBytesAfter(),
+                        saturation.directBufferTotalCapacityBytesMaximum(),
                         elapsedNanos / 1_000_000.0,
                         affected * 1_000_000_000.0 / elapsedNanos,
                         distributionJson(latency), distributionJson(jitter));
@@ -5422,7 +5499,17 @@ class GatewayRuntimePostgresIntegrationTest {
             long residentMemoryBytesMaximum,
             long residentMemorySampleAgeMillisMaximum,
             long residentMemoryReadFailuresBefore,
-            long residentMemoryReadFailuresAfter) {
+            long residentMemoryReadFailuresAfter,
+            int directBufferMetricsUnavailableSamples,
+            long directBufferCountBefore,
+            long directBufferCountAfter,
+            long directBufferCountMaximum,
+            long directBufferMemoryUsedBytesBefore,
+            long directBufferMemoryUsedBytesAfter,
+            long directBufferMemoryUsedBytesMaximum,
+            long directBufferTotalCapacityBytesBefore,
+            long directBufferTotalCapacityBytesAfter,
+            long directBufferTotalCapacityBytesMaximum) {
     }
 
     private static Envelope clientHello(String deviceId) {

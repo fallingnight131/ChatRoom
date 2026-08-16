@@ -12,6 +12,7 @@ from gateway_crash_performance_result import EvidenceError  # noqa: E402
 from multi_edge_reconnect_ladder_result import build, validate  # noqa: E402
 from Tests.multi_edge_reconnect_result_test import (  # noqa: E402
     authentication_saturation,
+    direct_buffer_activity,
     event_loop_saturation,
     evidence,
     gc_collection_activity,
@@ -185,6 +186,31 @@ class MultiEdgeReconnectLadderResultTest(unittest.TestCase):
                     "availableSamples"])
                 self.assertEqual(1400, sample["residentMemoryActivity"][
                     "residentBytesMaximum"])
+
+    def test_accepts_uniform_schema_10_direct_buffer_children(self):
+        runs = ladder_runs()
+        for samples in runs.values():
+            for sample in samples:
+                sample["schemaVersion"] = 10
+                sample["results"]["pressureDuration"] = pressure_duration()
+                sample["results"]["postgresPoolSaturation"][
+                    "threadsAwaitingConnectionMaximum"] = 2
+                sample["results"]["eventLoopSaturation"][
+                    "pendingTasksMaximum"] = 8
+                sample["results"]["gcCollectionActivity"] = gc_collection_activity()
+                sample["results"]["residentMemoryActivity"] = (
+                    resident_memory_activity())
+                sample["results"]["directBufferActivity"] = (
+                    direct_buffer_activity())
+        value = build(runs)
+        validate(value, "a" * 40, require_clean=True)
+        self.assertEqual(5, value["schemaVersion"])
+        for profile in value["analysis"]["profiles"]:
+            for sample in profile["runs"]:
+                self.assertEqual(24, sample["directBufferActivity"][
+                    "availableSamples"])
+                self.assertEqual(1400, sample["directBufferActivity"][
+                    "memoryUsedBytesMaximum"])
 
     def test_identifies_repeated_pressure_at_lowest_observed_step(self):
         runs = ladder_runs()

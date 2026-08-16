@@ -1355,6 +1355,10 @@ ADR-0401 adds a separate portable direct-buffer dimension from the standard
 Java buffer-pool MXBean: availability, count, estimated used bytes, and total
 capacity. It helps distinguish a major Netty/TLS off-heap category from heap
 and RSS, but deliberately does not claim complete native-memory accounting.
+ADR-0402 carries that dimension into raw reconnect schema 10 and aggregate
+schema 5. Each run retains availability plus before/after/maximum count,
+estimated used bytes, and total capacity from the shared observation window.
+No pressure threshold or complete native-memory claim is attached.
 
 ## 10. Attachment Flow
 

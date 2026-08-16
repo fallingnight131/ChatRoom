@@ -1730,6 +1730,11 @@ availability, count, estimated memory used, and total capacity. These fixed
 metrics require no native library and help compare a major Netty/TLS off-heap
 category with heap and RSS. They are not total native memory, a configured
 limit, or a capacity claim (ADR-0401).
+New raw schema-10 dual-edge evidence samples direct-buffer availability, count,
+estimated used bytes, and total capacity before/after/maximum in the same
+five-millisecond observation loop. Aggregate schema 5 requires nine uniform
+raw-schema-10 children and retains the fields per run. These observations do
+not become a native-memory or capacity threshold (ADR-0402).
 
 Reproduce that isolated Linux provider gate from a POSIX development host with:
 

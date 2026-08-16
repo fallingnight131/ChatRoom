@@ -34,8 +34,8 @@ def validate(value: Any, expected_revision: str | None = None,
              require_clean: bool = False) -> dict[str, Any]:
     root = object_value(value, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4, 5, 6, 7, 8, 9):
-        raise EvidenceError("schemaVersion must be between 1 and 9")
+    if schema not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):
+        raise EvidenceError("schemaVersion must be between 1 and 10")
     if root.get("benchmark") != "java-v2-haproxy-multi-edge-reconnect":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != (
@@ -415,6 +415,52 @@ def validate(value: Any, expected_revision: str | None = None,
             "residentMemoryActivity.readFailuresAfter", failures_before)
         if resident.get("readFailuresDelta") != failures_after - failures_before:
             raise EvidenceError("resident-memory failure delta does not reconcile")
+    if schema < 10 and "directBufferActivity" in results:
+        raise EvidenceError("schemaVersion below 10 cannot contain direct buffers")
+    if schema >= 10:
+        direct = object_value(results.get("directBufferActivity"),
+                              "directBufferActivity")
+        expected = {
+            "sampleIntervalMillis", "samples", "metricsUnavailableSamples",
+            "bufferCountBefore", "bufferCountAfter", "bufferCountMaximum",
+            "memoryUsedBytesBefore", "memoryUsedBytesAfter",
+            "memoryUsedBytesMaximum", "totalCapacityBytesBefore",
+            "totalCapacityBytesAfter", "totalCapacityBytesMaximum",
+        }
+        if set(direct) != expected:
+            raise EvidenceError("directBufferActivity fields are invalid")
+        if direct.get("sampleIntervalMillis") != 5:
+            raise EvidenceError("direct-buffer observation interval must be 5 ms")
+        direct_samples = integer(
+            direct.get("samples"), "directBufferActivity.samples", 2)
+        if direct_samples != saturation["samples"]:
+            raise EvidenceError("direct-buffer sample count disagrees")
+        unavailable = integer(
+            direct.get("metricsUnavailableSamples"),
+            "directBufferActivity.metricsUnavailableSamples", 0)
+        if unavailable > direct_samples:
+            raise EvidenceError("direct-buffer unavailable samples exceed the window")
+        triples = (
+            ("bufferCountBefore", "bufferCountAfter", "bufferCountMaximum"),
+            ("memoryUsedBytesBefore", "memoryUsedBytesAfter",
+             "memoryUsedBytesMaximum"),
+            ("totalCapacityBytesBefore", "totalCapacityBytesAfter",
+             "totalCapacityBytesMaximum"),
+        )
+        observed = []
+        for before_name, after_name, maximum_name in triples:
+            before = integer(direct.get(before_name),
+                             f"directBufferActivity.{before_name}", 0)
+            after = integer(direct.get(after_name),
+                            f"directBufferActivity.{after_name}", 0)
+            maximum = integer(direct.get(maximum_name),
+                              f"directBufferActivity.{maximum_name}", 0)
+            if maximum < max(before, after):
+                raise EvidenceError(
+                    f"direct-buffer {maximum_name} does not cover endpoints")
+            observed.extend((before, after, maximum))
+        if unavailable == direct_samples and any(value != 0 for value in observed):
+            raise EvidenceError("fully unavailable direct-buffer metrics must be zero")
     return root
 
 

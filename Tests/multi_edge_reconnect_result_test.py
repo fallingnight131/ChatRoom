@@ -168,6 +168,30 @@ def schema_nine_evidence():
     return value
 
 
+def direct_buffer_activity():
+    return {
+        "sampleIntervalMillis": 5,
+        "samples": 24,
+        "metricsUnavailableSamples": 0,
+        "bufferCountBefore": 10,
+        "bufferCountAfter": 12,
+        "bufferCountMaximum": 14,
+        "memoryUsedBytesBefore": 1000,
+        "memoryUsedBytesAfter": 1200,
+        "memoryUsedBytesMaximum": 1400,
+        "totalCapacityBytesBefore": 900,
+        "totalCapacityBytesAfter": 1100,
+        "totalCapacityBytesMaximum": 1300,
+    }
+
+
+def schema_ten_evidence():
+    value = schema_nine_evidence()
+    value["schemaVersion"] = 10
+    value["results"]["directBufferActivity"] = direct_buffer_activity()
+    return value
+
+
 class MultiEdgeReconnectResultTest(unittest.TestCase):
     def test_accepts_reconciled_clean_evidence(self):
         validate(evidence(), "a" * 40, require_clean=True)
@@ -369,6 +393,40 @@ class MultiEdgeReconnectResultTest(unittest.TestCase):
             mutate(activity)
             with self.subTest(activity=activity), self.assertRaises(EvidenceError):
                 validate(value, "a" * 40, require_clean=True)
+
+    def test_accepts_available_and_fully_unavailable_direct_buffers(self):
+        validate(schema_ten_evidence(), "a" * 40, require_clean=True)
+
+        value = schema_ten_evidence()
+        activity = value["results"]["directBufferActivity"]
+        for name in tuple(activity):
+            if name not in ("sampleIntervalMillis", "samples"):
+                activity[name] = 24 if name == "metricsUnavailableSamples" else 0
+        validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_invalid_direct_buffer_activity(self):
+        for mutate in (
+            lambda activity: activity.update(samples=23),
+            lambda activity: activity.update(sampleIntervalMillis=10),
+            lambda activity: activity.update(metricsUnavailableSamples=25),
+            lambda activity: activity.update(bufferCountMaximum=11),
+            lambda activity: activity.update(memoryUsedBytesMaximum=1199),
+            lambda activity: activity.update(totalCapacityBytesMaximum=1099),
+            lambda activity: activity.update(
+                metricsUnavailableSamples=24, bufferCountMaximum=14),
+            lambda activity: activity.update(extraField=1),
+        ):
+            value = schema_ten_evidence()
+            activity = value["results"]["directBufferActivity"]
+            mutate(activity)
+            with self.subTest(activity=activity), self.assertRaises(EvidenceError):
+                validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_direct_buffers_without_schema_upgrade(self):
+        value = schema_nine_evidence()
+        value["results"]["directBufferActivity"] = direct_buffer_activity()
+        with self.assertRaises(EvidenceError):
+            validate(value, "a" * 40, require_clean=True)
 
     def test_rejects_unknown_or_drifting_workload_profile(self):
         for mutate in (

@@ -1782,6 +1782,10 @@ Progress:
   used bytes, and total capacity from Java's standard buffer-pool MXBean. Keep
   this separate from heap and RSS, and do not label it as complete native
   memory or a capacity threshold (ADR-0401).
+- [x] Upgrade new dual-edge reconnect evidence to raw schema 10 and repeated
+  aggregates to schema 5. Record direct-buffer availability plus
+  before/after/maximum count, estimated used bytes, and total capacity in the
+  shared observation window without defining a capacity threshold (ADR-0402).
 
 Work:
 
