@@ -1559,6 +1559,19 @@ bounded future expiry, and rejects disabled/malformed responses. Transport
 intercepts type 137 before general application observers, permits one operation,
 contains rejection/timeout, and clears response plus callback copies before the
 operation promise resolves. This is not default runtime or UI composition.
+The candidate runtime additionally requires both exact values below:
+
+```text
+VITE_CHAT_V2_WEB_PUSH=true
+VITE_CHAT_V2_WEB_PUSH_PUBLIC_KEY=<unpadded Base64URL 65-byte uncompressed P-256 public key>
+```
+
+It composes capability 8, the live lease, same-origin HTTP adapter, lazy module
+worker browser port, and subscription controller only for a persistent browser
+device identity and exact HTTPS page origin. Missing/false/non-exact flags,
+invalid keys, or denied persistent storage leave Web Push uncomposed. The public
+key is not a secret. This candidate still has no product UI or real-provider
+browser acceptance evidence.
 The inactive HTTP-credential protocol and application boundary can be selected
 with:
 
@@ -1622,9 +1635,9 @@ distributed enforcement remains an activation review item.
 The TypeScript suite also drives the detached browser adapter with fake browser
 ports. It proves secure-context capability failure, exact local worker path and
 scope, module registration, existing-subscription lookup, `userVisibleOnly`,
-and defensive VAPID-key copying. The worker URL entry is not imported by the
-default app graph, so the ordinary production build neither emits an active
-registration path nor registers it.
+and defensive VAPID-key copying. Vite can emit the inert hashed worker asset in
+an ordinary build, but the missing/false candidate gate never resolves its URL,
+registers it, requests permission, or touches PushManager.
 The disposable PostgreSQL gate also verifies current Web Push recipient policy:
 complete ordered results or explicit saturation, sender/block/disabled-member
 exclusion, durable mention classification, recall suppression, active-only

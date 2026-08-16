@@ -23,14 +23,17 @@ export function createWebPushBrowserAdapter(options: {
   notification?: Pick<typeof Notification, "permission" | "requestPermission">;
   pushManagerSupported: boolean;
   secureContext?: boolean;
-  workerUrl: string;
+  workerUrl: string | (() => Promise<string>);
   scope?: string;
 }): WebPushBrowserPort {
   const scope = options.scope ?? "/";
   if (!scope.startsWith("/") || scope.includes("?") || scope.includes("#")) {
     throw new Error("invalid Web Push worker scope");
   }
-  const workerUrl = exactWorkerUrl(options.workerUrl);
+  const fixedWorkerUrl = typeof options.workerUrl === "string"
+    ? exactWorkerUrl(options.workerUrl) : null;
+  const resolveWorkerUrl = async (): Promise<string> => fixedWorkerUrl
+    ?? exactWorkerUrl(await (options.workerUrl as () => Promise<string>)());
   let registration: ServiceWorkerRegistrationLike | null = null;
   const resolveRegistration = async (): Promise<ServiceWorkerRegistrationLike | null> => {
     if (registration) return registration;
@@ -45,7 +48,7 @@ export function createWebPushBrowserAdapter(options: {
       ?? Promise.resolve("denied"),
     async registerWorker() {
       if (!options.serviceWorker) throw new Error("Service Worker unavailable");
-      registration = await options.serviceWorker.register(workerUrl,
+      registration = await options.serviceWorker.register(await resolveWorkerUrl(),
         { scope, type: "module" });
     },
     async currentSubscription() {

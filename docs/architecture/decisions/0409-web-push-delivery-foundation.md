@@ -172,13 +172,15 @@ resume proof or activate a gateway/client path.
   HTTPS product origin. It exposes fixed outcomes and discards response bodies.
   ADR-0410 now composes the exact-gated WSS issuer, and the second server gate
   composes the subscription route. A detached Web V2 transport lease contains
-  credential issuance and clearing, while default runtime/UI composition remains
-  absent.
+  credential issuance and clearing. The exact Web candidate composes the lazy
+  worker/browser/controller/HTTP boundary only for a persistent installation,
+  while default runtime and UI composition remain absent.
 - A Vite module-worker entry installs the validated event runtime, while a
   detached browser adapter requires secure Notification/ServiceWorker/
   PushManager capabilities, validates local URL/scope, registers explicitly,
   reuses current subscription state, and requests only user-visible push with a
-  copied public key. The default app does not import or register it.
+  copied public key. Vite may emit its inert asset, but the default app never
+  resolves/registers it or touches PushManager.
 - PostgreSQL recipient resolution now starts from the exact committed message,
   rechecks current membership/account/bilateral-block/recall truth, and returns
   a complete ordered result or explicit saturation. Active subscription reads

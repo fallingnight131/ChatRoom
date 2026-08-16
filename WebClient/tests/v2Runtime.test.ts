@@ -13,6 +13,8 @@ const ENABLED_ENVIRONMENT = {
   VITE_CHAT_V2_WSS_URL: "wss://chat.example/v2/web",
   VITE_CHAT_APP_VERSION: "2.0.0-preview",
 };
+const WEB_PUSH_PUBLIC_KEY =
+  "BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 class MemoryStorage {
   readonly values = new Map<string, string>();
@@ -67,6 +69,10 @@ test("fails closed for incomplete or unsafe preview configuration", () => {
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_MESSAGE_SEARCH: "TRUE" },
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_ACCOUNT_BLOCKING: "TRUE" },
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_NOTIFICATIONS: "TRUE" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WEB_PUSH: "TRUE" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WEB_PUSH: "true" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WEB_PUSH: "true",
+      VITE_CHAT_V2_WEB_PUSH_PUBLIC_KEY: "bad" },
   ];
   for (const environment of cases) {
     const runtime = createConfiguredV2Runtime(environment, { storage: null, createUuid: () => DEVICE_ID });
@@ -97,7 +103,45 @@ test("creates an inert enabled runtime and persists a stable non-secret device i
   assert.equal(runtime.enabled && runtime.application.snapshot.searchEnabled, false);
   assert.equal(runtime.enabled && runtime.application.snapshot.notificationsEnabled, false);
   assert.equal(runtime.enabled && runtime.application.snapshot.accountBlockingEnabled, false);
+  assert.equal(runtime.enabled && runtime.webPushController, null);
   runtime.dispose();
+});
+
+test("composes Web Push only for an exact gate, public key, and persistent installation", () => {
+  const storage = new MemoryStorage();
+  const browser = {
+    supported: () => true,
+    permission: () => "default" as NotificationPermission,
+    requestPermission: async () => "denied" as NotificationPermission,
+    registerWorker: async () => {},
+    currentSubscription: async () => null,
+    subscribe: async () => { throw new Error("not used"); },
+  };
+  const environment = {
+    ...ENABLED_ENVIRONMENT,
+    VITE_CHAT_V2_WEB_PUSH: "true",
+    VITE_CHAT_V2_WEB_PUSH_PUBLIC_KEY: WEB_PUSH_PUBLIC_KEY,
+  };
+  const runtime = createConfiguredV2Runtime(environment, {
+    storage,
+    createUuid: () => DEVICE_ID,
+    webPushPlatform: { origin: "https://chat.example", browser,
+      fetch: async () => new Response(null, { status: 204 }) },
+  });
+  assert.equal(runtime.enabled, true);
+  assert.ok(runtime.enabled && runtime.webPushController);
+  assert.equal(runtime.enabled && runtime.webPushController?.snapshot.state, "disabled");
+  runtime.dispose();
+
+  const ephemeral = createConfiguredV2Runtime(environment, {
+    storage: null,
+    createUuid: () => DEVICE_ID,
+    webPushPlatform: { origin: "https://chat.example", browser },
+  });
+  assert.equal(ephemeral.enabled, true);
+  assert.equal(ephemeral.enabled && ephemeral.deviceIdentity, "ephemeral");
+  assert.equal(ephemeral.enabled && ephemeral.webPushController, null);
+  ephemeral.dispose();
 });
 
 test("activates forwarding only for the exact independent build flag", () => {

@@ -2499,6 +2499,10 @@ Candidate slices:
       lease command that intercepts type 137 before general application events,
       bounds response lifetime, permits one operation, and clears server and
       callback credential buffers before resolving.
+    - [x] Compose the detached subscription controller and HTTP lease adapter
+      only under exact `VITE_CHAT_V2_WEB_PUSH=true`, a valid public uncompressed
+      P-256 key, exact HTTPS page origin, and a persistent browser installation;
+      leave ephemeral installations and the default build uncomposed.
     - [ ] Add the exact-gated Web lease bridge, localized durable worker copy/UI,
       and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
