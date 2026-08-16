@@ -107,6 +107,10 @@ acceptance, stall synchronization, or reduce gateway readiness.
 
 ## Verification
 
+- The first detached application slice locks defensive credential ownership,
+  callback-copy zeroing, redacted rendering, canonical HTTPS/P-256/auth bounds,
+  stable message identity, a 24-hour maximum event lifetime, and an explicit
+  default-disabled policy. It intentionally has no runtime composition.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

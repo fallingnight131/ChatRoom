@@ -2396,8 +2396,10 @@ Candidate slices:
     encrypted secret storage, transaction outbox, reauthorization, generic
     payload, abuse/expiry/telemetry, Service Worker, activation, and rollback
     policy (ADR-0409).
-  - [ ] Add the default-off Notification application ports and bounded models
-    without composing message acceptance, PostgreSQL, HTTP, provider, or Web UI.
+  - [x] Add the default-off Notification application ports and bounded models
+    with owned/zeroed subscription credentials, canonical HTTPS/P-256 bounds,
+    stable payload-free message identity, and a maximum 24-hour event lifetime;
+    message acceptance, PostgreSQL, HTTP, provider, and Web UI remain uncomposed.
   - [ ] Add encrypted PostgreSQL subscriptions and a transactionally produced,
     bounded notification outbox with retention and concurrent claim evidence.
   - [ ] Add authenticated HTTP subscription management and a bounded provider

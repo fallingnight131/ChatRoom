@@ -1963,8 +1963,13 @@ worker will reauthorize current recipients and invoke an injected provider port.
 Subscription endpoints and key material are encrypted credentials managed by an
 authenticated HTTP API, never chat-envelope fields or diagnostic labels. Push
 payloads use versioned opaque identity plus generic copy and are not message
-truth. The server, provider worker, and exact-gated Service Worker remain
-unimplemented and default-off while the application boundary is introduced.
+truth. The detached Java application boundary now defines a default-disabled
+policy, encrypted-storage subscription port, stable idempotent outbox port,
+owned/zeroed credential model, canonical HTTPS and browser-key bounds, and a
+payload-free notification intent whose lifetime cannot exceed 24 hours. Nothing
+calls these ports yet: PostgreSQL adapters, message-acceptance composition, HTTP,
+provider worker, and the exact-gated Service Worker remain unimplemented and
+default-off.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

@@ -1434,6 +1434,19 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
 `.github/workflows/m3-java.yml` runs the same gate on Ubuntu with Temurin 21.
 The Java workspace is not yet on the production traffic or data path; the C++
 V1 verification remains required during the compatibility window.
+The detached ADR-0409 Web Push application boundary can be checked quickly with:
+
+```bash
+cd Backend
+./gradlew --no-daemon :application:test --tests '*WebPush*'
+```
+
+This covers defensive ownership and zeroing of subscription credentials,
+secret-free string rendering, canonical HTTPS/P-256/auth bounds, stable
+payload-free outbox identity, the 24-hour event lifetime cap, and the explicit
+default-disabled policy. It does not compose message acceptance or prove
+PostgreSQL encryption, HTTP authorization, provider delivery, browser Service
+Workers, or production activation.
 The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility
