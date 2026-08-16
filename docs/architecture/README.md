@@ -2085,8 +2085,13 @@ byte copies. It accepts only endpoints whose canonical HTTPS origin is in an
 exact configured allowlist before encryption or signing, while production
 network egress policy remains a required second SSRF boundary. Java's HTTP
 request retains its immutable Authorization header string until the synchronous
-call returns. Token reuse policy, owned bounded executors, readiness/backlog
-policy, provider canary, and runtime activation remain open.
+call returns. Token reuse policy, readiness/backlog policy, provider canary,
+and runtime activation remain open. A following
+detached runtime resource now owns the loop's single named scheduler thread and
+single named blocking worker, with a one-entry worker queue and bounded graceful-
+then-interrupt shutdown. These bounds match the existing non-overlap invariant
+and expose only identity-free local counts. Readiness/backlog policy, provider
+canary, configuration, and `GatewayRuntime` composition remain open.
 The Web client now has a pure Service Worker payload boundary. It accepts only
 schema version 1, three canonical stable UUIDs, and the structural mention
 boolean within 2 KiB; unknown fields, message text, malformed identity, and

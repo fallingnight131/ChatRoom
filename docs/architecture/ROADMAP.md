@@ -2480,6 +2480,10 @@ Candidate slices:
         encrypted bodies, discarded responses, fixed status mapping, and
         owned-byte clearing; retain network egress filtering and runtime
         composition as open gates.
+      - [x] Add a detached delivery runtime that owns one named scheduler and
+        one named blocking worker with a one-entry queue, matches the loop's
+        non-overlap invariant, cancels future work before bounded graceful-
+        then-interrupt shutdown, and exposes only identity-free local counts.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
     - [x] Add the pure Service Worker payload boundary with exact version/field/

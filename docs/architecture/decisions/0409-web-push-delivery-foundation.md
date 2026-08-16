@@ -239,6 +239,12 @@ resume proof or activate a gateway/client path.
   call, while the JDK request necessarily retains an immutable header string
   until it returns. No runtime composition, provider canary, executor ownership,
   or readiness claim follows from this adapter test.
+- A detached delivery runtime now owns one named scheduler thread and one named
+  blocking worker with a one-entry queue, preserving the loop's non-overlap
+  bound. It cancels later scheduling before a bounded graceful worker drain and
+  then interrupts stuck work. Lifecycle and local pool counts contain no
+  identity. This is resource-ownership evidence only; backlog readiness,
+  provider canary, configuration, and gateway composition remain open.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

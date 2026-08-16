@@ -1668,6 +1668,21 @@ immutable `String` retained by the request until that call returns. Provider
 origin allowlisting is an application guard, not a replacement for production
 DNS/route-aware egress filtering. The adapter is not runtime-composed and this
 test makes no external provider-delivery claim.
+The detached delivery runtime resource owner can be verified with:
+
+```bash
+cd Backend
+JAVA_HOME=/path/to/jdk-21 ./gradlew --no-daemon :im-gateway:test \
+  --tests '*WebPushDeliveryRuntimeTest' \
+  --tests '*WebPushDeliveryLoopTest'
+```
+
+It owns one named scheduling thread and one named blocking worker with a queue
+capacity of one, matching the loop's single-pass invariant. Shutdown first
+cancels future scheduling, then waits within a reviewed 100 ms--30 second
+window for in-flight work before interrupting it. Runtime state and active,
+queued, and scheduled counts are identity-free. This resource is still detached
+from `GatewayRuntime`; it does not make the push worker ready or activate it.
 The detached gateway issuance and HTTP bridge can be selected with:
 
 ```bash
