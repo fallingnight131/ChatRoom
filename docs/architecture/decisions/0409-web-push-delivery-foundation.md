@@ -146,7 +146,8 @@ resume proof or activate a gateway/client path.
   bounded request per connection, moves session/CSRF/decode/mutation work off
   the event loop, clears transport secrets, and maps only fixed statuses and
   identity-free outcomes. It is not installed in the gateway pipeline and has
-  no token implementation or owned production worker pool.
+  no credential-authentication bridge or owned production worker pool.
+  ADR-0410 now owns the detached token implementation.
 - The Web pure payload boundary accepts only schema 1, three canonical UUIDs,
   and a mention boolean within 2 KiB. It derives generic-copy presentation and
   exact-HTTPS-origin V2 navigation without accepting message content. Service
@@ -166,7 +167,7 @@ resume proof or activate a gateway/client path.
   lease per mutation, validates the subscription before that lease, and pins a
   credential-omitting, no-redirect/no-cache/no-referrer request to the exact
   HTTPS product origin. It exposes fixed outcomes, discards response bodies, and
-  has no credential issuer or product composition.
+  has no WSS credential handler, Web lease bridge, or product composition.
 - A Vite module-worker entry installs the validated event runtime, while a
   detached browser adapter requires secure Notification/ServiceWorker/
   PushManager capabilities, validates local URL/scope, registers explicitly,

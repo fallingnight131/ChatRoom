@@ -123,6 +123,7 @@ import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.MessageEditCommand;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
 import com.fallingnight.chat.application.notification.ProtectedWebPushSubscription;
+import com.fallingnight.chat.application.notification.WebPushHttpCredentialAuthenticationResult;
 import com.fallingnight.chat.application.notification.WebPushDeliveryPolicy;
 import com.fallingnight.chat.application.notification.WebPushNotificationIntent;
 import com.fallingnight.chat.application.notification.WebPushOutboxClaim;
@@ -210,6 +211,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
@@ -232,7 +234,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(53, first.migrate());
+        assertEquals(54, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -269,7 +271,8 @@ class PostgresMigratorTest {
                             "message_mention", "message_edit_event_mention",
                             "message_forward_request", "conversation_event_outbox",
                             "account_block", "account_block_operation",
-                            "web_push_subscription", "web_push_notification_outbox"),
+                            "web_push_subscription", "web_push_notification_outbox",
+                            "web_push_http_credential"),
                     applicationTables(connection));
             assertEquals(2, count("SELECT count(*) FROM pg_indexes "
                     + "WHERE schemaname = 'chat' AND indexname IN ("
@@ -279,6 +282,14 @@ class PostgresMigratorTest {
                     + "WHERE connamespace = 'chat'::regnamespace AND conname IN ("
                     + "'web_push_subscription_endpoint_unique', "
                     + "'web_push_notification_lifetime')"));
+            assertEquals(1, count("SELECT count(*) FROM pg_indexes "
+                    + "WHERE schemaname = 'chat' "
+                    + "AND indexname = 'web_push_http_credential_expiry_idx'"));
+            assertEquals(3, count("SELECT count(*) FROM pg_constraint "
+                    + "WHERE connamespace = 'chat'::regnamespace AND conname IN ("
+                    + "'web_push_http_credential_bearer_hash_length', "
+                    + "'web_push_http_credential_csrf_hash_length', "
+                    + "'web_push_http_credential_lifetime')"));
             assertEquals(11, count("SELECT count(*) FROM pg_constraint "
                     + "WHERE connamespace = 'chat'::regnamespace "
                     + "AND conrelid = 'chat.conversation_event_outbox'::regclass"));
@@ -6261,6 +6272,116 @@ class PostgresMigratorTest {
         }
     }
 
+    @Test
+    @Order(104)
+    void issuesOnlyHashedSessionBoundWebPushHttpCredentialsAndRechecksRevocation()
+            throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID account = UUID.randomUUID(), device = UUID.randomUUID(), session = UUID.randomUUID();
+        Instant observedAt = Instant.now();
+        Instant sessionExpiresAt = observedAt.plus(Duration.ofMinutes(5));
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                            + "password_hash) VALUES (?, 'push-http', 'Push HTTP', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    account);
+            execute(connection, "INSERT INTO chat.device(id, account_id, client_device_id, "
+                            + "platform) VALUES (?, ?, 'push-http-device', 'WEB')",
+                    device, account);
+            execute(connection, "INSERT INTO chat.device_session(id, account_id, device_id, "
+                            + "token_sha256, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    session, account, device, sha256(new byte[] {42}),
+                    OffsetDateTime.ofInstant(observedAt.minusSeconds(1), ZoneOffset.UTC),
+                    OffsetDateTime.ofInstant(sessionExpiresAt, ZoneOffset.UTC));
+        }
+        AtomicInteger tokenNumber = new AtomicInteger(1);
+        var adapter = new PostgresWebPushHttpCredentialAdapter(
+                dataSource(), Duration.ofMinutes(10), () -> {
+                    byte[] token = new byte[PostgresWebPushHttpCredentialAdapter.RANDOM_TOKEN_BYTES];
+                    Arrays.fill(token, (byte) tokenNumber.getAndIncrement());
+                    return token;
+                });
+        var actor = new AuthenticatedDeviceActor(account, device, session);
+        byte[][] firstTokens;
+        try (var first = adapter.issue(actor, observedAt).orElseThrow()) {
+            assertEquals(sessionExpiresAt, first.expiresAt());
+            firstTokens = first.withTokenCopies((bearer, csrf) ->
+                    new byte[][] {bearer.clone(), csrf.clone()});
+        }
+        byte[][] secondTokens = null;
+        try {
+            assertEquals(1, count("SELECT count(*) FROM chat.web_push_http_credential "
+                    + "WHERE session_id = '" + session + "'"));
+            byte[] storedBearerHash = webPushHttpBearerHash(session);
+            byte[] expectedBearerHash = sha256(firstTokens[0]);
+            try {
+                assertArrayEquals(expectedBearerHash, storedBearerHash);
+                assertFalse(Arrays.equals(firstTokens[0], storedBearerHash));
+            } finally {
+                Arrays.fill(storedBearerHash, (byte) 0);
+                Arrays.fill(expectedBearerHash, (byte) 0);
+            }
+            assertEquals(actor, assertInstanceOf(
+                    WebPushHttpCredentialAuthenticationResult.Authenticated.class,
+                    adapter.authenticate(firstTokens[0], firstTokens[1], observedAt.plusSeconds(1)))
+                    .actor());
+            byte[] wrongCsrf = firstTokens[1].clone();
+            wrongCsrf[0] = wrongCsrf[0] == 'A' ? (byte) 'B' : (byte) 'A';
+            try {
+                assertEquals(WebPushHttpCredentialAuthenticationResult.Rejected.INVALID_CSRF,
+                        adapter.authenticate(firstTokens[0], wrongCsrf, observedAt.plusSeconds(1)));
+            } finally {
+                Arrays.fill(wrongCsrf, (byte) 0);
+            }
+
+            try (var second = adapter.issue(actor, observedAt.plusSeconds(2)).orElseThrow()) {
+                secondTokens = second.withTokenCopies((bearer, csrf) ->
+                        new byte[][] {bearer.clone(), csrf.clone()});
+            }
+            assertEquals(WebPushHttpCredentialAuthenticationResult.Rejected.INVALID_SESSION,
+                    adapter.authenticate(firstTokens[0], firstTokens[1], observedAt.plusSeconds(3)));
+            assertInstanceOf(WebPushHttpCredentialAuthenticationResult.Authenticated.class,
+                    adapter.authenticate(secondTokens[0], secondTokens[1],
+                            observedAt.plusSeconds(3)));
+            assertEquals(WebPushHttpCredentialAuthenticationResult.Rejected.INVALID_SESSION,
+                    adapter.authenticate(secondTokens[0], secondTokens[1], sessionExpiresAt));
+
+            try (Connection connection = connect()) {
+                execute(connection, "UPDATE chat.device SET revoked_at = ? WHERE id = ?",
+                        OffsetDateTime.ofInstant(observedAt.plusSeconds(4), ZoneOffset.UTC), device);
+            }
+            assertEquals(WebPushHttpCredentialAuthenticationResult.Rejected.INVALID_SESSION,
+                    adapter.authenticate(secondTokens[0], secondTokens[1],
+                            observedAt.plusSeconds(5)));
+            assertTrue(adapter.issue(actor, observedAt.plusSeconds(5)).isEmpty());
+            try (Connection connection = connect()) {
+                execute(connection, "UPDATE chat.device SET revoked_at = NULL WHERE id = ?", device);
+                execute(connection, "UPDATE chat.account SET disabled_at = ? WHERE id = ?",
+                        OffsetDateTime.ofInstant(observedAt.plusSeconds(6), ZoneOffset.UTC), account);
+            }
+            assertEquals(WebPushHttpCredentialAuthenticationResult.Rejected.INVALID_SESSION,
+                    adapter.authenticate(secondTokens[0], secondTokens[1],
+                            observedAt.plusSeconds(7)));
+            try (Connection connection = connect()) {
+                execute(connection, "UPDATE chat.account SET disabled_at = NULL WHERE id = ?",
+                        account);
+                execute(connection, "UPDATE chat.device_session SET revoked_at = ? WHERE id = ?",
+                        OffsetDateTime.ofInstant(observedAt.plusSeconds(8), ZoneOffset.UTC), session);
+            }
+            assertEquals(WebPushHttpCredentialAuthenticationResult.Rejected.INVALID_SESSION,
+                    adapter.authenticate(secondTokens[0], secondTokens[1],
+                            observedAt.plusSeconds(9)));
+            assertTrue(adapter.issue(actor, observedAt.plusSeconds(9)).isEmpty());
+        } finally {
+            Arrays.fill(firstTokens[0], (byte) 0);
+            Arrays.fill(firstTokens[1], (byte) 0);
+            if (secondTokens != null) {
+                Arrays.fill(secondTokens[0], (byte) 0);
+                Arrays.fill(secondTokens[1], (byte) 0);
+            }
+        }
+    }
+
     private static Set<String> applicationTables(Connection connection) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT table_name FROM information_schema.tables "
@@ -6457,6 +6578,21 @@ class PostgresMigratorTest {
                                 + "WHERE account_id = ? AND installation_id = ?")) {
             statement.setObject(1, account);
             statement.setObject(2, installation);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                byte[] value = result.getBytes(1);
+                assertFalse(result.next());
+                return value;
+            }
+        }
+    }
+
+    private static byte[] webPushHttpBearerHash(UUID session) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT bearer_sha256 FROM chat.web_push_http_credential "
+                                + "WHERE session_id = ?")) {
+            statement.setObject(1, session);
             try (ResultSet result = statement.executeQuery()) {
                 assertTrue(result.next());
                 byte[] value = result.getBytes(1);

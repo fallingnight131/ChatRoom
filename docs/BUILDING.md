@@ -1465,6 +1465,13 @@ non-overlapping bounded ownership and attempt increments, reject stale/out-of-
 lease completion, gate retry availability, terminally expire old rows, and
 purge completed rows in capped batches without deleting their messages. This is
 storage lifecycle evidence, not provider delivery or scheduler readiness.
+Migration V054 adds the independent Web Push HTTP-credential verifier table.
+The same disposable PostgreSQL gate proves a clean migration and restart,
+32-byte hash constraints, a one-hour database lifetime cap, hash-only issuance,
+session-expiry clipping, immediate old-token invalidation after replacement,
+CSRF mismatch, and account/device/session revocation. The adapter is detached:
+passing this gate does not install capability 8, the WSS issuer handler, the HTTP
+authentication bridge, or any default client path.
 The detached credential crypto adapter is covered by:
 
 ```bash
@@ -1555,8 +1562,8 @@ This locks capability 8, types 136/137, command/response kinds, bounded
 Base64URL-ASCII bearer/CSRF ownership, expiry shape, exact-default-off policy,
 authenticated-actor binding, unavailable-session mapping, redaction, and
 cleanup. Regenerate all client bindings with
-`:protocol-v2:generateClientBindings`. No gateway handler, PostgreSQL verifier,
-default client capability, or usable HTTP credential exists yet.
+`:protocol-v2:generateClientBindings`. No gateway handler, default client
+capability, or Web credential lease bridge exists yet.
 The TypeScript suite also drives the detached browser adapter with fake browser
 ports. It proves secure-context capability failure, exact local worker path and
 scope, module registration, existing-subscription lookup, `userVisibleOnly`,

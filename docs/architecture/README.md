@@ -2019,8 +2019,9 @@ admission, protection, and PostgreSQL mutation execute through an injected
 worker rather than the event loop. Bearer, CSRF, body, and decoded-key working
 bytes are cleared; responses use only fixed status mappings and fixed outcome
 counters, and telemetry failure cannot fail the request. The handler is not in
-the gateway pipeline, and no token issuer/store or owned bounded HTTP worker is
-configured, so product behavior remains off.
+the gateway pipeline, and no WSS issuer handler, application-to-transport
+authentication bridge, or owned bounded HTTP worker is configured, so product
+behavior remains off. ADR-0410 owns the detached token issuer/store.
 The PostgreSQL notification read boundary now resolves only a committed,
 non-deleted, non-recalled source message and rechecks current active membership,
 enabled accounts, sender exclusion, and bilateral block policy. Results are
@@ -2084,8 +2085,9 @@ key and 16-byte auth secret before acquiring credentials. Fetch is pinned to the
 exact HTTPS origin and stable installation path with omitted ambient
 credentials, same-origin mode, no redirects, no cache, and no referrer. Only
 fixed HTTP outcomes and bounded Retry-After metadata escape; response bodies are
-cancelled and never reflected. The HTTP credential issuer remains absent, so
-this adapter cannot be composed in the product yet.
+cancelled and never reflected. The Web protocol lease bridge and gateway
+credential handler remain absent, so this adapter cannot be composed in the
+product yet.
 The Web platform now has a Vite module-worker entry and a detached browser
 adapter. Capability requires a secure context plus Notification, ServiceWorker,
 and PushManager support. Registration accepts only a fixed local worker asset
@@ -2093,8 +2095,8 @@ path and reviewed local scope, uses module mode, reuses an existing registration
 subscription, and passes `userVisibleOnly: true` with a defensive VAPID public-
 key copy. The entry installs the already-tested push/click runtime with generic
 fallback copy. Nothing imports or registers this entry in the default product;
-the exact build gate, locale persistence, HTTP credential issuer, and UI remain
-open.
+the exact build gate, locale persistence, Web credential lease bridge, and UI
+remain open.
 
 ADR-0410 defines the missing Web Push HTTP credential issuance boundary without
 reusing the WSS resume proof. Capability 8 and permanent types 136/137 carry an
@@ -2103,9 +2105,16 @@ account/device/session authority comes only from the established connection.
 The detached application service is exact-default-off and returns only a fixed
 disabled, unavailable-session, or owned-secret result through an issuance port.
 Issued secrets use bounded unpadded Base64URL ASCII, redact rendering, and are
-zeroable by the caller. No default client requests capability 8 and no gateway
-handler, PostgreSQL verifier store, or HTTP authentication adapter is composed,
-so this is an additive inactive contract rather than product activation.
+zeroable by the caller. Migration V054 adds one cascading verifier row per
+device session with unique bearer SHA-256, CSRF SHA-256, and a database-enforced
+one-hour maximum lifetime. The detached PostgreSQL adapter generates independent
+random tokens, clips their default ten-minute lifetime to the current session,
+atomically replaces the prior pair, and authenticates only while the account,
+device, session, and HTTP credential all remain current. Plaintext is returned
+only through the owned response and all adapter working buffers are cleared. No
+default client requests capability 8 and no gateway handler or transport bridge
+is composed, so this remains an additive inactive contract rather than product
+activation.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

@@ -2472,8 +2472,11 @@ Candidate slices:
       WSS command that issues an independent, short-lived, session-bound HTTP
       bearer/CSRF pair; add the exact-default-off application issue boundary and
       generated Java/TypeScript/C++ bindings (ADR-0410).
-    - [ ] Add the exact-gated product composition, HTTP credential issuer,
-      localized durable worker copy/UI, and browser evidence.
+    - [x] Add V054 and a detached PostgreSQL issuer/authenticator with hash-only
+      bearer/CSRF storage, one-current-credential replacement, session-lifetime
+      clipping, and current account/device/session revocation checks.
+    - [ ] Add the exact-gated product composition, WSS credential handler and
+      Web lease bridge, localized durable worker copy/UI, and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes:

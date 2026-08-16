@@ -66,9 +66,12 @@ optimize lookup only as rebuildable state; PostgreSQL remains authoritative.
 - Application tests prove exact-default-off behavior, authenticated-actor
   binding, fixed unavailable-session mapping, redacted rendering, and owned
   secret cleanup.
-- PostgreSQL integration must prove active-session issuance, immediate
-  replacement, expiry, CSRF mismatch, and session/account/device revocation
-  before a gateway handler can be composed.
+- Migration V054 and the detached PostgreSQL adapter now store only unique
+  bearer and CSRF SHA-256 verifiers, cap lifetime at one hour, and bind one row
+  by cascading foreign key to the device session. Real-database integration
+  proves active-session issuance, session-lifetime clipping, immediate
+  replacement, expiry, CSRF mismatch, and session/account/device revocation.
+  The gateway handler is still uncomposed.
 - Rollback removes capability negotiation and handler composition first. The
   additive registry identities and migration remain; credential rows expire or
   can be erased without touching chat or subscription truth.
