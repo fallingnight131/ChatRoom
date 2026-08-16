@@ -1072,6 +1072,10 @@ file. Its emoji popover is a non-modal, named grid with one Tab stop plus
 Arrow/Home/End navigation. Escape returns focus to the trigger, while choosing
 an emoji returns focus to the composer after using the existing submission path;
 file policy and message semantics are unchanged.
+The floating V1 Web download manager is now a named collapsible region and
+list. Each task exposes a filename-specific progress value, visible downloading
+or paused state, and native filename-specific pause/resume/cancel actions. The
+existing in-memory chunk assembly and transport lifecycle are unchanged.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

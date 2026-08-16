@@ -2332,6 +2332,8 @@ Candidate slices:
   - [x] Associate Web profile fields and feedback, replace its pointer-only
     password disclosure with a native required form, and clear component-owned
     password text on collapse and dialog exit.
+  - [x] Expose the V1 Web download manager as a named collapsible task list with
+    file-specific progress, textual state, and native pause/resume/cancel actions.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

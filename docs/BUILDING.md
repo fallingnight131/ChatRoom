@@ -2284,6 +2284,10 @@ specific names for upload pause/resume/cancel and progress, plus the one-entry
 emoji grid's Arrow/Home/End navigation, Escape trigger restoration, and post-
 selection composer focus. It is a presentation gate and does not replace file
 authorization, size, or message-delivery tests.
+`downloadPanelAccessibility.test.mjs` locks the floating V1 download manager's
+named collapse relationship, task-list semantics, file-specific progress, and
+native filename-specific pause/resume/cancel actions. This source gate does not
+claim resumability after page loss or replace transport/storage verification.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

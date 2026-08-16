@@ -1,32 +1,43 @@
 <template>
   <Teleport to="body">
-    <div v-if="hasDownloads" class="dl-panel">
+    <section v-if="hasDownloads" class="dl-panel" aria-labelledby="download-panel-title">
       <div class="dl-header">
-        <span>下载管理</span>
-        <button class="dl-toggle" @click="collapsed = !collapsed">
+        <span id="download-panel-title">下载管理</span>
+        <button type="button" class="dl-toggle" aria-controls="download-list"
+                :aria-expanded="!collapsed"
+                :aria-label="collapsed ? '展开下载管理' : '收起下载管理'"
+                @click="collapsed = !collapsed">
           {{ collapsed ? '▲' : '▼' }}
         </button>
       </div>
-      <div v-if="!collapsed" class="dl-list">
-        <div v-for="(d, fid) in chatStore.downloads" :key="fid" class="dl-item">
+      <div v-show="!collapsed" id="download-list" class="dl-list" role="list">
+        <div v-for="(d, fid) in chatStore.downloads" :key="fid" class="dl-item"
+             role="listitem" :aria-label="`${d.fileName} 下载任务`">
           <div class="dl-row">
             <span class="dl-name text-ellipsis">{{ d.fileName }}</span>
-            <span class="dl-pct">{{ percent(d) }}%</span>
+            <span class="dl-pct">{{ downloadStateLabel(d) }} · {{ percent(d) }}%</span>
           </div>
-          <div class="progress-bar">
+          <div class="progress-bar" role="progressbar"
+               :aria-label="`${d.fileName} 下载进度`"
+               aria-valuemin="0" aria-valuemax="100" :aria-valuenow="percent(d)">
             <div class="progress-fill" :style="{ width: percent(d) + '%' }"></div>
           </div>
           <div class="dl-row dl-actions">
             <span class="dl-size">{{ formatSize(d.received) }} / {{ formatSize(d.fileSize) }}</span>
             <span class="dl-btns">
-              <button v-if="d.status === 'downloading'" class="dl-btn" @click="chatStore.pauseDownload(fid)" title="暂停">⏸</button>
-              <button v-if="d.status === 'paused'" class="dl-btn" @click="chatStore.resumeDownload(fid)" title="继续">▶</button>
-              <button class="dl-btn" @click="chatStore.cancelDownload(fid)" title="取消">✖</button>
+              <button v-if="d.status === 'downloading'" type="button" class="dl-btn"
+                      :aria-label="`暂停下载 ${d.fileName}`"
+                      @click="chatStore.pauseDownload(fid)" title="暂停">⏸</button>
+              <button v-if="d.status === 'paused'" type="button" class="dl-btn"
+                      :aria-label="`继续下载 ${d.fileName}`"
+                      @click="chatStore.resumeDownload(fid)" title="继续">▶</button>
+              <button type="button" class="dl-btn" :aria-label="`取消下载 ${d.fileName}`"
+                      @click="chatStore.cancelDownload(fid)" title="取消">✖</button>
             </span>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   </Teleport>
 </template>
 
@@ -42,6 +53,10 @@ const hasDownloads = computed(() => Object.keys(chatStore.downloads).length > 0)
 function percent(d) {
   if (!d.fileSize) return 0
   return Math.min(100, Math.floor((d.received / d.fileSize) * 100))
+}
+
+function downloadStateLabel(d) {
+  return d.status === 'paused' ? '已暂停' : '下载中'
 }
 
 function formatSize(size) {
