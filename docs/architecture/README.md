@@ -2012,8 +2012,18 @@ subscription reader returns at most the complete 10-row account quota, filters
 browser expiry and disabled accounts, exposes ciphertext only, and closes the
 whole batch as one secret lifecycle; JDBC working copies are cleared immediately
 after construction. Recipient mention state is joined from the authoritative
-notification outbox rather than trusted from a caller projection. No provider
-worker consumes it yet.
+notification outbox rather than trusted from a caller projection. No runtime-
+composed worker consumes it yet.
+The detached provider-worker application service is now exact-default-off and
+bounded to the complete 1,000-recipient by 10-installation server limits. It
+reauthorizes the specific account before every provider attempt, unprotects one
+registration only for that synchronous call, sends only versioned stable
+navigation IDs plus the mention boolean, deletes invalid installations, and
+fences terminal or retry mutations. Policy/storage/credential/provider failures
+become fixed failure codes and event-sink methods without exception text or
+identity labels. This is fake-provider application evidence: no real Web Push
+protocol adapter, scheduler/pool, Prometheus sink, readiness policy, or runtime
+composition exists.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

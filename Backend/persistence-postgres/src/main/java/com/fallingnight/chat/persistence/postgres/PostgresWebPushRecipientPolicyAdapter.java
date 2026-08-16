@@ -11,6 +11,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
 
@@ -29,7 +30,31 @@ public final class PostgresWebPushRecipientPolicyAdapter
         if (limit < 1 || limit > WebPushRecipientResolution.MAX_RECIPIENTS) {
             throw new IllegalArgumentException("invalid Web Push recipient limit");
         }
-        String sql = """
+        String sql = baseSql() + " ORDER BY member.account_id LIMIT ?";
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            bindIntent(statement, intent);
+            statement.setInt(4, limit + 1);
+            List<WebPushRecipient> recipients = new ArrayList<>(limit + 1);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    UUID accountId = result.getObject(1, UUID.class);
+                    recipients.add(new WebPushRecipient(
+                            accountId, result.getBoolean(2)));
+                }
+            }
+            if (recipients.size() > limit) {
+                return WebPushRecipientResolution.Saturated.INSTANCE;
+            }
+            return new WebPushRecipientResolution.Complete(recipients);
+        } catch (SQLException exception) {
+            throw new NotificationPersistenceException(
+                    "Web Push recipient policy resolution failed", exception);
+        }
+    }
+
+    private static String baseSql() {
+        return """
                 SELECT member.account_id,
                        member.account_id = ANY(notification.mentioned_account_ids)
                 FROM chat.message source
@@ -55,30 +80,39 @@ public final class PostgresWebPushRecipientPolicyAdapter
                              AND blocked.blocked_account_id = member.account_id)
                          OR (blocked.blocker_account_id = member.account_id
                              AND blocked.blocked_account_id = source.sender_account_id))
-                ORDER BY member.account_id
-                LIMIT ?
                 """;
+    }
+
+    private static void bindIntent(
+            PreparedStatement statement, WebPushNotificationIntent intent)
+            throws SQLException {
+        statement.setObject(1, intent.messageId());
+        statement.setObject(2, intent.conversationId());
+        statement.setObject(3, intent.senderAccountId());
+    }
+
+    @Override
+    public Optional<WebPushRecipient> reauthorize(
+            WebPushNotificationIntent intent, UUID recipientAccountId) {
+        Objects.requireNonNull(intent, "intent");
+        Objects.requireNonNull(recipientAccountId, "recipientAccountId");
+        String sql = baseSql() + " AND member.account_id = ? ORDER BY member.account_id LIMIT 1";
         try (Connection connection = dataSource.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setObject(1, intent.messageId());
-            statement.setObject(2, intent.conversationId());
-            statement.setObject(3, intent.senderAccountId());
-            statement.setInt(4, limit + 1);
-            List<WebPushRecipient> recipients = new ArrayList<>(limit + 1);
+            bindIntent(statement, intent);
+            statement.setObject(4, recipientAccountId);
             try (ResultSet result = statement.executeQuery()) {
-                while (result.next()) {
-                    UUID accountId = result.getObject(1, UUID.class);
-                    recipients.add(new WebPushRecipient(
-                            accountId, result.getBoolean(2)));
+                if (!result.next()) return Optional.empty();
+                WebPushRecipient recipient = new WebPushRecipient(
+                        result.getObject(1, UUID.class), result.getBoolean(2));
+                if (result.next()) {
+                    throw new SQLException("Web Push recipient point query returned many rows");
                 }
+                return Optional.of(recipient);
             }
-            if (recipients.size() > limit) {
-                return WebPushRecipientResolution.Saturated.INSTANCE;
-            }
-            return new WebPushRecipientResolution.Complete(recipients);
         } catch (SQLException exception) {
             throw new NotificationPersistenceException(
-                    "Web Push recipient policy resolution failed", exception);
+                    "Web Push recipient reauthorization failed", exception);
         }
     }
 }

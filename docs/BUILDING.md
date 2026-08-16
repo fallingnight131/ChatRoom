@@ -1496,6 +1496,19 @@ ciphertext subscription reads, immediate JDBC working-copy clearing, and batch-
 wide protected-byte closing. Mention classification is joined from PostgreSQL
 outbox truth. It does not prove provider delivery, worker scheduling, or multi-
 instance throughput.
+The bounded provider-worker application service is covered by:
+
+```bash
+cd Backend
+./gradlew --no-daemon :application:test --tests '*WebPushDeliveryWorker*'
+```
+
+It proves exact default-off behavior, per-installation reauthorization, generic
+stable-ID command shape, invalid-installation deletion, transient/exception
+retry mapping, fence handling, ineligible completion, and post-call plaintext
+registration closing. The provider is a deterministic fake; this does not prove
+RFC Web Push encryption/VAPID, external delivery, scheduler saturation,
+Prometheus output, or production readiness.
 The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility

@@ -2431,8 +2431,12 @@ Candidate slices:
       from committed non-recalled messages, rechecking membership, disabled
       accounts, bilateral block policy, mention classification, and explicit
       saturation; load only complete active ciphertext subscription batches.
-    - [ ] Add the bounded provider worker with retry, invalid-subscription
-      erasure, recipient reauthorization, and fixed-cardinality observability.
+    - [x] Add the exact-default-off bounded provider-worker application service
+      with per-installation reauthorization, generic payload command, invalid-
+      subscription erasure, fenced completion/retry, failure isolation, and a
+      fixed-cardinality event-sink boundary.
+    - [ ] Add the real provider adapter, bounded scheduler/worker pool,
+      Prometheus implementation, readiness/backlog policy, and failure canary.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
 - end-to-end encryption only after a separate cryptographic design, device-key

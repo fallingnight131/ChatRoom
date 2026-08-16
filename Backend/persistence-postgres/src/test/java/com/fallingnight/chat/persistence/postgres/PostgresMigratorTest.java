@@ -6203,6 +6203,8 @@ class PostgresMigratorTest {
                 recipient.accountId().equals(mentioned) && recipient.mentioned()));
         assertTrue(complete.recipients().stream().noneMatch(recipient ->
                 recipient.accountId().equals(blocked)));
+        assertTrue(policy.reauthorize(intent, mentioned).orElseThrow().mentioned());
+        assertTrue(policy.reauthorize(intent, blocked).isEmpty());
 
         disableAccount(other);
         complete = (WebPushRecipientResolution.Complete) policy.resolve(intent, 1000);
@@ -6252,6 +6254,7 @@ class PostgresMigratorTest {
         }
         assertTrue(((WebPushRecipientResolution.Complete) policy.resolve(intent, 1000))
                 .recipients().isEmpty());
+        assertTrue(policy.reauthorize(intent, mentioned).isEmpty());
         disableAccount(mentioned);
         try (var batch = subscriptions.loadActive(mentioned, observedAt)) {
             assertTrue(batch.subscriptions().isEmpty());

@@ -141,6 +141,11 @@ acceptance, stall synchronization, or reduce gateway readiness.
   a complete ordered result or explicit saturation. Active subscription reads
   remain ciphertext-only and batch-closeable, clear JDBC copies, and derive
   mention state from outbox truth. No provider worker is composed.
+- The detached worker application service is default-off, bounded by recipient/
+  installation caps, reauthorizes each attempt, exposes only generic stable-ID
+  provider commands, erases invalid installs, fences retry/completion, and emits
+  fixed-cardinality events. Real provider, scheduler, metrics, and runtime
+  composition remain open.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,
