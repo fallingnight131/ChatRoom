@@ -88,6 +88,17 @@ int main(int argc, char **argv) {
                      [&] { ++readyCount; });
     QObject::connect(&controller, &WindowsV2MessagingController::unavailable,
                      [&] { unavailable = true; });
+    int remoteNotificationCandidates = 0;
+    QString notifiedMessageId;
+    bool notifiedMention = false;
+    QObject::connect(
+        &controller, &WindowsV2MessagingController::remoteMessagePublished,
+        [&](const QString &, const QString &messageId, const QString &,
+            bool mentioned) {
+            ++remoteNotificationCandidates;
+            notifiedMessageId = messageId;
+            notifiedMention = mentioned;
+        });
 
     transport.start();
     socket.connected();
@@ -257,6 +268,44 @@ int main(int argc, char **argv) {
               && durableVerifier.loadSnapshot(accountId.c_str(), conversationId).messages.size()
                     == 1,
           QStringLiteral("search context must not persist or advance durable history"));
+
+    chat::v2::MessageRecord published;
+    published.set_conversation_id(conversationId.toStdString());
+    published.set_message_id("70000000-0000-4000-8000-000000000002");
+    published.set_conversation_sequence(2);
+    published.set_sender_account_id(mentionTargetId);
+    published.set_sender_device_id(
+        "20000000-0000-4000-8000-000000000002");
+    published.set_client_message_id(
+        "80000000-0000-4000-8000-000000000002");
+    published.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
+    published.set_content("@Test User live");
+    published.set_accepted_at_epoch_ms(960);
+    auto *publishedMention = published.add_mentions();
+    publishedMention->set_target_account_id(accountId);
+    publishedMention->set_start_utf8_byte(0);
+    publishedMention->set_length_utf8_bytes(10);
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_MESSAGE_PUBLISHED, chat::v2::MESSAGE_KIND_EVENT,
+        {}, sessionId, published));
+    check(remoteNotificationCandidates == 1 && notifiedMention
+              && notifiedMessageId
+                    == QStringLiteral("70000000-0000-4000-8000-000000000002")
+              && controller.viewModel()->rows().size() == 3,
+          QStringLiteral("persisted remote live message must expose one mention-aware notification candidate"));
+
+    published.set_message_id("70000000-0000-4000-8000-000000000003");
+    published.set_sender_account_id(accountId);
+    published.set_sender_device_id(deviceId.toStdString());
+    published.set_client_message_id(
+        "80000000-0000-4000-8000-000000000003");
+    published.set_conversation_sequence(3);
+    published.clear_mentions();
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_MESSAGE_PUBLISHED, chat::v2::MESSAGE_KIND_EVENT,
+        {}, sessionId, published));
+    check(remoteNotificationCandidates == 1,
+          QStringLiteral("authenticated account live echo must not become a notification candidate"));
 
     const QString forwardTargetId =
         QStringLiteral("60000000-0000-4000-8000-000000000002");

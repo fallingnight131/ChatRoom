@@ -293,6 +293,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             Client/V2WindowsMessagingViewModel.h
             Client/V2WindowsMentionComposer.cpp
             Client/V2WindowsMentionComposer.h
+            Client/WindowsMessageNotificationPolicy.cpp
+            Client/WindowsMessageNotificationPolicy.h
         )
         set_target_properties(
             chatroom_v2_messaging_ui_core
@@ -775,6 +777,16 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             V2WindowsMessagingViewModelTest PRIVATE chatroom_v2_messaging_ui_core)
         add_test(NAME m6_windows_v2_messaging_view_model COMMAND V2WindowsMessagingViewModelTest)
         set_tests_properties(m6_windows_v2_messaging_view_model PROPERTIES TIMEOUT 30)
+        add_executable(
+            WindowsMessageNotificationPolicyTest
+            Tests/WindowsMessageNotificationPolicyTest.cpp)
+        target_link_libraries(
+            WindowsMessageNotificationPolicyTest PRIVATE chatroom_v2_messaging_ui_core)
+        add_test(
+            NAME m6_windows_message_notification_policy
+            COMMAND WindowsMessageNotificationPolicyTest)
+        set_tests_properties(
+            m6_windows_message_notification_policy PROPERTIES TIMEOUT 30)
         if(CHATROOM_BUILD_WINDOWS_CLIENT)
             add_executable(
                 V2WindowsDeviceManagementTransportTest

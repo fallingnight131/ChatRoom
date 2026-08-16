@@ -467,6 +467,13 @@ V2WindowsMessagingApplicationService::receiveFrame(const QByteArray &bytes) {
         } else {
             result.type = OutcomeType::Published;
             result.conversationId = message.conversationId;
+            result.messageId = message.messageId;
+            result.senderAccountId = message.senderAccountId;
+            result.authenticatedAccountMentioned = std::any_of(
+                message.mentions.cbegin(), message.mentions.cend(),
+                [this](const auto &mention) {
+                    return mention.targetAccountId == m_accountId;
+                });
         }
         return result;
     }

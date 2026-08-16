@@ -486,6 +486,14 @@ void WindowsV2MessagingController::receiveFrame(const QByteArray &frame) {
     if (m_viewModel && outcome.type
             != V2WindowsMessagingApplicationService::OutcomeType::None)
         m_viewModel->refresh();
+    if (outcome.type
+            == V2WindowsMessagingApplicationService::OutcomeType::Published
+            && outcome.senderAccountId != m_accountId) {
+        emit remoteMessagePublished(
+            outcome.conversationId, outcome.messageId,
+            outcome.senderAccountId,
+            outcome.authenticatedAccountMentioned);
+    }
 }
 
 void WindowsV2MessagingController::abandonSession() {

@@ -1651,6 +1651,14 @@ tray, notification, shortcut, startup, installer, and updater behavior behind
 platform interfaces. Keep the core portable where inexpensive, but do not add
 macOS or Linux product work without a support-scope ADR.
 
+ADR-0405 starts that isolation for V2 message notifications. Only a validated,
+locally persisted remote live publication becomes a notification candidate;
+ACK, history/repair, mutation, search, and self-echo paths remain silent. A
+portable policy remembers a bounded stable-message set, suppresses the currently
+visible conversation, and emits only a generic privacy-safe summary with an
+optional structured-mention title. Native Windows presentation and activation
+routing remain a separate default-off adapter and Windows Release gate.
+
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,
 and terminal local delivery transitions while `ChatWindow` adapts commands and

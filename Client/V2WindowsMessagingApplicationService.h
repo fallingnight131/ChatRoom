@@ -19,8 +19,11 @@ public:
     struct Outcome {
         OutcomeType type = OutcomeType::None;
         QString conversationId;
+        QString messageId;
+        QString senderAccountId;
         QString clientMessageId;
         QString clientOperationId;
+        bool authenticatedAccountMentioned = false;
     };
     using SendFrame = std::function<bool(const QByteArray &)>;
     using Clock = std::function<qint64()>;

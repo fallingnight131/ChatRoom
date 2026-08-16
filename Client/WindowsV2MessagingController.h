@@ -44,6 +44,10 @@ signals:
     void ready();
     void unavailable();
     void failure(const QString &safeReason);
+    void remoteMessagePublished(
+        const QString &conversationId, const QString &messageId,
+        const QString &senderAccountId,
+        bool authenticatedAccountMentioned);
 
 private:
     void bindAuthenticatedSession(

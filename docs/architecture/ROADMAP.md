@@ -2250,6 +2250,11 @@ Candidate slices:
 - richer structured composition;
 - group roles, invitations, join approval, mute, block, and moderation;
 - Windows native notifications;
+  - [x] Add a persisted-live-only notification candidate boundary and a bounded,
+    privacy-safe policy that suppresses duplicates, self echoes, and the active
+    visible conversation (ADR-0405); native presentation remains disconnected.
+  - [ ] Add a default-off Windows platform presenter with stable-conversation
+    activation routing and native Release interaction evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes;
