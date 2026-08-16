@@ -184,6 +184,11 @@ The V2 optimistic-pin slice localizes pin/unpin compound labels, failed-command
 retry, and local feedback. Source contracts retain stable message identity,
 per-message pending lookup, the accepted/available guard, stable operation-ID
 retry, and application-owned set/retry calls.
+The V2 edit slice localizes its author action, form and UTF-8 budget, save/cancel
+state, conflict-preserved draft, server-version rebase, failed-command retry,
+discard, and local feedback. Source contracts retain author/availability gates,
+local overlay and `contentRevision`, structured mentions, and stable operation
+IDs across retry, rebase, and discard.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

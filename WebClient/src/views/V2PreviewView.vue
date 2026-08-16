@@ -145,45 +145,45 @@
                 <span v-if="message.contentRevision > 0" class="edited-badge">{{ v2TimelineMessages.edited }}</span>
                 <form v-if="editingMessageId === message.id" class="edit-form"
                       @submit.prevent="submitEdit(message)">
-                  <label :for="`edit-${message.id}`">编辑消息</label>
+                  <label :for="`edit-${message.id}`">{{ editMessages.formLabel }}</label>
                   <textarea :id="`edit-${message.id}`" :value="editDraft" class="input"
                             rows="3" required
                             @input="updateEditDraft"
                             @keydown.esc="cancelEditFromKeyboard"></textarea>
-                  <small role="status" aria-live="polite" aria-label="编辑消息字节数">
+                  <small role="status" aria-live="polite" :aria-label="editMessages.bytes">
                     {{ editBudgetLabel }}
                   </small>
                   <div>
                     <button class="btn btn-text" type="button"
                             aria-controls="v2-mention-picker" aria-haspopup="dialog"
                             :aria-expanded="mentionPickerMode === 'edit'"
-                            @click="openMentionPicker('edit', $event)">@ 提及成员</button>
+                            @click="openMentionPicker('edit', $event)">{{ v2ComposerMessages.mentionMember }}</button>
                     <button class="btn btn-primary" type="submit"
-                            :disabled="!editDraft.trim() || !editBudget.withinBudget">保存</button>
-                    <button class="btn btn-text" type="button" title="取消编辑（Esc）"
-                            @click="cancelEdit">取消</button>
+                            :disabled="!editDraft.trim() || !editBudget.withinBudget">{{ editMessages.save }}</button>
+                    <button class="btn btn-text" type="button" :title="editMessages.cancelTitle"
+                            @click="cancelEdit">{{ editMessages.cancel }}</button>
                   </div>
                 </form>
                 <div v-if="editCommand(message)" class="edit-state" aria-live="polite">
-                  <p v-if="editCommand(message).deliveryState === 'sending'" role="status">正在保存编辑…</p>
+                  <p v-if="editCommand(message).deliveryState === 'sending'" role="status">{{ editMessages.saving }}</p>
                   <template v-else-if="editCommand(message).deliveryState === 'conflict'">
-                    <p role="alert">其他设备已修改此消息。你的编辑草稿已保留。</p>
-                    <small>服务器版本：{{ message.content }}</small>
+                    <p role="alert">{{ editMessages.conflict }}</p>
+                    <small>{{ editMessages.serverVersion }}{{ message.content }}</small>
                     <div>
                       <button class="retry-link" type="button"
                               @click="rebaseEdit(editCommand(message).clientOperationId)">
-                        基于新版本重试
+                        {{ editMessages.rebase }}
                       </button>
                       <button class="btn btn-text" type="button"
-                              @click="discardEdit(editCommand(message).clientOperationId)">放弃草稿</button>
+                              @click="discardEdit(editCommand(message).clientOperationId)">{{ editMessages.discard }}</button>
                     </div>
                   </template>
                   <template v-else>
-                    <p role="alert">编辑保存失败，草稿仍保存在本机。</p>
+                    <p role="alert">{{ editMessages.saveFailed }}</p>
                     <button class="retry-link" type="button"
-                            @click="retryEdit(editCommand(message).clientOperationId)">重试编辑</button>
+                            @click="retryEdit(editCommand(message).clientOperationId)">{{ editMessages.retry }}</button>
                     <button class="btn btn-text" type="button"
-                            @click="discardEdit(editCommand(message).clientOperationId)">放弃草稿</button>
+                            @click="discardEdit(editCommand(message).clientOperationId)">{{ editMessages.discard }}</button>
                   </template>
                 </div>
                 <div v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
@@ -226,8 +226,8 @@
                   {{ basicActionMessages.reply }}
                 </button>
                 <button v-if="canEdit(message)" class="edit-link" type="button"
-                        :aria-label="`编辑消息 ${message.sequence}`"
-                        @click="startEdit(message)">编辑</button>
+                        :aria-label="editMessages.editLabel(message.sequence)"
+                        @click="startEdit(message)">{{ editMessages.edit }}</button>
                 <button v-if="snapshot.forwardingEnabled && message.deliveryState === 'accepted'
                               && message.availability === 'available'"
                         class="forward-link" type="button" aria-haspopup="dialog"
@@ -391,7 +391,7 @@
 import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { V2_RUNTIME_KEY } from '../application/v2RuntimeKey'
 import { MessageReactionKind } from '../protocol/v2/generated/messaging_pb'
-import { messageTextBudget, messageTextBudgetLabel } from '../messaging/messageTextBudget.js'
+import { messageTextBudget } from '../messaging/messageTextBudget.js'
 import { copyMessageText } from '../messaging/copyMessageText.js'
 import { addPendingNewMessages } from '../messaging/newMessageIndicator.js'
 import { classifyV2TailUpdate } from '../messaging/v2TailActivity'
@@ -403,6 +403,7 @@ import {
   v2PreviewBasicActionMessages,
   v2PreviewComposerMessages,
   v2PreviewDeviceMessages,
+  v2PreviewEditMessages,
   v2PreviewForwardMessages,
   v2PreviewMentionMessages,
   v2PreviewPinMessages,
@@ -429,6 +430,7 @@ const basicActionMessages = computed(() => v2PreviewBasicActionMessages(userStor
 const composerMessages = computed(() => composerCatalogMessages(userStore.locale))
 const v2ComposerMessages = computed(() => v2PreviewComposerMessages(userStore.locale))
 const deviceMessages = computed(() => v2PreviewDeviceMessages(userStore.locale))
+const editMessages = computed(() => v2PreviewEditMessages(userStore.locale))
 const mentionMessages = computed(() => v2PreviewMentionMessages(userStore.locale))
 const pinMessages = computed(() => v2PreviewPinMessages(userStore.locale))
 const reactionMessages = computed(() => v2PreviewReactionMessages(userStore.locale))
@@ -455,7 +457,10 @@ const draftBudgetLabel = computed(() => draftBudget.value.withinBudget
   : `${composerMessages.value.overLimitPrefix}${draftBudget.value.overage} ${composerMessages.value.bytes}`
     + `${composerMessages.value.maximumPrefix}${draftBudget.value.maximum}${composerMessages.value.maximumSuffix}`)
 const editBudget = computed(() => messageTextBudget(editDraft.value))
-const editBudgetLabel = computed(() => messageTextBudgetLabel(editDraft.value))
+const editBudgetLabel = computed(() => editBudget.value.withinBudget
+  ? `${editBudget.value.bytes} / ${editBudget.value.maximum} ${composerMessages.value.bytes}`
+  : `${composerMessages.value.overLimitPrefix}${editBudget.value.overage} ${composerMessages.value.bytes}`
+    + `${composerMessages.value.maximumPrefix}${editBudget.value.maximum}${composerMessages.value.maximumSuffix}`)
 const draftMentionAnchors = ref([])
 const editMentionAnchors = ref([])
 const mentionPickerMode = ref(null)
@@ -865,12 +870,12 @@ function submitEdit(message) {
   try {
     const mentions = serializeMentionAnchors(text, editMentionAnchors.value)
     if (!runtimeRef.value.application.editMessage(message.id, text, mentions)) {
-      actionError.value = '当前无法编辑这条消息'
+      actionError.value = editMessages.value.unavailable
       return
     }
     cancelEdit()
   } catch (error) {
-    actionError.value = error instanceof Error ? error.message : '编辑失败'
+    actionError.value = error instanceof Error ? error.message : editMessages.value.failed
   }
 }
 
@@ -960,23 +965,23 @@ function messageSegments(message) {
 
 function retryEdit(operationId) {
   actionError.value = ''
-  try { if (!runtimeRef.value.application.retryEdit(operationId)) actionError.value = '该编辑暂时无法重试' }
-  catch (error) { actionError.value = error instanceof Error ? error.message : '编辑重试失败' }
+  try { if (!runtimeRef.value.application.retryEdit(operationId)) actionError.value = editMessages.value.retryUnavailable }
+  catch (error) { actionError.value = error instanceof Error ? error.message : editMessages.value.retryFailed }
 }
 
 function rebaseEdit(operationId) {
   actionError.value = ''
   try {
     if (!runtimeRef.value.application.rebaseEdit(operationId)) {
-      actionError.value = '服务器新版本尚未同步，请稍后再试'
+      actionError.value = editMessages.value.rebaseUnavailable
     }
-  } catch (error) { actionError.value = error instanceof Error ? error.message : '编辑重试失败' }
+  } catch (error) { actionError.value = error instanceof Error ? error.message : editMessages.value.retryFailed }
 }
 
 function discardEdit(operationId) {
   actionError.value = ''
-  try { if (!runtimeRef.value.application.discardEdit(operationId)) actionError.value = '该编辑草稿已不存在' }
-  catch (error) { actionError.value = error instanceof Error ? error.message : '无法放弃编辑草稿' }
+  try { if (!runtimeRef.value.application.discardEdit(operationId)) actionError.value = editMessages.value.discardMissing }
+  catch (error) { actionError.value = error instanceof Error ? error.message : editMessages.value.discardFailed }
 }
 
 function openDevices() {

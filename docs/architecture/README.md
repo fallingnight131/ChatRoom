@@ -2083,7 +2083,11 @@ per-message/per-reaction pending identity, and stable operation-ID retry. V2
 optimistic pinning now also localizes pin/unpin compound labels, failed-command
 retry, and local failures while preserving stable message identity, per-message
 pending state, accepted/available gating, and stable operation-ID retry. V2
-message editing remains the later mutation slice.
+message editing now also localizes its author action, form and UTF-8 budget,
+save/cancel state, conflict-preserved draft, server-version rebase, retry,
+discard, and local failures. Author/availability gates, local proposed-content
+overlay, `contentRevision`, structured mentions, and stable operation IDs across
+retry/rebase/discard are unchanged.
 
 ### Product consistency
 

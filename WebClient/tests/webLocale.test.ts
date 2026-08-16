@@ -26,6 +26,7 @@ import {
   v2PreviewMentionMessages,
   v2PreviewForwardMessages,
   v2PreviewDeviceMessages,
+  v2PreviewEditMessages,
   v2PreviewReactionMessages,
   v2PreviewPinMessages,
   persistWebLocale,
@@ -160,6 +161,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(v2PreviewDeviceMessages("en-US")).sort(),
     Object.keys(v2PreviewDeviceMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(v2PreviewEditMessages("en-US")).sort(),
+    Object.keys(v2PreviewEditMessages("zh-CN")).sort(),
   );
   assert.deepEqual(
     Object.keys(v2PreviewReactionMessages("en-US")).sort(),

@@ -12,7 +12,7 @@ test('binds repeated V2 message actions to an explicit message context', () => {
     ':aria-label="v2TimelineMessages.messageStatus(message.sequence, deliveryLabel(message.deliveryState))"',
     ':aria-label="basicActionMessages.copyLabel(message.sequence)"',
     ':aria-label="basicActionMessages.replyLabel(message.sequence)"',
-    ':aria-label="`编辑消息 ${message.sequence}`"',
+    ':aria-label="editMessages.editLabel(message.sequence)"',
     ':aria-label="forwardMessages.forwardLabel(message.sequence)"',
     ':aria-label="basicActionMessages.retryLabel"',
   ]) assert.ok(source.includes(marker), `missing V2 message-action marker: ${marker}`)

@@ -2406,6 +2406,8 @@ Candidate slices:
     actor identity, per-reaction pending state, and stable-operation retry.
   - [x] Migrate Web V2 optimistic pinning while preserving message identity,
     accepted-state gating, per-message pending, and stable-operation retry.
+  - [x] Migrate Web V2 editing and explicit conflict recovery while preserving
+    author gates, revision overlays, structured mentions, and operation IDs.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

@@ -709,6 +709,29 @@ const v2PreviewPinCatalog = {
   },
 } as const;
 
+const v2PreviewEditCatalog = {
+  "zh-CN": {
+    edit: "编辑", editLabel: (sequence: string) => `编辑消息 ${sequence}`, formLabel: "编辑消息",
+    bytes: "编辑消息字节数", save: "保存", cancel: "取消", cancelTitle: "取消编辑（Esc）",
+    saving: "正在保存编辑…", conflict: "其他设备已修改此消息。你的编辑草稿已保留。",
+    serverVersion: "服务器版本：", rebase: "基于新版本重试", discard: "放弃草稿",
+    saveFailed: "编辑保存失败，草稿仍保存在本机。", retry: "重试编辑",
+    unavailable: "当前无法编辑这条消息", failed: "编辑失败", retryUnavailable: "该编辑暂时无法重试",
+    retryFailed: "编辑重试失败", rebaseUnavailable: "服务器新版本尚未同步，请稍后再试",
+    discardMissing: "该编辑草稿已不存在", discardFailed: "无法放弃编辑草稿",
+  },
+  "en-US": {
+    edit: "Edit", editLabel: (sequence: string) => `Edit message ${sequence}`, formLabel: "Edit message",
+    bytes: "Edited message byte count", save: "Save", cancel: "Cancel", cancelTitle: "Cancel edit (Esc)",
+    saving: "Saving edit…", conflict: "Another device changed this message. Your edit draft was preserved.",
+    serverVersion: "Server version: ", rebase: "Retry on the new version", discard: "Discard draft",
+    saveFailed: "The edit could not be saved. The draft remains on this device.", retry: "Retry edit",
+    unavailable: "This message cannot be edited right now", failed: "Edit failed", retryUnavailable: "This edit cannot be retried right now",
+    retryFailed: "Edit retry failed", rebaseUnavailable: "The new server version has not synchronized yet. Try again later.",
+    discardMissing: "This edit draft no longer exists", discardFailed: "Unable to discard the edit draft",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -843,6 +866,10 @@ export function v2PreviewReactionMessages(locale: WebLocale) {
 
 export function v2PreviewPinMessages(locale: WebLocale) {
   return v2PreviewPinCatalog[locale];
+}
+
+export function v2PreviewEditMessages(locale: WebLocale) {
+  return v2PreviewEditCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {
