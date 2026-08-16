@@ -959,6 +959,8 @@ test("keeps bounded search results in memory and abandons stale pages on disconn
   assert.equal(application.snapshot.searchQuery, "needle");
   assert.equal(application.snapshot.searchResults[0]?.content, "Needle one");
   assert.equal(application.snapshot.searchHasMore, true);
+  assert.equal(application.revealSearchHit(MESSAGE_ID), true);
+  assert.equal(application.snapshot.messages.some(message => message.id === MESSAGE_ID), true);
 
   assert.equal(application.loadMoreSearchResults(), true);
   assert.deepEqual(transport.calls.at(-1)?.slice(0, 5),

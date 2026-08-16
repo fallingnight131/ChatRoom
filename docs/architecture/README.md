@@ -846,8 +846,12 @@ in page memory, correlates each page to the active conversation, trims the user
 query before protocol dispatch, and abandons ambiguous work on disconnect or
 conversation switch. Queries and results are deliberately excluded from
 IndexedDB. Protocol denial becomes a generic user-facing failure; no server
-detail, identity, or query is logged. The UI and context-history repair remain
-uncomposed.
+detail, identity, or query is logged. The capability-gated Web view now provides
+a labeled native search form, polite result count/failure announcements,
+keyboard-operable pagination, and focusable result reveal. Revealing a hit
+merges its already validated server projection into page memory without
+advancing or persisting the ordinary sync cursor. Adjacent context-history
+repair remains uncomposed.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

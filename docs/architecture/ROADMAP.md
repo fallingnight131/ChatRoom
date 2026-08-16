@@ -2212,8 +2212,10 @@ Progress:
     - [x] Add bounded Web in-memory result orchestration with correlation,
       pagination, disconnect/conversation-switch abandonment, generic denial,
       and no query/result persistence.
-    - [ ] Add the accessible Web UI, context-history repair, and explicit
-      endpoint activation evidence.
+    - [x] Add the capability-gated accessible Web search form, live result
+      status, bounded paged list, and keyboard-focusable local-hit reveal.
+    - [ ] Add context-history repair without advancing the sync cursor, plus
+      explicit endpoint activation evidence.
     - [ ] Add the equivalent Windows protocol, local state, accessible UI, and
       endpoint activation evidence.
 

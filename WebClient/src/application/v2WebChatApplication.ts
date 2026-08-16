@@ -504,6 +504,17 @@ export class V2WebChatApplication {
     this.emit();
   }
 
+  revealSearchHit(messageId: string): boolean {
+    this.requireActive();
+    const conversationId = this.activeConversationIdValue;
+    const state = conversationId ? this.conversations.get(conversationId) : undefined;
+    const hit = this.searchState.results.find((message) => message.id === messageId);
+    if (!conversationId || !state || !hit || hit.conversationId !== conversationId) return false;
+    state.messages = mergeMessages(state.messages, [cloneMessage(hit)]);
+    this.emit();
+    return true;
+  }
+
   refreshParticipants(): boolean {
     this.requireActive();
     if (!this.activeConversationIdValue || this.connectionStateValue !== "authenticated") {

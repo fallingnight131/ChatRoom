@@ -70,11 +70,53 @@
         <template v-else>
           <div class="message-header">
             <strong>{{ activeConversationName }}</strong>
-            <span v-if="snapshot.historyLoading">同步中…</span>
+            <div class="message-header-actions">
+              <span v-if="snapshot.historyLoading">同步中…</span>
+              <button v-if="snapshot.searchEnabled" class="btn btn-text" type="button"
+                      aria-controls="v2-message-search" :aria-expanded="searchOpen"
+                      @click="toggleSearch">
+                {{ searchOpen ? '关闭搜索' : '搜索消息' }}
+              </button>
+            </div>
           </div>
+          <section v-if="snapshot.searchEnabled && searchOpen" id="v2-message-search"
+                   class="message-search" aria-labelledby="v2-message-search-title">
+            <form @submit.prevent="submitSearch">
+              <label id="v2-message-search-title" for="v2-message-search-query">搜索当前会话</label>
+              <div>
+                <input id="v2-message-search-query" v-model="searchDraft" class="input"
+                       type="search" maxlength="128" autocomplete="off"
+                       placeholder="输入精确文字" :disabled="snapshot.searchLoading" />
+                <button class="btn btn-primary" type="submit"
+                        :disabled="!searchDraft.trim() || snapshot.searchLoading">
+                  {{ snapshot.searchLoading ? '搜索中…' : '搜索' }}
+                </button>
+              </div>
+            </form>
+            <p class="search-status" aria-live="polite" aria-atomic="true">
+              <template v-if="snapshot.searchFailure">{{ snapshot.searchFailure }}</template>
+              <template v-else-if="snapshot.searchQuery && !snapshot.searchLoading">
+                已找到 {{ snapshot.searchResults.length }} 条结果
+              </template>
+            </p>
+            <ol v-if="snapshot.searchResults.length" class="search-results"
+                aria-label="消息搜索结果" :aria-busy="snapshot.searchLoading">
+              <li v-for="hit in snapshot.searchResults" :key="hit.id">
+                <button type="button" @click="locateSearchHit(hit)">
+                  <span>{{ hit.content }}</span>
+                  <small>#{{ hit.sequence }} · {{ formatDeviceTime(hit.acceptedAtEpochMs) }}</small>
+                </button>
+              </li>
+            </ol>
+            <button v-if="snapshot.searchHasMore" class="btn btn-text" type="button"
+                    :disabled="snapshot.searchLoading" @click="loadMoreSearchResults">
+              加载更多结果
+            </button>
+          </section>
           <ol class="message-list" role="log" aria-live="polite"
               :aria-busy="snapshot.historyLoading" aria-label="消息记录">
             <li v-for="message in snapshot.messages" :key="message.id || message.clientMessageId"
+                :id="message.id ? `v2-message-${message.id}` : undefined" tabindex="-1"
                 :class="['message-row', { mine: message.senderAccountId === snapshot.session.accountId, pinned: message.pinned }]">
               <div class="bubble">
                 <span v-if="message.pinned" class="pin-badge" role="status">已置顶</span>
@@ -305,6 +347,8 @@ const runtimeRef = inject(V2_RUNTIME_KEY)
 const username = ref('')
 const password = ref('')
 const draft = ref('')
+const searchDraft = ref('')
+const searchOpen = ref(false)
 const actionError = ref('')
 const replyTarget = ref(null)
 const editingMessageId = ref(null)
@@ -325,7 +369,8 @@ const snapshot = ref({
   participants: [], participantsLoading: false, participantsHasMore: false, participantFailure: '',
   historyLoading: false, devices: [],
   devicesLoading: false, revokingDeviceId: null, deviceFailure: '', lastFailure: '',
-  forwardingEnabled: false
+  forwardingEnabled: false, searchEnabled: false, searchQuery: '', searchResults: [],
+  searchLoading: false, searchHasMore: false, searchFailure: ''
 })
 let unsubscribe = null
 let startedApplication = null
@@ -392,8 +437,53 @@ async function openConversation(conversationId) {
   closeMentionPicker()
   closeForwardPicker()
   draftMentionAnchors.value = []
+  searchOpen.value = false
+  searchDraft.value = ''
   try { await runtimeRef.value.application.openConversation(conversationId) }
   catch (error) { actionError.value = error instanceof Error ? error.message : '无法打开会话' }
+}
+
+function toggleSearch() {
+  searchOpen.value = !searchOpen.value
+  if (!searchOpen.value) {
+    searchDraft.value = ''
+    runtimeRef.value.application.clearSearch()
+  } else {
+    nextTick(() => document.getElementById('v2-message-search-query')?.focus())
+  }
+}
+
+function submitSearch() {
+  actionError.value = ''
+  try {
+    if (!runtimeRef.value.application.searchMessages(searchDraft.value)) {
+      actionError.value = '请输入 1–128 字节的搜索文字'
+    }
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : '无法搜索当前会话'
+  }
+}
+
+function loadMoreSearchResults() {
+  try { runtimeRef.value.application.loadMoreSearchResults() }
+  catch (error) { actionError.value = error instanceof Error ? error.message : '无法加载更多结果' }
+}
+
+function locateSearchHit(hit) {
+  actionError.value = ''
+  try {
+    if (!runtimeRef.value.application.revealSearchHit(hit.id)) {
+      actionError.value = '该消息上下文暂不可用'
+      return
+    }
+    nextTick(() => {
+      const element = document.getElementById(`v2-message-${hit.id}`)
+      element?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      element?.focus({ preventScroll: true })
+    })
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : '无法打开搜索结果'
+  }
 }
 
 function loadMoreDirectory() {
@@ -753,7 +843,15 @@ onUnmounted(() => {
 .conversation-button span { color: var(--text-secondary); font-size: 12px; }.empty-copy { padding: 20px; }
 .message-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .message-header { padding: 16px 20px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); }
+.message-header-actions { display: flex; align-items: center; gap: 10px; }
+.message-search { padding: 12px 20px; display: grid; gap: 8px; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); }
+.message-search form { display: grid; gap: 6px; }.message-search form > div { display: flex; gap: 8px; }.message-search input { min-width: 0; flex: 1; }
+.search-status { min-height: 20px; color: var(--text-secondary); font-size: 12px; }
+.search-results { max-height: 240px; overflow-y: auto; display: grid; gap: 4px; list-style: none; }
+.search-results button { width: 100%; padding: 9px 10px; display: grid; gap: 3px; border: 0; border-radius: 8px; text-align: left; color: var(--text-primary); background: var(--bg-primary); cursor: pointer; }
+.search-results button:hover, .search-results button:focus-visible { background: var(--bg-hover); }.search-results span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }.search-results small { color: var(--text-secondary); }
 .message-list { flex: 1; overflow-y: auto; padding: 20px; list-style: none; }
+.message-row:focus { outline: 2px solid var(--accent); outline-offset: 3px; }
 .message-row { display: flex; margin-bottom: 12px; }.message-row.mine { justify-content: flex-end; }
 .bubble { max-width: min(70%, 680px); padding: 10px 12px; border-radius: 12px; background: var(--bg-bubble-other); box-shadow: var(--shadow); }
 .mine .bubble { background: var(--bg-bubble-mine); }.bubble span { display: inline-block; margin-top: 6px; color: var(--text-secondary); font-size: 11px; }

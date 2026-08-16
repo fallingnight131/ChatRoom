@@ -2054,6 +2054,11 @@ The application layer keeps at most 100 search hits in page memory, never writes
 the query or results to IndexedDB, and ignores pages abandoned by a disconnect
 or conversation switch. Its focused test is included in `npm test`; context
 history and UI activation remain separate work.
+The candidate view now exposes the search surface only when application
+capability state is true. Static accessibility tests lock its native search
+form, live status, result-list label, pagination, and keyboard-focusable reveal;
+the reveal uses the validated hit in page memory and does not alter the sync
+cursor. Adjacent context repair and deployment activation remain separate.
 Windows now has a separate CMake configuration seam,
 `CHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON`. It is rejected unless both the
 Windows client and `CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON` are selected. The
