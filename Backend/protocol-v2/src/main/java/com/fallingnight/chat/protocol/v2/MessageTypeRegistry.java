@@ -30,7 +30,8 @@ public final class MessageTypeRegistry {
                     MESSAGE_TYPE_EDIT_MESSAGE,
                     MESSAGE_TYPE_FORWARD_MESSAGE,
                     MESSAGE_TYPE_READ_MESSAGE_HISTORY,
-                    MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES ->
+                    MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES,
+                    MESSAGE_TYPE_SET_ACCOUNT_BLOCK ->
                     MessageKind.MESSAGE_KIND_COMMAND;
             case MESSAGE_TYPE_MESSAGE_ACCEPTED, MESSAGE_TYPE_MESSAGE_HISTORY_PAGE,
                     MESSAGE_TYPE_MESSAGE_REACTION_APPLIED, MESSAGE_TYPE_MESSAGE_PIN_APPLIED,
@@ -38,6 +39,7 @@ public final class MessageTypeRegistry {
                     MessageKind.MESSAGE_KIND_RESPONSE;
             case MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE ->
                     MessageKind.MESSAGE_KIND_RESPONSE;
+            case MESSAGE_TYPE_ACCOUNT_BLOCK_APPLIED -> MessageKind.MESSAGE_KIND_RESPONSE;
             case MESSAGE_TYPE_MESSAGE_PUBLISHED, MESSAGE_TYPE_MESSAGE_REACTION_CHANGED,
                     MESSAGE_TYPE_MESSAGE_PIN_CHANGED ->
                     MessageKind.MESSAGE_KIND_EVENT;

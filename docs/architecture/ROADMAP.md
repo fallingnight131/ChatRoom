@@ -2301,8 +2301,11 @@ Candidate slices:
     submit/reply/forward, V1 direct messages, contact-request creation, and
     pending-request acceptance; preserve exact retries, serialize against block
     mutation with stable account locks, and leave group delivery unaffected.
-  - [ ] Add a default-off V2 capability/wire surface and accessible Web/Windows
-    block management only after migration and authorization gates pass.
+  - [x] Reserve permanent V2 capability 7 and message types 128/129 for a
+    server-bound, idempotent account-block command/result; keep runtime
+    advertisement and handling absent during the protocol expand step.
+  - [ ] Add a default-off V2 gateway handler and accessible Web/Windows block
+    management only after migration and authorization gates pass.
 - Windows native notifications;
   - [x] Add a persisted-live-only notification candidate boundary and a bounded,
     privacy-safe policy that suppresses duplicates, self echoes, and the active

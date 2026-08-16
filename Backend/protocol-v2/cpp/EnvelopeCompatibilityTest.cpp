@@ -1,5 +1,6 @@
 #include "chat/v2/envelope.pb.h"
 #include "chat/v2/control.pb.h"
+#include "chat/v2/contact.pb.h"
 #include "chat/v2/authentication.pb.h"
 #include "chat/v2/messaging.pb.h"
 #include "chat/v2/conversation.pb.h"
@@ -49,6 +50,9 @@ constexpr char kForwardMessageGoldenHex[] =
 constexpr char kSearchMessagesGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "1206e8818ae5a4a918ac022019";
+constexpr char kSetAccountBlockGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+    "10011a2430303030303030302d303030302d303030302d303030302d303030303030303030303032";
 constexpr char kListConversationsGoldenHex[] =
     "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
     "3030303030303030303030321819";
@@ -225,6 +229,18 @@ int main() {
             || search.limit() != 25
             || search.SerializeAsString() != searchGolden) {
         std::cerr << "generated C++ binding changed the search golden payload\n";
+        return 1;
+    }
+    const std::string blockGolden = fromHex(kSetAccountBlockGoldenHex);
+    chat::v2::SetAccountBlock block;
+    if (!block.ParseFromString(blockGolden)
+            || block.target_account_id()
+                    != "00000000-0000-0000-0000-000000000001"
+            || !block.blocked()
+            || block.client_operation_id()
+                    != "00000000-0000-0000-0000-000000000002"
+            || block.SerializeAsString() != blockGolden) {
+        std::cerr << "generated C++ binding changed the account-block golden payload\n";
         return 1;
     }
     chat::v2::ListConversations list;

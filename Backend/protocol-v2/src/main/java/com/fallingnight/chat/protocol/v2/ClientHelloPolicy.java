@@ -37,7 +37,8 @@ public final class ClientHelloPolicy {
                     && capability != ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS
                     && capability != ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS
                     && capability != ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING
-                    && capability != ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH)
+                    && capability != ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH
+                    && capability != ClientCapability.CLIENT_CAPABILITY_ACCOUNT_BLOCKING)
                     || !capabilities.add(capability)) {
                 violations.add("client capability is unsupported or duplicated");
             }

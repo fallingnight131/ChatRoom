@@ -14,6 +14,7 @@ add_executable(
   "${GENERATED_ROOT}/chat/v2/attachment.pb.cc"
   "${GENERATED_ROOT}/chat/v2/authentication.pb.cc"
   "${GENERATED_ROOT}/chat/v2/control.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/contact.pb.cc"
   "${GENERATED_ROOT}/chat/v2/conversation.pb.cc"
   "${GENERATED_ROOT}/chat/v2/device_management.pb.cc"
   "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"

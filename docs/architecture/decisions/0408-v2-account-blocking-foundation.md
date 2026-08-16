@@ -49,19 +49,25 @@ wire or storage path.
 - Blocking does not delete or mutate existing message history, revoke shared
   group membership, suppress group messages, or invalidate an already-issued
   short-lived attachment grant. Those require their own explicit policies.
-- The block-mutation application service and wire surface remain detached. The
+- Permanent V2 capability 7 and message types 128/129 define the additive block
+  mutation command/result contract. The request contains target, desired state,
+  and client operation UUID only; authentication supplies the actor. The
+  capability is accepted structurally but remains unadvertised and unhandled by
+  every gateway until an explicit default-off runtime gate is composed.
+- The block-mutation application service and runtime wire surface remain detached. The
   durable write policy is nevertheless enforced by every current PostgreSQL
   direct-contact adapter, including V1 compatibility, so later composition
   cannot accidentally introduce an old-client bypass. This slice adds no block
-  protocol message, gateway handler, or client UI.
+  active gateway handler or client UI.
 
 ## Consequences
 
 The safety semantics and authenticated-actor boundary can evolve independently
 from transport. Existing deployments have no block rows until a controlled
 mutation surface is enabled, while direct-contact writes already fail closed if
-such rows exist. Later expand-migrate-contract steps can add a default-off wire
-capability and Web/Windows surfaces without changing storage enforcement.
+such rows exist. Old clients omit capability 7 and keep their prior handshake
+bytes. Later expand-migrate-contract steps can compose the default-off handler
+and Web/Windows surfaces without changing storage enforcement.
 
 ## Verification
 
@@ -76,6 +82,8 @@ new and pending V1 contact requests, exact-retry preservation, group-message
 non-effects, unblock behavior, and a deterministic block-commit/write race that
 waits on the account-pair lock before rejecting the write. The real TLS/WSS
 PostgreSQL gateway integration gate remains green with canonical DIRECT data.
+Protocol golden-byte tests pin the new numeric registry, capability identity,
+envelope kinds, and request field numbers independently of runtime activation.
 
 ## Rollback
 

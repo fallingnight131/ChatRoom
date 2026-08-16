@@ -146,6 +146,8 @@ enum MessageType : int {
   MESSAGE_TYPE_ATTACHMENT_READY = 125,
   MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES = 126,
   MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE = 127,
+  MESSAGE_TYPE_SET_ACCOUNT_BLOCK = 128,
+  MESSAGE_TYPE_ACCOUNT_BLOCK_APPLIED = 129,
   MESSAGE_TYPE_LIST_DEVICES = 130,
   MESSAGE_TYPE_DEVICE_DIRECTORY = 131,
   MESSAGE_TYPE_REVOKE_DEVICE = 132,
@@ -231,6 +233,7 @@ enum ClientCapability : int {
   CLIENT_CAPABILITY_MESSAGE_MENTIONS = 4,
   CLIENT_CAPABILITY_MESSAGE_FORWARDING = 5,
   CLIENT_CAPABILITY_MESSAGE_SEARCH = 6,
+  CLIENT_CAPABILITY_ACCOUNT_BLOCKING = 7,
   ClientCapability_INT_MIN_SENTINEL_DO_NOT_USE_ =
       ::std::numeric_limits<::int32_t>::min(),
   ClientCapability_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -241,11 +244,11 @@ extern const uint32_t ClientCapability_internal_data_[];
 inline constexpr ClientCapability ClientCapability_MIN =
     static_cast<ClientCapability>(0);
 inline constexpr ClientCapability ClientCapability_MAX =
-    static_cast<ClientCapability>(6);
+    static_cast<ClientCapability>(7);
 [[nodiscard]] inline bool ClientCapability_IsValid(int value) {
-  return 0 <= value && value <= 6;
+  return 0 <= value && value <= 7;
 }
-inline constexpr int ClientCapability_ARRAYSIZE = 6 + 1;
+inline constexpr int ClientCapability_ARRAYSIZE = 7 + 1;
 [[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
 ClientCapability_descriptor();
 [[nodiscard]] inline auto ProtobufInternalGetEnumDescriptor(ClientCapability) {
@@ -260,7 +263,7 @@ template <typename T>
 }
 template <>
 [[nodiscard]] inline const ::std::string& ClientCapability_Name(ClientCapability value) {
-  return ::google::protobuf::internal::NameOfDenseEnum<ClientCapability_descriptor, 0, 6>(
+  return ::google::protobuf::internal::NameOfDenseEnum<ClientCapability_descriptor, 0, 7>(
       static_cast<int>(value));
 }
 [[nodiscard]] inline bool ClientCapability_Parse(

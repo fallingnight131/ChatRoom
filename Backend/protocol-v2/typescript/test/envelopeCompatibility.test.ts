@@ -11,6 +11,7 @@ import {
   ClientPlatform
 } from '../generated/typescript/chat/v2/control_pb.js'
 import { AuthenticateSchema } from '../generated/typescript/chat/v2/authentication_pb.js'
+import { SetAccountBlockSchema } from '../generated/typescript/chat/v2/contact_pb.js'
 import {
   MessageReactionKind,
   EditMessageSchema,
@@ -62,6 +63,9 @@ const FORWARD_MESSAGE_GOLDEN_HEX =
 const SEARCH_MESSAGES_GOLDEN_HEX =
   '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
   '1206e8818ae5a4a918ac022019'
+const SET_ACCOUNT_BLOCK_GOLDEN_HEX =
+  '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
+  '10011a2430303030303030302d303030302d303030302d303030302d303030303030303030303032'
 const LIST_CONVERSATIONS_GOLDEN_HEX = '0880d095ffbc31122430303030303030302d303030302d' +
   '303030302d303030302d3030303030303030303030321819'
 const LIST_PARTICIPANTS_GOLDEN_HEX =
@@ -246,6 +250,23 @@ test('keeps the bounded Unicode conversation search payload compatible across bi
   assert.equal(
     Buffer.from(toBinary(SearchConversationMessagesSchema, encoded)).toString('hex'),
     SEARCH_MESSAGES_GOLDEN_HEX
+  )
+})
+
+test('keeps the server-bound account block payload compatible across bindings', () => {
+  const decoded = fromBinary(SetAccountBlockSchema, bytesFromHex(SET_ACCOUNT_BLOCK_GOLDEN_HEX))
+  assert.equal(decoded.targetAccountId, '00000000-0000-0000-0000-000000000001')
+  assert.equal(decoded.blocked, true)
+  assert.equal(decoded.clientOperationId, '00000000-0000-0000-0000-000000000002')
+
+  const encoded = create(SetAccountBlockSchema, {
+    targetAccountId: '00000000-0000-0000-0000-000000000001',
+    blocked: true,
+    clientOperationId: '00000000-0000-0000-0000-000000000002'
+  })
+  assert.equal(
+    Buffer.from(toBinary(SetAccountBlockSchema, encoded)).toString('hex'),
+    SET_ACCOUNT_BLOCK_GOLDEN_HEX
   )
 })
 

@@ -67,7 +67,6 @@ reused:
 | 104 | `MessageRecord` | event | server to authenticated active subscriber after durable commit |
 | 105 | `SubmitReplyMessage` | command | authenticated client to server; durable idempotent reply append |
 | 106 | `SetMessageReaction` | command | capable authenticated client to server; idempotent desired reaction state |
-| 107 | `MessageReactionApplied` | response | server to submitting capable client after durable decision |
 | 108 | `MessageReactionChanged` | event | server to capable active subscribers after a changed durable reaction |
 | 109 | `SetMessagePin` | command | future capable authenticated client to server; idempotent desired pin state |
 | 112 | `MessagePinApplied` | response | future correlated changed/no-op pin result |
@@ -82,6 +81,8 @@ reused:
 | 125 | `AttachmentReady` | response | inactive stable READY lifecycle result |
 | 126 | `SearchConversationMessages` | command | future capable authenticated client; literal per-conversation search |
 | 127 | `ConversationMessageSearchPage` | response | future correlated descending current-state results |
+| 128 | `SetAccountBlock` | command | inactive capable authenticated client; idempotent asymmetric desired state |
+| 129 | `AccountBlockApplied` | response | inactive correlated durable block-state result |
 
 `SubmitMessage` carries a canonical conversation UUID and a registered content
 type. Content type 1 is permanently assigned to nonempty valid UTF-8 text with a
@@ -131,6 +132,17 @@ negotiation also requires a matching client request. Old V2 clients therefore
 see no new capability or unsolicited shape. The three generated
 bindings parse and re-emit one fixed mixed-language Unicode command fixture
 identically (ADR-0404).
+
+Capability 7 and types 128/129 permanently define the account-block mutation
+wire boundary. `SetAccountBlock` carries only a canonical target account UUID,
+desired boolean state, and canonical client operation UUID. The authenticated
+session supplies the actor; envelope identity fields cannot override it.
+`AccountBlockApplied` repeats the actor, target, desired state, durable `changed`
+result, and operation UUID so clients can correlate exact retries. Target
+unavailability uses the generic `NOT_AUTHORIZED` error; conflicting operation
+reuse uses `IDEMPOTENCY_CONFLICT`. The capability is structurally valid but no
+gateway advertises or handles it yet, so old handshakes and product behavior
+remain unchanged.
 
 The Web candidate correlates every search response with one active in-memory
 request and discards pages abandoned by disconnect or conversation change.
