@@ -72,6 +72,13 @@ optimize lookup only as rebuildable state; PostgreSQL remains authoritative.
   proves active-session issuance, session-lifetime clipping, immediate
   replacement, expiry, CSRF mismatch, and session/account/device revocation.
   The gateway handler is still uncomposed.
+- The detached V2 handler accepts only an authenticated Web capability-8
+  connection, an empty type-136 command, and no client operation identity. It
+  binds the application actor from connection state, moves issuance to a
+  bounded executor, closes plaintext ownership before scheduling the response,
+  and emits only fixed errors/events. A separate adapter maps the application
+  authenticator to the HTTP handler's fixed actor/decision contract without
+  retaining tokens. Neither is installed by runtime composition.
 - Rollback removes capability negotiation and handler composition first. The
   additive registry identities and migration remain; credential rows expire or
   can be erased without touching chat or subscription truth.

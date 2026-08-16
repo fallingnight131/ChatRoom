@@ -210,9 +210,13 @@ The correlated response carries separate unpadded Base64URL-ASCII bearer and
 CSRF secrets plus a positive expiry instant. These secrets are not the WSS
 resume proof, are never client-generated, and must remain memory-only. Issuance
 atomically validates the active device session and replaces that session's
-prior HTTP credential, making the prior pair invalid immediately. Default Web
-and Windows clients do not request capability 8, and no gateway handler is
-installed yet, so ordinary handshakes and product behavior remain unchanged.
+prior HTTP credential, making the prior pair invalid immediately. A detached
+gateway handler now binds the actor from authentication, rejects nonempty
+payload/client-operation identity, serializes work on a bounded executor, and
+returns the server-bound session. Capability negotiation additionally restricts
+this feature to Web. No runtime pipeline enables or installs it, and default Web
+and Windows clients do not request capability 8, so ordinary handshakes and
+product behavior remain unchanged.
 
 After authentication, the gateway dispatches types 100 and 102 through the
 transport-independent application ports and PostgreSQL adapter. It uses only

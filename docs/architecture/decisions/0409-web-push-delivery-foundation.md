@@ -146,8 +146,8 @@ resume proof or activate a gateway/client path.
   bounded request per connection, moves session/CSRF/decode/mutation work off
   the event loop, clears transport secrets, and maps only fixed statuses and
   identity-free outcomes. It is not installed in the gateway pipeline and has
-  no credential-authentication bridge or owned production worker pool.
-  ADR-0410 now owns the detached token implementation.
+  no runtime-composed credential-authentication bridge or owned production
+  worker pool. ADR-0410 now owns the detached token implementation and bridge.
 - The Web pure payload boundary accepts only schema 1, three canonical UUIDs,
   and a mention boolean within 2 KiB. It derives generic-copy presentation and
   exact-HTTPS-origin V2 navigation without accepting message content. Service

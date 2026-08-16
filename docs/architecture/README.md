@@ -2115,6 +2115,17 @@ only through the owned response and all adapter working buffers are cleared. No
 default client requests capability 8 and no gateway handler or transport bridge
 is composed, so this remains an additive inactive contract rather than product
 activation.
+The detached gateway boundary now understands that contract without activating
+it. Handshake policy can negotiate capability 8 only when its explicit server
+policy is true, the client requested it, and the negotiated platform is Web.
+The type-136 handler rejects unauthenticated, unnegotiated, nonempty, or client-
+operation-bearing commands; captures account/device/session only from channel
+state; serializes a bounded queue off the event loop; and returns secrets under
+the server-bound session before closing their owned application buffers. Fixed
+unavailable, saturated, and internal outcomes expose no exception detail. The
+HTTP bridge maps the application authentication actor/decision to the existing
+transport contract and retains no token. Runtime pipeline installation, config,
+and default client capability remain absent.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

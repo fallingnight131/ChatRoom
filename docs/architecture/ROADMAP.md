@@ -2475,6 +2475,9 @@ Candidate slices:
     - [x] Add V054 and a detached PostgreSQL issuer/authenticator with hash-only
       bearer/CSRF storage, one-current-credential replacement, session-lifetime
       clipping, and current account/device/session revocation checks.
+    - [x] Add Web-only capability-8 negotiation policy, a detached authenticated
+      type-136 handler with bounded off-event-loop serialization and server-bound
+      response identity, plus the fixed application-to-HTTP authentication bridge.
     - [ ] Add the exact-gated product composition, WSS credential handler and
       Web lease bridge, localized durable worker copy/UI, and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key

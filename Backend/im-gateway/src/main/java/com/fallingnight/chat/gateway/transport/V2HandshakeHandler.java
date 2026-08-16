@@ -32,6 +32,7 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
     private final boolean messageForwardingEnabled;
     private final boolean messageSearchEnabled;
     private final boolean accountBlockingEnabled;
+    private final boolean webPushHttpCredentialEnabled;
     private boolean negotiated;
 
     public V2HandshakeHandler() {
@@ -40,46 +41,63 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
 
     public V2HandshakeHandler(boolean messageForwardingEnabled) {
         this(Clock.systemUTC(), () -> UUID.randomUUID().toString(),
-                messageForwardingEnabled, false, false);
+                messageForwardingEnabled, false, false, false);
     }
 
     public V2HandshakeHandler(boolean messageForwardingEnabled, boolean messageSearchEnabled) {
         this(Clock.systemUTC(), () -> UUID.randomUUID().toString(),
-                messageForwardingEnabled, messageSearchEnabled, false);
+                messageForwardingEnabled, messageSearchEnabled, false, false);
     }
 
     public V2HandshakeHandler(boolean messageForwardingEnabled, boolean messageSearchEnabled,
             boolean accountBlockingEnabled) {
         this(Clock.systemUTC(), () -> UUID.randomUUID().toString(),
-                messageForwardingEnabled, messageSearchEnabled, accountBlockingEnabled);
+                messageForwardingEnabled, messageSearchEnabled, accountBlockingEnabled, false);
+    }
+
+    public V2HandshakeHandler(boolean messageForwardingEnabled, boolean messageSearchEnabled,
+            boolean accountBlockingEnabled, boolean webPushHttpCredentialEnabled) {
+        this(Clock.systemUTC(), () -> UUID.randomUUID().toString(),
+                messageForwardingEnabled, messageSearchEnabled, accountBlockingEnabled,
+                webPushHttpCredentialEnabled);
     }
 
     V2HandshakeHandler(Clock clock, Supplier<String> connectionIdSupplier) {
-        this(clock, connectionIdSupplier, false, false, false);
+        this(clock, connectionIdSupplier, false, false, false, false);
     }
 
     V2HandshakeHandler(
             Clock clock, Supplier<String> connectionIdSupplier,
             boolean messageForwardingEnabled) {
-        this(clock, connectionIdSupplier, messageForwardingEnabled, false, false);
+        this(clock, connectionIdSupplier, messageForwardingEnabled, false, false, false);
     }
 
     V2HandshakeHandler(
             Clock clock, Supplier<String> connectionIdSupplier,
             boolean messageForwardingEnabled, boolean messageSearchEnabled) {
-        this(clock, connectionIdSupplier, messageForwardingEnabled, messageSearchEnabled, false);
+        this(clock, connectionIdSupplier, messageForwardingEnabled, messageSearchEnabled,
+                false, false);
     }
 
     V2HandshakeHandler(
             Clock clock, Supplier<String> connectionIdSupplier,
             boolean messageForwardingEnabled, boolean messageSearchEnabled,
             boolean accountBlockingEnabled) {
+        this(clock, connectionIdSupplier, messageForwardingEnabled, messageSearchEnabled,
+                accountBlockingEnabled, false);
+    }
+
+    V2HandshakeHandler(
+            Clock clock, Supplier<String> connectionIdSupplier,
+            boolean messageForwardingEnabled, boolean messageSearchEnabled,
+            boolean accountBlockingEnabled, boolean webPushHttpCredentialEnabled) {
         this.clock = Objects.requireNonNull(clock, "clock");
         Objects.requireNonNull(connectionIdSupplier, "connectionIdSupplier");
         connectionId = requireConnectionId(connectionIdSupplier.get());
         this.messageForwardingEnabled = messageForwardingEnabled;
         this.messageSearchEnabled = messageSearchEnabled;
         this.accountBlockingEnabled = accountBlockingEnabled;
+        this.webPushHttpCredentialEnabled = webPushHttpCredentialEnabled;
     }
 
     @Override
@@ -173,7 +191,12 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
                         || (messageSearchEnabled && capability
                                 == ClientCapability.CLIENT_CAPABILITY_MESSAGE_SEARCH)
                         || (accountBlockingEnabled && capability
-                                == ClientCapability.CLIENT_CAPABILITY_ACCOUNT_BLOCKING))
+                                == ClientCapability.CLIENT_CAPABILITY_ACCOUNT_BLOCKING)
+                        || (webPushHttpCredentialEnabled
+                                && platform == com.fallingnight.chat.application.identity
+                                        .ClientPlatform.WEB
+                                && capability == ClientCapability
+                                        .CLIENT_CAPABILITY_WEB_PUSH_HTTP_CREDENTIAL))
                 .toList();
         Set<ClientCapability> enabledCapabilities = Set.copyOf(enabledCapabilityList);
         context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES)

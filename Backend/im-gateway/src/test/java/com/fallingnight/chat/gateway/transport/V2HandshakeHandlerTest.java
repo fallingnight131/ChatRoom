@@ -177,6 +177,50 @@ class V2HandshakeHandlerTest {
     }
 
     @Test
+    void enablesWebPushHttpCredentialsOnlyForExplicitWebPolicyAndRequest() throws Exception {
+        ClientHello web = validHello().toBuilder()
+                .addCapabilities(ClientCapability.CLIENT_CAPABILITY_WEB_PUSH_HTTP_CREDENTIAL)
+                .build();
+        EmbeddedChannel disabled = channel();
+        try {
+            disabled.writeInbound(clientHelloEnvelope(web));
+            assertEquals(List.of(), ServerHello.parseFrom(
+                    readEnvelope(disabled).getPayload()).getEnabledCapabilitiesList());
+        } finally {
+            disabled.finishAndReleaseAll();
+        }
+
+        EmbeddedChannel enabled = new EmbeddedChannel(
+                new V2EnvelopeDecoder(), new V2EnvelopeEncoder(),
+                new V2HandshakeHandler(
+                        Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC),
+                        () -> "connection-web-push", false, false, false, true));
+        try {
+            enabled.writeInbound(clientHelloEnvelope(web));
+            ServerHello response = ServerHello.parseFrom(readEnvelope(enabled).getPayload());
+            assertEquals(List.of(
+                            ClientCapability.CLIENT_CAPABILITY_WEB_PUSH_HTTP_CREDENTIAL),
+                    response.getEnabledCapabilitiesList());
+        } finally {
+            enabled.finishAndReleaseAll();
+        }
+
+        EmbeddedChannel windows = new EmbeddedChannel(
+                new V2EnvelopeDecoder(), new V2EnvelopeEncoder(),
+                new V2HandshakeHandler(
+                        Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC),
+                        () -> "connection-windows-push", false, false, false, true));
+        try {
+            windows.writeInbound(clientHelloEnvelope(web.toBuilder()
+                    .setPlatform(ClientPlatform.CLIENT_PLATFORM_WINDOWS).build()));
+            assertEquals(List.of(), ServerHello.parseFrom(
+                    readEnvelope(windows).getPayload()).getEnabledCapabilitiesList());
+        } finally {
+            windows.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void safelyRejectsWrongFirstFrameAndCloses() throws Exception {
         Envelope wrong = clientHelloEnvelope(validHello()).toBuilder()
                 .setMessageType(99)
