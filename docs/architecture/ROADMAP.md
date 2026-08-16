@@ -2284,6 +2284,8 @@ Candidate slices:
     composers, replacing the misleading V2 UTF-16 `maxlength` guard.
   - [x] Add an explicit keyboard-focusable Windows copy action for available
     message bodies without exposing recalled content.
+  - [x] Give Web V1 and V2 the same available-body copy contract, exact plain-
+    text semantics, Clipboard API fallback, and accessible success/failure feedback.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

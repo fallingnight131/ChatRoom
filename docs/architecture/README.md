@@ -939,6 +939,12 @@ Available Windows V2 message rows now also expose a keyboard-focusable,
 screen-reader-named copy action. It places the plain authoritative body on the
 platform clipboard, not the rich HTML rendering or mention identity metadata.
 Recalled/unavailable rows do not expose the action.
+Web V1 and V2 now share the same local copy helper and available-content guard.
+Both copy the exact plain message body, announce the result accessibly, and fall
+back to a temporary readonly text control when the browser Clipboard API is
+unavailable or denied. The fallback is removed immediately and a failed copy is
+reported rather than treated as success; recalled/unavailable content is never
+offered by either Web surface.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

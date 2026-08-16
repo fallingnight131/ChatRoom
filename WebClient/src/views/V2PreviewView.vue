@@ -199,6 +199,11 @@
                         @click="retryPin(failedPin(message).clientOperationId)">重试置顶</button>
                 <span>#{{ message.sequence }} · {{ deliveryLabel(message.deliveryState) }}</span>
                 <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
+                        class="copy-link" type="button"
+                        :aria-label="`复制消息 ${message.sequence} 正文`" @click="copyMessage(message)">
+                  复制
+                </button>
+                <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
                         class="reply-link" type="button" @click="startReply(message)">
                   回复
                 </button>
@@ -286,6 +291,9 @@
           </div>
         </template>
         <p v-if="actionError" class="action-error" role="alert">{{ actionError }}</p>
+        <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
+          {{ copyAnnouncement }}
+        </p>
       </section>
     </section>
 
@@ -345,6 +353,7 @@ import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from '
 import { V2_RUNTIME_KEY } from '../application/v2RuntimeKey'
 import { MessageReactionKind } from '../protocol/v2/generated/messaging_pb'
 import { messageTextBudget, messageTextBudgetLabel } from '../messaging/messageTextBudget.js'
+import { copyMessageText } from '../messaging/copyMessageText.js'
 import {
   anchorsFromMentionSpans,
   insertMention,
@@ -360,6 +369,7 @@ const draft = ref('')
 const searchDraft = ref('')
 const searchOpen = ref(false)
 const actionError = ref('')
+const copyAnnouncement = ref('')
 const replyTarget = ref(null)
 const editingMessageId = ref(null)
 const editDraft = ref('')
@@ -533,6 +543,19 @@ function startReply(message) {
 
 function cancelReply() {
   replyTarget.value = null
+}
+
+async function copyMessage(message) {
+  if (message?.deliveryState !== 'accepted' || message.availability !== 'available'
+      || typeof message.content !== 'string' || message.content.length === 0) return
+  actionError.value = ''
+  copyAnnouncement.value = ''
+  await nextTick()
+  if (await copyMessageText(message.content)) {
+    copyAnnouncement.value = `消息 ${message.sequence} 正文已复制`
+  } else {
+    actionError.value = '无法复制消息正文，请检查浏览器权限'
+  }
 }
 
 function replyPreview(message) {
@@ -844,7 +867,7 @@ onUnmounted(() => {
 .conversation-button:hover { background: var(--bg-hover); }.conversation-button.active { background: var(--bg-active); }
 .reply-reference { margin-bottom: 6px; padding: 6px 8px; display: grid; gap: 2px; border-left: 3px solid var(--accent); border-radius: 4px; color: var(--text-secondary); background: var(--bg-primary); font-size: 12px; }
 .reply-reference span, .composer-reply span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.reply-link { margin-left: 8px; border: 0; color: var(--text-link); background: transparent; cursor: pointer; }
+.reply-link, .copy-link { margin-left: 8px; border: 0; color: var(--text-link); background: transparent; cursor: pointer; }
 .edit-link { margin-left: 8px; border: 0; color: var(--text-link); background: transparent; cursor: pointer; }
 .forward-link { margin-left: 8px; border: 0; color: var(--text-link); background: transparent; cursor: pointer; }
 .edited-badge { margin-left: 6px; }.forwarded-badge { margin-right: 6px; color: var(--accent); font-weight: 600; }

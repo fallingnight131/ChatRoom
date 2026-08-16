@@ -128,6 +128,8 @@
     </div>
     <div v-if="virtualWindow.bottom > 0" class="virtual-spacer" aria-hidden="true"
          :style="{ height: virtualWindow.bottom + 'px' }"></div>
+    <p class="visually-hidden" :role="copyFailed ? 'alert' : 'status'"
+       aria-live="polite" aria-atomic="true">{{ copyAnnouncement }}</p>
 
     <!-- 右键菜单 -->
     <Teleport to="body">
@@ -135,9 +137,9 @@
         <div class="context-menu" role="menu" aria-label="消息操作"
              :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
              @click.stop>
-          <!-- 复制文本 (非文件、非系统消息都可以) -->
+          <!-- 复制可用的普通文本 -->
           <div class="context-menu-item" role="menuitem" tabindex="0"
-               v-if="contextMenu.msg && contextMenu.msg.content && !isFileType(contextMenu.msg)"
+               v-if="canCopyText(contextMenu.msg)"
                @click="copyText(contextMenu.msg)" @keydown.enter="copyText(contextMenu.msg)">
             <span class="menu-icon">📋</span> 复制文本
           </div>
@@ -221,6 +223,7 @@ import { chatWs, MsgType, MAX_SMALL_FILE } from '../services/websocket'
 import FilePreview from './FilePreview.vue'
 import ForwardDialog from './ForwardDialog.vue'
 import { calculateVirtualWindow } from '../ui/virtualWindow'
+import { copyMessageText } from '../messaging/copyMessageText'
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
@@ -232,6 +235,8 @@ const loadingMore = ref(false)
 const previewVisible = ref(false)
 const previewMsgData = ref(null)
 const contextMenu = ref({ show: false, x: 0, y: 0, msg: null })
+const copyAnnouncement = ref('')
+const copyFailed = ref(false)
 const forwardDialogVisible = ref(false)
 const forwardSubmitting = ref(false)
 const forwardSourceMsg = ref(null)
@@ -396,23 +401,24 @@ function isFileType(msg) {
   return msg && (msg.contentType === 'file' || msg.contentType === 'image' || msg.contentType === 'video')
 }
 
+function canCopyText(msg) {
+  return Boolean(msg && !msg.recalled && msg.contentType !== 'system'
+    && !isFileType(msg) && typeof msg.content === 'string' && msg.content.length > 0)
+}
+
 function isPrivateMode() {
   return props.friendMode || chatStore.isFriendChat
 }
 
-function copyText(msg) {
-  if (msg && msg.content) {
-    navigator.clipboard.writeText(msg.content).catch(() => {
-      // fallback
-      const ta = document.createElement('textarea')
-      ta.value = msg.content
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-    })
-  }
+async function copyText(msg) {
   contextMenu.value.show = false
+  if (!canCopyText(msg)) return
+  copyAnnouncement.value = ''
+  copyFailed.value = false
+  await nextTick()
+  const copied = await copyMessageText(msg.content)
+  copyFailed.value = !copied
+  copyAnnouncement.value = copied ? '消息正文已复制' : '无法复制消息正文，请检查浏览器权限'
 }
 
 function previewFromMenu(msg) {
