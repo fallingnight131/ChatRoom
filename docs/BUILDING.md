@@ -1634,6 +1634,12 @@ malformed P-256 keys, and non-16-byte authentication secrets. Production calls
 generate a fresh ephemeral P-256 key pair and 16-byte salt. This encoder is
 detached: it does not create VAPID assertions, send HTTP, retain endpoint data,
 or activate a provider worker.
+The same module now includes a detached RFC 8292 VAPID signer. Its tests verify
+exact ES256 JWT header/claims, provider-origin audience normalization, bounded
+expiry, `mailto:`/HTTPS contact policy, raw 64-byte JOSE signature verification,
+unpadded X9.62 P-256 public key encoding, redacted rendering, copy clearing, and
+closed-state refusal. It returns an owned Authorization value and still has no
+file-key loader, HTTP request, token cache, or runtime composition.
 The detached gateway issuance and HTTP bridge can be selected with:
 
 ```bash

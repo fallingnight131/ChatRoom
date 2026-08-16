@@ -2066,9 +2066,14 @@ A detached identity-crypto slice now produces the provider body defined by RFC
 8291 and RFC 8188: one bounded `aes128gcm` record with a fresh ephemeral P-256
 key and salt, an exact content-coding header, and code-owned generic identity
 payload input. The complete RFC Appendix A output is locked byte-for-byte and
-invalid key/auth shapes fail closed. This is encryption evidence only; VAPID,
-HTTP delivery/status mapping, provider key custody, owned executors, readiness,
-and runtime activation remain open.
+invalid key/auth shapes fail closed. This is encryption evidence only; HTTP
+delivery/status mapping, provider key custody, owned executors, readiness, and
+runtime activation remain open. A following detached signer now implements
+the RFC 8292 VAPID assertion itself with a distinct injected P-256 key: exact
+provider-origin `aud`, bounded `exp`, reviewed contact-URI `sub`, ES256 raw JOSE
+signature, X9.62 public key parameter, and an owned redacted/clearable
+Authorization value. Mounted-file custody, token reuse policy, and transport
+remain open.
 The Web client now has a pure Service Worker payload boundary. It accepts only
 schema version 1, three canonical stable UUIDs, and the structural mention
 boolean within 2 KiB; unknown fields, message text, malformed identity, and

@@ -2465,6 +2465,11 @@ Candidate slices:
         encoder with fresh ephemeral P-256 key/salt, the 3993-byte provider
         bound, secret-intermediate clearing, malformed-key refusal, and the
         complete RFC Appendix A known-answer vector; VAPID/HTTP remain open.
+      - [x] Add a detached RFC 8292 VAPID signer with a cryptographically
+        separate exact P-256 key, provider-origin audience, bounded expiry,
+        reviewed contact URI, ES256-to-raw-JOSE conversion, X9.62 public key,
+        and owned redacted/clearable Authorization bytes; custody/HTTP remain
+        open.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
     - [x] Add the pure Service Worker payload boundary with exact version/field/

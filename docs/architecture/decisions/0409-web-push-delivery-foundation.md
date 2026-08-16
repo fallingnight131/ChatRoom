@@ -213,6 +213,13 @@ resume proof or activate a gateway/client path.
   clearable intermediate byte arrays are erased. VAPID signing, HTTP transport,
   provider status classification, key custody, and runtime composition remain
   separate open work.
+- A detached RFC 8292 signer now accepts only an exact P-256 signing key that is
+  independent of per-message ECDH, derives `aud` from the canonical HTTPS push
+  origin, bounds `exp` to at most 24 hours, restricts `sub` to reviewed
+  `mailto:`/HTTPS contact URIs, converts JCA ECDSA DER to the required 64-byte
+  JOSE form, and supplies the unpadded X9.62 public key as `k`. Authorization
+  bytes use redacted, closeable copy ownership. Mounted-file signing-key
+  custody, reuse/cache policy, HTTP transport, and composition remain open.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,
