@@ -16,23 +16,27 @@
     </div>
 
     <div class="friend-items">
-      <div v-for="fr in chatStore.friends" :key="fr.username"
+      <button v-for="fr in chatStore.friends" :key="fr.username" type="button"
            class="friend-item"
            :class="{ active: chatStore.isFriendChat && chatStore.currentFriendUsername === fr.username }"
+           :aria-current="chatStore.isFriendChat && chatStore.currentFriendUsername === fr.username ? 'true' : undefined"
            @click="selectFriend(fr)"
+           @keydown="onFriendKeydown($event, fr)"
            @contextmenu.prevent="onContextMenu($event, fr)">
-        <div class="friend-avatar-wrap" :class="{ online: fr.isOnline }">
-          <img v-if="getAvatarSrc(fr.username)" :src="getAvatarSrc(fr.username)" class="avatar avatar-sm" />
-          <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(fr.username) }">
+        <span class="friend-avatar-wrap" :class="{ online: fr.isOnline }">
+          <img v-if="getAvatarSrc(fr.username)" :src="getAvatarSrc(fr.username)" class="avatar avatar-sm"
+               :alt="`${fr.displayName || fr.username} 的头像`" />
+          <span v-else class="avatar avatar-sm avatar-placeholder" aria-hidden="true"
+                :style="{ background: hashColor(fr.username) }">
             {{ (fr.displayName || fr.username).charAt(0) }}
-          </div>
-        </div>
-        <div class="friend-info">
-          <div class="friend-name text-ellipsis">{{ fr.displayName || fr.username }}</div>
-          <div class="friend-status">{{ fr.isOnline ? '在线' : '离线' }}</div>
-        </div>
+          </span>
+        </span>
+        <span class="friend-info">
+          <span class="friend-name text-ellipsis">{{ fr.displayName || fr.username }}</span>
+          <span class="friend-status">{{ fr.isOnline ? '在线' : '离线' }}</span>
+        </span>
         <span v-if="(chatStore.friendUnread[fr.username] || 0) > 0" class="badge">{{ chatStore.friendUnread[fr.username] > 99 ? '99+' : chatStore.friendUnread[fr.username] }}</span>
-      </div>
+      </button>
       <div v-if="chatStore.friends.length === 0" class="friend-empty">
         暂无好友，点击 🔍 搜索
       </div>
@@ -111,17 +115,20 @@
     </div>
 
     <!-- 右键菜单 -->
-    <div v-if="contextMenu.show" class="context-menu"
+    <div v-if="contextMenu.show" ref="contextMenuRef" class="context-menu" role="menu"
+         aria-label="好友操作"
          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
-         @click="contextMenu.show = false">
-      <div class="context-menu-item" @click="viewFriendInfo(contextMenu.friend)">查看信息</div>
-      <div v-if="canRemoveFriend(contextMenu.friend)" class="context-menu-item danger" @click="removeFriend(contextMenu.friend)">删除好友</div>
+         @keydown="onContextMenuKeydown">
+      <button class="context-menu-item" type="button" role="menuitem"
+              @click="viewContextFriendInfo">查看信息</button>
+      <button v-if="canRemoveFriend(contextMenu.friend)" class="context-menu-item danger"
+              type="button" role="menuitem" @click="removeContextFriend">删除好友</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, inject, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, inject, nextTick, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
 import { chatWs } from '../services/websocket'
@@ -169,6 +176,8 @@ const {
 })
 
 const contextMenu = reactive({ show: false, x: 0, y: 0, friend: null })
+const contextMenuRef = ref(null)
+let contextMenuInvoker = null
 
 function selectFriend(fr) {
   chatStore.setCurrentFriend(fr.username)
@@ -243,15 +252,65 @@ function canRemoveFriend(fr) {
   return !!(fr && fr.username && fr.username !== userStore.username)
 }
 
-function onContextMenu(e, fr) {
+function openContextMenu(fr, invoker, x, y) {
   contextMenu.show = true
-  contextMenu.x = e.clientX
-  contextMenu.y = e.clientY
+  contextMenu.x = x
+  contextMenu.y = y
   contextMenu.friend = fr
+  contextMenuInvoker = invoker
+  nextTick(() => contextMenuRef.value?.querySelector('[role="menuitem"]')?.focus())
 }
 
-function closeMenu() {
+function onContextMenu(e, fr) {
+  openContextMenu(fr, e.currentTarget, e.clientX, e.clientY)
+}
+
+function onFriendKeydown(event, fr) {
+  if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
+  event.preventDefault()
+  const rect = event.currentTarget.getBoundingClientRect()
+  openContextMenu(fr, event.currentTarget, rect.left + 12, rect.top + 12)
+}
+
+function closeMenu(restoreFocus = false) {
   contextMenu.show = false
+  contextMenu.friend = null
+  const invoker = contextMenuInvoker
+  contextMenuInvoker = null
+  if (restoreFocus) nextTick(() => invoker?.focus())
+}
+
+function dismissMenu() {
+  closeMenu(false)
+}
+
+function viewContextFriendInfo() {
+  const friend = contextMenu.friend
+  closeMenu(true)
+  viewFriendInfo(friend)
+}
+
+function removeContextFriend() {
+  const friend = contextMenu.friend
+  closeMenu(true)
+  removeFriend(friend)
+}
+
+function onContextMenuKeydown(event) {
+  const items = [...(contextMenuRef.value?.querySelectorAll('[role="menuitem"]') || [])]
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeMenu(true)
+    return
+  }
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || items.length === 0) return
+  event.preventDefault()
+  const current = items.indexOf(document.activeElement)
+  let next = 0
+  if (event.key === 'End') next = items.length - 1
+  else if (event.key === 'ArrowUp') next = current <= 0 ? items.length - 1 : current - 1
+  else if (event.key === 'ArrowDown') next = current < 0 || current === items.length - 1 ? 0 : current + 1
+  items[next]?.focus()
 }
 
 // 监听好友申请数据
@@ -260,13 +319,13 @@ function onPendingData(requests) {
 }
 
 onMounted(() => {
-  document.addEventListener('click', closeMenu)
+  document.addEventListener('click', dismissMenu)
   chatStore.onEvent('friendPending', onPendingData)
   chatStore.onEvent('userSearchResults', onSearchResults)
   refreshFriends()
 })
 onUnmounted(() => {
-  document.removeEventListener('click', closeMenu)
+  document.removeEventListener('click', dismissMenu)
   chatStore.offEvent('friendPending', onPendingData)
   chatStore.offEvent('userSearchResults', onSearchResults)
 })
@@ -314,9 +373,18 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background 0.15s;
   margin-bottom: 2px;
+  width: 100%;
+  border: 0;
+  text-align: left;
+  background: transparent;
+  color: inherit;
 }
 .friend-item:hover {
   background: var(--bg-hover);
+}
+.friend-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .friend-item.active {
   background: var(--bg-active);
@@ -334,12 +402,29 @@ onUnmounted(() => {
 .friend-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.context-menu-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+}
+.context-menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--bg-hover);
 }
 .friend-name {
+  display: block;
   font-size: 14px;
   color: var(--text-primary);
 }
 .friend-status {
+  display: block;
   font-size: 11px;
   color: var(--text-tertiary);
 }

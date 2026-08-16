@@ -1041,6 +1041,11 @@ restore their invoking control; forwarding rejects overlay, Escape, and close
 actions while its durable operation is pending, while device management remains
 exit-safe during connectivity changes. The adjacent mention picker deliberately
 remains non-modal because it supplements an active composer.
+Web friend rows are now native buttons rather than pointer-only containers. The
+active conversation is exposed through `aria-current`; Context Menu or
+Shift+F10 opens a named native-action menu whose arrows and Home/End wrap,
+Escape returns focus, and pointer dismissal avoids an unexpected focus jump.
+Selection and friend-removal authorization paths are unchanged.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

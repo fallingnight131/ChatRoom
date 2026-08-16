@@ -2264,6 +2264,9 @@ cleanup ordering before navigation.
 The existing V2 preview and forwarding source gates also require the shared
 modal boundary for device management and forwarding, including trigger return
 and pending-forward dismissal rejection. The mention picker remains non-modal.
+`friendListKeyboardNavigation.test.mjs` locks native friend rows, current-item
+state, keyboard context-menu invocation, wrapped arrow/Home/End navigation,
+Escape dismissal, and focus return.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

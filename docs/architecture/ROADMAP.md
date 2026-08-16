@@ -2318,6 +2318,8 @@ Candidate slices:
     preserve attachment/credential cleanup ordering before re-login.
   - [x] Apply the conditional boundary to V2 forwarding and device management,
     preserving pending-forward guards while keeping mentions non-modal.
+  - [x] Replace pointer-only Web friend rows and actions with native keyboard
+    selection plus a focus-restoring Context Menu/Shift+F10 menu.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
