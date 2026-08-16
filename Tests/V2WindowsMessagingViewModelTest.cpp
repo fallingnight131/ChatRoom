@@ -64,6 +64,7 @@ int main(int argc, char **argv) {
 
     QString stagedTarget;
     QString stagedText;
+    QString stagedPlainText;
     QString retried;
     QString reactedMessage;
     QString retriedReaction;
@@ -80,6 +81,13 @@ int main(int argc, char **argv) {
     QString forwardedTargetConversation;
     V2WindowsMessagingViewModel model(
         account, [&](const QString &) { return snapshot; },
+        [&](const QString &, const QString &text,
+            V2LocalMessageRepository::Message *,
+            const QList<V2LocalMessageRepository::Mention> &mentions) {
+            stagedPlainText = text;
+            stagedMentions = mentions;
+            return true;
+        },
         [&](const QString &, const QString &targetId, const QString &text,
             V2LocalMessageRepository::Message *,
             const QList<V2LocalMessageRepository::Mention> &mentions) {
@@ -190,6 +198,11 @@ int main(int argc, char **argv) {
               && stagedMentions.size() == 1
               && model.replyTargetMessageId().isEmpty(),
           QStringLiteral("reply send did not preserve selected target or clear selection"));
+    check(model.sendText(QStringLiteral("@张三 new message"),
+              {{target.senderAccountId, 0, 7}})
+              && stagedPlainText == QStringLiteral("@张三 new message")
+              && stagedMentions.size() == 1,
+          QStringLiteral("ordinary text send did not preserve content and mentions"));
     check(model.retry(failed.clientMessageId) && retried == failed.clientMessageId,
           QStringLiteral("failed row retry did not use stable client ID"));
 

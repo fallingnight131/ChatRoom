@@ -902,8 +902,17 @@ Windows candidate, then exercises the Windows transient-state, Widgets, and
 controller/SQLite non-persistence tests. This is build and local correctness
 evidence only; native Windows Release and endpoint canary evidence remain open.
 
-Windows reply composition is now available only in the default-off
-V2 preview. A shared
+Windows ordinary text and mention composition is now available only in the
+default-off V2 preview. The Widgets panel sends a non-reply composition through
+the same application boundary used by replies: the message, client-generated
+identity, and canonical mention spans are committed to the isolated SQLite
+outbox before an authenticated type-103 submission is attempted. Offline sends
+remain optimistic and replay with the same client identity after reconnect;
+reply/edit behavior and the V1 client path are unchanged. This reuses the
+existing V2 schema and wire contract rather than introducing a new compatibility
+surface.
+
+A shared
 single-gateway router now retains up to 100 active subscriptions per channel,
 each established only through that conversation's final authorized history
 page. It publishes non-duplicate durable acceptance and closes unwritable

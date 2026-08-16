@@ -35,8 +35,18 @@ int main(int argc, char **argv) {
     snapshot.messages.append(message);
     QList<V2LocalMessageRepository::Mention> submittedMentions;
     QList<V2LocalMessageRepository::Mention> editedMentions;
+    QString submittedText;
+    int ordinarySubmitCount = 0;
     V2WindowsMessagingViewModel model(
         account, [&](const QString &) { return snapshot; },
+        [&](const QString &, const QString &text,
+            V2LocalMessageRepository::Message *,
+            const QList<V2LocalMessageRepository::Mention> &mentions) {
+                ++ordinarySubmitCount;
+                submittedText = text;
+                submittedMentions = mentions;
+                return true;
+            },
         [&](const QString &, const QString &, const QString &,
             V2LocalMessageRepository::Message *,
             const QList<V2LocalMessageRepository::Mention> &mentions) {
@@ -130,6 +140,21 @@ int main(int argc, char **argv) {
             || panel.searchInputForTest()->accessibleName().isEmpty()
             || panel.searchResultsForTest()->accessibleName().isEmpty()) {
         qCritical() << "core messaging controls lack accessible names";
+        return 1;
+    }
+    panel.composerForTest()->setPlainText(QStringLiteral("ordinary text"));
+    app.processEvents();
+    if (!panel.sendForTest()->isEnabled()
+            || panel.sendForTest()->text() != QStringLiteral("发送消息")) {
+        qCritical() << "ordinary conversation text was not sendable";
+        return 1;
+    }
+    panel.sendForTest()->click();
+    app.processEvents();
+    if (ordinarySubmitCount != 1
+            || submittedText != QStringLiteral("ordinary text")
+            || !panel.composerForTest()->toPlainText().isEmpty()) {
+        qCritical() << "ordinary text composition did not send and clear";
         return 1;
     }
     panel.searchInputForTest()->setText(QStringLiteral("张三"));

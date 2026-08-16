@@ -69,6 +69,34 @@ int main(int argc, char *argv[]) {
     const QString forwardTarget = QStringLiteral("30000000-0000-4000-8000-000000000002");
     const QString session1 = QStringLiteral("50000000-0000-4000-8000-000000000001");
     const QString session2 = QStringLiteral("50000000-0000-4000-8000-000000000002");
+    {
+        V2LocalMessageRepository textRepository(
+            directory.filePath(QStringLiteral("v2-text.sqlite")));
+        check(textRepository.initialize(), textRepository.lastError().toStdString());
+        QVector<QByteArray> textFrames;
+        V2WindowsMessagingApplicationService textService(
+            &textRepository, account, device,
+            [&](const QByteArray &frame) { textFrames.append(frame); return true; },
+            [] { return 1400; }, [] { return QStringLiteral("client-text-1"); });
+        check(textService.connectSession(session1), textService.lastError().toStdString());
+        V2LocalMessageRepository::Message optimisticText;
+        const QList<V2LocalMessageRepository::Mention> textMentions{{remote, 0, 7}};
+        check(textService.stageText(
+                  conversation, QStringLiteral("@张三 ordinary text"),
+                  &optimisticText, textMentions),
+              textService.lastError().toStdString());
+        const auto textCommand = decode(textFrames.last());
+        chat::v2::SubmitMessage textPayload;
+        const auto textSnapshot = textRepository.loadSnapshot(account, conversation);
+        check(textCommand.message_type() == chat::v2::MESSAGE_TYPE_SUBMIT_MESSAGE
+                  && textPayload.ParseFromString(textCommand.payload())
+                  && textPayload.mentions_size() == 1
+                  && !optimisticText.hasReply
+                  && textSnapshot.messages.size() == 1
+                  && textSnapshot.messages.first().state
+                        == V2LocalMessageRepository::DeliveryState::Pending,
+              "ordinary text must persist before type-103 dispatch with mentions");
+    }
     V2LocalMessageRepository repository(directory.filePath(QStringLiteral("v2.sqlite")));
     check(repository.initialize(), repository.lastError().toStdString());
     const auto target = acceptedTarget(conversation, remote, remoteDevice);

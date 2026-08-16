@@ -42,6 +42,9 @@ public:
     void disconnectSession();
     bool connected() const { return m_connected; }
     V2LocalMessageRepository::Snapshot hydrate(const QString &conversationId);
+    bool stageText(const QString &conversationId, const QString &text,
+                   V2LocalMessageRepository::Message *optimistic,
+                   const QList<V2LocalMessageRepository::Mention> &mentions = {});
     bool stageReply(const QString &conversationId, const QString &targetMessageId,
                     const QString &text,
                     V2LocalMessageRepository::Message *optimistic,

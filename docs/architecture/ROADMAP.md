@@ -2247,7 +2247,14 @@ Progress:
 
 Candidate slices:
 
-- richer structured composition;
+- richer structured composition:
+  - [x] Add ordinary Windows text/mention composition through the existing
+    SQLite outbox, optimistic projection, authenticated type-103 submission,
+    and reconnect replay; reply/edit behavior and the V1 path remain unchanged.
+  - [ ] Add conversation-scoped Windows draft persistence and restore without
+    storing mention display text as identity.
+  - [ ] Add the remaining attachment and keyboard composition experience behind
+    explicit capability and Windows product gates.
 - group roles, invitations, join approval, mute, block, and moderation;
 - Windows native notifications;
   - [x] Add a persisted-live-only notification candidate boundary and a bounded,

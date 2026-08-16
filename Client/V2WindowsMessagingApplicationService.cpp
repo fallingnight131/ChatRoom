@@ -100,6 +100,33 @@ V2WindowsMessagingApplicationService::hydrate(const QString &conversationId) {
     return snapshot;
 }
 
+bool V2WindowsMessagingApplicationService::stageText(
+        const QString &conversationId, const QString &text,
+        V2LocalMessageRepository::Message *optimistic,
+        const QList<V2LocalMessageRepository::Mention> &mentions) {
+    m_lastError.clear();
+    if (!optimistic || text.isEmpty()) {
+        m_lastError = QStringLiteral("missing message output or content");
+        return false;
+    }
+    V2LocalMessageRepository::Message message;
+    message.conversationId = conversationId;
+    message.senderAccountId = m_accountId;
+    message.senderDeviceId = m_deviceId;
+    message.clientMessageId = m_clientMessageIdFactory();
+    message.text = text;
+    message.createdAtEpochMs = m_clock();
+    message.state = V2LocalMessageRepository::DeliveryState::Pending;
+    message.mentions = mentions;
+    if (!m_repository->upsertPending(m_accountId, message)) {
+        m_lastError = m_repository->lastError();
+        return false;
+    }
+    *optimistic = message;
+    if (m_connected) dispatch(message);
+    return true;
+}
+
 bool V2WindowsMessagingApplicationService::stageReply(
         const QString &conversationId, const QString &targetMessageId,
         const QString &text, V2LocalMessageRepository::Message *optimistic,

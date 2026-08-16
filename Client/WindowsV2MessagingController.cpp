@@ -238,6 +238,12 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
                 [this](const QString &conversationId) {
                     return m_service->hydrate(conversationId);
                 },
+                [this](const QString &conversationId, const QString &text,
+                       V2LocalMessageRepository::Message *message,
+                       const QList<V2LocalMessageRepository::Mention> &mentions) {
+                    return m_service->stageText(
+                        conversationId, text, message, mentions);
+                },
                 [this](const QString &conversationId, const QString &targetMessageId,
                        const QString &text, V2LocalMessageRepository::Message *message,
                        const QList<V2LocalMessageRepository::Mention> &mentions) {

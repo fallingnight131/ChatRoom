@@ -2173,16 +2173,13 @@ recall/deletion. Existing schema-5 rows migrate to empty mention sets; capabilit
 4 stays off until the application and Widgets gates consume these values
 (ADR-0342).
 The Windows messaging application-service gate now additionally proves that
-reply/edit mentions are persisted before send, replayed unchanged after
+ordinary text and reply/edit mentions are persisted before send, replayed unchanged after
 disconnect, restored from history/live records, retained through edit conflict
-and rebase, and atomically converged on ACK. The existing ViewModel callbacks
-still supply empty sets, so this boundary completion does not activate mention
-authoring or capability 4.
-`V2WindowsMessagingViewModelTest` now also locks the next presentation boundary:
-non-recalled rows retain stable mention target/span values, and reply/edit
-actions forward already-composed values without deriving identity from display
-text. The current Widgets panel keeps using the default empty collection until
-its composer and accessible picker gates are complete.
+and rebase, and atomically converged on ACK. The enabled ViewModel and Widgets
+panel now expose ordinary non-reply text and the existing accessible participant
+picker. They forward canonical target/span values without deriving identity
+from display text; offline optimistic rows use the same stable client ID during
+reconnect replay. This activates no new capability, schema, or wire type.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable
@@ -2195,14 +2192,16 @@ ordered live repair. Higher product tests cover Qt WSS routing,
 directory selection, and Widgets composition (ADR-0333–0338).
 `V2WindowsMessagingViewModelTest` verifies the presentation boundary independently
 through qmake and CMake: cached-first projection, newline-safe quote previews,
-reply selection and cancellation focus intent, failed-send retry eligibility,
+ordinary text/mention submission, reply selection and cancellation focus intent,
+failed-send retry eligibility,
 explicit recalled/unavailable target labels, and pin state/failure/action
 projection, and author-only edit overlays with pending, failed, and conflict
 actions. The ViewModel has no socket or
 SQL queries; the Windows product now composes it behind the runtime boundary.
 `V2WindowsMessagingPanelTest` runs the reusable Widgets panel with the Qt
 offscreen platform. It checks accessible names, keyboard-native reply/cancel/send
-controls, composer enablement and focus flow. The mention extension adds an
+controls, ordinary send/clear behavior, composer enablement and focus flow. The
+mention extension adds an
 explicit-load member picker, Unicode-safe insertion, account-backed submission,
 escaped identity-preserving emphasis, and inline edit restore; the same test
 keeps a default-off construction for rollback. Six checkable reaction controls

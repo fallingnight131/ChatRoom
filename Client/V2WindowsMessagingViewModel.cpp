@@ -5,17 +5,19 @@
 #include <utility>
 
 V2WindowsMessagingViewModel::V2WindowsMessagingViewModel(
-        QString accountId, SnapshotLoader loader, StageReply stageReply,
+        QString accountId, SnapshotLoader loader, StageText stageText,
+        StageReply stageReply,
         Retry retry, SetReaction setReaction, RetryReaction retryReaction,
         SetPin setPin, RetryPin retryPin, Edit edit, EditOperation retryEdit,
         EditOperation rebaseEdit, DiscardEdit discardEdit, QObject *parent)
     : QObject(parent), m_accountId(std::move(accountId)), m_loader(std::move(loader)),
+      m_stageText(std::move(stageText)),
       m_stageReply(std::move(stageReply)), m_retry(std::move(retry)),
       m_setReaction(std::move(setReaction)), m_retryReaction(std::move(retryReaction)),
       m_setPin(std::move(setPin)), m_retryPin(std::move(retryPin)),
       m_edit(std::move(edit)), m_retryEdit(std::move(retryEdit)),
       m_rebaseEdit(std::move(rebaseEdit)), m_discardEdit(std::move(discardEdit)) {
-    if (m_accountId.isEmpty() || !m_loader || !m_stageReply || !m_retry
+    if (m_accountId.isEmpty() || !m_loader || !m_stageText || !m_stageReply || !m_retry
             || !m_setReaction || !m_retryReaction || !m_setPin || !m_retryPin
             || !m_edit || !m_retryEdit || !m_rebaseEdit || !m_discardEdit)
         throw std::invalid_argument("invalid Windows V2 messaging view model");
@@ -113,6 +115,19 @@ void V2WindowsMessagingViewModel::cancelReply() {
     m_replyBanner.clear();
     emit changed();
     emit focusComposerRequested();
+}
+
+bool V2WindowsMessagingViewModel::sendText(
+        const QString &text,
+        const QList<V2LocalMessageRepository::Mention> &mentions) {
+    if (m_conversationId.isEmpty() || text.trimmed().isEmpty()) return false;
+    V2LocalMessageRepository::Message optimistic;
+    if (!m_stageText(m_conversationId, text, &optimistic, mentions)) {
+        m_failure = QStringLiteral("无法发送消息");
+        emit changed();
+        return false;
+    }
+    return refresh();
 }
 
 bool V2WindowsMessagingViewModel::sendReply(

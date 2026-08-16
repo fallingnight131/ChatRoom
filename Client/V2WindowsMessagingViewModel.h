@@ -45,6 +45,9 @@ public:
         QVector<Reaction> reactions;
     };
     using SnapshotLoader = std::function<V2LocalMessageRepository::Snapshot(const QString &)>;
+    using StageText = std::function<bool(
+        const QString &, const QString &, V2LocalMessageRepository::Message *,
+        const QList<V2LocalMessageRepository::Mention> &)>;
     using StageReply = std::function<bool(
         const QString &, const QString &, const QString &,
         V2LocalMessageRepository::Message *,
@@ -64,7 +67,8 @@ public:
         V2LocalMessageRepository::Message *)>;
 
     V2WindowsMessagingViewModel(
-        QString accountId, SnapshotLoader loader, StageReply stageReply,
+        QString accountId, SnapshotLoader loader, StageText stageText,
+        StageReply stageReply,
         Retry retry, SetReaction setReaction, RetryReaction retryReaction,
         SetPin setPin, RetryPin retryPin, Edit edit, EditOperation retryEdit,
         EditOperation rebaseEdit, DiscardEdit discardEdit,
@@ -82,6 +86,8 @@ public:
     QString failure() const { return m_failure; }
     bool chooseReply(const QString &messageId);
     void cancelReply();
+    bool sendText(const QString &text,
+                  const QList<V2LocalMessageRepository::Mention> &mentions = {});
     bool sendReply(const QString &text,
                    const QList<V2LocalMessageRepository::Mention> &mentions = {});
     bool retry(const QString &clientMessageId);
@@ -109,6 +115,7 @@ private:
 
     QString m_accountId;
     SnapshotLoader m_loader;
+    StageText m_stageText;
     StageReply m_stageReply;
     Retry m_retry;
     SetReaction m_setReaction;

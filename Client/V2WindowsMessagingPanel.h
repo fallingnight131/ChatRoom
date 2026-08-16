@@ -51,7 +51,7 @@ private:
     void toggleParticipantPicker();
     void insertParticipant(QListWidgetItem *item);
     void reconcileComposer();
-    void sendReply();
+    void sendComposition();
     V2WindowsMessagingViewModel *m_viewModel;
     V2WindowsConversationParticipantViewModel *m_participantViewModel;
     V2WindowsConversationDirectoryViewModel *m_directoryViewModel;

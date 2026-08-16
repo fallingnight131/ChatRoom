@@ -75,12 +75,14 @@ def main() -> int:
         "participant.accountId) == m_accountId",
         "m_participantProtocol->abandon(command.requestId)",
         "m_participantViewModel->refresh()",
+        "m_service->stageText(",
         "configureForwarding(",
         "V2WindowsMessageSearchProtocolClient",
         "requestSearch(",
     ), "Client/WindowsV2MessagingController.cpp")
     require(panel, (
-        "m_mentionsEnabled && composing",
+        "m_viewModel->sendText(",
+        "m_mentionsEnabled && !m_conversationId.isEmpty()",
         "V2WindowsMentionComposer::serialize",
         'setProperty("mentionTargetAccountIds"',
         'setAccessibleName(QStringLiteral("搜索当前会话消息"))',
