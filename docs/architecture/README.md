@@ -2122,6 +2122,9 @@ cannot gate messaging or synchronization. The same authenticated browser
 boundary verifies that two server-authoritative
 conversation buttons expose a named navigation landmark, Arrow/Home moves focus
 without mutating selection, and the opened timeline is a named polite-live log.
+The authenticated device-management dialog is exercised as an actual modal
+interaction: focus enters on Close, reverse Tab wraps to Done, the current device
+has no revoke action, and Escape restores the signed-in-devices trigger.
 A controlled socket restart
 additionally verifies memory-only session resume and sequence-based active-history
 repair while keeping the authenticated shell available. Browser offline/online

@@ -2433,6 +2433,8 @@ Candidate slices:
   - [x] Verify authenticated V2 multi-conversation Arrow/Home focus without
     accidental activation, plus named navigation and polite-live log semantics,
     in Chromium and Firefox.
+  - [x] Verify the authenticated V2 device modal focus boundary, Escape/trigger
+    restoration, and current-device non-revocability in Chromium and Firefox.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

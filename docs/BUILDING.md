@@ -228,6 +228,10 @@ preference remains optional-media policy rather than a messaging gate. Playwrigh
 also exposes two server-directory entries and verifies Arrow Down/Home move only
 browser focus, leave `aria-current` unset until activation, and retain the named
 polite-live message log after opening the selected conversation. The fixture
+opens the authenticated device dialog as a second interactive accessibility
+boundary: initial close focus, reverse-Tab containment, current-device
+non-revocability, Escape dismissal, and trigger-focus restoration are verified.
+The fixture
 also closes the first routed socket, verifies automatic same-session resume with
 the memory-only proof, and repairs the active conversation from sequence 1 to 2
 without clearing the visible session. A separate browser offline/online case

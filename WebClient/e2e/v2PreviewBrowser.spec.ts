@@ -100,6 +100,19 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
   await expect(lowBandwidth).toBeChecked();
   expect(await page.evaluate(() => localStorage.getItem("lowBandwidthMode"))).toBe("true");
 
+  const devicesTrigger = page.getByRole("button", { name: "登录设备 1" });
+  await devicesTrigger.click();
+  const deviceDialog = page.getByRole("dialog", { name: "登录设备" });
+  await expect(deviceDialog).toBeVisible();
+  await expect(deviceDialog.getByRole("button", { name: "关闭登录设备" })).toBeFocused();
+  await expect(deviceDialog.getByText("当前设备", { exact: true })).toBeVisible();
+  await expect(deviceDialog.getByRole("button", { name: "撤销", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Shift+Tab");
+  await expect(deviceDialog.getByRole("button", { name: "完成" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(deviceDialog).toBeHidden();
+  await expect(devicesTrigger).toBeFocused();
+
   await page.getByLabel("消息内容").fill("Fixture outgoing message");
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(log.getByText("Fixture outgoing message")).toBeVisible();
