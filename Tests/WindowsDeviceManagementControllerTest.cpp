@@ -1,9 +1,11 @@
 #include "WindowsDeviceManagementController.h"
 #include "DeviceManagementViewModel.h"
 #include "V2LocalMessageRepository.h"
+#include "V2WindowsAccountBlockViewModel.h"
 
 #include "chat/v2/authentication.pb.h"
 #include "chat/v2/control.pb.h"
+#include "chat/v2/contact.pb.h"
 #include "chat/v2/device_management.pb.h"
 #include "chat/v2/envelope.pb.h"
 #include "chat/v2/messaging.pb.h"
@@ -36,13 +38,15 @@ chat::v2::Envelope parse(const QByteArray &bytes) {
 template <typename Payload>
 QByteArray response(int type, const std::string &requestId,
                     const std::string &sessionId, const Payload &payload,
-                    chat::v2::MessageKind kind = chat::v2::MESSAGE_KIND_RESPONSE) {
+                    chat::v2::MessageKind kind = chat::v2::MESSAGE_KIND_RESPONSE,
+                    const std::string &clientMessageId = {}) {
     chat::v2::Envelope envelope;
     envelope.set_protocol_version(2);
     envelope.set_kind(kind);
     envelope.set_message_type(type);
     envelope.set_request_id(requestId);
     envelope.set_session_id(sessionId);
+    envelope.set_client_message_id(clientMessageId);
     envelope.set_sent_at_epoch_ms(900);
     envelope.set_payload(serialize(payload));
     const auto bytes = serialize(envelope);
@@ -72,7 +76,7 @@ int main(int argc, char **argv) {
         [&](const QString &) {
             return std::make_unique<V2LocalMessageRepository>(
                 temporaryDirectory.filePath(QStringLiteral("messages.sqlite")));
-        });
+        }, nullptr, false, {}, false, true);
     bool messagingReady = false;
     bool messagingUnavailable = false;
     QString notifiedMessageId;
@@ -99,6 +103,7 @@ int main(int argc, char **argv) {
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS);
+    hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_ACCOUNT_BLOCKING);
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_SERVER_HELLO, clientHello.request_id(), "", hello));
     if (!check(sent.size() == 1,
@@ -118,7 +123,8 @@ int main(int argc, char **argv) {
         authentication.request_id(), sessionId, established));
     if (!check(sent.size() == 2 && controller.viewModel()->authenticated()
                    && messagingReady && controller.messagingViewModel()
-                   && !controller.messageSearchViewModel(),
+                   && !controller.messageSearchViewModel()
+                   && controller.accountBlockViewModel(),
                QStringLiteral("session establishment did not request devices and conversations"))) return 1;
     chat::v2::Envelope list;
     for (const auto &frame : std::as_const(sent)) {
@@ -143,6 +149,37 @@ int main(int argc, char **argv) {
     if (!check(controller.viewModel()->devices().size() == 1
                    && controller.viewModel()->devices().first().current,
                QStringLiteral("controller did not project the device directory"))) return 1;
+
+    auto *blockViewModel = controller.accountBlockViewModel();
+    const QString actorId = QStringLiteral("10000000-0000-4000-8000-000000000001");
+    const QString targetId = QStringLiteral("10000000-0000-4000-8000-000000000002");
+    const QString directId = QStringLiteral("60000000-0000-4000-8000-000000000001");
+    const QVector<V2WindowsConversationParticipantViewModel::Row> participants{
+        {actorId, QStringLiteral("我"), QStringLiteral("成员")},
+        {targetId, QStringLiteral("对方"), QStringLiteral("成员")}};
+    if (!check(blockViewModel->activateDirectConversation(
+                    directId, directId, participants, false, true)
+                   && blockViewModel->request(true) && sent.size() == 1,
+               QStringLiteral("enabled account-block composition did not submit"))) return 1;
+    const auto blockCommand = parse(sent.takeFirst());
+    chat::v2::SetAccountBlock blockPayload;
+    if (!check(blockCommand.message_type() == chat::v2::MESSAGE_TYPE_SET_ACCOUNT_BLOCK
+                   && blockPayload.ParseFromString(blockCommand.payload())
+                   && blockPayload.target_account_id() == targetId.toStdString()
+                   && blockPayload.blocked(),
+               QStringLiteral("account-block composition lost authoritative target"))) return 1;
+    chat::v2::AccountBlockApplied blockApplied;
+    blockApplied.set_actor_account_id(actorId.toStdString());
+    blockApplied.set_target_account_id(targetId.toStdString());
+    blockApplied.set_blocked(true);
+    blockApplied.set_changed(true);
+    blockApplied.set_client_operation_id(blockPayload.client_operation_id());
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_APPLIED, blockCommand.request_id(),
+        sessionId, blockApplied, chat::v2::MESSAGE_KIND_RESPONSE,
+        blockPayload.client_operation_id()));
+    if (!check(blockViewModel->hasKnownState() && blockViewModel->blocked(),
+               QStringLiteral("correlated account-block result was not projected"))) return 1;
 
     chat::v2::MessageRecord published;
     published.set_conversation_id("60000000-0000-4000-8000-000000000001");

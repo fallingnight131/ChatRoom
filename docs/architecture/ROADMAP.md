@@ -2322,6 +2322,9 @@ Candidate slices:
   - [x] Add a detached Windows account-block ViewModel that resolves exactly
     one non-self target from a complete two-member DIRECT projection, keeps
     state in memory only, and preserves operation identity for explicit retry.
+  - [x] Compose the enabled Windows account-block protocol and ViewModel from
+    authenticated session state through the isolated Qt route, with default-off
+    absence and same-operation reconnect retry; keep Widgets disconnected.
   - [ ] Add accessible Windows block management behind its independent product
     gate, then complete real endpoint activation/rollback evidence for both
     supported clients.

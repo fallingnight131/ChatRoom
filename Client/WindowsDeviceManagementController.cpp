@@ -1,6 +1,7 @@
 #include "WindowsDeviceManagementController.h"
 #include "DeviceManagementApplicationService.h"
 #include "DeviceManagementViewModel.h"
+#include "WindowsAccountBlockController.h"
 
 #include <utility>
 
@@ -36,6 +37,9 @@ WindowsDeviceManagementController::WindowsDeviceManagementController(
     m_messagingController = std::make_unique<WindowsV2MessagingController>(
         m_transport.get(), std::move(messagingRepositoryFactory), nullptr,
         enableMessageForwarding, enableMessageSearch);
+    if (enableAccountBlocking)
+        m_accountBlockController =
+            std::make_unique<WindowsAccountBlockController>(m_transport.get());
     connect(m_messagingController.get(), &WindowsV2MessagingController::ready,
             this, &WindowsDeviceManagementController::messagingReady);
     connect(m_messagingController.get(), &WindowsV2MessagingController::unavailable,
@@ -97,6 +101,11 @@ WindowsDeviceManagementController::messagingViewModel() const {
 V2WindowsMessageSearchViewModel *
 WindowsDeviceManagementController::messageSearchViewModel() const {
     return m_messagingController->searchViewModel();
+}
+
+V2WindowsAccountBlockViewModel *
+WindowsDeviceManagementController::accountBlockViewModel() const {
+    return m_accountBlockController ? m_accountBlockController->viewModel() : nullptr;
 }
 
 bool WindowsDeviceManagementController::start() {

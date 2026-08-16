@@ -578,6 +578,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/WindowsV2MessagingController.h
                 Client/WindowsDeviceManagementController.cpp
                 Client/WindowsDeviceManagementController.h
+                Client/WindowsAccountBlockController.cpp
+                Client/WindowsAccountBlockController.h
                 Client/V2WindowsConversationDirectoryViewModel.cpp
                 Client/V2WindowsConversationDirectoryViewModel.h
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/messaging.pb.cc"

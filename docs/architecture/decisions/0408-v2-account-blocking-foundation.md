@@ -85,6 +85,11 @@ server candidate without activating an incomplete client product path.
   target from the authenticated actor, labels initial state unknown, and keeps
   the operation UUID only for explicit same-desired-state retry. It has no
   database dependency and is not yet exposed by Widgets.
+- The enabled Windows device controller binds that protocol/ViewModel pair only
+  from the server-established actor and session, sends through the isolated Qt
+  route, and applies strictly correlated results. Disconnect clears protocol
+  requests while retaining the same actor's explicit retry intent in page
+  memory. Default composition constructs no account-block controller.
 - The Web candidate keeps the latest operation result in page memory only. It
   does not infer durable state before a result, persist a block graph, or expose
   a block-list read model. A fresh page labels state unknown and can issue an
@@ -141,6 +146,10 @@ still required before activation.
 The ViewModel test proves incomplete pagination, duplicate/self-only identity,
 target substitution, invented initial state, and disconnect cleanup fail
 closed, while a same-desired-state retry preserves the operation UUID.
+The composed controller test negotiates capability 7, binds the authenticated
+actor, submits type 128 from an authoritative target projection, and routes a
+correlated type 129 result. Configuration and composition guards keep ordinary
+construction absent.
 
 ## Rollback
 

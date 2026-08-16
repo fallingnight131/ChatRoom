@@ -2440,6 +2440,13 @@ authenticated actor, reports initial state as unknown, and retains one operation
 UUID solely for explicit same-desired-state retry after disconnect. Target
 changes, session changes, and invalid projections clear that page-memory state;
 there is no SQLite block graph or inferred durable status.
+The enabled Windows device controller now owns the account-block protocol and
+ViewModel, binds both from the authenticated server session, sends only through
+the isolated type-128 route, and applies only strictly correlated type-129 or
+protocol-error results. Socket loss clears protocol correlations while leaving
+the same actor's failed page-memory operation available for explicit retry after
+resume. Disabled composition returns no account-block ViewModel. Widgets still
+does not expose this application boundary.
 CI compiles a separate, non-published
 forwarding/search/notification/account-blocking-enabled `ChatClient`. It runs
 transport, forwarding-dialog, search-state,

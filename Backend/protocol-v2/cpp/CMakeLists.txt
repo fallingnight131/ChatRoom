@@ -247,6 +247,9 @@ add_executable(
   v2_windows_device_management_controller_test
   "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/WindowsDeviceManagementControllerTest.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsDeviceManagementController.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsAccountBlockController.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsAccountBlockProtocolClient.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsAccountBlockViewModel.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementApplicationService.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementViewModel.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsDeviceManagementTransport.cpp"
@@ -265,6 +268,7 @@ add_executable(
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2LocalMessageRepository.cpp"
   "${GENERATED_ROOT}/chat/v2/authentication.pb.cc"
   "${GENERATED_ROOT}/chat/v2/control.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/contact.pb.cc"
   "${GENERATED_ROOT}/chat/v2/conversation.pb.cc"
   "${GENERATED_ROOT}/chat/v2/device_management.pb.cc"
   "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"

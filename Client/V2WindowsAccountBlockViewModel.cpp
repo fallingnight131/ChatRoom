@@ -18,6 +18,16 @@ bool V2WindowsAccountBlockViewModel::canSubmit() const {
 
 void V2WindowsAccountBlockViewModel::bindSession(const QString &actorAccountId) {
     if (actorAccountId.isEmpty()) throw std::invalid_argument("invalid block actor");
+    if (m_actorAccountId == actorAccountId) {
+        if (m_state == State::Unavailable) {
+            m_state = m_targetAccountId.isEmpty() ? State::Unavailable : State::Unknown;
+            m_statusText = m_targetAccountId.isEmpty()
+                ? QStringLiteral("请先打开私聊并刷新成员信息")
+                : QStringLiteral("当前屏蔽状态未知，可提交期望状态");
+            emit changed();
+        }
+        return;
+    }
     m_clientOperationId.clear();
     m_operationTargetAccountId.clear();
     m_actorAccountId = actorAccountId;
@@ -28,7 +38,7 @@ void V2WindowsAccountBlockViewModel::clearSession() {
     m_actorAccountId.clear();
     m_clientOperationId.clear();
     m_operationTargetAccountId.clear();
-    resetTarget(QStringLiteral("屏蔽服务已断开，正在重连"));
+    resetTarget(QStringLiteral("屏蔽服务已断开"));
 }
 
 bool V2WindowsAccountBlockViewModel::activateDirectConversation(

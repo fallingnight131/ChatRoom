@@ -84,6 +84,8 @@ def main() -> int:
         "enableMessageForwarding",
         "enableMessageSearch",
         "enableAccountBlocking",
+        "WindowsAccountBlockController",
+        "accountBlockViewModel",
     ), "Client/WindowsDeviceManagementController.cpp")
     require(session_protocol, (
         "CLIENT_CAPABILITY_MESSAGE_MENTIONS",

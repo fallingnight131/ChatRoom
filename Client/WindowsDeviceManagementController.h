@@ -12,6 +12,8 @@ class V2WindowsConversationDirectoryViewModel;
 class V2WindowsConversationParticipantViewModel;
 class V2WindowsMessagingViewModel;
 class V2WindowsMessageSearchViewModel;
+class V2WindowsAccountBlockViewModel;
+class WindowsAccountBlockController;
 
 class WindowsDeviceManagementController final : public QObject {
     Q_OBJECT
@@ -37,6 +39,7 @@ public:
     V2WindowsConversationParticipantViewModel *conversationParticipantViewModel() const;
     V2WindowsMessagingViewModel *messagingViewModel() const;
     V2WindowsMessageSearchViewModel *messageSearchViewModel() const;
+    V2WindowsAccountBlockViewModel *accountBlockViewModel() const;
     bool start();
     void stop();
 
@@ -54,4 +57,5 @@ private:
     std::unique_ptr<DeviceManagementViewModel> m_viewModel;
     std::unique_ptr<DeviceManagementApplicationService> m_service;
     std::unique_ptr<WindowsV2MessagingController> m_messagingController;
+    std::unique_ptr<WindowsAccountBlockController> m_accountBlockController;
 };
