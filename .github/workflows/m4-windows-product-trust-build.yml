@@ -199,6 +199,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          . ./tools/invoke_windows_json_diagnostic.ps1
           $root = "$env:GITHUB_WORKSPACE/build/m4/product-trust"
           $payload = "$root/payload"
           Copy-Item "$root/ordinary/client" $payload -Recurse
@@ -209,9 +210,9 @@ jobs:
               throw "product-trust payload must remain unsigned: $subject"
             }
           }
-          $diagnosticText = (& "$payload/ChatClient.exe" --chatroom-print-update-trust-json |
-            Out-String).TrimEnd() + "`n"
-          if ($LASTEXITCODE -ne 0) { throw "final client trust diagnostic failed" }
+          $diagnosticText = (Invoke-ChatRoomWindowsJsonDiagnostic `
+            -Executable "$payload/ChatClient.exe" `
+            -Argument --chatroom-print-update-trust-json).TrimEnd() + "`n"
           [IO.File]::WriteAllText(
             "$root/product-update-trust-diagnostic.json", $diagnosticText,
             [Text.UTF8Encoding]::new($false))
@@ -244,6 +245,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          . ./tools/invoke_windows_json_diagnostic.ps1
           $root = "$env:GITHUB_WORKSPACE/build/m4/product-trust"
           $version = "${{ steps.identity.outputs.version }}"
           $output = "$root/artifact/installer"
@@ -268,8 +270,9 @@ jobs:
             -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "trust-enabled install failed" }
           try {
-            $installed = (& "$installRoot/ChatClient.exe" `
-              --chatroom-print-update-trust-json | Out-String).Trim()
+            $installed = (Invoke-ChatRoomWindowsJsonDiagnostic `
+              -Executable "$installRoot/ChatClient.exe" `
+              -Argument --chatroom-print-update-trust-json).Trim()
             $built = (Get-Content "$root/product-update-trust-diagnostic.json" -Raw).Trim()
             if ($installed -cne $built) { throw "installed trust differs from built PE" }
           } finally {

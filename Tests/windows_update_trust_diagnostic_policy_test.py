@@ -12,6 +12,8 @@ def main() -> int:
         encoding="utf-8")
     cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
     qmake = (ROOT / "Client/Client.pro").read_text(encoding="utf-8")
+    runner = (ROOT / "tools/invoke_windows_json_diagnostic.ps1").read_text(
+        encoding="utf-8")
     argument = "--chatroom-print-update-trust-json"
     required = (
         "WindowsUpdateProductConfiguration::fromBuild()",
@@ -48,6 +50,22 @@ def main() -> int:
             "WindowsUpdateTrustDiagnostic.cpp", "WindowsUpdateTrustDiagnostic.h"):
             if marker not in graph:
                 raise AssertionError(f"{name} omits Windows trust diagnostic: {marker}")
+    for marker in (
+        "Start-Process", "-RedirectStandardOutput", "-Wait", "-PassThru",
+        "Windows JSON diagnostic returned empty output",
+    ):
+        if marker not in runner:
+            raise AssertionError(f"Windows diagnostic runner missing: {marker}")
+    for workflow_path in (
+        ".github/workflows/m0-product-builds.yml",
+        ".github/workflows/m4-windows-product-trust-build.yml",
+        ".github/workflows/m4-windows-protected-signing.yml",
+    ):
+        workflow = (ROOT / workflow_path).read_text(encoding="utf-8")
+        if "invoke_windows_json_diagnostic.ps1" not in workflow \
+                or "Invoke-ChatRoomWindowsJsonDiagnostic" not in workflow:
+            raise AssertionError(
+                f"Windows diagnostic workflow omits redirected runner: {workflow_path}")
     print("Windows update trust diagnostic policy passed")
     return 0
 

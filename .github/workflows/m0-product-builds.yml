@@ -148,6 +148,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          . ./tools/invoke_windows_json_diagnostic.ps1
           cmake -S . -B build/m4/windows-cmake -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
             -DCHATROOM_BUILD_HEADLESS_SERVER=ON `
@@ -170,15 +171,17 @@ jobs:
           if (-not $cmakeLauncher.VersionInfo.ProductVersion.StartsWith($version)) {
             throw "CMake update launcher version does not match canonical VERSION"
           }
-          $trust = (& $cmakeClient.FullName --chatroom-print-update-trust-json) |
-            ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or $trust.enabled -ne $false `
+          $trust = (Invoke-ChatRoomWindowsJsonDiagnostic `
+            -Executable $cmakeClient.FullName `
+            -Argument --chatroom-print-update-trust-json) | ConvertFrom-Json
+          if ($trust.enabled -ne $false `
               -or $trust.trustedKeys.Count -ne 0) {
             throw "Ordinary Windows client did not retain default-off update trust"
           }
-          $v2 = (& $cmakeClient.FullName --chatroom-print-v2-configuration-json) |
-            ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or $v2.schemaVersion -ne 5 `
+          $v2 = (Invoke-ChatRoomWindowsJsonDiagnostic `
+            -Executable $cmakeClient.FullName `
+            -Argument --chatroom-print-v2-configuration-json) | ConvertFrom-Json
+          if ($v2.schemaVersion -ne 5 `
               -or $v2.enabled -ne $false -or $v2.messageForwardingEnabled -ne $false `
               -or $v2.messageSearchEnabled -ne $false `
               -or $v2.notificationsEnabled -ne $false `
@@ -236,6 +239,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          . ./tools/invoke_windows_json_diagnostic.ps1
           cmake -S . -B build/m6/windows-forwarding-gate -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
             -DCHATROOM_BUILD_HEADLESS_SERVER=ON `
@@ -267,9 +271,10 @@ jobs:
             --output-on-failure
           if ($LASTEXITCODE -ne 0) { throw "Windows feature candidate tests failed" }
           $client = Get-Item build/m6/windows-forwarding-gate/Release/ChatClient.exe
-          $v2 = (& $client.FullName --chatroom-print-v2-configuration-json) |
-            ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or $v2.schemaVersion -ne 5 `
+          $v2 = (Invoke-ChatRoomWindowsJsonDiagnostic `
+            -Executable $client.FullName `
+            -Argument --chatroom-print-v2-configuration-json) | ConvertFrom-Json
+          if ($v2.schemaVersion -ne 5 `
               -or $v2.enabled -ne $true -or $v2.messageForwardingEnabled -ne $true `
               -or $v2.messageSearchEnabled -ne $true `
               -or $v2.notificationsEnabled -ne $true `
