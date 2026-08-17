@@ -394,3 +394,8 @@ database migration or protocol compatibility window is required.
   `NetworkManager`; an empty local reason is projected by the application shell
   through the active catalog. Non-empty server termination reasons remain
   opaque and the existing login restart path is unchanged.
+- Windows single-instance feedback, update-startup outcomes and a manual-check
+  start failure resolve through the active catalog. The startup service outcome,
+  signed-update trust decisions, target version, install coordination and
+  diagnostic logging are unchanged; runtime manual-check feedback resolves the
+  locale when the user invokes it.

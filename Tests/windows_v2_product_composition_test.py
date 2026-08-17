@@ -123,11 +123,24 @@ def main() -> int:
         "if (activeLoginDialog)",
         "copy.mainForcedOfflineTitle",
         "reason.isEmpty() ? copy.mainSessionRestoreFailed : reason",
+        "startupCopy.startupAlreadyRunning",
+        "startupCopy.startupFailedTitle",
+        "copy.updateCompletingTitle, copy.updateCompletingBody",
+        "copy.updateCompletedBody.arg(result.targetVersion)",
+        "copy.updateVerificationFailedBody",
+        "copy.updateCheckTitle, copy.updateCheckUnavailable",
     ), "Client/main.cpp")
     if "用户主动注销" in main_source or "用户主动注销" in window:
         raise AssertionError("local logout must not use localized text as control state")
     if "会话恢复失败，请重新登录" in network:
         raise AssertionError("transport must not own session-restore presentation copy")
+    if any(copy in main_source for copy in (
+        "聊天软件已经在运行", "正在完成更新",
+        "上次自动更新未在预期时间内完成",
+        "无法安全验证上次自动更新的结果",
+        "当前无法开始更新检查",
+    )):
+        raise AssertionError("Windows startup/update shell must use catalog copy")
     require(login, (
         "QByteArray LoginDialog::takePasswordUtf8()",
         "m_loginPass->clear()",

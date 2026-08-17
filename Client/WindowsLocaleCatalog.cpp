@@ -555,6 +555,28 @@ WindowsLocaleMessages createZhCn() {
     m.mainLogoutConfirm = QStringLiteral("确定要注销当前账号吗？");
     m.mainForcedOfflineTitle = QStringLiteral("会话已结束");
     m.mainSessionRestoreFailed = QStringLiteral("会话恢复失败，请重新登录");
+    m.startupApplicationTitle = QStringLiteral("聊天软件");
+    m.startupAlreadyRunning = QStringLiteral("聊天软件已经在运行。");
+    m.startupFailedTitle = QStringLiteral("启动失败");
+    m.updateCompletingTitle = QStringLiteral("正在完成更新");
+    m.updateCompletingBody = QStringLiteral(
+        "聊天软件正在完成更新，请稍候。\n\n更新完成后应用会自动重新打开。");
+    m.updateIncompleteTitle = QStringLiteral("更新未完成");
+    m.updateIncompleteBody = QStringLiteral(
+        "上次自动更新未在预期时间内完成。\n\n"
+        "您可以继续使用当前版本，稍后再次检查更新。");
+    m.updateCompletedTitle = QStringLiteral("更新完成");
+    m.updateCompletedBody = QStringLiteral("聊天软件已成功更新到版本 %1。");
+    m.updateFailedTitle = QStringLiteral("更新失败");
+    m.updateFailedBody = QStringLiteral(
+        "自动更新未能完成，当前版本未被标记为更新成功。\n\n"
+        "请继续使用当前版本，或从官方渠道重新下载。");
+    m.updateVerificationFailedTitle = QStringLiteral("无法验证更新结果");
+    m.updateVerificationFailedBody = QStringLiteral(
+        "无法安全验证上次自动更新的结果，本次不会将其视为更新成功。\n\n"
+        "请使用当前版本，或从官方渠道重新下载。");
+    m.updateCheckTitle = QStringLiteral("检查更新");
+    m.updateCheckUnavailable = QStringLiteral("当前无法开始更新检查。");
     m.mainCreateRoomTitle = QStringLiteral("创建聊天室");
     m.mainCreateRoomPrompt = QStringLiteral("请输入聊天室名称：");
     m.mainCreateRoomAccessible = QStringLiteral("创建聊天室对话框");
@@ -1416,6 +1438,32 @@ WindowsLocaleMessages createEnUs() {
     m.mainForcedOfflineTitle = QStringLiteral("Session ended");
     m.mainSessionRestoreFailed = QStringLiteral(
         "The session could not be restored. Sign in again.");
+    m.startupApplicationTitle = QStringLiteral("Chat Room");
+    m.startupAlreadyRunning = QStringLiteral("Chat Room is already running.");
+    m.startupFailedTitle = QStringLiteral("Unable to start");
+    m.updateCompletingTitle = QStringLiteral("Completing update");
+    m.updateCompletingBody = QStringLiteral(
+        "Chat Room is completing an update. Please wait.\n\n"
+        "The app will reopen automatically when the update finishes.");
+    m.updateIncompleteTitle = QStringLiteral("Update incomplete");
+    m.updateIncompleteBody = QStringLiteral(
+        "The previous automatic update did not finish in time.\n\n"
+        "You can keep using this version and check for updates again later.");
+    m.updateCompletedTitle = QStringLiteral("Update completed");
+    m.updateCompletedBody = QStringLiteral(
+        "Chat Room was updated successfully to version %1.");
+    m.updateFailedTitle = QStringLiteral("Update failed");
+    m.updateFailedBody = QStringLiteral(
+        "The automatic update did not complete, so this version was not marked as updated.\n\n"
+        "Keep using this version or download it again from the official channel.");
+    m.updateVerificationFailedTitle = QStringLiteral(
+        "Unable to verify update result");
+    m.updateVerificationFailedBody = QStringLiteral(
+        "The previous automatic update result could not be verified safely, so it was not accepted as successful.\n\n"
+        "Use this version or download it again from the official channel.");
+    m.updateCheckTitle = QStringLiteral("Check for updates");
+    m.updateCheckUnavailable = QStringLiteral(
+        "An update check cannot be started right now.");
     m.mainCreateRoomTitle = QStringLiteral("Create room");
     m.mainCreateRoomPrompt = QStringLiteral("Enter a room name:");
     m.mainCreateRoomAccessible = QStringLiteral("Create room dialog");

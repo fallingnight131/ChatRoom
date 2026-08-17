@@ -44,7 +44,8 @@ void cleanupAndQuit() {
 #ifdef Q_OS_WIN
 namespace {
 bool handleWindowsUpdateStartup(const WindowsUpdateRuntimePaths &paths,
-                                const QString &currentVersion) {
+                                const QString &currentVersion,
+                                const WindowsLocaleMessages &copy) {
     WindowsUpdateStartupService service(
         paths.lifecycleStateDirectory, paths.resultDirectory,
         paths.runRootDirectory);
@@ -55,24 +56,19 @@ bool handleWindowsUpdateStartup(const WindowsUpdateRuntimePaths &paths,
         return true;
     case Outcome::UpdateInProgress:
         QMessageBox::information(
-            nullptr, QStringLiteral("正在完成更新"),
-            QStringLiteral("聊天软件正在完成更新，请稍候。\n\n"
-                           "更新完成后应用会自动重新打开。"));
+            nullptr, copy.updateCompletingTitle, copy.updateCompletingBody);
         return false;
     case Outcome::StalePending:
         qWarning().noquote()
             << "[Updater] operation=startup-result outcome=stale-pending detail="
             << result.error;
         QMessageBox::warning(
-            nullptr, QStringLiteral("更新未完成"),
-            QStringLiteral("上次自动更新未在预期时间内完成。\n\n"
-                           "您可以继续使用当前版本，稍后再次检查更新。"));
+            nullptr, copy.updateIncompleteTitle, copy.updateIncompleteBody);
         return true;
     case Outcome::Installed:
         QMessageBox::information(
-            nullptr, QStringLiteral("更新完成"),
-            QStringLiteral("聊天软件已成功更新到版本 %1。")
-                .arg(result.targetVersion));
+            nullptr, copy.updateCompletedTitle,
+            copy.updateCompletedBody.arg(result.targetVersion));
         return true;
     case Outcome::Failed:
         qWarning().noquote()
@@ -81,18 +77,15 @@ bool handleWindowsUpdateStartup(const WindowsUpdateRuntimePaths &paths,
             << "installerExitCode=" << result.installerExitCode
             << "detail=" << result.error;
         QMessageBox::warning(
-            nullptr, QStringLiteral("更新失败"),
-            QStringLiteral("自动更新未能完成，当前版本未被标记为更新成功。\n\n"
-                           "请继续使用当前版本，或从官方渠道重新下载。"));
+            nullptr, copy.updateFailedTitle, copy.updateFailedBody);
         return true;
     case Outcome::Rejected:
         qWarning().noquote()
             << "[Updater] operation=startup-result outcome=rejected detail="
             << result.error;
         QMessageBox::warning(
-            nullptr, QStringLiteral("无法验证更新结果"),
-            QStringLiteral("无法安全验证上次自动更新的结果，本次不会将其视为更新成功。\n\n"
-                           "请使用当前版本，或从官方渠道重新下载。"));
+            nullptr, copy.updateVerificationFailedTitle,
+            copy.updateVerificationFailedBody);
         return true;
     }
     return true;
@@ -136,21 +129,23 @@ int main(int argc, char *argv[]) {
     WindowsLocaleViewModel localeViewModel(&localeRepository);
 
 #ifdef Q_OS_WIN
+    const auto &startupCopy = WindowsLocaleCatalog::messages(localeViewModel.locale());
     WindowsClientInstanceGuard instanceGuard;
     QString instanceError;
     const auto instanceResult = instanceGuard.acquire(&instanceError);
     if (instanceResult == WindowsClientInstanceGuard::Result::AlreadyRunning) {
-        QMessageBox::information(nullptr, QStringLiteral("聊天软件"),
-                                 QStringLiteral("聊天软件已经在运行。"));
+        QMessageBox::information(nullptr, startupCopy.startupApplicationTitle,
+                                 startupCopy.startupAlreadyRunning);
         return 0;
     }
     if (instanceResult != WindowsClientInstanceGuard::Result::Acquired) {
-        QMessageBox::critical(nullptr, QStringLiteral("启动失败"), instanceError);
+        QMessageBox::critical(nullptr, startupCopy.startupFailedTitle, instanceError);
         return 1;
     }
     const auto updatePaths = WindowsUpdateRuntimePaths::fromAppLocalData(
         QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation));
-    if (!handleWindowsUpdateStartup(updatePaths, app.applicationVersion())) return 0;
+    if (!handleWindowsUpdateStartup(
+            updatePaths, app.applicationVersion(), startupCopy)) return 0;
     const auto updateConfiguration = WindowsUpdateProductConfiguration::fromBuild();
     if (!updateConfiguration.enabled && !updateConfiguration.error.isEmpty()) {
         qWarning().noquote()
@@ -191,11 +186,13 @@ int main(int argc, char *argv[]) {
         if (!window) return;
         window->setUpdateCheckAvailable(updateController.isEnabled());
         QObject::connect(window, &ChatWindow::checkForUpdatesRequested,
-                         &updateController, [&updateController, window] {
+                         &updateController, [&updateController, &localeViewModel, window] {
             QString error;
             if (!updateController.checkForUpdates(window, true, &error)) {
-                QMessageBox::information(window, QStringLiteral("检查更新"),
-                                         QStringLiteral("当前无法开始更新检查。"));
+                const auto &copy = WindowsLocaleCatalog::messages(
+                    localeViewModel.locale());
+                QMessageBox::information(
+                    window, copy.updateCheckTitle, copy.updateCheckUnavailable);
                 qWarning().noquote()
                     << "[Updater] operation=manual-check-start detail=" << error;
             }

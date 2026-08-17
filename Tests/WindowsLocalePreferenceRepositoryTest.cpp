@@ -227,6 +227,24 @@ int main(int argc, char **argv) {
                 || english.mainSessionRestoreFailed
                     != QStringLiteral(
                         "The session could not be restored. Sign in again.")
+                || english.startupAlreadyRunning
+                    != QStringLiteral("Chat Room is already running.")
+                || english.startupFailedTitle
+                    != QStringLiteral("Unable to start")
+                || english.updateCompletingTitle
+                    != QStringLiteral("Completing update")
+                || english.updateIncompleteTitle
+                    != QStringLiteral("Update incomplete")
+                || english.updateCompletedBody
+                    != QStringLiteral(
+                        "Chat Room was updated successfully to version %1.")
+                || english.updateFailedTitle
+                    != QStringLiteral("Update failed")
+                || english.updateVerificationFailedTitle
+                    != QStringLiteral("Unable to verify update result")
+                || english.updateCheckUnavailable
+                    != QStringLiteral(
+                        "An update check cannot be started right now.")
                 || english.mainCreateRoomTitle
                     != QStringLiteral("Create room")
                 || english.mainCreateRoomPrompt
