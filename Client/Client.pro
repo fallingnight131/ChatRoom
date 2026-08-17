@@ -80,7 +80,10 @@ SOURCES += \
     UserInfoDialog.cpp \
     WindowsBandwidthPolicy.cpp \
     WindowsBandwidthPreferenceRepository.cpp \
-    WindowsBandwidthViewModel.cpp
+    WindowsBandwidthViewModel.cpp \
+    WindowsLocaleCatalog.cpp \
+    WindowsLocalePreferenceRepository.cpp \
+    WindowsLocaleViewModel.cpp
 
 HEADERS += \
     NetworkManager.h \
@@ -128,7 +131,10 @@ HEADERS += \
     UserInfoDialog.h \
     WindowsBandwidthPolicy.h \
     WindowsBandwidthPreferenceRepository.h \
-    WindowsBandwidthViewModel.h
+    WindowsBandwidthViewModel.h \
+    WindowsLocaleCatalog.h \
+    WindowsLocalePreferenceRepository.h \
+    WindowsLocaleViewModel.h
 
 RESOURCES += \
     resources/resources.qrc

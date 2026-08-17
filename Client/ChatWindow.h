@@ -28,6 +28,8 @@ class QSettings;
 class WindowsBandwidthPreferenceRepository;
 class WindowsBandwidthViewModel;
 class WindowsAvatarRequestCoordinator;
+class WindowsLocalePreferenceRepository;
+class WindowsLocaleViewModel;
 
 class MessageModel;
 class Message;
@@ -45,8 +47,6 @@ class DeviceManagementDialog;
 class V2WindowsConversationDialog;
 class V2WindowsAccountBlockDirectoryDialog;
 class WindowsMessageNotificationPresenter;
-class WindowsLocalePreferenceRepository;
-class WindowsLocaleViewModel;
 #endif
 
 /// 主聊天窗口 —— MVC 架构的 View/Controller 层
@@ -354,9 +354,6 @@ private:
     bool m_v2MessagingWasReady = false;
     bool m_v2MessageForwardingEnabled = false;
     std::unique_ptr<WindowsMessageNotificationPresenter> m_v2NotificationPresenter;
-    std::unique_ptr<QSettings> m_windowsLocaleSettings;
-    std::unique_ptr<WindowsLocalePreferenceRepository> m_windowsLocaleRepository;
-    std::unique_ptr<WindowsLocaleViewModel> m_windowsLocaleViewModel;
 #endif
     RoomFileManagerDialog *m_roomFileManagerDialog = nullptr;
     QLabel       *m_avatarPreview  = nullptr;
@@ -418,6 +415,9 @@ private:
     std::unique_ptr<WindowsBandwidthPreferenceRepository> m_bandwidthRepository;
     std::unique_ptr<WindowsBandwidthViewModel> m_bandwidthViewModel;
     std::unique_ptr<WindowsAvatarRequestCoordinator> m_avatarRequests;
+    std::unique_ptr<QSettings> m_windowsLocaleSettings;
+    std::unique_ptr<WindowsLocalePreferenceRepository> m_windowsLocaleRepository;
+    std::unique_ptr<WindowsLocaleViewModel> m_windowsLocaleViewModel;
 
     // 聊天室头像缓存  roomId -> pixmap
     QMap<int, QPixmap> m_roomAvatarCache;

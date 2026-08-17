@@ -20,6 +20,9 @@ SOURCES += \
     ../Client/HttpDownloadTransport.cpp \
     ../Client/WindowsBandwidthPreferenceRepository.cpp \
     ../Client/WindowsBandwidthViewModel.cpp \
+    ../Client/WindowsLocaleCatalog.cpp \
+    ../Client/WindowsLocalePreferenceRepository.cpp \
+    ../Client/WindowsLocaleViewModel.cpp \
     ../Common/Message.cpp
 
 HEADERS += \
@@ -29,5 +32,8 @@ HEADERS += \
     ../Client/HttpDownloadTransport.h \
     ../Client/WindowsBandwidthPreferenceRepository.h \
     ../Client/WindowsBandwidthViewModel.h \
+    ../Client/WindowsLocaleCatalog.h \
+    ../Client/WindowsLocalePreferenceRepository.h \
+    ../Client/WindowsLocaleViewModel.h \
     ../Common/Message.h \
     ../Common/Protocol.h

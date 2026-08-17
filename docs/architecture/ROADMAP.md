@@ -2797,10 +2797,15 @@ Candidate slices:
         refreshes, and restore plus announce failed preference writes.
         - [x] Drive the real profile checkbox offscreen to prove accessible
           description, restart persistence, and visible write-failure rollback.
-    - [ ] Migrate the complete Windows profile surface to the persisted locale.
+    - [x] Migrate the complete Windows profile surface to the persisted locale.
       - [x] Add exact Chinese/English catalog copy for avatar, identity,
         password, low-bandwidth, local validation, and local feedback while
         keeping the Widget closed until the whole surface can switch together.
+      - [x] Compose the shared ChatWindow locale ViewModel into ProfileDialog and
+        migrate every profile-owned group, label, action, validation, local
+        response, low-bandwidth status, and accessible description together.
+      - [x] Verify live Chinese-to-English recomposition and a fresh profile
+        instance starting from the persisted locale on the development host.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

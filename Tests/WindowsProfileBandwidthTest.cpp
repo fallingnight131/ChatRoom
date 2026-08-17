@@ -1,6 +1,8 @@
 #include "ProfileDialog.h"
 #include "WindowsBandwidthPreferenceRepository.h"
 #include "WindowsBandwidthViewModel.h"
+#include "WindowsLocalePreferenceRepository.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -9,6 +11,8 @@
 #include <QLabel>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QPushButton>
+#include <algorithm>
 
 namespace {
 bool check(bool condition, const QString &message) {
@@ -42,6 +46,42 @@ int main(int argc, char **argv) {
                    && restarted.value(QStringLiteral("ui/lowBandwidth")).toString()
                        == QStringLiteral("true"),
                QStringLiteral("profile selection must persist through the ViewModel")))
+        return 1;
+
+    QSettings localeSettings(path, QSettings::IniFormat);
+    WindowsLocalePreferenceRepository localeRepository(localeSettings);
+    WindowsLocaleViewModel localeViewModel(&localeRepository);
+    ProfileDialog localized(
+        3, QStringLiteral("carol"), QStringLiteral("Carol"), {}, nullptr,
+        &viewModel, &localeViewModel);
+    localized.show();
+    application.processEvents();
+    if (!localeViewModel.select(WindowsLocale::EnUs)) return 1;
+    application.processEvents();
+    const auto buttons = localized.findChildren<QPushButton *>();
+    const auto hasButton = [&](const QString &text) {
+        return std::any_of(buttons.cbegin(), buttons.cend(),
+            [&](QPushButton *button) { return button->text() == text; });
+    };
+    if (!check(localized.windowTitle() == QStringLiteral("Edit profile")
+                   && localized.lowBandwidthForTest()->text()
+                       == QStringLiteral("Low-bandwidth mode")
+                   && localized.lowBandwidthForTest()->accessibleDescription()
+                       .startsWith(QStringLiteral("Stops automatic requests"))
+                   && hasButton(QStringLiteral("Change avatar"))
+                   && hasButton(QStringLiteral("Change password"))
+                   && hasButton(QStringLiteral("Close")),
+               QStringLiteral("profile must recompose every visible action in English")))
+        return 1;
+    QSettings restartedLocaleSettings(path, QSettings::IniFormat);
+    WindowsLocalePreferenceRepository restartedLocaleRepository(
+        restartedLocaleSettings);
+    WindowsLocaleViewModel restartedLocaleViewModel(&restartedLocaleRepository);
+    ProfileDialog restartedLocaleDialog(
+        4, QStringLiteral("dave"), QStringLiteral("Dave"), {}, nullptr,
+        &viewModel, &restartedLocaleViewModel);
+    if (!check(restartedLocaleDialog.windowTitle() == QStringLiteral("Edit profile"),
+               QStringLiteral("profile must start from the persisted locale")))
         return 1;
 
     QSettings unwritable(temporary.path(), QSettings::IniFormat);

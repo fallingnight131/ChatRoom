@@ -2,6 +2,7 @@
 #include "NetworkManager.h"
 #include "Protocol.h"
 #include "WindowsBandwidthViewModel.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -34,17 +35,18 @@ static QPixmap roundedPixmap(const QPixmap &src, int radius) {
 ProfileDialog::ProfileDialog(int userId, const QString &username,
                              const QString &displayName, const QPixmap &avatar,
                              QWidget *parent,
-                             WindowsBandwidthViewModel *bandwidthViewModel)
+                             WindowsBandwidthViewModel *bandwidthViewModel,
+                             WindowsLocaleViewModel *localeViewModel)
     : QDialog(parent), m_userId(userId), m_username(username), m_displayName(displayName),
-      m_bandwidthViewModel(bandwidthViewModel)
+      m_bandwidthViewModel(bandwidthViewModel), m_localeViewModel(localeViewModel),
+      m_locale(localeViewModel ? localeViewModel->locale() : WindowsLocale::ZhCn)
 {
-    setWindowTitle(QStringLiteral("修改个人信息"));
     setMinimumWidth(400);
     auto *mainLayout = new QVBoxLayout(this);
 
     // --- 头像区域 ---
-    auto *avatarGroup = new QGroupBox(QStringLiteral("头像"));
-    auto *avatarLayout = new QVBoxLayout(avatarGroup);
+    m_avatarGroup = new QGroupBox;
+    auto *avatarLayout = new QVBoxLayout(m_avatarGroup);
     auto *avatarCenter = new QHBoxLayout;
     avatarCenter->addStretch();
 
@@ -56,7 +58,8 @@ ProfileDialog::ProfileDialog(int userId, const QString &username,
     if (!avatar.isNull()) {
         m_avatarLabel->setPixmap(roundedPixmap(avatar.scaled(80, 80, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation), 10));
     } else {
-        m_avatarLabel->setText(QStringLiteral("头像"));
+        m_avatarLabel->setText(
+            WindowsLocaleCatalog::messages(m_locale).profileAvatarFallback);
     }
     avatarCenter->addWidget(m_avatarLabel);
     avatarCenter->addStretch();
@@ -64,65 +67,63 @@ ProfileDialog::ProfileDialog(int userId, const QString &username,
 
     auto *avatarBtnLayout = new QHBoxLayout;
     avatarBtnLayout->addStretch();
-    auto *changeAvatarBtn = new QPushButton(QStringLiteral("更换头像"));
-    connect(changeAvatarBtn, &QPushButton::clicked, this, [this] {
+    m_changeAvatar = new QPushButton;
+    connect(m_changeAvatar, &QPushButton::clicked, this, [this] {
         emit changeAvatarRequested();
     });
-    avatarBtnLayout->addWidget(changeAvatarBtn);
+    avatarBtnLayout->addWidget(m_changeAvatar);
     avatarBtnLayout->addStretch();
     avatarLayout->addLayout(avatarBtnLayout);
 
-    mainLayout->addWidget(avatarGroup);
+    mainLayout->addWidget(m_avatarGroup);
 
     // --- 基本信息 ---
-    auto *infoGroup = new QGroupBox(QStringLiteral("基本信息"));
-    auto *infoLayout = new QVBoxLayout(infoGroup);
+    m_infoGroup = new QGroupBox;
+    auto *infoLayout = new QVBoxLayout(m_infoGroup);
 
     // 昵称
     auto *nickLayout = new QHBoxLayout;
-    nickLayout->addWidget(new QLabel(QStringLiteral("昵称：")));
+    m_nicknameLabel = new QLabel;
+    nickLayout->addWidget(m_nicknameLabel);
     m_nicknameEdit = new QLineEdit(displayName);
     m_nicknameEdit->setMaxLength(20);
     nickLayout->addWidget(m_nicknameEdit, 1);
-    auto *saveNickBtn = new QPushButton(QStringLiteral("保存"));
-    connect(saveNickBtn, &QPushButton::clicked, this, &ProfileDialog::onSaveNickname);
-    nickLayout->addWidget(saveNickBtn);
+    m_saveNickname = new QPushButton;
+    connect(m_saveNickname, &QPushButton::clicked, this, &ProfileDialog::onSaveNickname);
+    nickLayout->addWidget(m_saveNickname);
     infoLayout->addLayout(nickLayout);
 
     // 用户ID
     auto *uidLayout = new QHBoxLayout;
-    uidLayout->addWidget(new QLabel(QStringLiteral("用户ID：")));
+    m_uidLabel = new QLabel;
+    uidLayout->addWidget(m_uidLabel);
     m_uidEdit = new QLineEdit(username);
     m_uidEdit->setMaxLength(20);
     uidLayout->addWidget(m_uidEdit, 1);
-    auto *saveUidBtn = new QPushButton(QStringLiteral("保存"));
-    connect(saveUidBtn, &QPushButton::clicked, this, &ProfileDialog::onSaveUid);
-    uidLayout->addWidget(saveUidBtn);
+    m_saveUid = new QPushButton;
+    connect(m_saveUid, &QPushButton::clicked, this, &ProfileDialog::onSaveUid);
+    uidLayout->addWidget(m_saveUid);
     infoLayout->addLayout(uidLayout);
 
-    auto *uidHint = new QLabel(QStringLiteral("6-20位字母/数字/下划线，每月仅可修改一次"));
-    uidHint->setStyleSheet("color: gray; font-size: 11px;");
-    infoLayout->addWidget(uidHint);
+    m_uidHint = new QLabel;
+    m_uidHint->setStyleSheet("color: gray; font-size: 11px;");
+    infoLayout->addWidget(m_uidHint);
 
-    mainLayout->addWidget(infoGroup);
+    mainLayout->addWidget(m_infoGroup);
 
     if (m_bandwidthViewModel) {
-        auto *bandwidthGroup = new QGroupBox(QStringLiteral("网络与流量"));
-        auto *bandwidthLayout = new QVBoxLayout(bandwidthGroup);
-        m_lowBandwidth = new QCheckBox(QStringLiteral("省流量模式"));
+        m_bandwidthGroup = new QGroupBox;
+        auto *bandwidthLayout = new QVBoxLayout(m_bandwidthGroup);
+        m_lowBandwidth = new QCheckBox;
         m_lowBandwidth->setChecked(m_bandwidthViewModel->enabled());
-        m_lowBandwidth->setAccessibleDescription(QStringLiteral(
-            "停止自动请求未缓存头像；消息同步和主动操作不受影响"));
-        auto *description = new QLabel(QStringLiteral(
-            "停止自动请求未缓存头像；消息同步和主动操作仍正常工作。"));
-        description->setWordWrap(true);
+        m_bandwidthDescription = new QLabel;
+        m_bandwidthDescription->setWordWrap(true);
         m_bandwidthStatus = new QLabel;
-        m_bandwidthStatus->setAccessibleName(QStringLiteral("省流量偏好状态"));
         m_bandwidthStatus->setWordWrap(true);
         bandwidthLayout->addWidget(m_lowBandwidth);
-        bandwidthLayout->addWidget(description);
+        bandwidthLayout->addWidget(m_bandwidthDescription);
         bandwidthLayout->addWidget(m_bandwidthStatus);
-        mainLayout->addWidget(bandwidthGroup);
+        mainLayout->addWidget(m_bandwidthGroup);
         connect(m_lowBandwidth, &QCheckBox::toggled,
                 m_bandwidthViewModel, &WindowsBandwidthViewModel::select);
         connect(m_bandwidthViewModel, &WindowsBandwidthViewModel::changed,
@@ -130,7 +131,8 @@ ProfileDialog::ProfileDialog(int userId, const QString &username,
                     const QSignalBlocker blocker(m_lowBandwidth);
                     m_lowBandwidth->setChecked(m_bandwidthViewModel->enabled());
                     m_bandwidthStatus->setText(m_bandwidthViewModel->saveFailed()
-                        ? QStringLiteral("无法保存省流量偏好，已保持原设置")
+                        ? WindowsLocaleCatalog::messages(m_locale)
+                              .profileLowBandwidthSaveFailed
                         : QString());
                     if (m_bandwidthViewModel->saveFailed() && isVisible()) {
                         QAccessibleEvent announcement(
@@ -141,50 +143,99 @@ ProfileDialog::ProfileDialog(int userId, const QString &username,
     }
 
     // --- 修改密码 ---
-    auto *pwdGroup = new QGroupBox(QStringLiteral("修改密码"));
-    auto *pwdLayout = new QFormLayout(pwdGroup);
+    m_passwordGroup = new QGroupBox;
+    auto *pwdLayout = new QFormLayout(m_passwordGroup);
 
     m_oldPwdEdit = new QLineEdit;
     m_oldPwdEdit->setEchoMode(QLineEdit::Password);
-    pwdLayout->addRow(QStringLiteral("旧密码："), m_oldPwdEdit);
+    m_oldPasswordLabel = new QLabel;
+    pwdLayout->addRow(m_oldPasswordLabel, m_oldPwdEdit);
 
     m_newPwdEdit = new QLineEdit;
     m_newPwdEdit->setEchoMode(QLineEdit::Password);
-    pwdLayout->addRow(QStringLiteral("新密码："), m_newPwdEdit);
+    m_newPasswordLabel = new QLabel;
+    pwdLayout->addRow(m_newPasswordLabel, m_newPwdEdit);
 
     m_confirmPwdEdit = new QLineEdit;
     m_confirmPwdEdit->setEchoMode(QLineEdit::Password);
-    pwdLayout->addRow(QStringLiteral("确认新密码："), m_confirmPwdEdit);
+    m_confirmPasswordLabel = new QLabel;
+    pwdLayout->addRow(m_confirmPasswordLabel, m_confirmPwdEdit);
 
     auto *pwdBtnLayout = new QHBoxLayout;
     pwdBtnLayout->addStretch();
-    auto *changePwdBtn = new QPushButton(QStringLiteral("修改密码"));
-    connect(changePwdBtn, &QPushButton::clicked, this, &ProfileDialog::onChangePassword);
-    pwdBtnLayout->addWidget(changePwdBtn);
+    m_changePassword = new QPushButton;
+    connect(m_changePassword, &QPushButton::clicked, this, &ProfileDialog::onChangePassword);
+    pwdBtnLayout->addWidget(m_changePassword);
     pwdLayout->addRow(pwdBtnLayout);
 
-    mainLayout->addWidget(pwdGroup);
+    mainLayout->addWidget(m_passwordGroup);
 
     // --- 底部关闭 ---
     auto *bottomLayout = new QHBoxLayout;
     bottomLayout->addStretch();
-    auto *closeBtn = new QPushButton(QStringLiteral("关闭"));
-    connect(closeBtn, &QPushButton::clicked, this, &QDialog::close);
-    bottomLayout->addWidget(closeBtn);
+    m_close = new QPushButton;
+    connect(m_close, &QPushButton::clicked, this, &QDialog::close);
+    bottomLayout->addWidget(m_close);
     mainLayout->addLayout(bottomLayout);
 
     // 连接密码修改响应
     connect(NetworkManager::instance(), &NetworkManager::changePasswordResponse,
             this, [this](bool success, const QString &error) {
         if (success) {
-            QMessageBox::information(this, QStringLiteral("成功"), QStringLiteral("密码修改成功"));
+            const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+            QMessageBox::information(this, copy.profileSuccessTitle,
+                                     copy.profilePasswordChanged);
             m_oldPwdEdit->clear();
             m_newPwdEdit->clear();
             m_confirmPwdEdit->clear();
         } else {
-            QMessageBox::warning(this, QStringLiteral("修改密码失败"), error);
+            QMessageBox::warning(this,
+                WindowsLocaleCatalog::messages(m_locale)
+                    .profilePasswordChangeFailedTitle,
+                error);
         }
     });
+    if (m_localeViewModel)
+        connect(m_localeViewModel, &WindowsLocaleViewModel::changed,
+                this, &ProfileDialog::applyLocale);
+    applyLocale();
+}
+
+void ProfileDialog::applyLocale() {
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    setWindowTitle(copy.profileTitle);
+    m_avatarGroup->setTitle(copy.profileAvatar);
+    if (m_avatarLabel->pixmap().isNull())
+        m_avatarLabel->setText(copy.profileAvatarFallback);
+    m_changeAvatar->setText(copy.profileChangeAvatar);
+    m_infoGroup->setTitle(copy.profileBasicInformation);
+    m_nicknameLabel->setText(copy.profileNickname);
+    m_nicknameLabel->setBuddy(m_nicknameEdit);
+    m_saveNickname->setText(copy.profileSave);
+    m_uidLabel->setText(copy.profileUserId);
+    m_uidLabel->setBuddy(m_uidEdit);
+    m_saveUid->setText(copy.profileSave);
+    m_uidHint->setText(copy.profileUserIdHint);
+    if (m_bandwidthGroup) {
+        m_bandwidthGroup->setTitle(copy.profileNetworkAndData);
+        m_lowBandwidth->setText(copy.profileLowBandwidth);
+        m_lowBandwidth->setAccessibleDescription(copy.profileLowBandwidthDescription);
+        m_bandwidthDescription->setText(copy.profileLowBandwidthDescription);
+        m_bandwidthStatus->setAccessibleName(
+            copy.profileLowBandwidthStatusAccessible);
+        if (m_bandwidthViewModel->saveFailed())
+            m_bandwidthStatus->setText(copy.profileLowBandwidthSaveFailed);
+    }
+    m_passwordGroup->setTitle(copy.profileChangePassword);
+    m_oldPasswordLabel->setText(copy.profileOldPassword);
+    m_oldPasswordLabel->setBuddy(m_oldPwdEdit);
+    m_newPasswordLabel->setText(copy.profileNewPassword);
+    m_newPasswordLabel->setBuddy(m_newPwdEdit);
+    m_confirmPasswordLabel->setText(copy.profileConfirmPassword);
+    m_confirmPasswordLabel->setBuddy(m_confirmPwdEdit);
+    m_changePassword->setText(copy.profileChangePassword);
+    m_close->setText(copy.close);
 }
 
 void ProfileDialog::updateAvatar(const QPixmap &avatar) {
@@ -205,12 +256,15 @@ void ProfileDialog::updateUid(const QString &uid) {
 
 void ProfileDialog::onSaveNickname() {
     QString newName = m_nicknameEdit->text().trimmed();
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     if (newName.isEmpty()) {
-        QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("昵称不能为空"));
+        QMessageBox::warning(this, copy.profileValidationErrorTitle,
+                             copy.profileNicknameRequired);
         return;
     }
     if (newName.length() > 20) {
-        QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("昵称不能超过20个字符"));
+        QMessageBox::warning(this, copy.profileValidationErrorTitle,
+                             copy.profileNicknameTooLong);
         return;
     }
     if (newName == m_displayName) return;
@@ -223,14 +277,16 @@ void ProfileDialog::onSaveNickname() {
 
 void ProfileDialog::onSaveUid() {
     QString newUid = m_uidEdit->text().trimmed();
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     if (newUid.isEmpty()) {
-        QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("用户ID不能为空"));
+        QMessageBox::warning(this, copy.profileValidationErrorTitle,
+                             copy.profileUserIdRequired);
         return;
     }
     QRegularExpression idRegex("^[a-zA-Z0-9_]{6,20}$");
     if (!idRegex.match(newUid).hasMatch()) {
-        QMessageBox::warning(this, QStringLiteral("错误"),
-                             QStringLiteral("用户ID必须为6-20位字母/数字/下划线"));
+        QMessageBox::warning(this, copy.profileValidationErrorTitle,
+                             copy.profileUserIdInvalid);
         return;
     }
     if (newUid == m_username) return;
@@ -245,17 +301,21 @@ void ProfileDialog::onChangePassword() {
     QString oldPwd     = m_oldPwdEdit->text();
     QString newPwd     = m_newPwdEdit->text();
     QString confirmPwd = m_confirmPwdEdit->text();
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
 
     if (oldPwd.isEmpty() || newPwd.isEmpty()) {
-        QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("请填写所有密码字段"));
+        QMessageBox::warning(this, copy.profileValidationErrorTitle,
+                             copy.profilePasswordFieldsRequired);
         return;
     }
     if (newPwd != confirmPwd) {
-        QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("两次输入的新密码不一致"));
+        QMessageBox::warning(this, copy.profileValidationErrorTitle,
+                             copy.profilePasswordsMismatch);
         return;
     }
     if (newPwd.length() < 4) {
-        QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("新密码至少4个字符"));
+        QMessageBox::warning(this, copy.profileValidationErrorTitle,
+                             copy.profilePasswordTooShort);
         return;
     }
 

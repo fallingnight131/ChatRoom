@@ -40,6 +40,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
   that Widget. Avatar, identity, password, low-bandwidth, validation, and local
   feedback copy must migrate together; server-provided failure text remains
   opaque data.
+- `ChatWindow` owns one locale repository/ViewModel for both the profile and V2
+  conversation surfaces. Profile labels establish buddy relationships for
+  identity and password fields, and an open profile recomposes on the same
+  `changed` signal as the conversation surface.
 
 ## Consequences
 
@@ -64,3 +68,6 @@ database migration or protocol compatibility window is required.
   the selector, and retains a usable focus path;
 - later UI slices must run native Windows keyboard/accessibility checks and may
   not claim product localization from this foundation alone.
+- profile composition proves a live Chinese-to-English switch across every
+  profile-owned visible action and a fresh profile instance starts in the
+  persisted locale; server-provided password errors remain verbatim.

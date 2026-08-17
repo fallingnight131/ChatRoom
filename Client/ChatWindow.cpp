@@ -22,6 +22,8 @@
 #include "WindowsBandwidthPolicy.h"
 #include "WindowsBandwidthPreferenceRepository.h"
 #include "WindowsBandwidthViewModel.h"
+#include "WindowsLocalePreferenceRepository.h"
+#include "WindowsLocaleViewModel.h"
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
 #include "DeviceManagementDialog.h"
 #include "DeviceManagementViewModel.h"
@@ -31,8 +33,6 @@
 #include "V2WindowsAccountBlockDirectoryViewModel.h"
 #include "WindowsDeviceManagementController.h"
 #include "WindowsMessageNotificationPresenter.h"
-#include "WindowsLocalePreferenceRepository.h"
-#include "WindowsLocaleViewModel.h"
 #endif
 
 #include <QVBoxLayout>
@@ -321,6 +321,12 @@ ChatWindow::ChatWindow(QWidget *parent)
                 Protocol::makeMessage(Protocol::MsgType::AVATAR_GET_REQ, data));
         });
     m_avatarRequests->setLowBandwidthEnabled(m_bandwidthViewModel->enabled());
+    m_windowsLocaleSettings = std::make_unique<QSettings>();
+    m_windowsLocaleRepository =
+        std::make_unique<WindowsLocalePreferenceRepository>(
+            *m_windowsLocaleSettings);
+    m_windowsLocaleViewModel = std::make_unique<WindowsLocaleViewModel>(
+        m_windowsLocaleRepository.get());
     setWindowTitle("Qt聊天室");
     setWindowFlags(Qt::Window | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
     resize(1000, 700);
@@ -4565,7 +4571,7 @@ void ChatWindow::showProfileDialog() {
     if (avatar.isNull()) requestAvatar(m_username, true);
     m_profileDialog = new ProfileDialog(
         m_userId, m_username, m_displayName, avatar, this,
-        m_bandwidthViewModel.get());
+        m_bandwidthViewModel.get(), m_windowsLocaleViewModel.get());
     m_profileDialog->setAttribute(Qt::WA_DeleteOnClose);
 
     connect(m_profileDialog, &ProfileDialog::changeAvatarRequested, this, &ChatWindow::onChangeAvatar);
@@ -4885,14 +4891,6 @@ void ChatWindow::showV2Conversations() {
         m_v2ConversationDialog->raise();
         m_v2ConversationDialog->activateWindow();
         return;
-    }
-    if (!m_windowsLocaleViewModel) {
-        m_windowsLocaleSettings = std::make_unique<QSettings>();
-        m_windowsLocaleRepository =
-            std::make_unique<WindowsLocalePreferenceRepository>(
-                *m_windowsLocaleSettings);
-        m_windowsLocaleViewModel = std::make_unique<WindowsLocaleViewModel>(
-            m_windowsLocaleRepository.get());
     }
     m_v2ConversationDialog = new V2WindowsConversationDialog(
         m_deviceManagementController->conversationDirectoryViewModel(),

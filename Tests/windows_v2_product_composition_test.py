@@ -96,7 +96,10 @@ def main() -> int:
         "requestAvatar(m_username, true)",
     ), "Client/ChatWindow.cpp")
     require(profile, (
-        'QStringLiteral("省流量模式")',
+        "WindowsLocaleCatalog::messages(m_locale)",
+        "WindowsLocaleViewModel::changed",
+        "copy.profileLowBandwidth",
+        "copy.profileChangePassword",
         "m_bandwidthViewModel->enabled()",
         "WindowsBandwidthViewModel::select",
         "m_bandwidthViewModel->saveFailed()",
