@@ -346,7 +346,7 @@ ChatWindow::ChatWindow(QWidget *parent, WindowsLocaleViewModel *localeViewModel)
             });
 
     // 系统托盘
-    m_trayManager = new TrayManager(this);
+    m_trayManager = new TrayManager(this, m_windowsLocaleViewModel);
 
     // 应用主题
     ThemeManager::instance()->applyTheme(qApp);

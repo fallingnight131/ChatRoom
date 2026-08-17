@@ -119,13 +119,20 @@ int main(int argc, char **argv) {
                 || english.notificationMentionedYou
                     != QStringLiteral("You were mentioned")
                 || english.notificationOpenApp
-                    != QStringLiteral("Open the chat app to view the message")) {
+                    != QStringLiteral("Open the chat app to view the message")
+                || english.trayApplicationName != QStringLiteral("Chat Room")
+                || english.trayShowMainWindow
+                    != QStringLiteral("Show main window")
+                || english.trayQuit != QStringLiteral("Quit")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
         if (!repository.save(WindowsLocale::ZhCn)) return 1;
         const auto &chinese = WindowsLocaleCatalog::messages(repository.load());
         if (chinese.sendMessage != QStringLiteral("发送消息")
+                || chinese.trayApplicationName != QStringLiteral("聊天软件")
+                || chinese.trayShowMainWindow != QStringLiteral("显示主窗口")
+                || chinese.trayQuit != QStringLiteral("退出")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

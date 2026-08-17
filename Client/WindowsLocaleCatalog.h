@@ -425,6 +425,9 @@ struct WindowsLocaleMessages {
     QString notificationNewMessage;
     QString notificationMentionedYou;
     QString notificationOpenApp;
+    QString trayApplicationName;
+    QString trayShowMainWindow;
+    QString trayQuit;
 };
 
 class WindowsLocaleCatalog final {

@@ -3245,6 +3245,12 @@ The same Widget test drives the profile's real exact locale selector and checks
 its accessible description. An unwritable locale target must restore Chinese,
 retain the ViewModel/store value, and expose localized failure status; the
 selector therefore remains usable even when the V2 preview is absent.
+The locale Core test also locks exact Chinese/English system-tray copy. The
+static product-composition test requires `ChatWindow` to inject its shared
+ViewModel and `TrayManager` to update the existing tooltip and show/quit actions
+on `changed`; it rejects embedded Chinese presentation text in the adapter.
+This is deterministic composition and macOS development-host compile evidence,
+not native Windows tray availability, activation, or shell-menu evidence.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

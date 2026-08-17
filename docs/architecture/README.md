@@ -2063,6 +2063,11 @@ and stable conversation identity, never localized strings or message content.
 The presenter reads the shared application locale at display time and projects
 privacy-safe Chinese or English title/body copy. A language change affects the
 next notification without resetting deduplication or routing state.
+The adjacent tray adapter now uses the same application-lifetime locale for its
+tooltip and show/quit actions. It updates the existing actions in place on a
+locale change, so platform activation connections and the newest notification
+conversation identity remain intact; tray availability and behavior still
+require native Windows Release evidence.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

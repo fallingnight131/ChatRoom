@@ -121,6 +121,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
   mention semantics and stable conversation identity. The presenter consumes
   the shared locale at show time and maps to privacy-safe catalog copy; locale
   changes must not reset deduplication or alter activation identity.
+- Inject the same application-lifetime ViewModel into the Windows tray adapter.
+  Tooltip and show/quit action copy follow the active locale by updating the
+  existing QAction instances; locale changes must not rebuild platform menus,
+  reconnect activation handlers, or replace pending notification identity.
 
 ## Consequences
 
@@ -184,3 +188,6 @@ database migration or protocol compatibility window is required.
 - notification policy/presenter tests prove no localized copy or message body
   enters policy state, while both Chinese and English projection retain bounded
   deduplication and stable conversation activation.
+- source composition binds the tray tooltip and existing show/quit actions to
+  the shared locale without embedding Chinese presentation copy; the catalog
+  test locks both exact languages and native Windows interaction remains open.

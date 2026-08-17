@@ -429,6 +429,9 @@ WindowsLocaleMessages createZhCn() {
     m.notificationNewMessage = QStringLiteral("新消息");
     m.notificationMentionedYou = QStringLiteral("有人提到了你");
     m.notificationOpenApp = QStringLiteral("打开聊天软件查看消息");
+    m.trayApplicationName = QStringLiteral("聊天软件");
+    m.trayShowMainWindow = QStringLiteral("显示主窗口");
+    m.trayQuit = QStringLiteral("退出");
     return m;
 }
 
@@ -878,6 +881,9 @@ WindowsLocaleMessages createEnUs() {
     m.notificationNewMessage = QStringLiteral("New message");
     m.notificationMentionedYou = QStringLiteral("You were mentioned");
     m.notificationOpenApp = QStringLiteral("Open the chat app to view the message");
+    m.trayApplicationName = QStringLiteral("Chat Room");
+    m.trayShowMainWindow = QStringLiteral("Show main window");
+    m.trayQuit = QStringLiteral("Quit");
     return m;
 }
 

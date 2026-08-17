@@ -1,4 +1,6 @@
 #include "TrayManager.h"
+#include "WindowsLocaleCatalog.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QSystemTrayIcon>
 #include <QMenu>
@@ -9,26 +11,28 @@
 
 #include <utility>
 
-TrayManager::TrayManager(QMainWindow *mainWindow, QObject *parent)
+TrayManager::TrayManager(QMainWindow *mainWindow,
+                         WindowsLocaleViewModel *localeViewModel,
+                         QObject *parent)
     : QObject(parent ? parent : mainWindow)
     , m_mainWindow(mainWindow)
+    , m_localeViewModel(localeViewModel)
 {
     if (!QSystemTrayIcon::isSystemTrayAvailable())
         return;
 
     m_trayIcon = new QSystemTrayIcon(this);
     m_trayIcon->setIcon(QIcon(":/icons/app.png"));
-    m_trayIcon->setToolTip("Qt聊天室");
 
     // 托盘菜单
-    m_trayMenu = new QMenu;
-    m_trayMenu->addAction("显示主窗口", [this] {
+    m_trayMenu = new QMenu(m_mainWindow);
+    m_showAction = m_trayMenu->addAction(QString{}, [this] {
         m_mainWindow->show();
         m_mainWindow->raise();
         m_mainWindow->activateWindow();
     });
     m_trayMenu->addSeparator();
-    m_trayMenu->addAction("退出", [this] {
+    m_quitAction = m_trayMenu->addAction(QString{}, [] {
         // 先主动断开网络连接，通知服务器用户离开
         extern void cleanupAndQuit();
         cleanupAndQuit();
@@ -42,7 +46,12 @@ TrayManager::TrayManager(QMainWindow *mainWindow, QObject *parent)
             m_notificationActivationId, QString{});
         if (!activationId.isEmpty()) emit notificationActivated(activationId);
     });
+    if (m_localeViewModel) {
+        connect(m_localeViewModel, &WindowsLocaleViewModel::changed,
+                this, &TrayManager::refreshText);
+    }
 
+    refreshText();
     m_trayIcon->show();
 }
 
@@ -69,4 +78,13 @@ void TrayManager::onTrayActivated(int reason) {
             m_mainWindow->activateWindow();
         }
     }
+}
+
+void TrayManager::refreshText() {
+    const WindowsLocale locale = m_localeViewModel
+        ? m_localeViewModel->locale() : WindowsLocaleCatalog::defaultLocale();
+    const auto &copy = WindowsLocaleCatalog::messages(locale);
+    if (m_trayIcon) m_trayIcon->setToolTip(copy.trayApplicationName);
+    if (m_showAction) m_showAction->setText(copy.trayShowMainWindow);
+    if (m_quitAction) m_quitAction->setText(copy.trayQuit);
 }

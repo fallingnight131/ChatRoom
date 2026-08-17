@@ -50,6 +50,7 @@ def main() -> int:
     notification_presenter = (
         ROOT / "Client/WindowsMessageNotificationPresenter.cpp"
     ).read_text(encoding="utf-8")
+    tray = (ROOT / "Client/TrayManager.cpp").read_text(encoding="utf-8")
     bandwidth_policy = (ROOT / "Client/WindowsBandwidthPolicy.cpp").read_text(
         encoding="utf-8"
     )
@@ -138,7 +139,19 @@ def main() -> int:
         "m_deviceManagementController->viewModel(), this,",
         "m_windowsLocaleViewModel);",
         "}, 256, m_windowsLocaleViewModel);",
+        "new TrayManager(this, m_windowsLocaleViewModel)",
     ), "Client/ChatWindow.cpp")
+    require(tray, (
+        "WindowsLocaleViewModel::changed",
+        "WindowsLocaleCatalog::messages(locale)",
+        "copy.trayApplicationName",
+        "copy.trayShowMainWindow",
+        "copy.trayQuit",
+        "m_showAction->setText",
+        "m_quitAction->setText",
+    ), "Client/TrayManager.cpp")
+    if any(text in tray for text in ("Qt聊天室", "显示主窗口", "退出")):
+        raise AssertionError("TrayManager must not own localized presentation copy")
     require(profile, (
         "WindowsLocaleCatalog::messages(m_locale)",
         "WindowsLocaleViewModel::changed",
