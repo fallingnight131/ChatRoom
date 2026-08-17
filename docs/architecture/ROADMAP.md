@@ -2866,6 +2866,8 @@ Candidate slices:
       menu actions and About copy, preserving identity, shortcuts and gate state.
     - [x] Split Windows connection lifecycle from transient activity feedback;
       type and localize disconnected/connected/reconnecting state independently.
+    - [x] Localize the Windows V1 composer shell in place, retaining draft,
+      cursor, keyboard-send and room/direct dispatch behavior across switching.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

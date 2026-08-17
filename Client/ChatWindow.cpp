@@ -346,6 +346,8 @@ ChatWindow::ChatWindow(QWidget *parent, WindowsLocaleViewModel *localeViewModel)
             this, &ChatWindow::refreshWindowChrome);
     connect(m_windowsLocaleViewModel, &WindowsLocaleViewModel::changed,
             this, &ChatWindow::refreshConnectionStatus);
+    connect(m_windowsLocaleViewModel, &WindowsLocaleViewModel::changed,
+            this, &ChatWindow::refreshComposerText);
     connect(m_connectionStatusViewModel.get(),
             &WindowsConnectionStatusViewModel::changed,
             this, &ChatWindow::refreshConnectionStatus);
@@ -627,13 +629,11 @@ void ChatWindow::setupUi() {
 
     // 工具栏
     auto *toolLayout = new QHBoxLayout;
-    m_emojiBtn = new QPushButton("表情");
+    m_emojiBtn = new QPushButton;
     m_emojiBtn->setFixedHeight(32);
-    m_emojiBtn->setToolTip("表情");
 
-    m_fileBtn = new QPushButton("文件");
+    m_fileBtn = new QPushButton;
     m_fileBtn->setFixedHeight(32);
-    m_fileBtn->setToolTip("发送文件(含图片)");
 
     toolLayout->addWidget(m_emojiBtn);
     toolLayout->addWidget(m_fileBtn);
@@ -643,7 +643,6 @@ void ChatWindow::setupUi() {
     auto *sendLayout = new QHBoxLayout;
     m_inputEdit = new QTextEdit;
     m_inputEdit->setMaximumHeight(80);
-    m_inputEdit->setPlaceholderText("输入消息... (Enter发送, Shift+Enter换行)");
     m_inputEdit->installEventFilter(this);
     m_inputEdit->setContextMenuPolicy(Qt::CustomContextMenu);
     m_draftSaveTimer = new QTimer(this);
@@ -656,13 +655,15 @@ void ChatWindow::setupUi() {
     connect(m_inputEdit, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
         QMenu *menu = m_inputEdit->createStandardContextMenu();
         menu->addSeparator();
-        menu->addAction("插入换行", [this] {
+        menu->addAction(WindowsLocaleCatalog::messages(
+            m_windowsLocaleViewModel->locale()).mainComposerInsertLineBreak,
+                        [this] {
             m_inputEdit->insertPlainText("\n");
         });
         menu->exec(m_inputEdit->mapToGlobal(pos));
         delete menu;
     });
-    m_sendBtn = new QPushButton("发送");
+    m_sendBtn = new QPushButton;
     m_sendBtn->setFixedSize(80, 60);
     m_sendBtn->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; "
                               "border-radius: 4px; font-size: 14px; }"
@@ -673,6 +674,7 @@ void ChatWindow::setupUi() {
     inputLayout->addLayout(sendLayout);
 
     centerLayout->addWidget(inputPanel);
+    refreshComposerText();
 
     // --- 右侧：用户列表 ---
     m_rightPanel = new QWidget;
@@ -806,6 +808,21 @@ void ChatWindow::refreshConnectionStatus() {
         m_connectionStatusLabel->setStyleSheet(QStringLiteral("color: orange;"));
         break;
     }
+}
+
+void ChatWindow::refreshComposerText() {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    m_emojiBtn->setText(copy.mainComposerEmoji);
+    m_emojiBtn->setToolTip(copy.mainComposerEmojiTooltip);
+    m_emojiBtn->setAccessibleName(copy.mainComposerEmojiAccessible);
+    m_fileBtn->setText(copy.mainComposerFile);
+    m_fileBtn->setToolTip(copy.mainComposerFileTooltip);
+    m_fileBtn->setAccessibleName(copy.mainComposerFileAccessible);
+    m_inputEdit->setPlaceholderText(copy.mainComposerPlaceholder);
+    m_inputEdit->setAccessibleName(copy.mainComposerInputAccessible);
+    m_sendBtn->setText(copy.mainComposerSend);
+    m_sendBtn->setAccessibleName(copy.mainComposerSendAccessible);
 }
 
 void ChatWindow::showAboutDialog() {

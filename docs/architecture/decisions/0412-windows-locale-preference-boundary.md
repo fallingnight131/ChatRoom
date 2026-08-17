@@ -136,6 +136,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
   activity feedback. A locale-independent ViewModel owns disconnected,
   connected and normalized reconnect-attempt state; the Widget projects it in a
   dedicated permanent status label and never overwrites upload/download status.
+- Migrate the legacy V1 composer shell by updating existing Widget properties.
+  Emoji/file tools, input semantics, send action, and custom line-break copy use
+  the catalog; locale changes must retain draft text, selection, cursor, timer,
+  Enter/Shift+Enter behavior, and room/direct command ownership.
 
 ## Consequences
 
@@ -210,3 +214,5 @@ database migration or protocol compatibility window is required.
 - connection-state tests bind fail-closed initialization, normalized attempts,
   deduplicated change signals and metadata clearing. Source composition requires
   a separate activity/connection label and rejects direct connection copy.
+- catalog and source composition lock exact composer semantics and reject fixed
+  Chinese copy in its construction path; native Windows focus/IME remains open.

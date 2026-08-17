@@ -141,7 +141,17 @@ int main(int argc, char **argv) {
                 || english.mainDisconnected != QStringLiteral("Disconnected")
                 || english.mainConnected != QStringLiteral("Connected")
                 || english.mainReconnecting
-                    != QStringLiteral("Reconnecting (attempt %1)")) {
+                    != QStringLiteral("Reconnecting (attempt %1)")
+                || english.mainComposerEmoji != QStringLiteral("Emoji")
+                || english.mainComposerFileTooltip
+                    != QStringLiteral("Send a file or image")
+                || english.mainComposerPlaceholder
+                    != QStringLiteral(
+                        "Type a message… (Enter to send, Shift+Enter for a new line)")
+                || english.mainComposerSendAccessible
+                    != QStringLiteral("Send message")
+                || english.mainComposerInsertLineBreak
+                    != QStringLiteral("Insert line break")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -155,6 +165,8 @@ int main(int argc, char **argv) {
                 || chinese.mainMenuAbout != QStringLiteral("关于(&A)")
                 || chinese.mainDisconnected != QStringLiteral("已断开")
                 || chinese.mainConnected != QStringLiteral("已连接")
+                || chinese.mainComposerEmoji != QStringLiteral("表情")
+                || chinese.mainComposerSend != QStringLiteral("发送")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

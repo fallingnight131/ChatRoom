@@ -160,7 +160,31 @@ def main() -> int:
         "statusBar()->addPermanentWidget(m_connectionStatusLabel)",
         "copy.mainConnectionStatusAccessible",
         "copy.mainReconnecting.arg(",
+        "&ChatWindow::refreshComposerText",
+        "copy.mainComposerEmojiAccessible",
+        "copy.mainComposerFileAccessible",
+        "copy.mainComposerInputAccessible",
+        "copy.mainComposerSendAccessible",
+        ").mainComposerInsertLineBreak",
     ), "Client/ChatWindow.cpp")
+    composer_surface = window[
+        window.index("// 工具栏"):
+        window.index("// --- 右侧：用户列表 ---")
+    ]
+    if any(text in composer_surface for text in (
+        'new QPushButton("表情")', 'new QPushButton("文件")',
+        'new QPushButton("发送")', "输入消息...", 'addAction("插入换行"',
+    )):
+        raise AssertionError("ChatWindow composer must not embed localized copy")
+    composer_projection = window[
+        window.index("void ChatWindow::refreshComposerText()"):
+        window.index("void ChatWindow::showAboutDialog()")
+    ]
+    if any(marker in composer_projection for marker in (
+        "m_inputEdit->clear()", "m_inputEdit->setPlainText(",
+        "m_inputEdit->moveCursor(",
+    )):
+        raise AssertionError("locale projection must not mutate composer draft state")
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

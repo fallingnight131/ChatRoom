@@ -460,6 +460,18 @@ WindowsLocaleMessages createZhCn() {
     m.mainDisconnected = QStringLiteral("已断开");
     m.mainConnected = QStringLiteral("已连接");
     m.mainReconnecting = QStringLiteral("重连中（第 %1 次）");
+    m.mainComposerEmoji = QStringLiteral("表情");
+    m.mainComposerEmojiTooltip = QStringLiteral("选择表情");
+    m.mainComposerEmojiAccessible = QStringLiteral("打开表情选择器");
+    m.mainComposerFile = QStringLiteral("文件");
+    m.mainComposerFileTooltip = QStringLiteral("发送文件（含图片）");
+    m.mainComposerFileAccessible = QStringLiteral("选择要发送的文件");
+    m.mainComposerPlaceholder = QStringLiteral(
+        "输入消息…（Enter 发送，Shift+Enter 换行）");
+    m.mainComposerInputAccessible = QStringLiteral("消息输入框");
+    m.mainComposerSend = QStringLiteral("发送");
+    m.mainComposerSendAccessible = QStringLiteral("发送消息");
+    m.mainComposerInsertLineBreak = QStringLiteral("插入换行");
     return m;
 }
 
@@ -941,6 +953,18 @@ WindowsLocaleMessages createEnUs() {
     m.mainDisconnected = QStringLiteral("Disconnected");
     m.mainConnected = QStringLiteral("Connected");
     m.mainReconnecting = QStringLiteral("Reconnecting (attempt %1)");
+    m.mainComposerEmoji = QStringLiteral("Emoji");
+    m.mainComposerEmojiTooltip = QStringLiteral("Choose an emoji");
+    m.mainComposerEmojiAccessible = QStringLiteral("Open emoji picker");
+    m.mainComposerFile = QStringLiteral("File");
+    m.mainComposerFileTooltip = QStringLiteral("Send a file or image");
+    m.mainComposerFileAccessible = QStringLiteral("Choose a file to send");
+    m.mainComposerPlaceholder = QStringLiteral(
+        "Type a message… (Enter to send, Shift+Enter for a new line)");
+    m.mainComposerInputAccessible = QStringLiteral("Message input");
+    m.mainComposerSend = QStringLiteral("Send");
+    m.mainComposerSendAccessible = QStringLiteral("Send message");
+    m.mainComposerInsertLineBreak = QStringLiteral("Insert line break");
     return m;
 }
 

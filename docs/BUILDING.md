@@ -3264,6 +3264,12 @@ composition gate requires separate activity and permanent connection labels and
 rejects lifecycle writes to the activity label. The locale test locks exact
 Chinese/English projections. macOS execution remains development-host evidence;
 native Windows status-bar accessibility and scaling remain release gates.
+The Windows locale Core test also locks exact V1 composer terminology. Static
+composition requires the existing controls to update from the shared ViewModel
+and rejects fixed button, placeholder, and line-break strings in the composer
+construction path. The complete Qt link proves no command rewiring; native
+Windows IME, focus, selection, and Enter/Shift+Enter interaction remain product
+evidence to collect.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

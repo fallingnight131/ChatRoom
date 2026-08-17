@@ -454,6 +454,17 @@ struct WindowsLocaleMessages {
     QString mainDisconnected;
     QString mainConnected;
     QString mainReconnecting;
+    QString mainComposerEmoji;
+    QString mainComposerEmojiTooltip;
+    QString mainComposerEmojiAccessible;
+    QString mainComposerFile;
+    QString mainComposerFileTooltip;
+    QString mainComposerFileAccessible;
+    QString mainComposerPlaceholder;
+    QString mainComposerInputAccessible;
+    QString mainComposerSend;
+    QString mainComposerSendAccessible;
+    QString mainComposerInsertLineBreak;
 };
 
 class WindowsLocaleCatalog final {

@@ -259,6 +259,7 @@ private:
     void setupMenuBar();
     void refreshWindowChrome();
     void refreshConnectionStatus();
+    void refreshComposerText();
     void showAboutDialog();
     void connectSignals();
     void completeUploadBytes();

@@ -2083,6 +2083,11 @@ bounded reconnect-attempt state; a dedicated permanent status label projects it
 through the active catalog. Upload, download, cache, and message feedback keep
 their existing activity label, so transport transitions cannot overwrite an
 unrelated operation and locale changes do not replay network work.
+The legacy V1 composer shell now follows the same catalog for emoji/file tools,
+input placeholder and accessibility, send action, and the custom line-break
+menu item. Locale changes mutate properties on the existing QTextEdit and
+buttons rather than rebuilding them, preserving draft text, selection, cursor,
+the 400 ms persistence timer, and the existing room/direct send commands.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,
