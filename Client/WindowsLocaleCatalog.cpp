@@ -572,6 +572,19 @@ WindowsLocaleMessages createZhCn() {
     m.mainFriendRequestsAcceptedAccessible = QStringLiteral("已接受 %1 的好友申请");
     m.mainFriendRequestsRejectedAccessible = QStringLiteral("已拒绝 %1 的好友申请");
     m.mainFriendRequestsRowAccessible = QStringLiteral("%1，ID %2，好友申请");
+    m.mainFriendViewInfo = QStringLiteral("查看信息");
+    m.mainFriendRemoveAction = QStringLiteral("删除好友");
+    m.mainFriendRemoveTitle = QStringLiteral("删除好友");
+    m.mainFriendRemoveConfirm = QStringLiteral("确定要删除好友 %1 吗？");
+    m.mainFriendRemoveFailed = QStringLiteral("删除好友失败");
+    m.mainFriendRequestSentStatus = QStringLiteral("好友申请已发送");
+    m.mainFriendRequestAddTitle = QStringLiteral("添加好友");
+    m.mainFriendRequestNotificationTitle = QStringLiteral("好友申请");
+    m.mainFriendRequestNotificationBody = QStringLiteral("%1 请求加你为好友");
+    m.mainFriendRequestReceivedStatus = QStringLiteral("收到好友申请：%1");
+    m.mainFriendRequestAcceptedByStatus = QStringLiteral("%1 已接受你的好友申请");
+    m.mainFriendRemovedStatus = QStringLiteral("已删除好友 %1");
+    m.mainFriendRemovedByStatus = QStringLiteral("%1 已将你从好友列表移除");
     return m;
 }
 
@@ -1165,6 +1178,19 @@ WindowsLocaleMessages createEnUs() {
     m.mainFriendRequestsAcceptedAccessible = QStringLiteral("Accepted friend request from %1");
     m.mainFriendRequestsRejectedAccessible = QStringLiteral("Rejected friend request from %1");
     m.mainFriendRequestsRowAccessible = QStringLiteral("%1, ID %2, friend request");
+    m.mainFriendViewInfo = QStringLiteral("View information");
+    m.mainFriendRemoveAction = QStringLiteral("Remove friend");
+    m.mainFriendRemoveTitle = QStringLiteral("Remove friend");
+    m.mainFriendRemoveConfirm = QStringLiteral("Remove %1 from your friends?");
+    m.mainFriendRemoveFailed = QStringLiteral("Unable to remove friend");
+    m.mainFriendRequestSentStatus = QStringLiteral("Friend request sent");
+    m.mainFriendRequestAddTitle = QStringLiteral("Add friend");
+    m.mainFriendRequestNotificationTitle = QStringLiteral("Friend request");
+    m.mainFriendRequestNotificationBody = QStringLiteral("%1 sent you a friend request");
+    m.mainFriendRequestReceivedStatus = QStringLiteral("Friend request received from %1");
+    m.mainFriendRequestAcceptedByStatus = QStringLiteral("%1 accepted your friend request");
+    m.mainFriendRemovedStatus = QStringLiteral("Removed friend %1");
+    m.mainFriendRemovedByStatus = QStringLiteral("%1 removed you from their friends");
     return m;
 }
 

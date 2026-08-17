@@ -211,6 +211,11 @@ def main() -> int:
         "dialog.resolveAccept(success, error)",
         "dialog.resolveReject(success, error)",
         "dialog.setRequests(pending)",
+        "copy.mainFriendViewInfo",
+        "activeCopy.mainFriendRemoveConfirm.arg(friendUsername)",
+        "copy.mainFriendRequestNotificationBody.arg(identity)",
+        "copy.mainFriendRequestAcceptedByStatus.arg(identity)",
+        "copy.mainFriendRemovedByStatus.arg(identity)",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -337,6 +342,19 @@ def main() -> int:
     ), "Client/FriendRequestsDialog.cpp")
     if "NetworkManager" in friend_requests:
         raise AssertionError("friend-request presentation must not own transport")
+    friend_lifecycle_surface = window[
+        window.index("void ChatWindow::onFriendContextMenu("):
+        window.index("void ChatWindow::onFriendListReceived(")
+    ]
+    for embedded_copy in (
+        "查看信息", "删除好友", "好友请求已发送",
+        "添加好友", "收到好友请求", "已接受你的好友请求",
+        "已将你从好友列表移除",
+    ):
+        if embedded_copy in friend_lifecycle_surface:
+            raise AssertionError(
+                "friend lifecycle must not embed localized presentation copy"
+            )
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

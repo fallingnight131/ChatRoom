@@ -2886,6 +2886,9 @@ Candidate slices:
     - [x] Extract the Windows pending friend-request presentation with bounded
       stable request IDs, response-type-correlated global single flight,
       confirmed-only terminal state, live avatars and locale projection.
+    - [x] Migrate Windows friend lifecycle feedback and ephemeral context-menu
+      actions to the shared locale while preserving opaque identities, server
+      errors, V1 commands, confirmation and local-cache cleanup behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

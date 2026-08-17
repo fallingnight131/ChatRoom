@@ -3312,6 +3312,12 @@ terminal accepted/rejected presentation appears only after confirmed success.
 The V1 response has no request ID, so this deliberately does not claim
 per-request response correlation. Native Windows interaction remains a product
 release gate.
+The static composition and exact catalog tests additionally cover the adjacent
+friend lifecycle: context actions, removal confirmation, request notifications,
+acceptance and removal feedback must resolve from the active locale without
+turning account/display identity or server errors into catalog keys. Native
+Windows context-menu, confirmation, tray and screen-reader behavior remains
+release evidence to collect.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

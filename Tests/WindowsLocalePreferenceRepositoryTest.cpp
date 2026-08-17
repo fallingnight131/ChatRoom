@@ -202,7 +202,19 @@ int main(int argc, char **argv) {
                 || english.mainFriendRequestsAccepted
                     != QStringLiteral("Accepted")
                 || english.mainFriendRequestsRejected
-                    != QStringLiteral("Rejected")) {
+                    != QStringLiteral("Rejected")
+                || english.mainFriendViewInfo
+                    != QStringLiteral("View information")
+                || english.mainFriendRemoveConfirm
+                    != QStringLiteral("Remove %1 from your friends?")
+                || english.mainFriendRequestSentStatus
+                    != QStringLiteral("Friend request sent")
+                || english.mainFriendRequestNotificationBody
+                    != QStringLiteral("%1 sent you a friend request")
+                || english.mainFriendRequestAcceptedByStatus
+                    != QStringLiteral("%1 accepted your friend request")
+                || english.mainFriendRemovedByStatus
+                    != QStringLiteral("%1 removed you from their friends")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -239,6 +251,12 @@ int main(int argc, char **argv) {
                     != QStringLiteral("已接受")
                 || chinese.mainFriendRequestsRejected
                     != QStringLiteral("已拒绝")
+                || chinese.mainFriendViewInfo
+                    != QStringLiteral("查看信息")
+                || chinese.mainFriendRemoveConfirm
+                    != QStringLiteral("确定要删除好友 %1 吗？")
+                || chinese.mainFriendRequestSentStatus
+                    != QStringLiteral("好友申请已发送")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

@@ -2120,6 +2120,11 @@ reject and avatar intents, and renders a terminal accepted/rejected state only
 after the matching V1 response type succeeds. Because V1 responses carry no
 request ID, one global mutation may be pending in the dialog; an opposite-type
 response cannot resolve it. `ChatWindow` remains the JSON/transport adapter.
+Adjacent friend lifecycle feedback now resolves from the same locale at event
+time: context actions and removal confirmation, request submission/receipt,
+acceptance and removal notifications all preserve opaque account/display
+identity and server failure detail. Empty display names fall back to the stable
+username; the existing V1 commands and local conversation cleanup are unchanged.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

@@ -245,3 +245,7 @@ database migration or protocol compatibility window is required.
   one mutation globally, resolves only a matching response type, restores open
   actions on failure, and shows accepted/rejected only after confirmed success;
   `ChatWindow` remains the V1 JSON and network adapter.
+- ephemeral friend context actions and lifecycle feedback resolve from the
+  active catalog at event time. Stable usernames remain command/cache keys,
+  display names and server errors remain opaque, and removal confirmation plus
+  the existing V1/cache-cleanup flow are unchanged.

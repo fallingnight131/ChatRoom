@@ -5207,16 +5207,22 @@ void ChatWindow::onFriendContextMenu(const QPoint &pos) {
 
     QString friendUsername = item->data(Qt::UserRole).toString();
     QString friendDisplay  = item->data(Qt::UserRole + 1).toString();
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
 
     QMenu menu(this);
-    menu.addAction("查看信息", [this, friendUsername, friendDisplay] {
+    menu.addAction(copy.mainFriendViewInfo,
+                   [this, friendUsername, friendDisplay] {
         showUserInfoDialog(friendUsername, friendDisplay);
     });
     if (friendUsername != m_username) {
         menu.addSeparator();
-        menu.addAction("删除好友", [this, friendUsername] {
-            auto r = QMessageBox::question(this, "删除好友",
-                QString("确定要删除好友 %1 吗？").arg(friendUsername));
+        menu.addAction(copy.mainFriendRemoveAction,
+                       [this, friendUsername] {
+            const auto &activeCopy = WindowsLocaleCatalog::messages(
+                m_windowsLocaleViewModel->locale());
+            auto r = QMessageBox::question(this, activeCopy.mainFriendRemoveTitle,
+                activeCopy.mainFriendRemoveConfirm.arg(friendUsername));
             if (r != QMessageBox::Yes) return;
             QJsonObject data;
             data["username"] = friendUsername;
@@ -5228,19 +5234,27 @@ void ChatWindow::onFriendContextMenu(const QPoint &pos) {
 }
 
 void ChatWindow::onFriendRequestResponse(bool success, const QString &error) {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success)
-        m_statusLabel->setText("好友请求已发送");
+        m_statusLabel->setText(copy.mainFriendRequestSentStatus);
     else
-        QMessageBox::warning(this, "添加好友", error);
+        QMessageBox::warning(this, copy.mainFriendRequestAddTitle,
+            error.isEmpty() ? copy.mainFriendRequestsFailed : error);
 }
 
 void ChatWindow::onFriendRequestNotify(const QString &fromUsername, const QString &fromDisplayName) {
-    Q_UNUSED(fromUsername)
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    const QString identity = fromDisplayName.isEmpty()
+        ? fromUsername : fromDisplayName;
     m_hasPendingFriendReq = true;
     updateUnreadDots();
     if (m_trayManager)
-        m_trayManager->showNotification("好友请求", QString("%1 请求加你为好友").arg(fromDisplayName));
-    m_statusLabel->setText(QString("收到好友请求: %1").arg(fromDisplayName));
+        m_trayManager->showNotification(
+            copy.mainFriendRequestNotificationTitle,
+            copy.mainFriendRequestNotificationBody.arg(identity));
+    m_statusLabel->setText(copy.mainFriendRequestReceivedStatus.arg(identity));
 }
 
 void ChatWindow::onFriendAcceptResponse(bool success, const QString &error) {
@@ -5258,8 +5272,11 @@ void ChatWindow::onFriendAcceptResponse(bool success, const QString &error) {
 }
 
 void ChatWindow::onFriendAcceptNotify(const QString &username, const QString &displayName) {
-    Q_UNUSED(username)
-    m_statusLabel->setText(QString("%1 已接受你的好友请求").arg(displayName));
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    const QString identity = displayName.isEmpty() ? username : displayName;
+    m_statusLabel->setText(
+        copy.mainFriendRequestAcceptedByStatus.arg(identity));
     onRefreshFriendList();
     QTimer::singleShot(250, this, [this] { onRefreshFriendList(); });
 }
@@ -5275,8 +5292,10 @@ void ChatWindow::onFriendRejectResponse(bool success, const QString &error) {
 }
 
 void ChatWindow::onFriendRemoveResponse(bool success, const QString &username, const QString &error) {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success) {
-        m_statusLabel->setText(QString("已删除好友 %1").arg(username));
+        m_statusLabel->setText(copy.mainFriendRemovedStatus.arg(username));
         // 如果当前正在和这个好友聊天，切回房间模式
         if (m_isFriendChat && m_currentFriendUsername == username)
             switchToRoomMode();
@@ -5286,12 +5305,16 @@ void ChatWindow::onFriendRemoveResponse(bool success, const QString &username, c
         m_friendReadWatermarks.remove(username);
         onRefreshFriendList();
     } else {
-        QMessageBox::warning(this, "删除好友", error);
+        QMessageBox::warning(this, copy.mainFriendRemoveTitle,
+            error.isEmpty() ? copy.mainFriendRemoveFailed : error);
     }
 }
 
 void ChatWindow::onFriendRemoveNotify(const QString &username, const QString &displayName) {
-    m_statusLabel->setText(QString("%1 已将你从好友列表移除").arg(displayName.isEmpty() ? username : displayName));
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    const QString identity = displayName.isEmpty() ? username : displayName;
+    m_statusLabel->setText(copy.mainFriendRemovedByStatus.arg(identity));
     // 如果当前正在和这个好友聊天，切回房间模式
     if (m_isFriendChat && m_currentFriendUsername == username)
         switchToRoomMode();

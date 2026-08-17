@@ -565,6 +565,19 @@ struct WindowsLocaleMessages {
     QString mainFriendRequestsAcceptedAccessible;
     QString mainFriendRequestsRejectedAccessible;
     QString mainFriendRequestsRowAccessible;
+    QString mainFriendViewInfo;
+    QString mainFriendRemoveAction;
+    QString mainFriendRemoveTitle;
+    QString mainFriendRemoveConfirm;
+    QString mainFriendRemoveFailed;
+    QString mainFriendRequestSentStatus;
+    QString mainFriendRequestAddTitle;
+    QString mainFriendRequestNotificationTitle;
+    QString mainFriendRequestNotificationBody;
+    QString mainFriendRequestReceivedStatus;
+    QString mainFriendRequestAcceptedByStatus;
+    QString mainFriendRemovedStatus;
+    QString mainFriendRemovedByStatus;
 };
 
 class WindowsLocaleCatalog final {
