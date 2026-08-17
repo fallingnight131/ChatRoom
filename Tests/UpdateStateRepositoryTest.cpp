@@ -27,11 +27,14 @@ int main(int argc, char *argv[]) {
             || !check(!initial.stableDeviceId.isEmpty(),
                       QStringLiteral("stable device ID was not created"))
             || !check(initial.channels.value(QStringLiteral("stable")).sequence == 0,
-                      QStringLiteral("stable channel did not start empty"))
-            || !check((QFileInfo(directory + QStringLiteral("/update-state.json")).permissions()
-                           & (QFileDevice::ReadGroup | QFileDevice::WriteGroup
-                              | QFileDevice::ReadOther | QFileDevice::WriteOther)) == 0,
-                      QStringLiteral("update state file is not owner-only"))) return 1;
+                      QStringLiteral("stable channel did not start empty"))) return 1;
+
+#ifndef Q_OS_WIN
+    if (!check((QFileInfo(directory + QStringLiteral("/update-state.json")).permissions()
+                    & (QFileDevice::ReadGroup | QFileDevice::WriteGroup
+                       | QFileDevice::ReadOther | QFileDevice::WriteOther)) == 0,
+               QStringLiteral("update state file is not owner-only"))) return 1;
+#endif
 
     Repository::State reloaded;
     if (!check(repository.loadOrCreate(&reloaded, &error), error)

@@ -118,6 +118,8 @@ qmake 在 Windows 上会显式链接 vcpkg 提供的 `libsodium.lib`，其他平
 通过 `-lsodium` 解析库名，避免 MSVC 把依赖误写成不存在的 `sodium.lib`。
 Windows 安装器信任测试在独立临时目录中使用稳定的 `.exe` 夹具，确保
 Authenticode 验证针对普通安装器路径，不受无扩展名临时文件语义影响。
+更新状态仓库在 POSIX 平台检查 owner-only 权限位；Windows 产品路径位于
+每用户 `AppLocalData`，由 NTFS ACL 继承隔离，不将 Qt 映射的 Unix 组/其他位误当成 ACL。
 
 ## 项目结构
 
