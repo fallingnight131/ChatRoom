@@ -116,6 +116,8 @@ V2 Windows WebSocket 传输会按 Qt 版本选择连接错误信号，兼容 Ubu
 拒绝只读句柄修改文件元数据，同时仍验证同尺寸、同时间戳的内容替换。
 qmake 在 Windows 上会显式链接 vcpkg 提供的 `libsodium.lib`，其他平台仍
 通过 `-lsodium` 解析库名，避免 MSVC 把依赖误写成不存在的 `sodium.lib`。
+Windows 安装器信任测试在独立临时目录中使用稳定的 `.exe` 夹具，确保
+Authenticode 验证针对普通安装器路径，不受无扩展名临时文件语义影响。
 
 ## 项目结构
 
