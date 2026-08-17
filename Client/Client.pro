@@ -76,6 +76,7 @@ SOURCES += \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
     RoomFileManagerDialog.cpp \
+    RoomPasswordPromptDialog.cpp \
     ProfileDialog.cpp \
     UserInfoDialog.cpp \
     WindowsBandwidthPolicy.cpp \
@@ -127,6 +128,7 @@ HEADERS += \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \
     RoomFileManagerDialog.h \
+    RoomPasswordPromptDialog.h \
     ProfileDialog.h \
     UserInfoDialog.h \
     WindowsBandwidthPolicy.h \

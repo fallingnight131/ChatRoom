@@ -357,6 +357,13 @@ struct WindowsLocaleMessages {
     QString roomFileAdminRequired;
     QString roomFilesDeleted;
     QString roomFileClearedUnavailable;
+    QString roomPasswordRequiredTitle;
+    QString roomPasswordRequiredPrompt;
+    QString roomPasswordJoinPlaceholder;
+    QString roomPasswordJoinAccessible;
+    QString roomPasswordJoinStatusAccessible;
+    QString roomPasswordJoinRequired;
+    QString roomPasswordJoinAction;
 };
 
 class WindowsLocaleCatalog final {

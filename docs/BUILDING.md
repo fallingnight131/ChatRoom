@@ -3278,6 +3278,12 @@ Unicode filenames, stable file IDs, disabled cleared rows and an existing
 deletion selection unchanged. The source-composition gate also locks the shared
 locale injection and server-authoritative ID emission; native Windows table and
 confirmation interaction remains a product gate.
+`WindowsRoomPasswordPromptLocalizationTest` composes the protected-room join
+prompt, rejects an empty secret locally, switches live validation from Chinese
+to English, then proves the password control is cleared before emitting the
+unchanged server room ID and exact password. The source-composition gate locks
+the real ChatWindow entry and password echo mode; native Windows focus and
+screen-reader behavior remains a release gate.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

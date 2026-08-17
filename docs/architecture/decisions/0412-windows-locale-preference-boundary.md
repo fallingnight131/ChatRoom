@@ -90,6 +90,12 @@ message storage, server behavior, or the supported Web/Windows product scope.
   may update row presentation but must retain Unicode filenames, timestamps,
   stable room/file IDs, cleared eligibility and checked deletion targets.
   Listing and deletion authorization remains server-side.
+- Replace the static protected-room password input with one complete leaf that
+  consumes the shared ViewModel. Mask the field, preserve exact non-empty secret
+  text and the server-provided room ID, clear component plaintext before emit,
+  and retain server-side join authorization. Empty input is a local validation
+  state and must recompose with the active locale. A newer server challenge
+  closes and replaces stale prompt state before capturing its room ID.
 
 ## Consequences
 
@@ -135,3 +141,6 @@ database migration or protocol compatibility window is required.
 - room-file composition proves available and cleared row presentation switches
   together while a checked stable file ID, Unicode filename and refresh room ID
   remain unchanged.
+- protected-room composition proves empty local rejection and live validation
+  recomposition, then requires clear-before-emit with the unchanged room ID and
+  exact non-empty password.

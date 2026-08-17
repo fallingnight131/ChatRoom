@@ -2015,6 +2015,12 @@ actions and destructive confirmation. Recomposition updates only presentation:
 Unicode names, timestamps, room/file IDs, server usage values, cleared-row
 eligibility and checked deletion targets remain unchanged. The server still
 authorizes listing and deletion and remains authoritative for resulting usage.
+The protected-room join password is now a separate Windows leaf instead of a
+static input call. It shares the application locale, masks the secret, exposes
+local empty-input status, and clears component plaintext before dispatch. The
+original server-provided room ID and exact password are sent through the
+existing V1 command; a newer challenge closes stale prompt state, and the
+server remains the only join authority.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

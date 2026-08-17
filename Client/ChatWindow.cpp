@@ -14,6 +14,7 @@
 #include "AvatarCropDialog.h"
 #include "RoomSettingsDialog.h"
 #include "RoomFileManagerDialog.h"
+#include "RoomPasswordPromptDialog.h"
 #include "ForwardSelectDialog.h"
 #include "ProfileDialog.h"
 #include "UserInfoDialog.h"
@@ -4315,16 +4316,28 @@ void ChatWindow::onGetRoomPasswordResponse(bool success, int roomId,
 }
 
 void ChatWindow::onJoinRoomNeedPassword(int roomId) {
-    bool ok;
-    QString password = QInputDialog::getText(this, "需要密码",
-        "该聊天室需要密码才能加入，请输入密码:", QLineEdit::Password, "", &ok);
-    if (!ok || password.isEmpty()) return;
-
-    QJsonObject data;
-    data["roomId"] = roomId;
-    data["password"] = password;
-    NetworkManager::instance()->sendMessage(
-        Protocol::makeMessage(Protocol::MsgType::JOIN_ROOM_REQ, data));
+    if (m_roomPasswordPromptDialog) {
+        m_roomPasswordPromptDialog->close();
+        m_roomPasswordPromptDialog = nullptr;
+    }
+    auto *dialog = new RoomPasswordPromptDialog(
+        roomId, this, m_windowsLocaleViewModel);
+    m_roomPasswordPromptDialog = dialog;
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dialog, &QObject::destroyed, this, [this, dialog] {
+        if (m_roomPasswordPromptDialog == dialog) {
+            m_roomPasswordPromptDialog = nullptr;
+        }
+    });
+    connect(dialog, &RoomPasswordPromptDialog::joinRequested,
+            this, [](int requestedRoomId, const QString &password) {
+        QJsonObject data;
+        data["roomId"] = requestedRoomId;
+        data["password"] = password;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::JOIN_ROOM_REQ, data));
+    });
+    dialog->open();
 }
 
 // ==================== 踢人 ====================

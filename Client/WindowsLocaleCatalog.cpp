@@ -355,6 +355,14 @@ WindowsLocaleMessages createZhCn() {
     m.roomFileAdminRequired = QStringLiteral("只有管理员可以管理文件");
     m.roomFilesDeleted = QStringLiteral("已删除 %1 个文件");
     m.roomFileClearedUnavailable = QStringLiteral("文件已过期或被清除");
+    m.roomPasswordRequiredTitle = QStringLiteral("需要密码");
+    m.roomPasswordRequiredPrompt = QStringLiteral(
+        "该聊天室需要密码才能加入，请输入密码：");
+    m.roomPasswordJoinPlaceholder = QStringLiteral("输入聊天室密码");
+    m.roomPasswordJoinAccessible = QStringLiteral("聊天室加入密码");
+    m.roomPasswordJoinStatusAccessible = QStringLiteral("聊天室加入密码状态");
+    m.roomPasswordJoinRequired = QStringLiteral("请输入聊天室密码");
+    m.roomPasswordJoinAction = QStringLiteral("加入");
     return m;
 }
 
@@ -726,6 +734,14 @@ WindowsLocaleMessages createEnUs() {
     m.roomFileAdminRequired = QStringLiteral("Only administrators can manage files");
     m.roomFilesDeleted = QStringLiteral("Deleted %1 files");
     m.roomFileClearedUnavailable = QStringLiteral("File expired or was cleared");
+    m.roomPasswordRequiredTitle = QStringLiteral("Password required");
+    m.roomPasswordRequiredPrompt = QStringLiteral(
+        "This room requires a password. Enter it to join:");
+    m.roomPasswordJoinPlaceholder = QStringLiteral("Enter the room password");
+    m.roomPasswordJoinAccessible = QStringLiteral("Room join password");
+    m.roomPasswordJoinStatusAccessible = QStringLiteral("Room join password status");
+    m.roomPasswordJoinRequired = QStringLiteral("Enter the room password");
+    m.roomPasswordJoinAction = QStringLiteral("Join");
     return m;
 }
 

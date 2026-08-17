@@ -670,6 +670,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/ForwardSelectDialog.cpp
                 Client/RoomSettingsDialog.cpp
                 Client/RoomFileManagerDialog.cpp
+                Client/RoomPasswordPromptDialog.cpp
                 Client/ProfileDialog.cpp
                 Client/UserInfoDialog.cpp
                 Client/DeviceManagementDialog.cpp

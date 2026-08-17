@@ -39,6 +39,7 @@ class ThemeManager;
 class TrayManager;
 class ProfileDialog;
 class RoomFileManagerDialog;
+class RoomPasswordPromptDialog;
 class ForwardSelectDialog;
 class LocalConversationRepository;
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
@@ -357,6 +358,7 @@ private:
     std::unique_ptr<WindowsMessageNotificationPresenter> m_v2NotificationPresenter;
 #endif
     RoomFileManagerDialog *m_roomFileManagerDialog = nullptr;
+    RoomPasswordPromptDialog *m_roomPasswordPromptDialog = nullptr;
     QLabel       *m_avatarPreview  = nullptr;
     EmojiPicker  *m_emojiPicker    = nullptr;
     TrayManager  *m_trayManager    = nullptr;

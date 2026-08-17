@@ -2843,6 +2843,9 @@ Candidate slices:
     - [x] Migrate the complete Windows room-file manager leaf: localize entry,
       summary, accessible table, file type/status, actions and confirmation,
       while preserving checked stable file IDs and server-side authorization.
+    - [x] Extract and localize the Windows protected-room password prompt:
+      preserve the original server room ID and exact secret, reject empty input,
+      mask the field, and clear component plaintext before command dispatch.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

@@ -38,6 +38,9 @@ def main() -> int:
     room_files = (ROOT / "Client/RoomFileManagerDialog.cpp").read_text(
         encoding="utf-8"
     )
+    room_password = (ROOT / "Client/RoomPasswordPromptDialog.cpp").read_text(
+        encoding="utf-8"
+    )
     bandwidth_policy = (ROOT / "Client/WindowsBandwidthPolicy.cpp").read_text(
         encoding="utf-8"
     )
@@ -118,6 +121,9 @@ def main() -> int:
         "AvatarCropDialog dlg(img, this, m_windowsLocaleViewModel)",
         "maxMembers, this, m_windowsLocaleViewModel",
         "this, m_windowsLocaleViewModel);",
+        "new RoomPasswordPromptDialog(",
+        "m_roomPasswordPromptDialog->close()",
+        "if (m_roomPasswordPromptDialog == dialog)",
     ), "Client/ChatWindow.cpp")
     require(profile, (
         "WindowsLocaleCatalog::messages(m_locale)",
@@ -145,6 +151,14 @@ def main() -> int:
         'statusItem->setData(Qt::UserRole, cleared)',
         "check->property(\"fileId\").toInt()",
     ), "Client/RoomFileManagerDialog.cpp")
+    require(room_password, (
+        "WindowsLocaleCatalog::messages(m_locale)",
+        "WindowsLocaleViewModel::changed",
+        "m_passwordEdit->setEchoMode(QLineEdit::Password)",
+        "if (password.isEmpty())",
+        "m_passwordEdit->clear()",
+        "emit joinRequested(m_roomId, password)",
+    ), "Client/RoomPasswordPromptDialog.cpp")
     require(bandwidth_policy, (
         "WindowsBandwidthPolicy::shouldAutoRequestAvatar",
         "!lowBandwidthEnabled && !cached",
