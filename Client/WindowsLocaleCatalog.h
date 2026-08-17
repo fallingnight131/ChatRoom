@@ -349,6 +349,10 @@ struct WindowsLocaleMessages {
     QString roomCannotLoadImage;
     QString roomNoticeTitle;
     QString roomAvatarTooLarge;
+    QString roomAvatarChangeSucceededTitle;
+    QString roomAvatarChangeSucceeded;
+    QString roomAvatarChangeFailedTitle;
+    QString roomAvatarUploadFailed;
     QString roomFileManagerTitle;
     QString roomFileStorageUsage;
     QString roomFileStorageAccessible;

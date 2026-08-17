@@ -132,6 +132,10 @@ int main(int argc, char **argv) {
                 || english.roomPasswordPresent
                     != QStringLiteral(
                         "This room has a password. It cannot be viewed; an administrator can replace it.")
+                || english.roomAvatarChangeSucceeded
+                    != QStringLiteral("The room avatar was updated")
+                || english.roomAvatarUploadFailed
+                    != QStringLiteral("The room avatar could not be uploaded")
                 || english.deviceManagementTitle
                     != QStringLiteral("Signed-in devices")
                 || english.deviceManagementRevokeFailed
@@ -371,6 +375,10 @@ int main(int argc, char **argv) {
                 || chinese.mainLogoutTitle != QStringLiteral("注销")
                 || chinese.mainCreateRoomTitle
                     != QStringLiteral("创建聊天室")
+                || chinese.roomAvatarChangeSucceededTitle
+                    != QStringLiteral("修改成功")
+                || chinese.roomAvatarUploadFailed
+                    != QStringLiteral("上传聊天室头像失败")
                 || chinese.mainRoomSearchTitle
                     != QStringLiteral("搜索聊天室")
                 || chinese.mainFriendSearchTitle

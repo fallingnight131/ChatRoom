@@ -1005,16 +1005,20 @@ void ChatWindow::connectSignals() {
 
     // 聊天室头像
     connect(net, &NetworkManager::roomAvatarUploadResponse, this, [this](int roomId, bool success, const QString &error) {
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
         if (success) {
             // 上传成功后重新请求头像以刷新本地缓存
             QJsonObject reqData;
             reqData["roomId"] = roomId;
             NetworkManager::instance()->sendMessage(
                 Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_GET_REQ, reqData));
-            QMessageBox::information(this, QStringLiteral("修改成功"), QStringLiteral("聊天室头像修改成功"));
+            QMessageBox::information(
+                this, copy.roomAvatarChangeSucceededTitle,
+                copy.roomAvatarChangeSucceeded);
         } else {
-            QMessageBox::warning(this, QStringLiteral("修改失败"),
-                                 error.isEmpty() ? QStringLiteral("上传聊天室头像失败") : error);
+            QMessageBox::warning(
+                this, copy.roomAvatarChangeFailedTitle,
+                error.isEmpty() ? copy.roomAvatarUploadFailed : error);
         }
     });
     connect(net, &NetworkManager::roomAvatarGetResponse, this, [this](int roomId, bool success, const QByteArray &avatarData) {

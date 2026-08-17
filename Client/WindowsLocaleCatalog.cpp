@@ -349,6 +349,10 @@ WindowsLocaleMessages createZhCn() {
     m.roomCannotLoadImage = QStringLiteral("无法加载图片");
     m.roomNoticeTitle = QStringLiteral("提示");
     m.roomAvatarTooLarge = QStringLiteral("头像数据过大，请选择更小的图片或裁剪区域");
+    m.roomAvatarChangeSucceededTitle = QStringLiteral("修改成功");
+    m.roomAvatarChangeSucceeded = QStringLiteral("聊天室头像修改成功");
+    m.roomAvatarChangeFailedTitle = QStringLiteral("修改失败");
+    m.roomAvatarUploadFailed = QStringLiteral("上传聊天室头像失败");
     m.roomFileManagerTitle = QStringLiteral("文件管理");
     m.roomFileStorageUsage = QStringLiteral("当前文件空间：%1 / %2");
     m.roomFileStorageAccessible = QStringLiteral("房间文件空间使用情况");
@@ -1159,6 +1163,10 @@ WindowsLocaleMessages createEnUs() {
     m.roomNoticeTitle = QStringLiteral("Notice");
     m.roomAvatarTooLarge = QStringLiteral(
         "Avatar data is too large; choose a smaller image or crop area");
+    m.roomAvatarChangeSucceededTitle = QStringLiteral("Room avatar updated");
+    m.roomAvatarChangeSucceeded = QStringLiteral("The room avatar was updated");
+    m.roomAvatarChangeFailedTitle = QStringLiteral("Room avatar update failed");
+    m.roomAvatarUploadFailed = QStringLiteral("The room avatar could not be uploaded");
     m.roomFileManagerTitle = QStringLiteral("File manager");
     m.roomFileStorageUsage = QStringLiteral("File storage: %1 / %2");
     m.roomFileStorageAccessible = QStringLiteral("Room file storage usage");

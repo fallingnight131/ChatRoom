@@ -165,6 +165,10 @@ def main() -> int:
         "if (m_roomPasswordPromptDialog == dialog)",
         "copy.roomPasswordSetStatus",
         "copy.roomPasswordStatusFailedTitle, error",
+        "copy.roomAvatarChangeSucceededTitle",
+        "copy.roomAvatarChangeSucceeded",
+        "copy.roomAvatarChangeFailedTitle",
+        "error.isEmpty() ? copy.roomAvatarUploadFailed : error",
         "m_deviceManagementController->viewModel(), this,",
         "m_windowsLocaleViewModel);",
         "}, 256, m_windowsLocaleViewModel);",
@@ -260,6 +264,28 @@ def main() -> int:
         "copy.mainTransferDownloadFile",
         "copy.mainTransferFriendSendRetryableFailure",
     ), "Client/ChatWindow.cpp")
+    room_avatar_response_surface = window[
+        window.index("// 聊天室头像"):
+        window.index("connect(net, &NetworkManager::roomAvatarGetResponse",
+                     window.index("// 聊天室头像"))
+    ]
+    require(room_avatar_response_surface, (
+        "copy.roomAvatarChangeSucceededTitle",
+        "copy.roomAvatarChangeSucceeded",
+        "copy.roomAvatarChangeFailedTitle",
+        "error.isEmpty() ? copy.roomAvatarUploadFailed : error",
+        'reqData["roomId"] = roomId',
+        "Protocol::MsgType::ROOM_AVATAR_GET_REQ",
+    ), "Client/ChatWindow.cpp room avatar response surface")
+    if any(copy in room_avatar_response_surface for copy in (
+        'QStringLiteral("修改成功")',
+        'QStringLiteral("聊天室头像修改成功")',
+        'QStringLiteral("修改失败")',
+        'QStringLiteral("上传聊天室头像失败")',
+    )):
+        raise AssertionError(
+            "room avatar response feedback must use the active Windows catalog"
+        )
     transfer_surface = window[
         window.index("void ChatWindow::onFileDownloadReady("):
         window.index("// ==================== 消息撤回")

@@ -195,6 +195,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
   per-conversation sequence and continuation cursor remain application data.
   Non-empty server rejection detail stays opaque; local adapter diagnostics are
   logged and use catalog fallback rather than becoming user-visible English.
+- Localize room-avatar upload success and failure at the main-window response
+  adapter. The stable room ID still triggers the same confirmed-success avatar
+  refresh, and a non-empty server rejection remains opaque; localization adds
+  only the empty-error fallback and dialog presentation.
 
 ## Consequences
 
@@ -349,3 +353,6 @@ database migration or protocol compatibility window is required.
   calls while rejecting embedded send, recall and synchronization copy. Catalog
   tests bind both languages, local parser detail remains diagnostic-only, and
   non-empty server rejection detail remains verbatim.
+- room-avatar response composition locks the confirmed-success refresh command
+  and stable room ID while rejecting embedded result copy. Catalog tests bind
+  both languages and non-empty server rejection detail remains verbatim.
