@@ -106,6 +106,9 @@ Treat each completed, independently verifiable plan step as a commit boundary.
    artifact, or generated output that should be ignored.
 6. Do not amend, squash, rebase, or rewrite an existing commit unless the user
    explicitly requests it.
+7. Create commits with Git user name `fallingnight` and email
+   `fallingnight131@gmail.com`. Verify or set the repository-local Git identity
+   before committing; do not change the global Git configuration.
 
 If a coherent step cannot be committed because the worktree contains overlapping
 user changes, preserve those changes and report the blocker instead of mixing
