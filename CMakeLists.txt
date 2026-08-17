@@ -309,6 +309,20 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         target_link_libraries(chatroom_v2_local_data PUBLIC Qt6::Core Qt6::Sql)
 
         add_library(
+            chatroom_client_ui_preferences
+            STATIC
+            Client/WindowsBandwidthPolicy.cpp
+            Client/WindowsBandwidthPolicy.h
+            Client/WindowsBandwidthPreferenceRepository.cpp
+            Client/WindowsBandwidthPreferenceRepository.h
+        )
+        set_target_properties(
+            chatroom_client_ui_preferences
+            PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+        target_include_directories(chatroom_client_ui_preferences PUBLIC Client)
+        target_link_libraries(chatroom_client_ui_preferences PUBLIC Qt6::Core)
+
+        add_library(
             chatroom_v2_messaging_ui_core
             STATIC
             Client/V2WindowsMessagingViewModel.cpp
@@ -713,6 +727,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                     Qt6::Multimedia
                     Qt6::Sql
                     chatroom_client_local_data
+                    chatroom_client_ui_preferences
                     chatroom_client_transport
                     chatroom_device_management_ui_core
                     chatroom_windows_v2_configuration
@@ -830,6 +845,16 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             NAME m6_windows_locale_preference
             COMMAND WindowsLocalePreferenceRepositoryTest)
         set_tests_properties(m6_windows_locale_preference PROPERTIES TIMEOUT 30)
+        add_executable(
+            WindowsBandwidthPreferenceRepositoryTest
+            Tests/WindowsBandwidthPreferenceRepositoryTest.cpp)
+        target_link_libraries(
+            WindowsBandwidthPreferenceRepositoryTest
+            PRIVATE chatroom_client_ui_preferences)
+        add_test(
+            NAME m6_windows_bandwidth_preference
+            COMMAND WindowsBandwidthPreferenceRepositoryTest)
+        set_tests_properties(m6_windows_bandwidth_preference PROPERTIES TIMEOUT 30)
         add_executable(
             WindowsMessageNotificationPolicyTest
             Tests/WindowsMessageNotificationPolicyTest.cpp)

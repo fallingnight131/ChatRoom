@@ -1948,6 +1948,13 @@ The conversation shell also owns two bounded Windows keyboard commands.
 search is present, visible, and enabled; `F5` clicks the existing Refresh
 control, preserving its busy-state guard and request ownership. Shortcut code
 does not construct transport requests directly.
+ADR-0413 establishes the Windows low-bandwidth boundary separately from message
+sync. Its bounded QSettings preference defaults off on missing or malformed
+input, while a pure policy permits automatic avatar requests only for a nonempty
+uncached account when the preference is off. Message history, reconnect repair,
+search, and user-initiated transfers are explicitly outside this suppression.
+The policy is not exposed until product composition can prove dispatch behavior
+and persistence-failure rollback.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

@@ -364,6 +364,7 @@ def verify_cmake_headless(jobs: int, build_root: Path) -> None:
         "V2LocalMessageRepositoryTest",
         "V2WindowsMessagingViewModelTest",
         "WindowsLocalePreferenceRepositoryTest",
+        "WindowsBandwidthPreferenceRepositoryTest",
         "V2WindowsMentionComposerTest",
         "ConversationSyncServiceTest", "AttachmentOutboxServiceTest", "V1HistoryPageAdapterTest",
         "HttpUploadTransportTest", "HttpDownloadTransportTest", "NetworkReconnectTest",

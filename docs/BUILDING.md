@@ -3216,6 +3216,11 @@ conversation-search field, while `F5` must invoke the existing guarded refresh
 command exactly once. The shortcuts do not introduce parallel request paths or
 bypass disabled controls. This remains macOS portability evidence until the
 same path passes on a native Windows Release build.
+`WindowsBandwidthPreferenceRepositoryTest` is the portable foundation for the
+Windows low-bandwidth path. It verifies exact persisted values, restart,
+malformed-input fallback, unwritable-target rollback, and the pure automatic
+avatar eligibility matrix. It does not prove product request suppression; that
+requires the later composed Windows test and native Release evidence.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

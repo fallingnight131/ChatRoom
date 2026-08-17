@@ -77,7 +77,9 @@ SOURCES += \
     RoomSettingsDialog.cpp \
     RoomFileManagerDialog.cpp \
     ProfileDialog.cpp \
-    UserInfoDialog.cpp
+    UserInfoDialog.cpp \
+    WindowsBandwidthPolicy.cpp \
+    WindowsBandwidthPreferenceRepository.cpp
 
 HEADERS += \
     NetworkManager.h \
@@ -122,7 +124,9 @@ HEADERS += \
     RoomSettingsDialog.h \
     RoomFileManagerDialog.h \
     ProfileDialog.h \
-    UserInfoDialog.h
+    UserInfoDialog.h \
+    WindowsBandwidthPolicy.h \
+    WindowsBandwidthPreferenceRepository.h
 
 RESOURCES += \
     resources/resources.qrc
