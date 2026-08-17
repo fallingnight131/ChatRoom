@@ -296,43 +296,100 @@ bool V2WindowsMessagingApplicationService::retryPin(
 bool V2WindowsMessagingApplicationService::editMessage(
         const QString &conversationId, const QString &messageId, const QString &text,
         const QList<V2LocalMessageRepository::Mention> &mentions) {
-    m_lastError.clear(); const auto snapshot=hydrate(conversationId);
-    const auto target=std::find_if(snapshot.messages.cbegin(),snapshot.messages.cend(),
-        [&](const auto &message){ return message.messageId==messageId && message.senderAccountId==m_accountId
-            && message.state==V2LocalMessageRepository::DeliveryState::Accepted && !message.recalled; });
-    if (target==snapshot.messages.cend() || text.isEmpty() || text==target->text) {
-        m_lastError=QStringLiteral("edit target unavailable"); return false;
+    m_lastError.clear();
+    const auto snapshot = hydrate(conversationId);
+    const auto target = std::find_if(
+        snapshot.messages.cbegin(),
+        snapshot.messages.cend(),
+        [&](const auto &message) {
+            return message.messageId == messageId
+                && message.senderAccountId == m_accountId
+                && message.state == V2LocalMessageRepository::DeliveryState::Accepted
+                && !message.recalled;
+        });
+    if (target == snapshot.messages.cend() || text.isEmpty() || text == target->text) {
+        m_lastError = QStringLiteral("edit target unavailable");
+        return false;
     }
-    V2LocalMessageRepository::EditCommand command{conversationId,messageId,target->contentRevision,
-        text,m_clientMessageIdFactory(),V2LocalMessageRepository::EditDeliveryState::Pending,mentions};
-    if (!m_repository->stageEdit(m_accountId,command)) { m_lastError=m_repository->lastError(); return false; }
-    if (m_connected) dispatchEdit(command); return true;
+    V2LocalMessageRepository::EditCommand command{
+        conversationId,
+        messageId,
+        target->contentRevision,
+        text,
+        m_clientMessageIdFactory(),
+        V2LocalMessageRepository::EditDeliveryState::Pending,
+        mentions,
+    };
+    if (!m_repository->stageEdit(m_accountId, command)) {
+        m_lastError = m_repository->lastError();
+        return false;
+    }
+    if (m_connected) {
+        dispatchEdit(command);
+    }
+    return true;
 }
 
 bool V2WindowsMessagingApplicationService::retryEdit(
         const QString &conversationId, const QString &operationId) {
-    auto snapshot=hydrate(conversationId); const auto position=std::find_if(snapshot.editCommands.cbegin(),
-        snapshot.editCommands.cend(),[&](const auto &command){ return command.clientOperationId==operationId
-            && command.state==V2LocalMessageRepository::EditDeliveryState::Failed; });
-    if (position==snapshot.editCommands.cend()) return false; auto command=*position;
-    command.state=V2LocalMessageRepository::EditDeliveryState::Pending;
-    if (!m_repository->stageEdit(m_accountId,command)) { m_lastError=m_repository->lastError(); return false; }
-    m_deferredEditIds.remove(operationId); if (m_connected) dispatchEdit(command); return true;
+    const auto snapshot = hydrate(conversationId);
+    const auto position = std::find_if(
+        snapshot.editCommands.cbegin(),
+        snapshot.editCommands.cend(),
+        [&](const auto &command) {
+            return command.clientOperationId == operationId
+                && command.state == V2LocalMessageRepository::EditDeliveryState::Failed;
+        });
+    if (position == snapshot.editCommands.cend()) {
+        return false;
+    }
+    auto command = *position;
+    command.state = V2LocalMessageRepository::EditDeliveryState::Pending;
+    if (!m_repository->stageEdit(m_accountId, command)) {
+        m_lastError = m_repository->lastError();
+        return false;
+    }
+    m_deferredEditIds.remove(operationId);
+    if (m_connected) {
+        dispatchEdit(command);
+    }
+    return true;
 }
 
 bool V2WindowsMessagingApplicationService::rebaseEdit(
         const QString &conversationId, const QString &operationId) {
-    auto snapshot=hydrate(conversationId); const auto position=std::find_if(snapshot.editCommands.cbegin(),
-        snapshot.editCommands.cend(),[&](const auto &command){ return command.clientOperationId==operationId
-            && command.state==V2LocalMessageRepository::EditDeliveryState::Conflict; });
-    if (position==snapshot.editCommands.cend()) return false;
-    const auto message=std::find_if(snapshot.messages.cbegin(),snapshot.messages.cend(),
-        [&](const auto &value){ return value.messageId==position->messageId; });
-    if (message==snapshot.messages.cend() || message->contentRevision<=position->expectedRevision) return false;
-    auto replacement=*position; replacement.expectedRevision=message->contentRevision;
-    replacement.clientOperationId=m_clientMessageIdFactory(); replacement.state=V2LocalMessageRepository::EditDeliveryState::Pending;
-    if (!m_repository->rebaseEdit(m_accountId,operationId,replacement)) { m_lastError=m_repository->lastError(); return false; }
-    m_deferredEditIds.remove(operationId); if (m_connected) dispatchEdit(replacement); return true;
+    const auto snapshot = hydrate(conversationId);
+    const auto position = std::find_if(
+        snapshot.editCommands.cbegin(),
+        snapshot.editCommands.cend(),
+        [&](const auto &command) {
+            return command.clientOperationId == operationId
+                && command.state == V2LocalMessageRepository::EditDeliveryState::Conflict;
+        });
+    if (position == snapshot.editCommands.cend()) {
+        return false;
+    }
+    const auto message = std::find_if(
+        snapshot.messages.cbegin(),
+        snapshot.messages.cend(),
+        [&](const auto &value) { return value.messageId == position->messageId; });
+    if (message == snapshot.messages.cend()
+            || message->contentRevision <= position->expectedRevision) {
+        return false;
+    }
+    auto replacement = *position;
+    replacement.expectedRevision = message->contentRevision;
+    replacement.clientOperationId = m_clientMessageIdFactory();
+    replacement.state = V2LocalMessageRepository::EditDeliveryState::Pending;
+    if (!m_repository->rebaseEdit(m_accountId, operationId, replacement)) {
+        m_lastError = m_repository->lastError();
+        return false;
+    }
+    m_deferredEditIds.remove(operationId);
+    if (m_connected) {
+        dispatchEdit(replacement);
+    }
+    return true;
 }
 
 bool V2WindowsMessagingApplicationService::discardEdit(const QString &operationId) {
