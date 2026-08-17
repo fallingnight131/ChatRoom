@@ -106,6 +106,7 @@ def main() -> int:
         "WindowsBandwidthViewModel",
         "WindowsAvatarRequestCoordinator",
         "requestAvatar(m_username, true)",
+        "new EmojiPicker(this, m_windowsLocaleViewModel)",
     ), "Client/ChatWindow.cpp")
     require(profile, (
         "WindowsLocaleCatalog::messages(m_locale)",

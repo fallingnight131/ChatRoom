@@ -2824,6 +2824,9 @@ Candidate slices:
         live validation, opaque-detail retention, restart persistence, and
         unwritable-settings rollback; retain native Windows accessibility as a
         product release gate.
+    - [x] Migrate the complete Windows emoji-picker surface to the shared locale:
+      localize its title and all 96 accessible insertion actions, preserve exact
+      glyph ordering/selection, and verify live recomposition offscreen.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

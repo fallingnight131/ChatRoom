@@ -1,4 +1,5 @@
 #include "EmojiPicker.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QGridLayout>
 #include <QVBoxLayout>
@@ -129,10 +130,16 @@ static const QStringList EMOJIS = {
     "\U0001F342", // 🍂 落叶
 };
 
-EmojiPicker::EmojiPicker(QWidget *parent)
-    : QWidget(parent, Qt::Popup)
+EmojiPicker::EmojiPicker(QWidget *parent, WindowsLocaleViewModel *localeViewModel)
+    : QWidget(parent, Qt::Popup), m_localeViewModel(localeViewModel)
 {
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
     setupUi();
+    if (m_localeViewModel) {
+        connect(m_localeViewModel, &WindowsLocaleViewModel::changed,
+                this, &EmojiPicker::applyLocale);
+    }
+    applyLocale();
 }
 
 void EmojiPicker::setupUi() {
@@ -143,9 +150,9 @@ void EmojiPicker::setupUi() {
     outerLayout->setSpacing(0);
 
     // 标题
-    auto *titleLabel = new QLabel("表情");
-    titleLabel->setStyleSheet("color: #666; font-size: 12px; padding: 2px 4px;");
-    outerLayout->addWidget(titleLabel);
+    m_title = new QLabel;
+    m_title->setStyleSheet("color: #666; font-size: 12px; padding: 2px 4px;");
+    outerLayout->addWidget(m_title);
 
     auto *scrollArea = new QScrollArea;
     scrollArea->setWidgetResizable(true);
@@ -172,6 +179,7 @@ void EmojiPicker::setupUi() {
         btn->setFixedSize(42, 42);
         btn->setCursor(Qt::PointingHandCursor);
         btn->setToolTip(emoji);
+        m_buttons.append(btn);
         // 使用平台原生 Emoji 字体
         QFont emojiFont;
 #ifdef Q_OS_WIN
@@ -216,4 +224,13 @@ void EmojiPicker::setupUi() {
         "  border-radius: 8px;"
         "}"
     );
+}
+
+void EmojiPicker::applyLocale() {
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    m_title->setText(copy.emojiPickerTitle);
+    for (auto *button : m_buttons) {
+        button->setAccessibleName(copy.emojiInsertAccessible.arg(button->text()));
+    }
 }

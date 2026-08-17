@@ -61,6 +61,9 @@ message storage, server behavior, or the supported Web/Windows product scope.
   server reason strings as opaque detail across recomposition. A failed selector
   write restores the accepted value and emits visible status plus an
   accessibility Alert.
+- Treat the emoji picker as a complete leaf surface: its visible title and each
+  glyph button's insertion action come from the live catalog, while the fixed
+  96-glyph identity/order and emitted payload remain locale-independent.
 
 ## Consequences
 
@@ -92,3 +95,5 @@ database migration or protocol compatibility window is required.
   actions, placeholders, and live validation; a fresh dialog restores the exact
   value, socket detail survives recomposition verbatim, and an unwritable target
   restores the accepted selector with announced failure status.
+- emoji-picker composition proves all 96 controls retain identity/order and
+  selection behavior while their title and accessible insertion actions switch.

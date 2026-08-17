@@ -261,6 +261,8 @@ struct WindowsLocaleMessages {
     QString registering;
     QString registrationSucceeded;
     QString registrationFailed;
+    QString emojiPickerTitle;
+    QString emojiInsertAccessible;
 };
 
 class WindowsLocaleCatalog final {

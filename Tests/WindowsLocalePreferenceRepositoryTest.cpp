@@ -78,7 +78,10 @@ int main(int argc, char **argv) {
                     != QStringLiteral("Qt Chat Room - Sign in")
                 || english.registrationSucceeded
                     != QStringLiteral(
-                        "Registration succeeded! Switch to the sign-in tab")) {
+                        "Registration succeeded! Switch to the sign-in tab")
+                || english.emojiPickerTitle != QStringLiteral("Emoji")
+                || english.emojiInsertAccessible
+                    != QStringLiteral("Insert emoji %1")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }

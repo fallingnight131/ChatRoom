@@ -691,7 +691,7 @@ void ChatWindow::setupUi() {
     statusBar()->addPermanentWidget(m_statusLabel);
 
     // 表情选择器（弹窗）
-    m_emojiPicker = new EmojiPicker(this);
+    m_emojiPicker = new EmojiPicker(this, m_windowsLocaleViewModel);
     m_emojiPicker->hide();
 }
 

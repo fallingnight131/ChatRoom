@@ -3246,6 +3246,10 @@ socket-detail retention across recomposition, and failed-write selector
 rollback with visible status. It is included in the `--qt` project list. On
 macOS this is development-host portability evidence; native Windows keyboard,
 screen-reader, install, and launch evidence remains required.
+`WindowsEmojiPickerLocalizationTest` locks the 96-glyph surface: a live locale
+change updates the title and every button's accessible insertion name while the
+first glyph identity and emitted selection remain unchanged. It is included in
+`--qt`; offscreen macOS execution is development-host evidence only.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

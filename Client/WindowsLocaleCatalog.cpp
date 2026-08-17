@@ -257,6 +257,8 @@ WindowsLocaleMessages createZhCn() {
     m.registering = QStringLiteral("正在注册…");
     m.registrationSucceeded = QStringLiteral("注册成功！请切换到登录页面");
     m.registrationFailed = QStringLiteral("注册失败：%1");
+    m.emojiPickerTitle = QStringLiteral("表情");
+    m.emojiInsertAccessible = QStringLiteral("插入表情 %1");
     return m;
 }
 
@@ -523,6 +525,8 @@ WindowsLocaleMessages createEnUs() {
     m.registrationSucceeded = QStringLiteral(
         "Registration succeeded! Switch to the sign-in tab");
     m.registrationFailed = QStringLiteral("Registration failed: %1");
+    m.emojiPickerTitle = QStringLiteral("Emoji");
+    m.emojiInsertAccessible = QStringLiteral("Insert emoji %1");
     return m;
 }
 

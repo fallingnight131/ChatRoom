@@ -1984,6 +1984,10 @@ write failure. Offscreen development-host evidence covers switching, restart
 persistence, live validation, opaque-detail retention, and failed-write
 rollback; native Windows keyboard and assistive-technology evidence remains a
 release gate.
+The Windows emoji picker is the next completed leaf surface. ChatWindow injects
+the same locale ViewModel, so its title and all 96 accessible insertion actions
+change live without rebuilding or reordering glyph controls. Emoji identity and
+the emitted message text remain presentation-independent.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;
