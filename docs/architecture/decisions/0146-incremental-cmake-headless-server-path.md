@@ -21,7 +21,7 @@ as the only V1 build model also increases future integration cost.
   `ChatServerHeadless`.
 - Compile the exact Common and Server production sources already listed by
   `Tests/HeadlessServer.pro`; do not fork or wrap their implementation.
-- Require C++17 without compiler extensions, Qt 6.5 or later Core, Network, SQL,
+- Require C++17 without compiler extensions, Qt 6.4 or later Core, Network, SQL,
   and WebSockets, CMake AUTOMOC, and libsodium.
 - Resolve libsodium from normal CMake search paths or a cache/environment
   `SODIUM_ROOT`. Do not execute a package manager or download dependencies from
@@ -53,6 +53,10 @@ between `HeadlessServer.pro` and `CMakeLists.txt` is temporary and guarded by
 compilation plus a real process test, but full behavioral equivalence still
 comes from the existing V1 smoke suite. Windows product packaging remains
 unchanged.
+
+The minimum Qt version is 6.4 so the CMake path matches the documented Ubuntu
+portability baseline. The supported Windows product toolchain remains pinned
+separately and is not downgraded by this compatibility floor.
 
 ## Migration and Rollback
 

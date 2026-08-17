@@ -71,7 +71,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
     if(CHATROOM_BUILD_WINDOWS_CLIENT)
         list(APPEND CHATROOM_QT_COMPONENTS Gui Widgets Multimedia)
     endif()
-    find_package(Qt6 6.5 REQUIRED COMPONENTS ${CHATROOM_QT_COMPONENTS})
+    find_package(Qt6 6.4 REQUIRED COMPONENTS ${CHATROOM_QT_COMPONENTS})
 
     set(SODIUM_ROOT "" CACHE PATH "libsodium installation prefix")
     find_path(
