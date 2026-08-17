@@ -633,6 +633,10 @@ WindowsLocaleMessages createZhCn() {
     m.mainLeaveRoomTitle = QStringLiteral("退出聊天室");
     m.mainLeaveRoomConfirm = QStringLiteral("确定要退出聊天室 %1 吗？");
     m.mainLeaveRoomFailed = QStringLiteral("退出聊天室失败");
+    m.mainRoomCreateFailedTitle = QStringLiteral("创建聊天室失败");
+    m.mainRoomCreateFailed = QStringLiteral("无法创建聊天室");
+    m.mainRoomJoinFailedTitle = QStringLiteral("加入聊天室失败");
+    m.mainRoomJoinFailed = QStringLiteral("无法加入聊天室");
     m.mainRoomDeleteSucceededTitle = QStringLiteral("删除成功");
     m.mainRoomDeleted = QStringLiteral("聊天室“%1”已被删除");
     m.mainRoomDeletedNotifyTitle = QStringLiteral("聊天室已删除");
@@ -1488,6 +1492,10 @@ WindowsLocaleMessages createEnUs() {
     m.mainLeaveRoomTitle = QStringLiteral("Leave room");
     m.mainLeaveRoomConfirm = QStringLiteral("Leave room %1?");
     m.mainLeaveRoomFailed = QStringLiteral("Unable to leave room");
+    m.mainRoomCreateFailedTitle = QStringLiteral("Unable to create room");
+    m.mainRoomCreateFailed = QStringLiteral("The room could not be created");
+    m.mainRoomJoinFailedTitle = QStringLiteral("Unable to join room");
+    m.mainRoomJoinFailed = QStringLiteral("The room could not be joined");
     m.mainRoomDeleteSucceededTitle = QStringLiteral("Room deleted");
     m.mainRoomDeleted = QStringLiteral("Room \"%1\" was deleted");
     m.mainRoomDeletedNotifyTitle = QStringLiteral("Room no longer available");

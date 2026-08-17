@@ -232,6 +232,10 @@ def main() -> int:
         "copy.mainFriendRemovedByStatus.arg(identity)",
         "copy.mainLeaveRoomConfirm.arg(roomName)",
         "m_statusLabel->setText(copy.mainLeaveRoomFailed)",
+        "copy.mainRoomCreateFailedTitle",
+        "error.isEmpty() ? copy.mainRoomCreateFailed : error",
+        "copy.mainRoomJoinFailedTitle",
+        "error.isEmpty() ? copy.mainRoomJoinFailed : error",
         "copy.mainRoomDeleted.arg(roomName)",
         "copy.mainRoomDeletedByAdministrator.arg(roomName)",
         "error.isEmpty() ? copy.roomDeleteFailedTitle : error",
@@ -767,6 +771,16 @@ def main() -> int:
         "dialog.setTextValue(", "dialog.textValue().clear()",
     )):
         raise AssertionError("locale projection must not replace the room-name draft")
+    room_create_join_result_surface = window[
+        window.index("void ChatWindow::onRoomCreated("):
+        window.index("void ChatWindow::onRoomListReceived(")
+    ]
+    if any(copy in room_create_join_result_surface for copy in (
+        '"创建失败"', '"加入失败"',
+    )):
+        raise AssertionError(
+            "room create/join results must use catalog presentation copy"
+        )
     room_search_surface = window[
         window.index("void ChatWindow::onSearchRoom()"):
         window.index("void ChatWindow::onRoomCreated(")

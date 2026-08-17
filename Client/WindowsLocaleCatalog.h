@@ -616,6 +616,10 @@ struct WindowsLocaleMessages {
     QString mainLeaveRoomTitle;
     QString mainLeaveRoomConfirm;
     QString mainLeaveRoomFailed;
+    QString mainRoomCreateFailedTitle;
+    QString mainRoomCreateFailed;
+    QString mainRoomJoinFailedTitle;
+    QString mainRoomJoinFailed;
     QString mainRoomDeleteSucceededTitle;
     QString mainRoomDeleted;
     QString mainRoomDeletedNotifyTitle;

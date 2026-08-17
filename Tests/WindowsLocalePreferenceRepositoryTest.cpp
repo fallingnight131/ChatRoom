@@ -266,6 +266,14 @@ int main(int argc, char **argv) {
                     != QStringLiteral("Leave room %1?")
                 || english.mainLeaveRoomFailed
                     != QStringLiteral("Unable to leave room")
+                || english.mainRoomCreateFailedTitle
+                    != QStringLiteral("Unable to create room")
+                || english.mainRoomCreateFailed
+                    != QStringLiteral("The room could not be created")
+                || english.mainRoomJoinFailedTitle
+                    != QStringLiteral("Unable to join room")
+                || english.mainRoomJoinFailed
+                    != QStringLiteral("The room could not be joined")
                 || english.mainRoomDeleted
                     != QStringLiteral("Room \"%1\" was deleted")
                 || english.mainRoomDeletedByAdministrator

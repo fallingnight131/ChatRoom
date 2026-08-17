@@ -385,3 +385,8 @@ database migration or protocol compatibility window is required.
   requiring locale-aware size projection and key working-copy cleanup. Catalog
   tests bind both languages; the server still owns authorization, key validation
   and cleanup selection.
+- room creation and join failures resolve dialog titles and empty-error fallbacks
+  from the active catalog while keeping non-empty server errors opaque. Local
+  join/leave timeline entries remain outside this slice because their free-form
+  text may later enter a conversation snapshot; they require typed events with
+  render-time localization rather than translated stored content.

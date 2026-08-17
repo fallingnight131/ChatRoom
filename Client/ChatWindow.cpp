@@ -1294,17 +1294,21 @@ void ChatWindow::onSearchRoom() {
 }
 
 void ChatWindow::onRoomCreated(bool success, int roomId, const QString &name, const QString &error) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     if (success) {
         auto *item = new QListWidgetItem(name);
         item->setData(Qt::UserRole, roomId);
         m_roomList->addItem(item);
         switchRoom(roomId);
     } else {
-        QMessageBox::warning(this, "创建失败", error);
+        QMessageBox::warning(
+            this, copy.mainRoomCreateFailedTitle,
+            error.isEmpty() ? copy.mainRoomCreateFailed : error);
     }
 }
 
 void ChatWindow::onRoomJoined(bool success, int roomId, const QString &name, const QString &error, bool newJoin) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     if (success) {
         // 检查是否已在列表中
         for (int i = 0; i < m_roomList->count(); ++i) {
@@ -1329,7 +1333,9 @@ found:
             m_joinedRooms.insert(roomId);
         }
     } else {
-        QMessageBox::warning(this, "加入失败", error);
+        QMessageBox::warning(
+            this, copy.mainRoomJoinFailedTitle,
+            error.isEmpty() ? copy.mainRoomJoinFailed : error);
     }
 }
 
