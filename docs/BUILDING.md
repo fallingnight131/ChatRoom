@@ -3168,6 +3168,13 @@ product compiles it behind the default-off V2 gate; the qmake rollback remains
 V1-only. `V2WindowsConversationDialogTest` verifies accessible directory and
 paging controls, user-facing unread rows, hidden authorized identity selection,
 and cached-message rendering (ADR-0338).
+`WindowsLocalePreferenceRepositoryTest` covers the detached ADR-0412 Windows
+localization foundation through Qt Core. It proves exact `zh-CN`/`en-US`
+selection, fail-closed Chinese fallback for missing or differently-cased values,
+restart persistence through a fresh `QSettings` instance, and stable composer/
+byte-budget catalog copy. On macOS this is portability evidence only: no
+language selector is product-composed yet, and native Windows screen-reader or
+keyboard evidence is not claimed.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

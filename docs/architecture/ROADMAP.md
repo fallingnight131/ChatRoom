@@ -2754,6 +2754,12 @@ Candidate slices:
     cleared composer focus in Chromium and Firefox.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
+    - [x] Establish an exact `zh-CN`/`en-US` Windows Qt Core catalog and bounded
+      non-secret `ui/locale` preference with invalid-value fallback and restart
+      evidence; keep UI composition closed until a complete surface migrates
+      (ADR-0412).
+    - [ ] Migrate the complete Windows V2 conversation shell and composer to
+      the locale boundary before exposing a persisted language selector.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

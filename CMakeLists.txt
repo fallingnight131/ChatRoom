@@ -319,6 +319,10 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             Client/WindowsMessageNotificationPolicy.h
             Client/WindowsMessageNotificationPresenter.cpp
             Client/WindowsMessageNotificationPresenter.h
+            Client/WindowsLocaleCatalog.cpp
+            Client/WindowsLocaleCatalog.h
+            Client/WindowsLocalePreferenceRepository.cpp
+            Client/WindowsLocalePreferenceRepository.h
         )
         set_target_properties(
             chatroom_v2_messaging_ui_core
@@ -815,6 +819,15 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             V2WindowsMessagingViewModelTest PRIVATE chatroom_v2_messaging_ui_core)
         add_test(NAME m6_windows_v2_messaging_view_model COMMAND V2WindowsMessagingViewModelTest)
         set_tests_properties(m6_windows_v2_messaging_view_model PROPERTIES TIMEOUT 30)
+        add_executable(
+            WindowsLocalePreferenceRepositoryTest
+            Tests/WindowsLocalePreferenceRepositoryTest.cpp)
+        target_link_libraries(
+            WindowsLocalePreferenceRepositoryTest PRIVATE chatroom_v2_messaging_ui_core)
+        add_test(
+            NAME m6_windows_locale_preference
+            COMMAND WindowsLocalePreferenceRepositoryTest)
+        set_tests_properties(m6_windows_locale_preference PROPERTIES TIMEOUT 30)
         add_executable(
             WindowsMessageNotificationPolicyTest
             Tests/WindowsMessageNotificationPolicyTest.cpp)

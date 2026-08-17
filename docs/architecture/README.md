@@ -1905,6 +1905,14 @@ tray, notification, shortcut, startup, installer, and updater behavior behind
 platform interfaces. Keep the core portable where inexpensive, but do not add
 macOS or Linux product work without a support-scope ADR.
 
+ADR-0412 starts Windows localization behind a Qt Core boundary rather than
+letting Widgets read settings. Exact `zh-CN` and `en-US` catalogs use Chinese as
+the fail-closed default; only the bounded non-secret code is stored under
+`ui/locale`. Invalid or differently-cased values do not select a catalog. This
+foundation is exercised on the macOS development host, but no selector is shown
+until one complete surface can switch without mixed catalog-owned strings, and
+native Windows accessibility evidence remains required.
+
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;
 ACK, history/repair, mutation, search, and self-echo paths remain silent. A
