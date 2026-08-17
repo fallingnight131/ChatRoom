@@ -35,18 +35,18 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
       m_directoryViewModel(directoryViewModel), m_searchViewModel(searchViewModel),
       m_status(new QLabel(this)), m_searchPane(new QWidget(this)),
       m_searchInput(new QLineEdit(m_searchPane)),
-      m_searchButton(new QPushButton(QStringLiteral("搜索"), m_searchPane)),
+      m_searchButton(new QPushButton(WindowsLocaleCatalog::messages(locale).search, m_searchPane)),
       m_searchStatus(new QLabel(m_searchPane)),
       m_searchResults(new QListWidget(m_searchPane)),
-      m_searchLoadMore(new QPushButton(QStringLiteral("加载更多结果"), m_searchPane)),
+      m_searchLoadMore(new QPushButton(WindowsLocaleCatalog::messages(locale).loadMoreResults, m_searchPane)),
       m_replyBanner(new QLabel(this)), m_messages(new QListWidget(this)),
       m_composer(new QPlainTextEdit(this)),
       m_participantPane(new QWidget(this)),
       m_participantStatus(new QLabel(m_participantPane)),
       m_participants(new QListWidget(m_participantPane)),
-      m_refreshParticipants(new QPushButton(QStringLiteral("刷新成员"), m_participantPane)),
-      m_loadMoreParticipants(new QPushButton(QStringLiteral("加载更多"), m_participantPane)),
-      m_closeParticipants(new QPushButton(QStringLiteral("关闭"), m_participantPane)),
+      m_refreshParticipants(new QPushButton(WindowsLocaleCatalog::messages(locale).refreshParticipants, m_participantPane)),
+      m_loadMoreParticipants(new QPushButton(WindowsLocaleCatalog::messages(locale).loadMore, m_participantPane)),
+      m_closeParticipants(new QPushButton(WindowsLocaleCatalog::messages(locale).close, m_participantPane)),
       m_cancelReply(new QPushButton(WindowsLocaleCatalog::messages(locale).cancelReply, this)),
       m_mention(new QPushButton(WindowsLocaleCatalog::messages(locale).mention, this)),
       m_send(new QPushButton(WindowsLocaleCatalog::messages(locale).sendMessage, this)),
@@ -61,16 +61,16 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     setAccessibleName(copy.messagePanel);
     m_status->setAccessibleName(copy.messageStatusAccessible);
     m_status->setWordWrap(true);
-    m_searchPane->setAccessibleName(QStringLiteral("会话消息搜索"));
-    m_searchInput->setAccessibleName(QStringLiteral("搜索当前会话消息"));
-    m_searchInput->setPlaceholderText(QStringLiteral("输入 1 至 128 字节的文字"));
+    m_searchPane->setAccessibleName(copy.searchPaneAccessible);
+    m_searchInput->setAccessibleName(copy.searchInputAccessible);
+    m_searchInput->setPlaceholderText(copy.searchPlaceholder);
     m_searchInput->setMaxLength(128);
-    m_searchButton->setAccessibleName(QStringLiteral("提交当前会话搜索"));
-    m_searchStatus->setAccessibleName(QStringLiteral("搜索结果状态"));
+    m_searchButton->setAccessibleName(copy.searchSubmitAccessible);
+    m_searchStatus->setAccessibleName(copy.searchStatusAccessible);
     m_searchStatus->setWordWrap(true);
-    m_searchResults->setAccessibleName(QStringLiteral("搜索结果列表"));
+    m_searchResults->setAccessibleName(copy.searchResultsAccessible);
     m_searchResults->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_searchLoadMore->setAccessibleName(QStringLiteral("加载更多搜索结果"));
+    m_searchLoadMore->setAccessibleName(copy.searchLoadMoreAccessible);
     auto *searchControls = new QHBoxLayout;
     searchControls->addWidget(m_searchInput, 1);
     searchControls->addWidget(m_searchButton);
@@ -80,7 +80,7 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     searchLayout->addWidget(m_searchResults);
     searchLayout->addWidget(m_searchLoadMore);
     m_searchPane->setVisible(m_searchViewModel != nullptr);
-    m_replyBanner->setAccessibleName(QStringLiteral("当前回复目标"));
+    m_replyBanner->setAccessibleName(copy.replyTargetAccessible);
     m_replyBanner->setWordWrap(true);
     m_messages->setAccessibleName(copy.messageList);
     m_messages->setSelectionMode(QAbstractItemView::NoSelection);
@@ -88,14 +88,14 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     m_composer->setPlaceholderText(copy.composerPlaceholder);
     m_composer->setMaximumBlockCount(1000);
     m_composer->installEventFilter(this);
-    m_participantPane->setAccessibleName(QStringLiteral("会话成员选择器"));
-    m_participantStatus->setAccessibleName(QStringLiteral("成员列表状态"));
+    m_participantPane->setAccessibleName(copy.participantPaneAccessible);
+    m_participantStatus->setAccessibleName(copy.participantStatusAccessible);
     m_participantStatus->setWordWrap(true);
-    m_participants->setAccessibleName(QStringLiteral("可提及的会话成员"));
+    m_participants->setAccessibleName(copy.participantListAccessible);
     m_participants->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_refreshParticipants->setAccessibleName(QStringLiteral("刷新可提及成员"));
-    m_loadMoreParticipants->setAccessibleName(QStringLiteral("加载更多可提及成员"));
-    m_closeParticipants->setAccessibleName(QStringLiteral("关闭成员选择器"));
+    m_refreshParticipants->setAccessibleName(copy.refreshParticipantsAccessible);
+    m_loadMoreParticipants->setAccessibleName(copy.loadMoreParticipantsAccessible);
+    m_closeParticipants->setAccessibleName(copy.closeParticipantsAccessible);
     m_mention->setAccessibleName(copy.mentionAccessible);
     m_mention->setVisible(m_mentionsEnabled);
     m_cancelReply->setAccessibleName(copy.cancelReplyAccessible);
@@ -222,6 +222,7 @@ void V2WindowsMessagingPanel::setConversation(const QString &conversationId) {
 }
 
 void V2WindowsMessagingPanel::render() {
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     m_status->setText(m_viewModel->failure());
     m_messages->clear();
     for (const auto &message : m_viewModel->rows()) {
@@ -248,53 +249,51 @@ void V2WindowsMessagingPanel::render() {
         }
         body->setText(richBody);
         body->setTextFormat(Qt::RichText);
-        body->setAccessibleName(QStringLiteral("消息内容：%1").arg(message.text));
+        body->setAccessibleName(copy.messageBodyAccessible.arg(message.text));
         body->setProperty("mentionTargetAccountIds", mentionTargetAccountIds);
         body->setWordWrap(true);
         body->setTextInteractionFlags(Qt::TextSelectableByKeyboard | Qt::TextSelectableByMouse);
         if (!message.replyPreview.isEmpty()) {
-            auto *reference = new QLabel(
-                QStringLiteral("引用：%1").arg(message.replyPreview), row);
-            reference->setAccessibleName(QStringLiteral("引用消息"));
+            auto *reference = new QLabel(copy.quotedMessage.arg(message.replyPreview), row);
+            reference->setAccessibleName(copy.quotedMessageAccessible);
             reference->setWordWrap(true);
             layout->addWidget(reference);
         }
         layout->addWidget(body);
         if (message.forwarded) {
-            auto *forwarded = new QLabel(QStringLiteral("已转发"), row);
-            forwarded->setAccessibleName(QStringLiteral("此消息由服务器转发"));
+            auto *forwarded = new QLabel(copy.forwarded, row);
+            forwarded->setAccessibleName(copy.forwardedAccessible);
             layout->addWidget(forwarded);
         }
         if (message.edited) {
-            auto *edited = new QLabel(QStringLiteral("已编辑"), row);
-            edited->setAccessibleName(QStringLiteral("此消息已编辑"));
+            auto *edited = new QLabel(copy.edited, row);
+            edited->setAccessibleName(copy.editedAccessible);
             layout->addWidget(edited);
         }
         if (message.editPending) {
-            auto *status = new QLabel(QStringLiteral("正在保存编辑…"), row);
-            status->setAccessibleName(QStringLiteral("编辑状态：正在保存"));
+            auto *status = new QLabel(copy.editSaving, row);
+            status->setAccessibleName(copy.editSavingAccessible);
             layout->addWidget(status);
         } else if (message.editConflict || message.editFailed) {
             auto *status = new QLabel(message.editConflict
-                ? QStringLiteral("其他设备已修改此消息；你的编辑草稿已保留")
-                : QStringLiteral("编辑保存失败；草稿仍保存在本机"), row);
+                ? copy.editConflictDraftRetained : copy.editFailedDraftRetained, row);
             status->setAccessibleName(message.editConflict
-                ? QStringLiteral("编辑冲突") : QStringLiteral("编辑失败"));
+                ? copy.editConflictAccessible : copy.editFailedAccessible);
             status->setWordWrap(true);
             layout->addWidget(status);
             auto *editActions = new QHBoxLayout;
             auto *retry = new QPushButton(message.editConflict
-                ? QStringLiteral("基于新版本重试") : QStringLiteral("重试编辑"), row);
+                ? copy.retryFromNewVersion : copy.retryEdit, row);
             retry->setAccessibleName(message.editConflict
-                ? QStringLiteral("基于服务器新版本重试编辑") : QStringLiteral("重试保存编辑"));
+                ? copy.retryFromNewVersionAccessible : copy.retryEditAccessible);
             connect(retry, &QPushButton::clicked, m_viewModel,
                 [model = m_viewModel, id = message.editOperationId,
                  conflict = message.editConflict] {
                     if (conflict) model->rebaseEdit(id);
                     else model->retryEdit(id);
                 });
-            auto *discard = new QPushButton(QStringLiteral("放弃草稿"), row);
-            discard->setAccessibleName(QStringLiteral("放弃此消息的编辑草稿"));
+            auto *discard = new QPushButton(copy.discardDraft, row);
+            discard->setAccessibleName(copy.discardDraftAccessible);
             connect(discard, &QPushButton::clicked, m_viewModel,
                 [model = m_viewModel, id = message.editOperationId] {
                     model->discardEdit(id);
@@ -307,41 +306,41 @@ void V2WindowsMessagingPanel::render() {
         auto *actions = new QHBoxLayout;
         if (!message.deliveryLabel.isEmpty()) {
             auto *delivery = new QLabel(message.deliveryLabel, row);
-            delivery->setAccessibleName(QStringLiteral("发送状态"));
+            delivery->setAccessibleName(copy.deliveryStatusAccessible);
             actions->addWidget(delivery);
         }
         actions->addStretch();
         if (message.canRetry) {
-            auto *retry = new QPushButton(QStringLiteral("重试"), row);
-            retry->setAccessibleName(QStringLiteral("重试发送此消息"));
+            auto *retry = new QPushButton(copy.retry, row);
+            retry->setAccessibleName(copy.retrySendAccessible);
             connect(retry, &QPushButton::clicked, m_viewModel,
                     [model = m_viewModel, id = message.clientMessageId] { model->retry(id); });
             actions->addWidget(retry);
         }
         if (message.canReply) {
-            auto *copy = new QPushButton(QStringLiteral("复制"), row);
-            copy->setAccessibleName(QStringLiteral("复制此消息正文"));
-            connect(copy, &QPushButton::clicked, this,
+            auto *copyButton = new QPushButton(copy.copy, row);
+            copyButton->setAccessibleName(copy.copyMessageAccessible);
+            connect(copyButton, &QPushButton::clicked, this,
                 [text = message.text] {
                     if (auto *clipboard = QGuiApplication::clipboard())
                         clipboard->setText(text);
                 });
-            actions->addWidget(copy);
+            actions->addWidget(copyButton);
             if (m_forwardingEnabled && message.canForward) {
-                auto *forward = new QPushButton(QStringLiteral("转发"), row);
-                forward->setAccessibleName(QStringLiteral("转发此消息"));
+                auto *forward = new QPushButton(copy.forward, row);
+                forward->setAccessibleName(copy.forwardMessageAccessible);
                 connect(forward, &QPushButton::clicked, this,
                     [this, id = message.messageId] { chooseForward(id); });
                 actions->addWidget(forward);
             }
-            auto *reply = new QPushButton(QStringLiteral("回复"), row);
-            reply->setAccessibleName(QStringLiteral("回复此消息"));
+            auto *reply = new QPushButton(copy.reply, row);
+            reply->setAccessibleName(copy.replyMessageAccessible);
             connect(reply, &QPushButton::clicked, this,
                     [this, id = message.messageId] { chooseReply(id); });
             actions->addWidget(reply);
             if (message.canEdit) {
-                auto *edit = new QPushButton(QStringLiteral("编辑"), row);
-                edit->setAccessibleName(QStringLiteral("编辑此消息"));
+                auto *edit = new QPushButton(copy.edit, row);
+                edit->setAccessibleName(copy.editMessageAccessible);
                 connect(edit, &QPushButton::clicked, this,
                     [this, id = message.messageId, current = message.text,
                      mentions = message.mentions] {
@@ -354,12 +353,10 @@ void V2WindowsMessagingPanel::render() {
             pin->setChecked(message.pinned);
             pin->setEnabled(!message.pinPending);
             pin->setText(message.pinFailed
-                ? QStringLiteral("置顶失败，重试")
-                : (message.pinned ? QStringLiteral("取消置顶") : QStringLiteral("置顶")));
+                ? copy.pinRetry : (message.pinned ? copy.unpin : copy.pin));
             pin->setAccessibleName(message.pinFailed
-                ? QStringLiteral("重试此消息的置顶操作")
-                : (message.pinned ? QStringLiteral("取消置顶此消息")
-                                  : QStringLiteral("置顶此消息")));
+                ? copy.pinRetryAccessible
+                : (message.pinned ? copy.unpinAccessible : copy.pinAccessible));
             if (message.pinFailed) {
                 connect(pin, &QPushButton::clicked, m_viewModel,
                     [model = m_viewModel, id = message.pinOperationId] { model->retryPin(id); });
@@ -382,10 +379,10 @@ void V2WindowsMessagingPanel::render() {
                 button->setCheckable(true);
                 button->setChecked(reaction.mine);
                 button->setEnabled(!reaction.pending);
-                button->setAccessibleName(QStringLiteral("消息反应 %1，%2 人")
+                button->setAccessibleName(copy.reactionAccessible
                     .arg(labels.value(index)).arg(reaction.count));
                 if (reaction.failed) {
-                    button->setText(QStringLiteral("%1 重试").arg(labels.value(index)));
+                    button->setText(copy.reactionRetry.arg(labels.value(index)));
                     connect(button, &QPushButton::clicked, m_viewModel,
                         [model = m_viewModel, id = reaction.clientOperationId] {
                             model->retryReaction(id);
@@ -407,7 +404,6 @@ void V2WindowsMessagingPanel::render() {
     const bool editing = !m_editTargetMessageId.isEmpty();
     const bool replying = !m_viewModel->replyTargetMessageId().isEmpty();
     const bool composing = replying || editing;
-    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     m_replyBanner->setText(editing
         ? copy.editingMessage : m_viewModel->replyBanner());
     m_replyBanner->setVisible(composing);
@@ -431,7 +427,8 @@ void V2WindowsMessagingPanel::render() {
                     || !revealMessage(identity))
                 return;
             m_pendingSearchRevealMessageId.clear();
-            m_searchStatus->setText(QStringLiteral("已定位到搜索结果"));
+            m_searchStatus->setText(
+                WindowsLocaleCatalog::messages(m_locale).searchLocated);
             QAccessibleEvent announcement(m_searchStatus, QAccessible::Alert);
             QAccessible::updateAccessibility(&announcement);
         });
@@ -441,7 +438,8 @@ void V2WindowsMessagingPanel::render() {
 void V2WindowsMessagingPanel::startSearch() {
     if (!m_searchViewModel || m_conversationId.isEmpty()) return;
     if (!m_searchViewModel->search(m_searchInput->text())) {
-        m_searchStatus->setText(QStringLiteral("请输入有效的搜索文字"));
+        m_searchStatus->setText(
+            WindowsLocaleCatalog::messages(m_locale).searchInvalid);
     }
 }
 
@@ -454,26 +452,26 @@ void V2WindowsMessagingPanel::renderSearch() {
             m_searchResults);
         item->setData(Qt::UserRole, row.messageId);
         item->setData(Qt::AccessibleDescriptionRole,
-                      QStringLiteral("激活以定位到该消息"));
+            WindowsLocaleCatalog::messages(m_locale).searchResultActivateAccessible);
         item->setToolTip(row.text);
     }
     m_searchButton->setEnabled(!m_searchViewModel->busy());
     m_searchInput->setEnabled(!m_searchViewModel->busy());
     m_searchLoadMore->setEnabled(
         !m_searchViewModel->busy() && m_searchViewModel->hasMore());
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     if (!m_searchViewModel->failure().isEmpty()) {
         if (!m_searchViewModel->contextBusy())
             m_pendingSearchRevealMessageId.clear();
         m_searchStatus->setText(m_searchViewModel->failure());
     } else if (m_searchViewModel->contextBusy())
-        m_searchStatus->setText(QStringLiteral("正在读取消息上下文…"));
+        m_searchStatus->setText(copy.searchLoadingContext);
     else if (m_searchViewModel->busy())
-        m_searchStatus->setText(QStringLiteral("正在搜索…"));
+        m_searchStatus->setText(copy.searching);
     else if (!m_searchViewModel->query().isEmpty())
-        m_searchStatus->setText(QStringLiteral("已找到 %1 条结果")
-            .arg(m_searchViewModel->rows().size()));
+        m_searchStatus->setText(copy.searchFound.arg(m_searchViewModel->rows().size()));
     else
-        m_searchStatus->setText(QStringLiteral("搜索结果仅保留在当前页面"));
+        m_searchStatus->setText(copy.searchPageOnly);
     if (m_searchPane->isVisible()) {
         QAccessibleEvent announcement(m_searchStatus, QAccessible::Alert);
         QAccessible::updateAccessibility(&announcement);
@@ -487,7 +485,8 @@ void V2WindowsMessagingPanel::revealSearchResult(QListWidgetItem *item) {
     m_pendingSearchRevealMessageId = messageId;
     if (!m_searchViewModel || !m_searchViewModel->requestContext(messageId)) {
         m_pendingSearchRevealMessageId.clear();
-        m_searchStatus->setText(QStringLiteral("无法读取该消息附近的上下文"));
+        m_searchStatus->setText(
+            WindowsLocaleCatalog::messages(m_locale).searchContextUnavailable);
     }
 }
 
@@ -513,6 +512,7 @@ void V2WindowsMessagingPanel::chooseForward(const QString &messageId) {
 }
 
 void V2WindowsMessagingPanel::renderParticipants() {
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     m_participants->clear();
     for (const auto &row : m_participantViewModel->rows()) {
         auto *item = new QListWidgetItem(
@@ -530,11 +530,11 @@ void V2WindowsMessagingPanel::renderParticipants() {
     if (!m_participantViewModel->failure().isEmpty())
         m_participantStatus->setText(m_participantViewModel->failure());
     else if (m_participantViewModel->busy())
-        m_participantStatus->setText(QStringLiteral("正在加载会话成员…"));
+        m_participantStatus->setText(copy.participantsLoading);
     else if (m_participantViewModel->rows().isEmpty())
-        m_participantStatus->setText(QStringLiteral("没有可提及的成员"));
+        m_participantStatus->setText(copy.participantsEmpty);
     else
-        m_participantStatus->setText(QStringLiteral("选择成员并按 Enter 插入提及"));
+        m_participantStatus->setText(copy.participantInstruction);
 }
 
 void V2WindowsMessagingPanel::chooseReply(const QString &messageId) {
@@ -564,7 +564,8 @@ void V2WindowsMessagingPanel::beginEdit(
         render();
         m_composer->setFocus();
     } catch (const std::exception &) {
-        m_status->setText(QStringLiteral("无法恢复消息中的提及，暂不能编辑"));
+        m_status->setText(
+            WindowsLocaleCatalog::messages(m_locale).mentionsRestoreFailed);
     }
 }
 
@@ -624,7 +625,8 @@ void V2WindowsMessagingPanel::insertParticipant(QListWidgetItem *item) {
         m_participantPane->hide();
         m_composer->setFocus();
     } catch (const std::exception &) {
-        m_status->setText(QStringLiteral("无法插入提及，请刷新成员列表后重试"));
+        m_status->setText(
+            WindowsLocaleCatalog::messages(m_locale).mentionInsertFailed);
     }
 }
 
@@ -681,7 +683,8 @@ void V2WindowsMessagingPanel::sendComposition() {
         mentions = V2WindowsMentionComposer::serialize(
             m_composer->toPlainText(), m_mentionAnchors);
     } catch (const std::exception &) {
-        m_status->setText(QStringLiteral("提及内容已失效，请重新选择成员"));
+        m_status->setText(
+            WindowsLocaleCatalog::messages(m_locale).mentionInvalid);
         return;
     }
     const bool accepted = !m_editTargetMessageId.isEmpty()

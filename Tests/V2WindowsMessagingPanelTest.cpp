@@ -141,6 +141,29 @@ int main(int argc, char **argv) {
             contextMessageId = messageId;
             return true;
         });
+    {
+        V2WindowsMessagingPanel english(
+            &model, &participants, nullptr, true, &directory, true, &search,
+            WindowsLocale::EnUs);
+        english.setConversation(conversation);
+        const auto buttons = english.findChildren<QPushButton *>(
+            QString(), Qt::FindChildrenRecursively);
+        const auto hasButton = [&](const QString &text) {
+            return std::any_of(buttons.cbegin(), buttons.cend(),
+                [&](QPushButton *button) { return button->text() == text; });
+        };
+        if (!hasButton(QStringLiteral("Search"))
+                || !hasButton(QStringLiteral("Copy"))
+                || !hasButton(QStringLiteral("Reply"))
+                || !hasButton(QStringLiteral("Pin"))
+                || english.searchInputForTest()->placeholderText()
+                    != QStringLiteral("Enter 1 to 128 bytes of text")
+                || english.participantListForTest()->accessibleName()
+                    != QStringLiteral("Mentionable conversation members")) {
+            qCritical() << "English search, participant, or timeline copy was not composed";
+            return 1;
+        }
+    }
     V2WindowsMessagingPanel panel(
         &model, &participants, nullptr, true, &directory, true, &search);
     panel.setConversation(conversation);

@@ -3188,6 +3188,10 @@ translating server-provided or user-authored data.
 the other conversation runtime ViewModels. It exercises English directory,
 participant, and search rejection/continuation/unavailable states while
 preserving supplied safe server reasons as data.
+`V2WindowsMessagingPanelTest` composes the detached English panel and requires
+English search, member-picker, timeline Copy/Reply/Pin actions, accessible
+member naming, and search byte bounds. Structural emoji, keyboard shortcuts,
+user/server text, and stable identities remain locale-independent data.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

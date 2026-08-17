@@ -2769,8 +2769,11 @@ Candidate slices:
       - [x] Move conversation-directory, participant, and message-search local
         failure/unavailable states into the exact locale catalog with detached
         English happy/rejection evidence.
-      - [ ] Move remaining Widget-owned search, participant, edit/reaction/pin,
-        and timeline action copy into the locale catalog.
+      - [x] Move Widget-owned search, participant, edit/reaction/pin, mention,
+        and timeline action/accessibility copy into the locale catalog with
+        detached English composition evidence.
+      - [ ] Localize conversation-owned forward/block child dialogs, then bind
+        the complete surface to one persisted locale selector.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

@@ -1925,6 +1925,10 @@ Directory, participant, and search ViewModels apply the same rule to locally
 generated request and disconnected states. Supplied safe server reasons remain
 opaque presentation data; localization never changes their meaning or uses
 them to select a catalog entry.
+The message panel itself now sources search, participant, edit/reaction/pin,
+mention, timeline action, and accessibility copy from the exact catalog.
+Forward and account-block child dialogs still need the same boundary before the
+persisted selector can be exposed for this surface.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;
