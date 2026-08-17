@@ -3205,8 +3205,12 @@ successful restart-stable selection and write-failure rollback. The conversation
 dialog test starts with Chinese, changes the persisted selector to English, and
 requires the shell, composer, timeline Copy/Reply actions, member accessibility,
 and fresh `QSettings` instance to agree. The static Windows product-composition
-gate requires the repository/ViewModel wiring in `ChatWindow`; native Windows
-keyboard and screen-reader evidence remains a release gate.
+gate requires the repository/ViewModel wiring in `ChatWindow`. The dialog also
+requires an explicit label buddy, selector description, deterministic first-tab
+transition to Refresh, and visible write-failure rollback; that failure emits a
+Qt accessibility Alert instead of relying on status text alone. These are
+development-host composition checks; native Windows keyboard and screen-reader
+evidence remains a release gate.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

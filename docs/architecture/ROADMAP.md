@@ -2781,6 +2781,9 @@ Candidate slices:
         - [x] Bind the complete conversation surface to one persisted locale
           ViewModel and expose its exact two-value selector; failed persistence
           keeps the current language and reports a fixed local error.
+        - [x] Give the selector an explicit label relationship, description,
+          deterministic first-tab order, and accessible alert on persistence
+          failure; verify the visible dialog rolls back without mixed locale.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

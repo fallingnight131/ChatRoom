@@ -201,6 +201,7 @@ struct WindowsLocaleMessages {
     QString localeSaveFailed;
     QString languageSelectorAccessible;
     QString localePreferenceStatusAccessible;
+    QString languageSelectorDescription;
 };
 
 class WindowsLocaleCatalog final {

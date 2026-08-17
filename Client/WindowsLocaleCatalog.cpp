@@ -195,6 +195,7 @@ WindowsLocaleMessages createZhCn() {
     m.localeSaveFailed = QStringLiteral("无法保存语言偏好，已保持当前语言");
     m.languageSelectorAccessible = QStringLiteral("会话界面语言");
     m.localePreferenceStatusAccessible = QStringLiteral("语言偏好状态");
+    m.languageSelectorDescription = QStringLiteral("更改并保存新版会话界面的语言");
     return m;
 }
 
@@ -392,6 +393,7 @@ WindowsLocaleMessages createEnUs() {
     m.localeSaveFailed = QStringLiteral("Unable to save language preference; the current language was kept");
     m.languageSelectorAccessible = QStringLiteral("Conversation interface language");
     m.localePreferenceStatusAccessible = QStringLiteral("Language preference status");
+    m.languageSelectorDescription = QStringLiteral("Change and save the conversation interface language");
     return m;
 }
 

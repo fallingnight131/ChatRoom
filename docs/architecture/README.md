@@ -1938,6 +1938,11 @@ composer, timeline actions, and forward/block child dialogs. A failed write
 leaves both the current locale and stored value unchanged and exposes only a
 fixed local diagnostic. The rest of the legacy Windows UI remains Chinese and
 will migrate as separate complete surfaces rather than inheriting partial copy.
+The selector has an explicit label relationship and description, and its first
+tab transition is fixed at Refresh. Persistence failure restores the selected
+value and emits an accessibility Alert as well as updating visible status text.
+These are portable composition guarantees, not native Windows screen-reader
+evidence.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

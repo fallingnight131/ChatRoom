@@ -33,6 +33,9 @@ message storage, server behavior, or the supported Web/Windows product scope.
   `ChatWindow` composes settings, repository, and locale ViewModel; one accepted
   change recomposes every conversation-owned ViewModel, Widget, and child
   dialog. Persistence failure retains the old locale and reports fixed copy.
+- The selector has an explicit label buddy and accessible description. Its
+  first tab transition is deterministic, and visible persistence failure emits
+  an accessibility Alert after restoring the accepted locale.
 
 ## Consequences
 
@@ -53,6 +56,7 @@ database migration or protocol compatibility window is required.
 - catalog tests bind stable language, composer action, and byte-budget copy;
 - conversation composition proves a Chinese-to-English persisted switch across
   shell, timeline actions, participant accessibility, and a fresh settings
-  instance, while a write failure preserves the active locale;
+  instance, while a visible write failure preserves the active locale, restores
+  the selector, and retains a usable focus path;
 - later UI slices must run native Windows keyboard/accessibility checks and may
   not claim product localization from this foundation alone.

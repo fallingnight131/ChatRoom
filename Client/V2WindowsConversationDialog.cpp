@@ -9,6 +9,7 @@
 #include "V2WindowsMessageSearchViewModel.h"
 #include "WindowsLocaleViewModel.h"
 
+#include <QAccessible>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
@@ -111,6 +112,8 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
     m_localeSelector->addItem(copy.chinese, static_cast<int>(WindowsLocale::ZhCn));
     m_localeSelector->addItem(copy.english, static_cast<int>(WindowsLocale::EnUs));
     m_localeSelector->setAccessibleName(copy.languageSelectorAccessible);
+    m_localeSelector->setAccessibleDescription(copy.languageSelectorDescription);
+    m_localeLabel->setBuddy(m_localeSelector);
     m_localeStatus->setAccessibleName(copy.localePreferenceStatusAccessible);
     m_localeStatus->setWordWrap(true);
     auto *localeRow = new QHBoxLayout;
@@ -120,6 +123,11 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
     m_localeLabel->setVisible(m_localeViewModel != nullptr);
     m_localeSelector->setVisible(m_localeViewModel != nullptr);
     m_localeStatus->setVisible(m_localeViewModel != nullptr);
+    if (m_localeViewModel) {
+        setTabOrder(m_localeSelector, m_refresh);
+        setTabOrder(m_refresh, m_conversations);
+        setTabOrder(m_conversations, m_loadMore);
+    }
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(localeRow);
     layout->addWidget(m_splitter, 1);
@@ -175,8 +183,14 @@ void V2WindowsConversationDialog::applyLocale() {
     setAccessibleName(copy.previewWindowAccessible);
     m_localeLabel->setText(copy.language);
     m_localeSelector->setAccessibleName(copy.languageSelectorAccessible);
+    m_localeSelector->setAccessibleDescription(copy.languageSelectorDescription);
     m_localeStatus->setAccessibleName(copy.localePreferenceStatusAccessible);
     m_localeStatus->setText(m_localeViewModel ? m_localeViewModel->failure() : QString());
+    if (m_localeViewModel && !m_localeViewModel->failure().isEmpty()
+            && isVisible()) {
+        QAccessibleEvent announcement(m_localeStatus, QAccessible::Alert);
+        QAccessible::updateAccessibility(&announcement);
+    }
     {
         const QSignalBlocker blocker(m_localeSelector);
         m_localeSelector->setItemText(0, copy.chinese);

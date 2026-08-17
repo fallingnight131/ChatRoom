@@ -111,7 +111,11 @@ int main(int argc, char **argv) {
             &directory, &messaging, &participants, nullptr, true, false,
             nullptr, nullptr, WindowsLocale::ZhCn, &localeViewModel);
         if (!check(!localized.localeSelectorForTest()->isHidden()
-                       && localized.localeSelectorForTest()->currentIndex() == 0,
+                       && localized.localeSelectorForTest()->currentIndex() == 0
+                       && !localized.localeSelectorForTest()
+                              ->accessibleDescription().isEmpty()
+                       && localized.localeSelectorForTest()->nextInFocusChain()
+                           == localized.refreshForTest(),
                    QStringLiteral("persisted locale selector must expose the current value")))
             return 1;
         localized.localeSelectorForTest()->setCurrentIndex(1);
@@ -139,6 +143,26 @@ int main(int argc, char **argv) {
                    QStringLiteral("locale selection must persist and recompose")))
             return 1;
         openCalls = 0;
+    }
+
+    {
+        QTemporaryDir temporary;
+        QSettings settings(temporary.path(), QSettings::IniFormat);
+        WindowsLocalePreferenceRepository repository(settings);
+        WindowsLocaleViewModel localeViewModel(&repository);
+        V2WindowsConversationDialog failing(
+            &directory, &messaging, &participants, nullptr, true, false,
+            nullptr, nullptr, WindowsLocale::ZhCn, &localeViewModel);
+        failing.show();
+        app.processEvents();
+        failing.localeSelectorForTest()->setCurrentIndex(1);
+        app.processEvents();
+        if (!check(failing.localeSelectorForTest()->currentIndex() == 0
+                       && !failing.localeStatusForTest()->text().isEmpty()
+                       && localeViewModel.locale() == WindowsLocale::ZhCn
+                       && repository.load() == WindowsLocale::ZhCn,
+                   QStringLiteral("failed locale save must announce and restore old value")))
+            return 1;
     }
 
     V2WindowsConversationDialog dialog(
