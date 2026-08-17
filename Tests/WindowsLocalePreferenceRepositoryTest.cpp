@@ -151,7 +151,16 @@ int main(int argc, char **argv) {
                 || english.mainComposerSendAccessible
                     != QStringLiteral("Send message")
                 || english.mainComposerInsertLineBreak
-                    != QStringLiteral("Insert line break")) {
+                    != QStringLiteral("Insert line break")
+                || english.mainNavigationRooms != QStringLiteral("Rooms")
+                || english.mainNavigationSearchFriends
+                    != QStringLiteral("Find friends")
+                || english.mainNavigationFriendRequests
+                    != QStringLiteral("Friend requests")
+                || english.mainNavigationFriendOnline
+                    != QStringLiteral("%1 [online]")
+                || english.mainNavigationFriendOfflineAccessible
+                    != QStringLiteral("%1, offline")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -167,6 +176,8 @@ int main(int argc, char **argv) {
                 || chinese.mainConnected != QStringLiteral("已连接")
                 || chinese.mainComposerEmoji != QStringLiteral("表情")
                 || chinese.mainComposerSend != QStringLiteral("发送")
+                || chinese.mainNavigationRooms != QStringLiteral("房间")
+                || chinese.mainNavigationFriends != QStringLiteral("好友")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

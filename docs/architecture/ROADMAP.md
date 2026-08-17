@@ -2868,6 +2868,8 @@ Candidate slices:
       type and localize disconnected/connected/reconnecting state independently.
     - [x] Localize the Windows V1 composer shell in place, retaining draft,
       cursor, keyboard-send and room/direct dispatch behavior across switching.
+    - [x] Localize Windows room/friend navigation in place and separate friend
+      online state from identity text and locale-independent avatar generation.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

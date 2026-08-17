@@ -2088,6 +2088,11 @@ input placeholder and accessibility, send action, and the custom line-break
 menu item. Locale changes mutate properties on the existing QTextEdit and
 buttons rather than rebuilding them, preserving draft text, selection, cursor,
 the 400 ms persistence timer, and the existing room/direct send commands.
+The legacy room/friend navigation shell now catalogs its tabs, list semantics,
+and create/search/refresh/request actions. Friend identity, display name,
+friendship ID, online state, unread count and avatar remain distinct data.
+Locale changes update existing items in place and preserve selection/unread
+roles; default-avatar generation no longer depends on a localized online suffix.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

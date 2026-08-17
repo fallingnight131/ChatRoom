@@ -3270,6 +3270,12 @@ and rejects fixed button, placeholder, and line-break strings in the composer
 construction path. The complete Qt link proves no command rewiring; native
 Windows IME, focus, selection, and Enter/Shift+Enter interaction remain product
 evidence to collect.
+The same catalog/source gate covers the room/friend navigation shell. It locks
+tabs, list/action accessibility, friend-request and online/offline terms;
+requires online state in a boolean item role; and requires default avatars to
+derive from the unchanged display identity. It rejects list reconstruction and
+localized online suffixes as state. Native Windows scaling, keyboard traversal,
+selection retention and screen-reader output remain release evidence.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

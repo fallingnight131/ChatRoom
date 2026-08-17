@@ -348,6 +348,8 @@ ChatWindow::ChatWindow(QWidget *parent, WindowsLocaleViewModel *localeViewModel)
             this, &ChatWindow::refreshConnectionStatus);
     connect(m_windowsLocaleViewModel, &WindowsLocaleViewModel::changed,
             this, &ChatWindow::refreshComposerText);
+    connect(m_windowsLocaleViewModel, &WindowsLocaleViewModel::changed,
+            this, &ChatWindow::refreshNavigationText);
     connect(m_connectionStatusViewModel.get(),
             &WindowsConnectionStatusViewModel::changed,
             this, &ChatWindow::refreshConnectionStatus);
@@ -458,7 +460,6 @@ void ChatWindow::setupUi() {
     m_avatarPreview->setStyleSheet("border: 1px solid #ccc; border-radius: 20px; background: #ddd;");
     m_avatarPreview->setScaledContents(true);
     m_avatarPreview->setAlignment(Qt::AlignCenter);
-    m_avatarPreview->setText("头像");
     m_avatarPreview->setCursor(Qt::PointingHandCursor);
     m_avatarPreview->installEventFilter(this);
 
@@ -471,8 +472,8 @@ void ChatWindow::setupUi() {
 
     // --- 房间/好友 切换标签 ---
     auto *tabLayout = new QHBoxLayout;
-    m_tabRoomBtn   = new QPushButton("房间");
-    m_tabFriendBtn = new QPushButton("好友");
+    m_tabRoomBtn   = new QPushButton;
+    m_tabFriendBtn = new QPushButton;
     m_tabRoomBtn->setCheckable(true);
     m_tabFriendBtn->setCheckable(true);
     m_tabRoomBtn->setChecked(false);
@@ -510,12 +511,12 @@ void ChatWindow::setupUi() {
     m_roomBtnPanel = new QWidget;
     auto *roomBtnLayout = new QHBoxLayout(m_roomBtnPanel);
     roomBtnLayout->setContentsMargins(0, 4, 0, 0);
-    auto *createRoomBtn = new QPushButton("创建");
-    auto *searchRoomBtn = new QPushButton("搜索");
-    auto *refreshRoomBtn = new QPushButton("刷新");
-    roomBtnLayout->addWidget(searchRoomBtn);
-    roomBtnLayout->addWidget(createRoomBtn);
-    roomBtnLayout->addWidget(refreshRoomBtn);
+    m_createRoomBtn = new QPushButton;
+    m_searchRoomBtn = new QPushButton;
+    m_refreshRoomBtn = new QPushButton;
+    roomBtnLayout->addWidget(m_searchRoomBtn);
+    roomBtnLayout->addWidget(m_createRoomBtn);
+    roomBtnLayout->addWidget(m_refreshRoomBtn);
     roomPanelLayout->addWidget(m_roomBtnPanel);
 
     // --- 好友列表面板 ---
@@ -533,13 +534,13 @@ void ChatWindow::setupUi() {
     m_friendBtnPanel = new QWidget;
     auto *friendBtnLayout = new QHBoxLayout(m_friendBtnPanel);
     friendBtnLayout->setContentsMargins(0, 4, 0, 0);
-    auto *addFriendBtn = new QPushButton("搜索好友");
-    m_friendReqBtn = new QPushButton("好友申请");
+    m_addFriendBtn = new QPushButton;
+    m_friendReqBtn = new QPushButton;
     m_friendReqDot = createDot(m_friendReqBtn);
-    auto *refreshFriendBtn = new QPushButton("刷新");
-    friendBtnLayout->addWidget(addFriendBtn);
+    m_refreshFriendBtn = new QPushButton;
+    friendBtnLayout->addWidget(m_addFriendBtn);
     friendBtnLayout->addWidget(m_friendReqBtn);
-    friendBtnLayout->addWidget(refreshFriendBtn);
+    friendBtnLayout->addWidget(m_refreshFriendBtn);
     friendPanelLayout->addWidget(m_friendBtnPanel);
 
     // --- 堆叠切换 ---
@@ -561,12 +562,12 @@ void ChatWindow::setupUi() {
         onRefreshFriendList();
     });
 
-    connect(createRoomBtn,  &QPushButton::clicked, this, &ChatWindow::onCreateRoom);
-    connect(searchRoomBtn,  &QPushButton::clicked, this, &ChatWindow::onSearchRoom);
-    connect(refreshRoomBtn, &QPushButton::clicked, this, &ChatWindow::requestRoomList);
-    connect(addFriendBtn,      &QPushButton::clicked, this, &ChatWindow::onAddFriend);
+    connect(m_createRoomBtn, &QPushButton::clicked, this, &ChatWindow::onCreateRoom);
+    connect(m_searchRoomBtn, &QPushButton::clicked, this, &ChatWindow::onSearchRoom);
+    connect(m_refreshRoomBtn, &QPushButton::clicked, this, &ChatWindow::requestRoomList);
+    connect(m_addFriendBtn, &QPushButton::clicked, this, &ChatWindow::onAddFriend);
     connect(m_friendReqBtn,    &QPushButton::clicked, this, &ChatWindow::onShowFriendRequests);
-    connect(refreshFriendBtn,  &QPushButton::clicked, this, &ChatWindow::onRefreshFriendList);
+    connect(m_refreshFriendBtn, &QPushButton::clicked, this, &ChatWindow::onRefreshFriendList);
     connect(m_friendList, &QListWidget::itemClicked, this, &ChatWindow::onFriendSelected);
     connect(m_friendList, &QListWidget::customContextMenuRequested, this, &ChatWindow::onFriendContextMenu);
 
@@ -710,6 +711,7 @@ void ChatWindow::setupUi() {
     // 表情选择器（弹窗）
     m_emojiPicker = new EmojiPicker(this, m_windowsLocaleViewModel);
     m_emojiPicker->hide();
+    refreshNavigationText();
 }
 
 void ChatWindow::setupMenuBar() {
@@ -823,6 +825,52 @@ void ChatWindow::refreshComposerText() {
     m_inputEdit->setAccessibleName(copy.mainComposerInputAccessible);
     m_sendBtn->setText(copy.mainComposerSend);
     m_sendBtn->setAccessibleName(copy.mainComposerSendAccessible);
+}
+
+void ChatWindow::refreshNavigationText() {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    if (m_avatarPreview->pixmap().isNull())
+        m_avatarPreview->setText(copy.mainNavigationAvatarFallback);
+    m_avatarPreview->setAccessibleName(copy.mainNavigationProfileAccessible);
+    m_tabRoomBtn->setText(copy.mainNavigationRooms);
+    m_tabRoomBtn->setAccessibleName(copy.mainNavigationRoomsAccessible);
+    m_tabFriendBtn->setText(copy.mainNavigationFriends);
+    m_tabFriendBtn->setAccessibleName(copy.mainNavigationFriendsAccessible);
+    m_roomList->setAccessibleName(copy.mainNavigationRoomListAccessible);
+    m_friendList->setAccessibleName(copy.mainNavigationFriendListAccessible);
+    m_createRoomBtn->setText(copy.mainNavigationCreateRoom);
+    m_createRoomBtn->setAccessibleName(copy.mainNavigationCreateRoomAccessible);
+    m_searchRoomBtn->setText(copy.search);
+    m_searchRoomBtn->setAccessibleName(copy.mainNavigationSearchRoomsAccessible);
+    m_refreshRoomBtn->setText(copy.refresh);
+    m_refreshRoomBtn->setAccessibleName(copy.mainNavigationRefreshRoomsAccessible);
+    m_addFriendBtn->setText(copy.mainNavigationSearchFriends);
+    m_addFriendBtn->setAccessibleName(copy.mainNavigationSearchFriendsAccessible);
+    m_refreshFriendBtn->setText(copy.refresh);
+    m_refreshFriendBtn->setAccessibleName(
+        copy.mainNavigationRefreshFriendsAccessible);
+    m_friendReqBtn->setAccessibleName(copy.mainNavigationFriendRequestsAccessible);
+    refreshFriendListPresentation();
+    updateUnreadDots();
+}
+
+void ChatWindow::refreshFriendListPresentation() {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    for (int index = 0; index < m_friendList->count(); ++index) {
+        auto *item = m_friendList->item(index);
+        const QString username = item->data(Qt::UserRole).toString();
+        const QString displayName = item->data(Qt::UserRole + 1).toString();
+        const bool online = item->data(Qt::UserRole + 3).toBool();
+        const QString identity = displayName.isEmpty() ? username : displayName;
+        item->setText(online
+            ? copy.mainNavigationFriendOnline.arg(identity) : identity);
+        item->setForeground(online ? QColor("#4CAF50") : QColor("#999"));
+        item->setData(Qt::AccessibleTextRole, online
+            ? copy.mainNavigationFriendOnlineAccessible.arg(identity)
+            : copy.mainNavigationFriendOfflineAccessible.arg(identity));
+    }
 }
 
 void ChatWindow::showAboutDialog() {
@@ -1447,8 +1495,6 @@ void ChatWindow::updateUnreadDots() {
                       "QPushButton:!checked { border-bottom: 2px solid transparent; color: #888; }";
     m_tabRoomBtn->setStyleSheet(tabBase);
     m_tabFriendBtn->setStyleSheet(tabBase);
-    m_tabRoomBtn->setText("房间");
-    m_tabFriendBtn->setText("好友");
     // 红点显示/隐藏，定位在文字右侧
     auto positionDot = [](QLabel *dot, QPushButton *btn) {
         QFontMetrics fm(btn->font());
@@ -1463,7 +1509,8 @@ void ChatWindow::updateUnreadDots() {
     m_tabFriendDot->setVisible(friendDot);
     if (friendDot) positionDot(m_tabFriendDot, m_tabFriendBtn);
     // 更新好友申请按钮
-    m_friendReqBtn->setText("好友申请");
+    m_friendReqBtn->setText(WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale()).mainNavigationFriendRequests);
     m_friendReqBtn->setStyleSheet("");
     m_friendReqDot->setVisible(m_hasPendingFriendReq);
     if (m_hasPendingFriendReq) positionDot(m_friendReqDot, m_friendReqBtn);
@@ -5420,24 +5467,25 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
         if (unread > 0)
             m_friendUnread[username] = unread;
 
-        QString label = displayName.isEmpty() ? username : displayName;
-        if (isOnline) label += " [在线]";
+        const QString identity = displayName.isEmpty() ? username : displayName;
 
-        auto *item = new QListWidgetItem(label);
+        auto *item = new QListWidgetItem(identity);
         item->setData(Qt::UserRole,     username);
         item->setData(Qt::UserRole + 1, displayName);
         item->setData(Qt::UserRole + 2, friendshipId);
-        item->setForeground(isOnline ? QColor("#4CAF50") : QColor("#999"));
+        item->setData(Qt::UserRole + 3, isOnline);
 
         // 头像：优先使用缓存，否则显示默认头像
         if (s_avatarCache.contains(username)) {
             item->setIcon(makeStableIcon(s_avatarCache[username]));
         } else {
-            item->setIcon(makeStableIcon(generateDefaultAvatar(label, qHash(username))));
+            item->setIcon(makeStableIcon(
+                generateDefaultAvatar(identity, qHash(username))));
         }
 
         m_friendList->addItem(item);
     }
+    refreshFriendListPresentation();
     m_friendReadWatermarks = nextReadWatermarks;
 
     for (auto it = renamedFriends.cbegin(); it != renamedFriends.cend(); ++it) {
@@ -5897,9 +5945,8 @@ void ChatWindow::onFriendOnlineNotify(const QString &username, const QString &di
     for (int i = 0; i < m_friendList->count(); ++i) {
         auto *item = m_friendList->item(i);
         if (item->data(Qt::UserRole).toString() == username) {
-            QString dn = item->data(Qt::UserRole + 1).toString();
-            item->setText((dn.isEmpty() ? username : dn) + " [在线]");
-            item->setForeground(QColor("#4CAF50"));
+            item->setData(Qt::UserRole + 3, true);
+            refreshFriendListPresentation();
             break;
         }
     }
@@ -5909,9 +5956,8 @@ void ChatWindow::onFriendOfflineNotify(const QString &username) {
     for (int i = 0; i < m_friendList->count(); ++i) {
         auto *item = m_friendList->item(i);
         if (item->data(Qt::UserRole).toString() == username) {
-            QString dn = item->data(Qt::UserRole + 1).toString();
-            item->setText(dn.isEmpty() ? username : dn);
-            item->setForeground(QColor("#999"));
+            item->setData(Qt::UserRole + 3, false);
+            refreshFriendListPresentation();
             break;
         }
     }

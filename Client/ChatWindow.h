@@ -260,6 +260,8 @@ private:
     void refreshWindowChrome();
     void refreshConnectionStatus();
     void refreshComposerText();
+    void refreshNavigationText();
+    void refreshFriendListPresentation();
     void showAboutDialog();
     void connectSignals();
     void completeUploadBytes();
@@ -384,6 +386,11 @@ private:
     // 好友系统 UI
     QPushButton  *m_tabRoomBtn     = nullptr;
     QPushButton  *m_tabFriendBtn   = nullptr;
+    QPushButton  *m_createRoomBtn  = nullptr;
+    QPushButton  *m_searchRoomBtn  = nullptr;
+    QPushButton  *m_refreshRoomBtn = nullptr;
+    QPushButton  *m_addFriendBtn   = nullptr;
+    QPushButton  *m_refreshFriendBtn = nullptr;
     QStackedWidget *m_listStack    = nullptr;  // 房间列表 / 好友列表 切换
     QListWidget  *m_friendList     = nullptr;
     QWidget      *m_roomBtnPanel   = nullptr;

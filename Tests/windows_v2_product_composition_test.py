@@ -166,6 +166,14 @@ def main() -> int:
         "copy.mainComposerInputAccessible",
         "copy.mainComposerSendAccessible",
         ").mainComposerInsertLineBreak",
+        "&ChatWindow::refreshNavigationText",
+        "copy.mainNavigationRoomsAccessible",
+        "copy.mainNavigationFriendListAccessible",
+        "copy.mainNavigationFriendOnline.arg(identity)",
+        "copy.mainNavigationFriendOfflineAccessible.arg(identity)",
+        "item->setData(Qt::UserRole + 3, isOnline)",
+        "generateDefaultAvatar(identity, qHash(username))",
+        "m_avatarPreview->pixmap().isNull()",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -185,6 +193,27 @@ def main() -> int:
         "m_inputEdit->moveCursor(",
     )):
         raise AssertionError("locale projection must not mutate composer draft state")
+    navigation_setup = window[
+        window.index("// --- 左侧：房间列表 ---"):
+        window.index("// --- 中间：消息区域 ---")
+    ]
+    if any(text in navigation_setup for text in (
+        'new QPushButton("房间")', 'new QPushButton("好友")',
+        'new QPushButton("创建")', 'new QPushButton("搜索好友")',
+        'new QPushButton("好友申请")',
+    )):
+        raise AssertionError("ChatWindow navigation must not embed localized controls")
+    if 'label += " [在线]"' in window or '+ " [在线]"' in window:
+        raise AssertionError("friend online state must not be stored in display text")
+    navigation_projection = window[
+        window.index("void ChatWindow::refreshNavigationText()"):
+        window.index("void ChatWindow::showAboutDialog()")
+    ]
+    if any(marker in navigation_projection for marker in (
+        "m_roomList->clear()", "m_friendList->clear()",
+        "m_roomList->setCurrentRow(", "m_friendList->setCurrentRow(",
+    )):
+        raise AssertionError("locale projection must not rebuild navigation identity")
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

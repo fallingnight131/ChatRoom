@@ -472,6 +472,26 @@ WindowsLocaleMessages createZhCn() {
     m.mainComposerSend = QStringLiteral("发送");
     m.mainComposerSendAccessible = QStringLiteral("发送消息");
     m.mainComposerInsertLineBreak = QStringLiteral("插入换行");
+    m.mainNavigationAvatarFallback = QStringLiteral("头像");
+    m.mainNavigationProfileAccessible = QStringLiteral("打开个人资料");
+    m.mainNavigationRooms = QStringLiteral("房间");
+    m.mainNavigationRoomsAccessible = QStringLiteral("显示房间列表");
+    m.mainNavigationFriends = QStringLiteral("好友");
+    m.mainNavigationFriendsAccessible = QStringLiteral("显示好友列表");
+    m.mainNavigationRoomListAccessible = QStringLiteral("房间列表");
+    m.mainNavigationFriendListAccessible = QStringLiteral("好友列表");
+    m.mainNavigationCreateRoom = QStringLiteral("创建");
+    m.mainNavigationCreateRoomAccessible = QStringLiteral("创建房间");
+    m.mainNavigationSearchRoomsAccessible = QStringLiteral("搜索房间");
+    m.mainNavigationRefreshRoomsAccessible = QStringLiteral("刷新房间列表");
+    m.mainNavigationSearchFriends = QStringLiteral("搜索好友");
+    m.mainNavigationSearchFriendsAccessible = QStringLiteral("搜索并添加好友");
+    m.mainNavigationFriendRequests = QStringLiteral("好友申请");
+    m.mainNavigationFriendRequestsAccessible = QStringLiteral("查看好友申请");
+    m.mainNavigationRefreshFriendsAccessible = QStringLiteral("刷新好友列表");
+    m.mainNavigationFriendOnline = QStringLiteral("%1 [在线]");
+    m.mainNavigationFriendOnlineAccessible = QStringLiteral("%1，在线");
+    m.mainNavigationFriendOfflineAccessible = QStringLiteral("%1，离线");
     return m;
 }
 
@@ -965,6 +985,26 @@ WindowsLocaleMessages createEnUs() {
     m.mainComposerSend = QStringLiteral("Send");
     m.mainComposerSendAccessible = QStringLiteral("Send message");
     m.mainComposerInsertLineBreak = QStringLiteral("Insert line break");
+    m.mainNavigationAvatarFallback = QStringLiteral("Avatar");
+    m.mainNavigationProfileAccessible = QStringLiteral("Open profile");
+    m.mainNavigationRooms = QStringLiteral("Rooms");
+    m.mainNavigationRoomsAccessible = QStringLiteral("Show room list");
+    m.mainNavigationFriends = QStringLiteral("Friends");
+    m.mainNavigationFriendsAccessible = QStringLiteral("Show friend list");
+    m.mainNavigationRoomListAccessible = QStringLiteral("Room list");
+    m.mainNavigationFriendListAccessible = QStringLiteral("Friend list");
+    m.mainNavigationCreateRoom = QStringLiteral("Create");
+    m.mainNavigationCreateRoomAccessible = QStringLiteral("Create room");
+    m.mainNavigationSearchRoomsAccessible = QStringLiteral("Search rooms");
+    m.mainNavigationRefreshRoomsAccessible = QStringLiteral("Refresh room list");
+    m.mainNavigationSearchFriends = QStringLiteral("Find friends");
+    m.mainNavigationSearchFriendsAccessible = QStringLiteral("Find and add a friend");
+    m.mainNavigationFriendRequests = QStringLiteral("Friend requests");
+    m.mainNavigationFriendRequestsAccessible = QStringLiteral("View friend requests");
+    m.mainNavigationRefreshFriendsAccessible = QStringLiteral("Refresh friend list");
+    m.mainNavigationFriendOnline = QStringLiteral("%1 [online]");
+    m.mainNavigationFriendOnlineAccessible = QStringLiteral("%1, online");
+    m.mainNavigationFriendOfflineAccessible = QStringLiteral("%1, offline");
     return m;
 }
 

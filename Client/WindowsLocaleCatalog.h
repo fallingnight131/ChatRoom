@@ -465,6 +465,26 @@ struct WindowsLocaleMessages {
     QString mainComposerSend;
     QString mainComposerSendAccessible;
     QString mainComposerInsertLineBreak;
+    QString mainNavigationAvatarFallback;
+    QString mainNavigationProfileAccessible;
+    QString mainNavigationRooms;
+    QString mainNavigationRoomsAccessible;
+    QString mainNavigationFriends;
+    QString mainNavigationFriendsAccessible;
+    QString mainNavigationRoomListAccessible;
+    QString mainNavigationFriendListAccessible;
+    QString mainNavigationCreateRoom;
+    QString mainNavigationCreateRoomAccessible;
+    QString mainNavigationSearchRoomsAccessible;
+    QString mainNavigationRefreshRoomsAccessible;
+    QString mainNavigationSearchFriends;
+    QString mainNavigationSearchFriendsAccessible;
+    QString mainNavigationFriendRequests;
+    QString mainNavigationFriendRequestsAccessible;
+    QString mainNavigationRefreshFriendsAccessible;
+    QString mainNavigationFriendOnline;
+    QString mainNavigationFriendOnlineAccessible;
+    QString mainNavigationFriendOfflineAccessible;
 };
 
 class WindowsLocaleCatalog final {

@@ -140,6 +140,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
   Emoji/file tools, input semantics, send action, and custom line-break copy use
   the catalog; locale changes must retain draft text, selection, cursor, timer,
   Enter/Shift+Enter behavior, and room/direct command ownership.
+- Treat room/friend navigation as one shell surface. Stable room/account/
+  friendship identity, online state and unread counts remain item data; locale
+  changes update existing controls and friend rows without rebuilding lists.
+  Default avatars derive from identity display data, never localized suffixes.
 
 ## Consequences
 
@@ -216,3 +220,5 @@ database migration or protocol compatibility window is required.
   a separate activity/connection label and rejects direct connection copy.
 - catalog and source composition lock exact composer semantics and reject fixed
   Chinese copy in its construction path; native Windows focus/IME remains open.
+- navigation composition rejects fixed control copy and online-state text as
+  data, while locking stable item roles and locale-independent avatar input.
