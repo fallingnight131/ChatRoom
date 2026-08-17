@@ -1973,6 +1973,10 @@ available without enabling the V2 preview. Its exact two-value selector and the
 conversation selector share one ViewModel and QSettings value. Save failure
 restores the accepted profile selection and emits both status text and an
 accessibility Alert.
+The next complete surface is Windows login/registration. Its exact catalog now
+covers tabs, fields, actions, placeholders, validation, connection progress,
+and local result status, while runtime composition remains closed until the
+whole pre-authentication dialog and selector can move together.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

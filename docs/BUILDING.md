@@ -3238,6 +3238,10 @@ The same Widget test drives the profile's real exact locale selector and checks
 its accessible description. An unwritable locale target must restore Chinese,
 retain the ViewModel/store value, and expose localized failure status; the
 selector therefore remains usable even when the V2 preview is absent.
+The Windows locale Core test also locks the complete English login/registration
+terminology and success feedback. Catalog coverage alone is preparatory: no
+pre-authentication language claim is made until LoginDialog consumes the shared
+preference and its real Widget path is tested.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

@@ -227,6 +227,36 @@ WindowsLocaleMessages createZhCn() {
     m.profilePasswordFieldsRequired = QStringLiteral("请填写所有密码字段");
     m.profilePasswordsMismatch = QStringLiteral("两次输入的新密码不一致");
     m.profilePasswordTooShort = QStringLiteral("新密码至少4个字符");
+    m.loginWindowTitle = QStringLiteral("Qt聊天室 - 登录");
+    m.loginTab = QStringLiteral("登录");
+    m.registerTab = QStringLiteral("注册");
+    m.loginUserId = QStringLiteral("用户ID：");
+    m.loginPassword = QStringLiteral("密码：");
+    m.loginAction = QStringLiteral("登录");
+    m.registerNickname = QStringLiteral("昵称：");
+    m.registerConfirmPassword = QStringLiteral("确认密码：");
+    m.registerAction = QStringLiteral("注册");
+    m.registerUserIdPlaceholder = QStringLiteral("6-20位，字母/数字/下划线");
+    m.registerDisplayNamePlaceholder = QStringLiteral("显示名称，之后可修改");
+    m.registerPasswordPlaceholder = QStringLiteral("至少4个字符");
+    m.registerConfirmPasswordPlaceholder = QStringLiteral("再次输入密码");
+    m.loginStatusAccessible = QStringLiteral("登录状态");
+    m.registerStatusAccessible = QStringLiteral("注册状态");
+    m.connectingToServer = QStringLiteral("正在连接服务器…");
+    m.loginCredentialsRequired = QStringLiteral("请输入用户ID和密码");
+    m.loggingIn = QStringLiteral("正在登录…");
+    m.connectedLoggingIn = QStringLiteral("已连接，正在登录…");
+    m.connectedRegistering = QStringLiteral("已连接，正在注册…");
+    m.connectionFailed = QStringLiteral("连接失败：%1");
+    m.loginSucceeded = QStringLiteral("登录成功！");
+    m.loginFailed = QStringLiteral("登录失败：%1");
+    m.registerPasswordsMismatch = QStringLiteral("两次密码不一致");
+    m.registerUserIdInvalid = QStringLiteral("用户ID必须为6-20位字母/数字/下划线");
+    m.registerNicknameTooLong = QStringLiteral("昵称不能超过20个字符");
+    m.registerPasswordTooShort = QStringLiteral("密码至少4个字符");
+    m.registering = QStringLiteral("正在注册…");
+    m.registrationSucceeded = QStringLiteral("注册成功！请切换到登录页面");
+    m.registrationFailed = QStringLiteral("注册失败：%1");
     return m;
 }
 
@@ -459,6 +489,40 @@ WindowsLocaleMessages createEnUs() {
     m.profilePasswordFieldsRequired = QStringLiteral("Complete every password field");
     m.profilePasswordsMismatch = QStringLiteral("The new passwords do not match");
     m.profilePasswordTooShort = QStringLiteral("New password must be at least 4 characters");
+    m.loginWindowTitle = QStringLiteral("Qt Chat Room - Sign in");
+    m.loginTab = QStringLiteral("Sign in");
+    m.registerTab = QStringLiteral("Register");
+    m.loginUserId = QStringLiteral("User ID:");
+    m.loginPassword = QStringLiteral("Password:");
+    m.loginAction = QStringLiteral("Sign in");
+    m.registerNickname = QStringLiteral("Nickname:");
+    m.registerConfirmPassword = QStringLiteral("Confirm password:");
+    m.registerAction = QStringLiteral("Register");
+    m.registerUserIdPlaceholder = QStringLiteral(
+        "6-20 letters, numbers, or underscores");
+    m.registerDisplayNamePlaceholder = QStringLiteral(
+        "Display name; you can change it later");
+    m.registerPasswordPlaceholder = QStringLiteral("At least 4 characters");
+    m.registerConfirmPasswordPlaceholder = QStringLiteral("Enter password again");
+    m.loginStatusAccessible = QStringLiteral("Sign-in status");
+    m.registerStatusAccessible = QStringLiteral("Registration status");
+    m.connectingToServer = QStringLiteral("Connecting to server…");
+    m.loginCredentialsRequired = QStringLiteral("Enter your user ID and password");
+    m.loggingIn = QStringLiteral("Signing in…");
+    m.connectedLoggingIn = QStringLiteral("Connected; signing in…");
+    m.connectedRegistering = QStringLiteral("Connected; registering…");
+    m.connectionFailed = QStringLiteral("Connection failed: %1");
+    m.loginSucceeded = QStringLiteral("Signed in successfully!");
+    m.loginFailed = QStringLiteral("Sign-in failed: %1");
+    m.registerPasswordsMismatch = QStringLiteral("The passwords do not match");
+    m.registerUserIdInvalid = QStringLiteral(
+        "User ID must contain 6-20 letters, numbers, or underscores");
+    m.registerNicknameTooLong = QStringLiteral("Nickname cannot exceed 20 characters");
+    m.registerPasswordTooShort = QStringLiteral("Password must be at least 4 characters");
+    m.registering = QStringLiteral("Registering…");
+    m.registrationSucceeded = QStringLiteral(
+        "Registration succeeded! Switch to the sign-in tab");
+    m.registrationFailed = QStringLiteral("Registration failed: %1");
     return m;
 }
 

@@ -49,6 +49,9 @@ message storage, server behavior, or the supported Web/Windows product scope.
   remain as a contextual duplicate; both consume the same ViewModel and stored
   value. Failed profile writes restore the accepted selection and emit visible
   status plus an accessibility Alert.
+- Grow the exact catalog across the complete login/registration surface before
+  exposing its pre-authentication selector. Connection and validation states are
+  catalog copy; server-supplied rejection and socket reasons remain opaque data.
 
 ## Consequences
 

@@ -73,7 +73,12 @@ int main(int argc, char **argv) {
                 || english.profileTitle != QStringLiteral("Edit profile")
                 || english.profileLowBandwidth != QStringLiteral("Low-bandwidth mode")
                 || english.profilePasswordFieldsRequired
-                    != QStringLiteral("Complete every password field")) {
+                    != QStringLiteral("Complete every password field")
+                || english.loginWindowTitle
+                    != QStringLiteral("Qt Chat Room - Sign in")
+                || english.registrationSucceeded
+                    != QStringLiteral(
+                        "Registration succeeded! Switch to the sign-in tab")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }

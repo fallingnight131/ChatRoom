@@ -231,6 +231,36 @@ struct WindowsLocaleMessages {
     QString profilePasswordFieldsRequired;
     QString profilePasswordsMismatch;
     QString profilePasswordTooShort;
+    QString loginWindowTitle;
+    QString loginTab;
+    QString registerTab;
+    QString loginUserId;
+    QString loginPassword;
+    QString loginAction;
+    QString registerNickname;
+    QString registerConfirmPassword;
+    QString registerAction;
+    QString registerUserIdPlaceholder;
+    QString registerDisplayNamePlaceholder;
+    QString registerPasswordPlaceholder;
+    QString registerConfirmPasswordPlaceholder;
+    QString loginStatusAccessible;
+    QString registerStatusAccessible;
+    QString connectingToServer;
+    QString loginCredentialsRequired;
+    QString loggingIn;
+    QString connectedLoggingIn;
+    QString connectedRegistering;
+    QString connectionFailed;
+    QString loginSucceeded;
+    QString loginFailed;
+    QString registerPasswordsMismatch;
+    QString registerUserIdInvalid;
+    QString registerNicknameTooLong;
+    QString registerPasswordTooShort;
+    QString registering;
+    QString registrationSucceeded;
+    QString registrationFailed;
 };
 
 class WindowsLocaleCatalog final {
