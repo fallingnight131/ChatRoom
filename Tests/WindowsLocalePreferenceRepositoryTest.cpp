@@ -84,7 +84,10 @@ int main(int argc, char **argv) {
                     != QStringLiteral("Insert emoji %1")
                 || english.forwardTitle
                     != QStringLiteral("Forward to another conversation")
-                || english.forwardConfirm != QStringLiteral("Forward")) {
+                || english.forwardConfirm != QStringLiteral("Forward")
+                || english.userInfoTitle != QStringLiteral("User information")
+                || english.userInfoAdministrator
+                    != QStringLiteral("Administrator")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }

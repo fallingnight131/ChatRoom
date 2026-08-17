@@ -1993,6 +1993,11 @@ friend/room tabs, search modes, presence and unread labels, hint, actions, and
 accessible list names. User, room, and account identities remain opaque. List
 signals are blocked during locale-driven reconstruction so checked destination
 IDs cannot be lost as a side effect of presentation changes.
+The Windows user-information leaf now receives a typed member/administrator
+state instead of a localized role string. Its labels, close/avatar actions,
+accessible avatar name, and already-open full-size preview follow the shared
+locale. Username and Unicode display name remain unchanged server data and are
+never used as catalog keys.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

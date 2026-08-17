@@ -4592,19 +4592,20 @@ void ChatWindow::showUserInfoDialog(const QString &username, const QString &disp
     if (avatar.isNull()) requestAvatar(username, true);
 
     // 查找用户在当前聊天室的角色
-    QString role = QStringLiteral("成员");
+    auto role = UserInfoDialog::Role::Member;
     if (m_userList) {
         for (int i = 0; i < m_userList->count(); ++i) {
             auto *item = m_userList->item(i);
             if (item->data(Qt::UserRole).toString() == username) {
                 if (item->data(Qt::UserRole + 1).toBool())
-                    role = QStringLiteral("管理员");
+                    role = UserInfoDialog::Role::Administrator;
                 break;
             }
         }
     }
 
-    UserInfoDialog *dlg = new UserInfoDialog(username, displayName, avatar, role, this);
+    UserInfoDialog *dlg = new UserInfoDialog(
+        username, displayName, avatar, role, this, m_windowsLocaleViewModel);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->exec();
 }

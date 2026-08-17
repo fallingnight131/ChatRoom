@@ -2830,6 +2830,9 @@ Candidate slices:
     - [x] Migrate the complete legacy Windows multi-target forwarding dialog:
       localize tabs, search, presence/unread rows, hint, actions, and accessible
       lists while preserving checked destination identities during rebuild.
+    - [x] Migrate the complete Windows user-information and avatar-preview leaf:
+      replace localized role strings with a typed presentation state, preserve
+      account/display identity as data, and recompose the open nested preview.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

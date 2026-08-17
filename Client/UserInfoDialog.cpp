@@ -1,4 +1,5 @@
 #include "UserInfoDialog.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -24,11 +25,13 @@ static QPixmap roundedPixmap(const QPixmap &src, int radius) {
 }
 
 UserInfoDialog::UserInfoDialog(const QString &username, const QString &displayName,
-                               const QPixmap &avatar, const QString &role,
-                               QWidget *parent)
-    : QDialog(parent), m_avatar(avatar)
+                               const QPixmap &avatar, Role role, QWidget *parent,
+                               WindowsLocaleViewModel *localeViewModel)
+    : QDialog(parent), m_avatar(avatar), m_username(username),
+      m_displayName(displayName), m_role(role),
+      m_localeViewModel(localeViewModel)
 {
-    setWindowTitle(QStringLiteral("用户信息"));
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
     setMinimumWidth(280);
     auto *layout = new QVBoxLayout(this);
 
@@ -42,6 +45,7 @@ UserInfoDialog::UserInfoDialog(const QString &username, const QString &displayNa
     m_avatarLabel->setScaledContents(true);
     m_avatarLabel->setAlignment(Qt::AlignCenter);
     m_avatarLabel->setContextMenuPolicy(Qt::CustomContextMenu);
+    m_avatarLabel->setFocusPolicy(Qt::StrongFocus);
 
     if (!avatar.isNull()) {
         m_avatarLabel->setPixmap(roundedPixmap(avatar.scaled(80, 80, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation), 10));
@@ -52,7 +56,9 @@ UserInfoDialog::UserInfoDialog(const QString &username, const QString &displayNa
     // 右键头像 → 查看大图
     connect(m_avatarLabel, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
         QMenu menu(this);
-        menu.addAction(QStringLiteral("查看大图"), this, &UserInfoDialog::viewLargeAvatar);
+        menu.addAction(
+            WindowsLocaleCatalog::messages(m_locale).userInfoViewLargeAvatar,
+            this, &UserInfoDialog::viewLargeAvatar);
         menu.exec(m_avatarLabel->mapToGlobal(pos));
     });
 
@@ -65,22 +71,22 @@ UserInfoDialog::UserInfoDialog(const QString &username, const QString &displayNa
     layout->addSpacing(8);
 
     // --- 昵称 ---
-    auto *nickLabel = new QLabel(QStringLiteral("昵称：%1").arg(displayName));
-    nickLabel->setStyleSheet("font-size: 14px; padding: 4px;");
-    nickLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    layout->addWidget(nickLabel);
+    m_nicknameLabel = new QLabel;
+    m_nicknameLabel->setStyleSheet("font-size: 14px; padding: 4px;");
+    m_nicknameLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    layout->addWidget(m_nicknameLabel);
 
     // --- 用户ID ---
-    auto *idLabel = new QLabel(QStringLiteral("ID：%1").arg(username));
-    idLabel->setStyleSheet("font-size: 14px; padding: 4px;");
-    idLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    layout->addWidget(idLabel);
+    m_idLabel = new QLabel;
+    m_idLabel->setStyleSheet("font-size: 14px; padding: 4px;");
+    m_idLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    layout->addWidget(m_idLabel);
 
     // --- 权限 ---
-    if (!role.isEmpty()) {
-        auto *roleLabel = new QLabel(QStringLiteral("权限：%1").arg(role));
-        roleLabel->setStyleSheet("font-size: 14px; padding: 4px;");
-        layout->addWidget(roleLabel);
+    if (m_role != Role::None) {
+        m_roleLabel = new QLabel;
+        m_roleLabel->setStyleSheet("font-size: 14px; padding: 4px;");
+        layout->addWidget(m_roleLabel);
     }
 
     layout->addSpacing(8);
@@ -88,10 +94,35 @@ UserInfoDialog::UserInfoDialog(const QString &username, const QString &displayNa
     // --- 底部关闭 ---
     auto *bottomLayout = new QHBoxLayout;
     bottomLayout->addStretch();
-    auto *closeBtn = new QPushButton(QStringLiteral("关闭"));
-    connect(closeBtn, &QPushButton::clicked, this, &QDialog::close);
-    bottomLayout->addWidget(closeBtn);
+    m_closeButton = new QPushButton;
+    connect(m_closeButton, &QPushButton::clicked, this, &QDialog::close);
+    bottomLayout->addWidget(m_closeButton);
     layout->addLayout(bottomLayout);
+    if (m_localeViewModel) {
+        connect(m_localeViewModel, &WindowsLocaleViewModel::changed,
+                this, &UserInfoDialog::applyLocale);
+    }
+    applyLocale();
+}
+
+QString UserInfoDialog::roleText() const {
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    return m_role == Role::Administrator
+        ? copy.userInfoAdministrator : copy.userInfoMember;
+}
+
+void UserInfoDialog::applyLocale() {
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    setWindowTitle(copy.userInfoTitle);
+    const QString avatarName = m_displayName.trimmed().isEmpty()
+        ? m_username : m_displayName;
+    m_avatarLabel->setAccessibleName(copy.userInfoAvatarAccessible.arg(avatarName));
+    m_avatarLabel->setToolTip(copy.userInfoViewLargeAvatar);
+    m_nicknameLabel->setText(copy.userInfoNickname.arg(m_displayName));
+    m_idLabel->setText(copy.userInfoId.arg(m_username));
+    if (m_roleLabel) m_roleLabel->setText(copy.userInfoRole.arg(roleText()));
+    m_closeButton->setText(copy.userInfoClose);
 }
 
 bool UserInfoDialog::eventFilter(QObject *watched, QEvent *event) {
@@ -106,7 +137,8 @@ void UserInfoDialog::viewLargeAvatar() {
     if (m_avatar.isNull()) return;
 
     auto *dlg = new QDialog(this);
-    dlg->setWindowTitle(QStringLiteral("头像大图"));
+    dlg->setWindowTitle(
+        WindowsLocaleCatalog::messages(m_locale).userInfoLargeAvatarTitle);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     auto *layout = new QVBoxLayout(dlg);
     layout->setContentsMargins(4, 4, 4, 4);
@@ -116,6 +148,23 @@ void UserInfoDialog::viewLargeAvatar() {
     label->setPixmap(scaled);
     label->setAlignment(Qt::AlignCenter);
     layout->addWidget(label);
+
+    if (m_localeViewModel) {
+        connect(m_localeViewModel, &WindowsLocaleViewModel::changed, dlg,
+                [this, dlg, label] {
+                    const auto &copy = WindowsLocaleCatalog::messages(
+                        m_localeViewModel->locale());
+                    dlg->setWindowTitle(copy.userInfoLargeAvatarTitle);
+                    const QString avatarName = m_displayName.trimmed().isEmpty()
+                        ? m_username : m_displayName;
+                    label->setAccessibleName(
+                        copy.userInfoAvatarAccessible.arg(avatarName));
+                });
+    }
+    label->setAccessibleName(
+        WindowsLocaleCatalog::messages(m_locale)
+            .userInfoAvatarAccessible.arg(
+                m_displayName.trimmed().isEmpty() ? m_username : m_displayName));
 
     dlg->resize(scaled.size() + QSize(8, 8));
     dlg->show();

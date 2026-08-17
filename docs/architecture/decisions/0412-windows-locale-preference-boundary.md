@@ -68,6 +68,11 @@ message storage, server behavior, or the supported Web/Windows product scope.
   Conversation/account names and IDs stay opaque, while tabs, search, presence,
   unread labels, actions, and accessible list names are catalog copy. Block list
   signals while recomposing so presentation changes cannot mutate checked IDs.
+- Model user-information roles as `None`, `Member`, or `Administrator` rather
+  than passing localized strings from ChatWindow. Catalog only the role
+  presentation, labels, avatar actions, and accessible names; username and
+  display name remain opaque identity data. An already-open avatar preview
+  follows the same live ViewModel.
 
 ## Consequences
 
@@ -103,3 +108,5 @@ database migration or protocol compatibility window is required.
   selection behavior while their title and accessible insertion actions switch.
 - legacy forwarding composition proves selected stable identities survive live
   list reconstruction while every dialog-owned string switches together.
+- user-information composition proves typed role presentation and nested avatar
+  preview recomposition without changing Unicode display or account identity.

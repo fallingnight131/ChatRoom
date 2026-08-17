@@ -273,6 +273,16 @@ WindowsLocaleMessages createZhCn() {
     m.unread = QStringLiteral("未读:%1");
     m.forwardFriendRow = QStringLiteral("%1  (%2)  [%3]");
     m.forwardRoomRow = QStringLiteral("%1  (ID:%2)");
+    m.userInfoTitle = QStringLiteral("用户信息");
+    m.userInfoAvatarAccessible = QStringLiteral("%1 的头像");
+    m.userInfoNickname = QStringLiteral("昵称：%1");
+    m.userInfoId = QStringLiteral("ID：%1");
+    m.userInfoRole = QStringLiteral("权限：%1");
+    m.userInfoMember = QStringLiteral("成员");
+    m.userInfoAdministrator = QStringLiteral("管理员");
+    m.userInfoViewLargeAvatar = QStringLiteral("查看大图");
+    m.userInfoLargeAvatarTitle = QStringLiteral("头像大图");
+    m.userInfoClose = QStringLiteral("关闭");
     return m;
 }
 
@@ -555,6 +565,16 @@ WindowsLocaleMessages createEnUs() {
     m.unread = QStringLiteral("Unread: %1");
     m.forwardFriendRow = QStringLiteral("%1  (%2)  [%3]");
     m.forwardRoomRow = QStringLiteral("%1  (ID:%2)");
+    m.userInfoTitle = QStringLiteral("User information");
+    m.userInfoAvatarAccessible = QStringLiteral("Avatar for %1");
+    m.userInfoNickname = QStringLiteral("Nickname: %1");
+    m.userInfoId = QStringLiteral("ID: %1");
+    m.userInfoRole = QStringLiteral("Role: %1");
+    m.userInfoMember = QStringLiteral("Member");
+    m.userInfoAdministrator = QStringLiteral("Administrator");
+    m.userInfoViewLargeAvatar = QStringLiteral("View full-size avatar");
+    m.userInfoLargeAvatarTitle = QStringLiteral("Full-size avatar");
+    m.userInfoClose = QStringLiteral("Close");
     return m;
 }
 

@@ -3255,6 +3255,11 @@ dialog from Chinese to English, checks friend/room search, presence, unread and
 accessible list copy, and proves a checked account identity survives list
 reconstruction. It is also part of `--qt`; native Windows interaction remains
 the product gate.
+`WindowsUserInfoLocalizationTest` verifies typed administrator presentation,
+unchanged Unicode display/account identity, accessible avatar naming, and live
+Chinese/English recomposition of both the parent Widget and an already-open
+full-size avatar preview. It is included in `--qt`; macOS remains portability
+evidence rather than native Windows accessibility evidence.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

@@ -277,6 +277,16 @@ struct WindowsLocaleMessages {
     QString unread;
     QString forwardFriendRow;
     QString forwardRoomRow;
+    QString userInfoTitle;
+    QString userInfoAvatarAccessible;
+    QString userInfoNickname;
+    QString userInfoId;
+    QString userInfoRole;
+    QString userInfoMember;
+    QString userInfoAdministrator;
+    QString userInfoViewLargeAvatar;
+    QString userInfoLargeAvatarTitle;
+    QString userInfoClose;
 };
 
 class WindowsLocaleCatalog final {
