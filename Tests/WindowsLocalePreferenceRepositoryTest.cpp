@@ -81,7 +81,10 @@ int main(int argc, char **argv) {
                         "Registration succeeded! Switch to the sign-in tab")
                 || english.emojiPickerTitle != QStringLiteral("Emoji")
                 || english.emojiInsertAccessible
-                    != QStringLiteral("Insert emoji %1")) {
+                    != QStringLiteral("Insert emoji %1")
+                || english.forwardTitle
+                    != QStringLiteral("Forward to another conversation")
+                || english.forwardConfirm != QStringLiteral("Forward")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }

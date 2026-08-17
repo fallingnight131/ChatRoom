@@ -2827,6 +2827,9 @@ Candidate slices:
     - [x] Migrate the complete Windows emoji-picker surface to the shared locale:
       localize its title and all 96 accessible insertion actions, preserve exact
       glyph ordering/selection, and verify live recomposition offscreen.
+    - [x] Migrate the complete legacy Windows multi-target forwarding dialog:
+      localize tabs, search, presence/unread rows, hint, actions, and accessible
+      lists while preserving checked destination identities during rebuild.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

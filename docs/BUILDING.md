@@ -3250,6 +3250,11 @@ screen-reader, install, and launch evidence remains required.
 change updates the title and every button's accessible insertion name while the
 first glyph identity and emitted selection remain unchanged. It is included in
 `--qt`; offscreen macOS execution is development-host evidence only.
+`WindowsForwardSelectLocalizationTest` drives the real legacy multi-target
+dialog from Chinese to English, checks friend/room search, presence, unread and
+accessible list copy, and proves a checked account identity survives list
+reconstruction. It is also part of `--qt`; native Windows interaction remains
+the product gate.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

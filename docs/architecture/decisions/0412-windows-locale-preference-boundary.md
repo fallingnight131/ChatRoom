@@ -64,6 +64,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
 - Treat the emoji picker as a complete leaf surface: its visible title and each
   glyph button's insertion action come from the live catalog, while the fixed
   96-glyph identity/order and emitted payload remain locale-independent.
+- Inject the same ViewModel into the legacy multi-target forwarding dialog.
+  Conversation/account names and IDs stay opaque, while tabs, search, presence,
+  unread labels, actions, and accessible list names are catalog copy. Block list
+  signals while recomposing so presentation changes cannot mutate checked IDs.
 
 ## Consequences
 
@@ -97,3 +101,5 @@ database migration or protocol compatibility window is required.
   restores the accepted selector with announced failure status.
 - emoji-picker composition proves all 96 controls retain identity/order and
   selection behavior while their title and accessible insertion actions switch.
+- legacy forwarding composition proves selected stable identities survive live
+  list reconstruction while every dialog-owned string switches together.

@@ -107,6 +107,7 @@ def main() -> int:
         "WindowsAvatarRequestCoordinator",
         "requestAvatar(m_username, true)",
         "new EmojiPicker(this, m_windowsLocaleViewModel)",
+        "roomTargets, friendTargets, this, m_windowsLocaleViewModel",
     ), "Client/ChatWindow.cpp")
     require(profile, (
         "WindowsLocaleCatalog::messages(m_locale)",

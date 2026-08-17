@@ -1988,6 +1988,11 @@ The Windows emoji picker is the next completed leaf surface. ChatWindow injects
 the same locale ViewModel, so its title and all 96 accessible insertion actions
 change live without rebuilding or reordering glyph controls. Emoji identity and
 the emitted message text remain presentation-independent.
+The legacy multi-target forwarding dialog now follows the same boundary for its
+friend/room tabs, search modes, presence and unread labels, hint, actions, and
+accessible list names. User, room, and account identities remain opaque. List
+signals are blocked during locale-driven reconstruction so checked destination
+IDs cannot be lost as a side effect of presentation changes.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

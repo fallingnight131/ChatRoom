@@ -263,6 +263,20 @@ struct WindowsLocaleMessages {
     QString registrationFailed;
     QString emojiPickerTitle;
     QString emojiInsertAccessible;
+    QString forwardTitle;
+    QString forwardFriends;
+    QString forwardRooms;
+    QString forwardSearchFriends;
+    QString forwardSearchRooms;
+    QString forwardFriendsAccessible;
+    QString forwardRoomsAccessible;
+    QString forwardHint;
+    QString forwardConfirm;
+    QString online;
+    QString offline;
+    QString unread;
+    QString forwardFriendRow;
+    QString forwardRoomRow;
 };
 
 class WindowsLocaleCatalog final {

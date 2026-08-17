@@ -3458,7 +3458,8 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                     friendTargets.append(target);
                 }
 
-                ForwardSelectDialog dlg(roomTargets, friendTargets, this);
+                ForwardSelectDialog dlg(
+                    roomTargets, friendTargets, this, m_windowsLocaleViewModel);
                 if (dlg.exec() != QDialog::Accepted) return;
 
                 QSet<int> targetRooms = dlg.selectedRoomIds();

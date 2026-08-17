@@ -1,4 +1,5 @@
 #include "ForwardSelectDialog.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -9,38 +10,43 @@
 #include <QStackedWidget>
 #include <QLabel>
 #include <QDialogButtonBox>
+#include <QSignalBlocker>
 
-namespace {
-QString buildFriendTitle(const ForwardSelectDialog::FriendTarget &f) {
+QString ForwardSelectDialog::friendTitle(const FriendTarget &f) const {
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     QString name = f.displayName.trimmed().isEmpty() ? f.username : f.displayName;
-    QString status = f.isOnline ? QStringLiteral("在线") : QStringLiteral("离线");
+    QString status = f.isOnline ? copy.online : copy.offline;
+    QString title = copy.forwardFriendRow.arg(name, f.username, status);
     if (f.unread > 0) {
-        return QStringLiteral("%1  (%2)  [%3]  未读:%4").arg(name, f.username, status).arg(f.unread);
+        title += QStringLiteral("  ") + copy.unread.arg(f.unread);
     }
-    return QStringLiteral("%1  (%2)  [%3]").arg(name, f.username, status);
+    return title;
 }
 
-QString buildRoomTitle(const ForwardSelectDialog::RoomTarget &r) {
+QString ForwardSelectDialog::roomTitle(const RoomTarget &r) const {
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    QString title = copy.forwardRoomRow.arg(r.roomName).arg(r.roomId);
     if (r.unread > 0) {
-        return QStringLiteral("%1  (ID:%2)  未读:%3").arg(r.roomName).arg(r.roomId).arg(r.unread);
+        title += QStringLiteral("  ") + copy.unread.arg(r.unread);
     }
-    return QStringLiteral("%1  (ID:%2)").arg(r.roomName).arg(r.roomId);
-}
+    return title;
 }
 
 ForwardSelectDialog::ForwardSelectDialog(const QList<RoomTarget> &rooms,
                                          const QList<FriendTarget> &friends,
-                                         QWidget *parent)
-    : QDialog(parent), m_rooms(rooms), m_friends(friends)
+                                         QWidget *parent,
+                                         WindowsLocaleViewModel *localeViewModel)
+    : QDialog(parent), m_rooms(rooms), m_friends(friends),
+      m_localeViewModel(localeViewModel)
 {
-    setWindowTitle(QStringLiteral("转发到其他会话"));
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
     resize(520, 520);
 
     auto *mainLayout = new QVBoxLayout(this);
 
     auto *tabLayout = new QHBoxLayout;
-    m_friendTabBtn = new QPushButton(QStringLiteral("好友"));
-    m_roomTabBtn = new QPushButton(QStringLiteral("房间"));
+    m_friendTabBtn = new QPushButton;
+    m_roomTabBtn = new QPushButton;
     m_friendTabBtn->setCheckable(true);
     m_roomTabBtn->setCheckable(true);
     tabLayout->addWidget(m_friendTabBtn);
@@ -48,7 +54,6 @@ ForwardSelectDialog::ForwardSelectDialog(const QList<RoomTarget> &rooms,
     mainLayout->addLayout(tabLayout);
 
     m_searchEdit = new QLineEdit;
-    m_searchEdit->setPlaceholderText(QStringLiteral("搜索好友昵称/用户名"));
     mainLayout->addWidget(m_searchEdit);
 
     m_stack = new QStackedWidget;
@@ -60,14 +65,12 @@ ForwardSelectDialog::ForwardSelectDialog(const QList<RoomTarget> &rooms,
     m_stack->addWidget(m_roomList);
     mainLayout->addWidget(m_stack, 1);
 
-    auto *hintLabel = new QLabel(QStringLiteral("可多选，确认后统一转发"));
-    hintLabel->setStyleSheet("color: gray;");
-    mainLayout->addWidget(hintLabel);
+    m_hint = new QLabel;
+    m_hint->setStyleSheet("color: gray;");
+    mainLayout->addWidget(m_hint);
 
-    auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    buttonBox->button(QDialogButtonBox::Ok)->setText(QStringLiteral("确认转发"));
-    buttonBox->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("取消"));
-    mainLayout->addWidget(buttonBox);
+    m_buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    mainLayout->addWidget(m_buttonBox);
 
     connect(m_friendTabBtn, &QPushButton::clicked, this, &ForwardSelectDialog::switchToFriends);
     connect(m_roomTabBtn, &QPushButton::clicked, this, &ForwardSelectDialog::switchToRooms);
@@ -84,8 +87,12 @@ ForwardSelectDialog::ForwardSelectDialog(const QList<RoomTarget> &rooms,
         if (item->checkState() == Qt::Checked) m_selectedRoomIds.insert(roomId);
         else m_selectedRoomIds.remove(roomId);
     });
-    connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(m_buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(m_buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    if (m_localeViewModel) {
+        connect(m_localeViewModel, &WindowsLocaleViewModel::changed,
+                this, &ForwardSelectDialog::applyLocale);
+    }
 
     setStyleSheet(
         "QDialog { background: #1f1f1f; color: #f2f2f2; }"
@@ -97,6 +104,7 @@ ForwardSelectDialog::ForwardSelectDialog(const QList<RoomTarget> &rooms,
         "QListWidget::item:selected { background: #3a3a3a; }"
     );
 
+    applyLocale();
     switchToFriends();
 }
 
@@ -110,14 +118,16 @@ QSet<QString> ForwardSelectDialog::selectedFriendUsernames() const {
 
 void ForwardSelectDialog::switchToFriends() {
     m_showFriends = true;
-    m_searchEdit->setPlaceholderText(QStringLiteral("搜索好友昵称/用户名"));
+    m_searchEdit->setPlaceholderText(
+        WindowsLocaleCatalog::messages(m_locale).forwardSearchFriends);
     updateTabState();
     rebuildFriendList();
 }
 
 void ForwardSelectDialog::switchToRooms() {
     m_showFriends = false;
-    m_searchEdit->setPlaceholderText(QStringLiteral("搜索房间名/ID"));
+    m_searchEdit->setPlaceholderText(
+        WindowsLocaleCatalog::messages(m_locale).forwardSearchRooms);
     updateTabState();
     rebuildRoomList();
 }
@@ -128,6 +138,7 @@ void ForwardSelectDialog::onSearchTextChanged(const QString &) {
 }
 
 void ForwardSelectDialog::rebuildFriendList() {
+    const QSignalBlocker blocker(m_friendList);
     m_friendList->clear();
     const QString kw = m_searchEdit->text().trimmed().toLower();
 
@@ -136,7 +147,7 @@ void ForwardSelectDialog::rebuildFriendList() {
         QString un = f.username.toLower();
         if (!kw.isEmpty() && !dn.contains(kw) && !un.contains(kw)) continue;
 
-        auto *item = new QListWidgetItem(buildFriendTitle(f), m_friendList);
+        auto *item = new QListWidgetItem(friendTitle(f), m_friendList);
         item->setData(Qt::UserRole, f.username);
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
         item->setCheckState(m_selectedFriendUsernames.contains(f.username) ? Qt::Checked : Qt::Unchecked);
@@ -145,6 +156,7 @@ void ForwardSelectDialog::rebuildFriendList() {
 }
 
 void ForwardSelectDialog::rebuildRoomList() {
+    const QSignalBlocker blocker(m_roomList);
     m_roomList->clear();
     const QString kw = m_searchEdit->text().trimmed().toLower();
 
@@ -153,7 +165,7 @@ void ForwardSelectDialog::rebuildRoomList() {
         QString rid = QString::number(r.roomId);
         if (!kw.isEmpty() && !rn.contains(kw) && !rid.contains(kw)) continue;
 
-        auto *item = new QListWidgetItem(buildRoomTitle(r), m_roomList);
+        auto *item = new QListWidgetItem(roomTitle(r), m_roomList);
         item->setData(Qt::UserRole, r.roomId);
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
         item->setCheckState(m_selectedRoomIds.contains(r.roomId) ? Qt::Checked : Qt::Unchecked);
@@ -165,4 +177,21 @@ void ForwardSelectDialog::updateTabState() {
     m_friendTabBtn->setChecked(m_showFriends);
     m_roomTabBtn->setChecked(!m_showFriends);
     m_stack->setCurrentIndex(m_showFriends ? 0 : 1);
+}
+
+void ForwardSelectDialog::applyLocale() {
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    setWindowTitle(copy.forwardTitle);
+    m_friendTabBtn->setText(copy.forwardFriends);
+    m_roomTabBtn->setText(copy.forwardRooms);
+    m_friendList->setAccessibleName(copy.forwardFriendsAccessible);
+    m_roomList->setAccessibleName(copy.forwardRoomsAccessible);
+    m_hint->setText(copy.forwardHint);
+    m_buttonBox->button(QDialogButtonBox::Ok)->setText(copy.forwardConfirm);
+    m_buttonBox->button(QDialogButtonBox::Cancel)->setText(copy.cancel);
+    m_searchEdit->setPlaceholderText(
+        m_showFriends ? copy.forwardSearchFriends : copy.forwardSearchRooms);
+    rebuildFriendList();
+    rebuildRoomList();
 }

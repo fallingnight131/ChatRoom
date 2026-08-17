@@ -259,6 +259,20 @@ WindowsLocaleMessages createZhCn() {
     m.registrationFailed = QStringLiteral("注册失败：%1");
     m.emojiPickerTitle = QStringLiteral("表情");
     m.emojiInsertAccessible = QStringLiteral("插入表情 %1");
+    m.forwardTitle = QStringLiteral("转发到其他会话");
+    m.forwardFriends = QStringLiteral("好友");
+    m.forwardRooms = QStringLiteral("房间");
+    m.forwardSearchFriends = QStringLiteral("搜索好友昵称/用户名");
+    m.forwardSearchRooms = QStringLiteral("搜索房间名/ID");
+    m.forwardFriendsAccessible = QStringLiteral("可选好友列表");
+    m.forwardRoomsAccessible = QStringLiteral("可选房间列表");
+    m.forwardHint = QStringLiteral("可多选，确认后统一转发");
+    m.forwardConfirm = QStringLiteral("确认转发");
+    m.online = QStringLiteral("在线");
+    m.offline = QStringLiteral("离线");
+    m.unread = QStringLiteral("未读:%1");
+    m.forwardFriendRow = QStringLiteral("%1  (%2)  [%3]");
+    m.forwardRoomRow = QStringLiteral("%1  (ID:%2)");
     return m;
 }
 
@@ -527,6 +541,20 @@ WindowsLocaleMessages createEnUs() {
     m.registrationFailed = QStringLiteral("Registration failed: %1");
     m.emojiPickerTitle = QStringLiteral("Emoji");
     m.emojiInsertAccessible = QStringLiteral("Insert emoji %1");
+    m.forwardTitle = QStringLiteral("Forward to another conversation");
+    m.forwardFriends = QStringLiteral("Friends");
+    m.forwardRooms = QStringLiteral("Rooms");
+    m.forwardSearchFriends = QStringLiteral("Search friend name or username");
+    m.forwardSearchRooms = QStringLiteral("Search room name or ID");
+    m.forwardFriendsAccessible = QStringLiteral("Selectable friends");
+    m.forwardRoomsAccessible = QStringLiteral("Selectable rooms");
+    m.forwardHint = QStringLiteral("Select one or more destinations, then forward");
+    m.forwardConfirm = QStringLiteral("Forward");
+    m.online = QStringLiteral("Online");
+    m.offline = QStringLiteral("Offline");
+    m.unread = QStringLiteral("Unread: %1");
+    m.forwardFriendRow = QStringLiteral("%1  (%2)  [%3]");
+    m.forwardRoomRow = QStringLiteral("%1  (ID:%2)");
     return m;
 }
 
