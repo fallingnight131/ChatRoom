@@ -2809,11 +2809,21 @@ Candidate slices:
       - [x] Expose the shared exact locale selector from the complete profile
         surface so ordinary Windows users do not depend on the V2 preview;
         restore and announce failed writes without mixed-language state.
-    - [ ] Migrate the complete Windows login/registration surface to the same
+    - [x] Migrate the complete Windows login/registration surface to the same
       persisted locale before authentication.
       - [x] Add exact Chinese/English catalog copy for tabs, fields, actions,
         placeholders, validation, connection progress, and local result status;
         keep server-provided failure reasons opaque.
+      - [x] Move locale composition to the application lifetime and inject one
+        repository/ViewModel into both LoginDialog and ChatWindow, while keeping
+        fallback ownership for isolated tests and legacy callers.
+      - [x] Expose the exact selector before authentication; recompose live local
+        status keys while retaining opaque socket/server detail, and restore plus
+        announce the accepted locale when persistence fails.
+      - [x] Verify the real Widget offscreen for Chinese-to-English switching,
+        live validation, opaque-detail retention, restart persistence, and
+        unwritable-settings rollback; retain native Windows accessibility as a
+        product release gate.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

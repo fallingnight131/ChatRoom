@@ -62,6 +62,10 @@ def main() -> int:
         "chatroom_windows_v2_transport",
     ), "CMakeLists.txt")
     require(main_source, (
+        "WindowsLocalePreferenceRepository localeRepository",
+        "WindowsLocaleViewModel localeViewModel",
+        "LoginDialog(nullptr, &localeViewModel)",
+        "ChatWindow(nullptr, &localeViewModel)",
         "WindowsV2ProductConfiguration::fromBuild()",
         "WindowsDeviceIdentityRepository",
         "takePasswordUtf8()",
@@ -72,7 +76,15 @@ def main() -> int:
         "v2Configuration.accountBlockingEnabled",
         "password.fill('\\0')",
     ), "Client/main.cpp")
-    require(login, ("QByteArray LoginDialog::takePasswordUtf8()", "m_loginPass->clear()"),
+    require(login, (
+        "QByteArray LoginDialog::takePasswordUtf8()",
+        "m_loginPass->clear()",
+        "WindowsLocaleCatalog::messages(m_locale)",
+        "WindowsLocaleViewModel::changed",
+        "m_localeViewModel->select",
+        "m_loginStatusKind",
+        "m_registerStatusKind",
+    ),
             "Client/LoginDialog.cpp")
     require(window, (
         'QStringLiteral("登录设备(&D)...")',

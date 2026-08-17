@@ -52,6 +52,15 @@ message storage, server behavior, or the supported Web/Windows product scope.
 - Grow the exact catalog across the complete login/registration surface before
   exposing its pre-authentication selector. Connection and validation states are
   catalog copy; server-supplied rejection and socket reasons remain opaque data.
+- Once login/registration is complete, move locale composition to `main.cpp` so
+  one application-lifetime repository/ViewModel is injected into both the
+  pre-authentication `LoginDialog` and post-authentication `ChatWindow`.
+  Individual Widgets retain fallback ownership only for isolated construction.
+- Represent local login/registration progress and validation with stable status
+  kinds, then project those kinds through the active catalog. Preserve socket and
+  server reason strings as opaque detail across recomposition. A failed selector
+  write restores the accepted value and emits visible status plus an
+  accessibility Alert.
 
 ## Consequences
 
@@ -78,4 +87,8 @@ database migration or protocol compatibility window is required.
   not claim product localization from this foundation alone.
 - profile composition proves a live Chinese-to-English switch across every
   profile-owned visible action and a fresh profile instance starts in the
-  persisted locale; server-provided password errors remain verbatim.
+  persisted locale; server-provided password errors remain verbatim;
+- login composition proves a Chinese-to-English switch across tabs, fields,
+  actions, placeholders, and live validation; a fresh dialog restores the exact
+  value, socket detail survives recomposition verbatim, and an unwritable target
+  restores the accepted selector with announced failure status.

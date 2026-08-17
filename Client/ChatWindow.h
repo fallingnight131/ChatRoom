@@ -53,7 +53,8 @@ class WindowsMessageNotificationPresenter;
 class ChatWindow : public QMainWindow {
     Q_OBJECT
 public:
-    explicit ChatWindow(QWidget *parent = nullptr);
+    explicit ChatWindow(QWidget *parent = nullptr,
+                        WindowsLocaleViewModel *localeViewModel = nullptr);
     ~ChatWindow() override;
 
     void setCurrentUser(int userId, const QString &username, const QString &displayName);
@@ -417,7 +418,8 @@ private:
     std::unique_ptr<WindowsAvatarRequestCoordinator> m_avatarRequests;
     std::unique_ptr<QSettings> m_windowsLocaleSettings;
     std::unique_ptr<WindowsLocalePreferenceRepository> m_windowsLocaleRepository;
-    std::unique_ptr<WindowsLocaleViewModel> m_windowsLocaleViewModel;
+    std::unique_ptr<WindowsLocaleViewModel> m_ownedWindowsLocaleViewModel;
+    WindowsLocaleViewModel *m_windowsLocaleViewModel = nullptr;
 
     // 聊天室头像缓存  roomId -> pixmap
     QMap<int, QPixmap> m_roomAvatarCache;

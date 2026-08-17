@@ -8,6 +8,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QTimer>
+#include <QSettings>
 #include <cstdio>
 #include <utility>
 #include "LoginDialog.h"
@@ -20,6 +21,8 @@
 #include "WindowsUpdateController.h"
 #include "WindowsUpdateProductConfiguration.h"
 #include "WindowsUpdateTrustDiagnostic.h"
+#include "WindowsLocalePreferenceRepository.h"
+#include "WindowsLocaleViewModel.h"
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
 #include "WindowsDeviceIdentityRepository.h"
 #include "WindowsV2ConfigurationDiagnostic.h"
@@ -126,6 +129,9 @@ int main(int argc, char *argv[]) {
     app.setOrganizationName("QtChatRoom");
     app.setQuitOnLastWindowClosed(false);
     app.setWindowIcon(QIcon(":/icons/app.png"));
+    QSettings localeSettings;
+    WindowsLocalePreferenceRepository localeRepository(localeSettings);
+    WindowsLocaleViewModel localeViewModel(&localeRepository);
 
 #ifdef Q_OS_WIN
     WindowsClientInstanceGuard instanceGuard;
@@ -253,11 +259,11 @@ int main(int argc, char *argv[]) {
         }
 
         // 重新显示登录对话框
-        LoginDialog *loginDialog = new LoginDialog;
+        LoginDialog *loginDialog = new LoginDialog(nullptr, &localeViewModel);
         QObject::connect(loginDialog, &LoginDialog::loginSuccess,
                          [&, loginDialog](int userId, const QString &username,
                                           const QString &displayName) {
-            chatWindow = new ChatWindow;
+            chatWindow = new ChatWindow(nullptr, &localeViewModel);
             chatWindow->setCurrentUser(userId, username, displayName);
 #ifdef Q_OS_WIN
             configureUpdateUi(chatWindow);
@@ -276,11 +282,11 @@ int main(int argc, char *argv[]) {
     });
 
     // 显示登录对话框
-    LoginDialog loginDialog;
+    LoginDialog loginDialog(nullptr, &localeViewModel);
 
     QObject::connect(&loginDialog, &LoginDialog::loginSuccess,
                      [&](int userId, const QString &username, const QString &displayName) {
-        chatWindow = new ChatWindow;
+        chatWindow = new ChatWindow(nullptr, &localeViewModel);
         chatWindow->setCurrentUser(userId, username, displayName);
 #ifdef Q_OS_WIN
         configureUpdateUi(chatWindow);

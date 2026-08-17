@@ -302,8 +302,8 @@ static QIcon makeStableIcon(const QPixmap &pm) {
 
 // ==================== 构造/析构 ====================
 
-ChatWindow::ChatWindow(QWidget *parent)
-    : QMainWindow(parent)
+ChatWindow::ChatWindow(QWidget *parent, WindowsLocaleViewModel *localeViewModel)
+    : QMainWindow(parent), m_windowsLocaleViewModel(localeViewModel)
 {
     m_attachmentOutboxService = std::make_unique<AttachmentOutboxService>();
     m_outgoingMessageService = std::make_unique<OutgoingMessageService>();
@@ -321,12 +321,16 @@ ChatWindow::ChatWindow(QWidget *parent)
                 Protocol::makeMessage(Protocol::MsgType::AVATAR_GET_REQ, data));
         });
     m_avatarRequests->setLowBandwidthEnabled(m_bandwidthViewModel->enabled());
-    m_windowsLocaleSettings = std::make_unique<QSettings>();
-    m_windowsLocaleRepository =
-        std::make_unique<WindowsLocalePreferenceRepository>(
-            *m_windowsLocaleSettings);
-    m_windowsLocaleViewModel = std::make_unique<WindowsLocaleViewModel>(
-        m_windowsLocaleRepository.get());
+    if (!m_windowsLocaleViewModel) {
+        m_windowsLocaleSettings = std::make_unique<QSettings>();
+        m_windowsLocaleRepository =
+            std::make_unique<WindowsLocalePreferenceRepository>(
+                *m_windowsLocaleSettings);
+        m_ownedWindowsLocaleViewModel =
+            std::make_unique<WindowsLocaleViewModel>(
+                m_windowsLocaleRepository.get());
+        m_windowsLocaleViewModel = m_ownedWindowsLocaleViewModel.get();
+    }
     setWindowTitle("Qt聊天室");
     setWindowFlags(Qt::Window | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
     resize(1000, 700);
@@ -4571,7 +4575,7 @@ void ChatWindow::showProfileDialog() {
     if (avatar.isNull()) requestAvatar(m_username, true);
     m_profileDialog = new ProfileDialog(
         m_userId, m_username, m_displayName, avatar, this,
-        m_bandwidthViewModel.get(), m_windowsLocaleViewModel.get());
+        m_bandwidthViewModel.get(), m_windowsLocaleViewModel);
     m_profileDialog->setAttribute(Qt::WA_DeleteOnClose);
 
     connect(m_profileDialog, &ProfileDialog::changeAvatarRequested, this, &ChatWindow::onChangeAvatar);
@@ -4899,7 +4903,7 @@ void ChatWindow::showV2Conversations() {
         m_v2MessageForwardingEnabled,
         m_deviceManagementController->messageSearchViewModel(),
         m_deviceManagementController->accountBlockViewModel(),
-        m_windowsLocaleViewModel->locale(), m_windowsLocaleViewModel.get());
+        m_windowsLocaleViewModel->locale(), m_windowsLocaleViewModel);
     m_v2ConversationDialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(m_v2ConversationDialog, &QObject::destroyed, this, [this] {
         m_v2ConversationDialog = nullptr;
