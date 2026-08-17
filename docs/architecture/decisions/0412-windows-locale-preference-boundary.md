@@ -399,3 +399,8 @@ database migration or protocol compatibility window is required.
   signed-update trust decisions, target version, install coordination and
   diagnostic logging are unchanged; runtime manual-check feedback resolves the
   locale when the user invokes it.
+- the Windows update controller receives the shared locale view model. Check,
+  download and installation-preparation progress reprojects on locale changes;
+  ready/current/deferred/manual/failure outcomes resolve copy when emitted.
+  Signed manifest/installer verification, prepared-installer deletion, explicit
+  user consent, `quitAuthorized` and updater diagnostics remain unchanged.

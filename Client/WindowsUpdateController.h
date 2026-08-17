@@ -10,6 +10,7 @@
 
 class QProgressDialog;
 class QWidget;
+class WindowsLocaleViewModel;
 
 class WindowsUpdateController : public QObject {
     Q_OBJECT
@@ -17,6 +18,7 @@ public:
     WindowsUpdateController(
         WindowsUpdateProductConfiguration::Value configuration,
         WindowsUpdateRuntimePaths paths,
+        WindowsLocaleViewModel *localeViewModel,
         QObject *parent = nullptr);
 
     bool isEnabled() const;
@@ -37,7 +39,10 @@ private:
     void closeProgress();
     void removePreparedInstaller();
     void releaseOwner();
+    void refreshProgressCopy();
     QWidget *messageOwner() const;
+
+    enum class ProgressKind { None, Checking, Downloading, Preparing };
 
     WindowsUpdateProductConfiguration::Value m_configuration;
     WindowsUpdateRuntimePaths m_paths;
@@ -46,6 +51,8 @@ private:
     QPointer<QWidget> m_owner;
     QMetaObject::Connection m_ownerDestroyedConnection;
     QPointer<QProgressDialog> m_progress;
+    WindowsLocaleViewModel *m_localeViewModel = nullptr;
+    ProgressKind m_progressKind = ProgressKind::None;
     QString m_preparedInstallerPath;
     bool m_userInitiated = false;
 };

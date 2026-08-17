@@ -245,6 +245,23 @@ int main(int argc, char **argv) {
                 || english.updateCheckUnavailable
                     != QStringLiteral(
                         "An update check cannot be started right now.")
+                || english.updateCancel != QStringLiteral("Cancel")
+                || english.updateDownloadingProgress
+                    != QStringLiteral(
+                        "Downloading and verifying the secure update…")
+                || english.updateReadyTitle
+                    != QStringLiteral("Security update ready")
+                || english.updateReadyBody
+                    != QStringLiteral(
+                        "Version %1 was downloaded and its signature was verified.\n\n"
+                        "Installing now will save current drafts, disconnect safely, and restart the app.")
+                || english.updateManualRequiredTitle
+                    != QStringLiteral("Manual update required")
+                || english.updateCheckFailedBody
+                    != QStringLiteral(
+                        "The update could not be verified safely. No update content was kept or installed.")
+                || english.updateNotStartedTitle
+                    != QStringLiteral("Update not started")
                 || english.mainCreateRoomTitle
                     != QStringLiteral("Create room")
                 || english.mainCreateRoomPrompt

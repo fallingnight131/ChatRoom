@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
             << updateConfiguration.error;
     }
     WindowsUpdateController updateController(
-        updateConfiguration, updatePaths, &app);
+        updateConfiguration, updatePaths, &localeViewModel, &app);
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
     const auto v2Configuration = WindowsV2ProductConfiguration::fromBuild();
     QString v2DeviceId;

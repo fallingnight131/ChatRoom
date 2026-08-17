@@ -17,6 +17,9 @@ def main() -> int:
     cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
     main_source = (ROOT / "Client/main.cpp").read_text(encoding="utf-8")
     network = (ROOT / "Client/NetworkManager.cpp").read_text(encoding="utf-8")
+    update_controller = (
+        ROOT / "Client/WindowsUpdateController.cpp"
+    ).read_text(encoding="utf-8")
     login = (ROOT / "Client/LoginDialog.cpp").read_text(encoding="utf-8")
     window = (ROOT / "Client/ChatWindow.cpp").read_text(encoding="utf-8")
     message_delegate = (ROOT / "Client/MessageDelegate.cpp").read_text(
@@ -141,6 +144,24 @@ def main() -> int:
         "当前无法开始更新检查",
     )):
         raise AssertionError("Windows startup/update shell must use catalog copy")
+    require(update_controller, (
+        "WindowsLocaleViewModel::changed",
+        "ProgressKind::Checking",
+        "ProgressKind::Downloading",
+        "ProgressKind::Preparing",
+        "copy.updateReadyBody.arg(targetVersion)",
+        "copy.updateManualRequiredBody.arg(targetVersion)",
+        "copy.updateCheckFailedBody",
+        "copy.updateNotStartedBody",
+        "UpdateCheckApplicationService::Outcome",
+        "result.quitAuthorized",
+    ), "Client/WindowsUpdateController.cpp")
+    if any(copy in update_controller for copy in (
+        "正在安全检查更新", "可安装安全更新",
+        "当前已是最新版本", "需要手动更新",
+        "无法安全验证更新", "更新未启动",
+    )):
+        raise AssertionError("Windows update controller must use catalog copy")
     require(login, (
         "QByteArray LoginDialog::takePasswordUtf8()",
         "m_loginPass->clear()",

@@ -1,4 +1,6 @@
 #include "WindowsUpdateController.h"
+#include "WindowsLocaleCatalog.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -13,10 +15,16 @@
 
 WindowsUpdateController::WindowsUpdateController(
         WindowsUpdateProductConfiguration::Value configuration,
-        WindowsUpdateRuntimePaths paths, QObject *parent)
+        WindowsUpdateRuntimePaths paths,
+        WindowsLocaleViewModel *localeViewModel, QObject *parent)
     : QObject(parent),
       m_configuration(std::move(configuration)),
-      m_paths(std::move(paths)) {
+      m_paths(std::move(paths)),
+      m_localeViewModel(localeViewModel) {
+    if (m_localeViewModel) {
+        connect(m_localeViewModel, &WindowsLocaleViewModel::changed, this,
+                &WindowsUpdateController::refreshProgressCopy);
+    }
     if (!m_configuration.enabled) return;
     m_check = new UpdateCheckApplicationService(
         m_configuration.trustedKeys, m_paths.manifestStateDirectory,
@@ -74,10 +82,9 @@ bool WindowsUpdateController::checkForUpdates(
         return false;
     }
     if (m_userInitiated) {
-        m_progress = new QProgressDialog(
-            QStringLiteral("正在安全检查更新…"), QStringLiteral("取消"),
-            0, 0, messageOwner());
-        m_progress->setWindowTitle(QStringLiteral("检查更新"));
+        m_progress = new QProgressDialog(QString(), QString(), 0, 0, messageOwner());
+        m_progressKind = ProgressKind::Checking;
+        refreshProgressCopy();
         m_progress->setWindowModality(Qt::WindowModal);
         m_progress->setMinimumDuration(0);
         connect(m_progress, &QProgressDialog::canceled,
@@ -89,15 +96,19 @@ bool WindowsUpdateController::checkForUpdates(
 
 void WindowsUpdateController::handleProgress(qint64 received, qint64 expected) {
     if (!m_progress) {
-        m_progress = new QProgressDialog(
-            QStringLiteral("正在下载并验证安全更新…"), QStringLiteral("取消"),
-            0, 1000, messageOwner());
-        m_progress->setWindowTitle(QStringLiteral("安全更新"));
+        m_progress = new QProgressDialog(QString(), QString(), 0, 1000,
+                                         messageOwner());
+        m_progressKind = ProgressKind::Downloading;
+        refreshProgressCopy();
         m_progress->setWindowModality(Qt::WindowModal);
         m_progress->setMinimumDuration(0);
         connect(m_progress, &QProgressDialog::canceled,
                 m_check, &UpdateCheckApplicationService::cancel);
         m_progress->show();
+    }
+    if (m_progressKind != ProgressKind::Downloading) {
+        m_progressKind = ProgressKind::Downloading;
+        refreshProgressCopy();
     }
     if (expected <= 0) return;
     m_progress->setRange(0, 1000);
@@ -110,14 +121,14 @@ void WindowsUpdateController::handleCheckFinished(
         const UpdatePreparationApplicationService::PreparedInstaller &installer,
         const QString &targetVersion, const QString &error) {
     closeProgress();
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_localeViewModel ? m_localeViewModel->locale() : WindowsLocale::ZhCn);
     using Outcome = UpdateCheckApplicationService::Outcome;
     if (outcome == Outcome::Ready) {
         m_preparedInstallerPath = installer.path;
         const auto choice = QMessageBox::question(
-            messageOwner(), QStringLiteral("可安装安全更新"),
-            QStringLiteral("版本 %1 已下载并通过签名验证。\n\n"
-                           "现在安装会正常保存当前草稿、断开连接并重启应用。")
-                .arg(targetVersion),
+            messageOwner(), copy.updateReadyTitle,
+            copy.updateReadyBody.arg(targetVersion),
             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
         if (choice != QMessageBox::Yes) {
             removePreparedInstaller();
@@ -140,18 +151,18 @@ void WindowsUpdateController::handleCheckFinished(
         QString startError;
         if (!m_install->start(request, &startError)) {
             removePreparedInstaller();
-            QMessageBox::warning(messageOwner(), QStringLiteral("无法安装更新"),
-                                 QStringLiteral("当前版本保持不变，请稍后重试。"));
+            QMessageBox::warning(messageOwner(), copy.updateInstallFailedTitle,
+                                 copy.updateInstallFailedBody);
             qWarning().noquote() << "[Updater] operation=install-start detail="
                                  << startError;
             m_userInitiated = false;
             releaseOwner();
             return;
         }
-        m_progress = new QProgressDialog(
-            QStringLiteral("正在准备安装并安全退出…"), QString(),
-            0, 0, messageOwner());
-        m_progress->setWindowTitle(QStringLiteral("准备安装"));
+        m_progress = new QProgressDialog(QString(), QString(), 0, 0,
+                                         messageOwner());
+        m_progressKind = ProgressKind::Preparing;
+        refreshProgressCopy();
         m_progress->setWindowModality(Qt::ApplicationModal);
         m_progress->setCancelButton(nullptr);
         m_progress->setMinimumDuration(0);
@@ -160,22 +171,20 @@ void WindowsUpdateController::handleCheckFinished(
     }
 
     if (outcome == Outcome::NoUpdate && m_userInitiated) {
-        QMessageBox::information(messageOwner(), QStringLiteral("检查更新"),
-                                 QStringLiteral("当前已是最新版本。"));
+        QMessageBox::information(messageOwner(), copy.updateCheckTitle,
+                                 copy.updateCurrent);
     } else if (outcome == Outcome::ManualUpdateRequired) {
-        QMessageBox::warning(messageOwner(), QStringLiteral("需要手动更新"),
-                             QStringLiteral("当前版本无法自动升级到 %1，"
-                                            "请从官方渠道下载新版本。")
-                                 .arg(targetVersion));
+        QMessageBox::warning(messageOwner(), copy.updateManualRequiredTitle,
+                             copy.updateManualRequiredBody.arg(targetVersion));
     } else if (outcome == Outcome::DeferredByRollout && m_userInitiated) {
-        QMessageBox::information(messageOwner(), QStringLiteral("检查更新"),
-                                 QStringLiteral("新版本正在分批发布，稍后将自动可用。"));
+        QMessageBox::information(messageOwner(), copy.updateCheckTitle,
+                                 copy.updateDeferred);
     } else if (outcome == Outcome::Rejected) {
         qWarning().noquote() << "[Updater] operation=check outcome=rejected detail="
                              << error;
         if (m_userInitiated)
-            QMessageBox::warning(messageOwner(), QStringLiteral("检查更新失败"),
-                                 QStringLiteral("无法安全验证更新，未保留或安装任何更新内容。"));
+            QMessageBox::warning(messageOwner(), copy.updateCheckFailedTitle,
+                                 copy.updateCheckFailedBody);
     }
     m_userInitiated = false;
     releaseOwner();
@@ -185,12 +194,14 @@ void WindowsUpdateController::handleInstallFinished(
         const WindowsUpdateInstallCoordinator::Result &result) {
     closeProgress();
     m_userInitiated = false;
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_localeViewModel ? m_localeViewModel->locale() : WindowsLocale::ZhCn);
     if (!result.quitAuthorized) {
         removePreparedInstaller();
         qWarning().noquote() << "[Updater] operation=handoff outcome=failed detail="
                              << result.error;
-        QMessageBox::warning(messageOwner(), QStringLiteral("更新未启动"),
-                             QStringLiteral("应用将继续运行，未启动安装。请稍后重试。"));
+        QMessageBox::warning(messageOwner(), copy.updateNotStartedTitle,
+                             copy.updateNotStartedBody);
         releaseOwner();
         return;
     }
@@ -204,6 +215,31 @@ void WindowsUpdateController::closeProgress() {
     m_progress->close();
     m_progress->deleteLater();
     m_progress.clear();
+    m_progressKind = ProgressKind::None;
+}
+
+void WindowsUpdateController::refreshProgressCopy() {
+    if (!m_progress) return;
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_localeViewModel ? m_localeViewModel->locale() : WindowsLocale::ZhCn);
+    switch (m_progressKind) {
+    case ProgressKind::Checking:
+        m_progress->setLabelText(copy.updateCheckingProgress);
+        m_progress->setCancelButtonText(copy.updateCancel);
+        m_progress->setWindowTitle(copy.updateCheckTitle);
+        break;
+    case ProgressKind::Downloading:
+        m_progress->setLabelText(copy.updateDownloadingProgress);
+        m_progress->setCancelButtonText(copy.updateCancel);
+        m_progress->setWindowTitle(copy.updateSecurityTitle);
+        break;
+    case ProgressKind::Preparing:
+        m_progress->setLabelText(copy.updatePreparingProgress);
+        m_progress->setWindowTitle(copy.updatePreparingTitle);
+        break;
+    case ProgressKind::None:
+        break;
+    }
 }
 
 void WindowsUpdateController::removePreparedInstaller() {

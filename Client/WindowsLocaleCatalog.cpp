@@ -577,6 +577,29 @@ WindowsLocaleMessages createZhCn() {
         "请使用当前版本，或从官方渠道重新下载。");
     m.updateCheckTitle = QStringLiteral("检查更新");
     m.updateCheckUnavailable = QStringLiteral("当前无法开始更新检查。");
+    m.updateCancel = QStringLiteral("取消");
+    m.updateCheckingProgress = QStringLiteral("正在安全检查更新…");
+    m.updateDownloadingProgress = QStringLiteral("正在下载并验证安全更新…");
+    m.updateSecurityTitle = QStringLiteral("安全更新");
+    m.updateReadyTitle = QStringLiteral("可安装安全更新");
+    m.updateReadyBody = QStringLiteral(
+        "版本 %1 已下载并通过签名验证。\n\n"
+        "现在安装会正常保存当前草稿、断开连接并重启应用。");
+    m.updateInstallFailedTitle = QStringLiteral("无法安装更新");
+    m.updateInstallFailedBody = QStringLiteral("当前版本保持不变，请稍后重试。");
+    m.updatePreparingProgress = QStringLiteral("正在准备安装并安全退出…");
+    m.updatePreparingTitle = QStringLiteral("准备安装");
+    m.updateCurrent = QStringLiteral("当前已是最新版本。");
+    m.updateManualRequiredTitle = QStringLiteral("需要手动更新");
+    m.updateManualRequiredBody = QStringLiteral(
+        "当前版本无法自动升级到 %1，请从官方渠道下载新版本。");
+    m.updateDeferred = QStringLiteral("新版本正在分批发布，稍后将自动可用。");
+    m.updateCheckFailedTitle = QStringLiteral("检查更新失败");
+    m.updateCheckFailedBody = QStringLiteral(
+        "无法安全验证更新，未保留或安装任何更新内容。");
+    m.updateNotStartedTitle = QStringLiteral("更新未启动");
+    m.updateNotStartedBody = QStringLiteral(
+        "应用将继续运行，未启动安装。请稍后重试。");
     m.mainCreateRoomTitle = QStringLiteral("创建聊天室");
     m.mainCreateRoomPrompt = QStringLiteral("请输入聊天室名称：");
     m.mainCreateRoomAccessible = QStringLiteral("创建聊天室对话框");
@@ -1464,6 +1487,33 @@ WindowsLocaleMessages createEnUs() {
     m.updateCheckTitle = QStringLiteral("Check for updates");
     m.updateCheckUnavailable = QStringLiteral(
         "An update check cannot be started right now.");
+    m.updateCancel = QStringLiteral("Cancel");
+    m.updateCheckingProgress = QStringLiteral("Checking securely for updates…");
+    m.updateDownloadingProgress = QStringLiteral(
+        "Downloading and verifying the secure update…");
+    m.updateSecurityTitle = QStringLiteral("Security update");
+    m.updateReadyTitle = QStringLiteral("Security update ready");
+    m.updateReadyBody = QStringLiteral(
+        "Version %1 was downloaded and its signature was verified.\n\n"
+        "Installing now will save current drafts, disconnect safely, and restart the app.");
+    m.updateInstallFailedTitle = QStringLiteral("Unable to install update");
+    m.updateInstallFailedBody = QStringLiteral(
+        "This version is unchanged. Try again later.");
+    m.updatePreparingProgress = QStringLiteral(
+        "Preparing the installation and a safe exit…");
+    m.updatePreparingTitle = QStringLiteral("Preparing installation");
+    m.updateCurrent = QStringLiteral("You already have the latest version.");
+    m.updateManualRequiredTitle = QStringLiteral("Manual update required");
+    m.updateManualRequiredBody = QStringLiteral(
+        "This version cannot update automatically to %1. Download the new version from the official channel.");
+    m.updateDeferred = QStringLiteral(
+        "The new version is rolling out gradually and will become available automatically later.");
+    m.updateCheckFailedTitle = QStringLiteral("Update check failed");
+    m.updateCheckFailedBody = QStringLiteral(
+        "The update could not be verified safely. No update content was kept or installed.");
+    m.updateNotStartedTitle = QStringLiteral("Update not started");
+    m.updateNotStartedBody = QStringLiteral(
+        "The app will keep running because installation did not start. Try again later.");
     m.mainCreateRoomTitle = QStringLiteral("Create room");
     m.mainCreateRoomPrompt = QStringLiteral("Enter a room name:");
     m.mainCreateRoomAccessible = QStringLiteral("Create room dialog");
