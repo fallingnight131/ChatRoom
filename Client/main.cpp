@@ -9,9 +9,11 @@
 #include <QDir>
 #include <QTimer>
 #include <QSettings>
-#include <cstdio>
 #include <functional>
 #include <utility>
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 #include "LoginDialog.h"
 #include "ChatWindow.h"
 #include "NetworkManager.h"
@@ -43,6 +45,15 @@ void cleanupAndQuit() {
 
 #ifdef Q_OS_WIN
 namespace {
+bool writeWindowsDiagnosticOutput(const QByteArray &output) {
+    const HANDLE stdoutHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (stdoutHandle == nullptr || stdoutHandle == INVALID_HANDLE_VALUE) return false;
+    DWORD written = 0;
+    return WriteFile(stdoutHandle, output.constData(),
+                     static_cast<DWORD>(output.size()), &written, nullptr)
+        && written == static_cast<DWORD>(output.size());
+}
+
 bool handleWindowsUpdateStartup(const WindowsUpdateRuntimePaths &paths,
                                 const QString &currentVersion,
                                 const WindowsLocaleMessages &copy) {
@@ -101,9 +112,7 @@ int main(int argc, char *argv[]) {
         QCoreApplication diagnosticApplication(argc, argv);
         const QByteArray output = WindowsV2ConfigurationDiagnostic::canonicalJson(
             WindowsV2ProductConfiguration::fromBuild());
-        if (std::fwrite(output.constData(), 1,
-                        static_cast<size_t>(output.size()), stdout)
-                != static_cast<size_t>(output.size())) return 2;
+        if (!writeWindowsDiagnosticOutput(output)) return 2;
         return 0;
     }
 #endif
@@ -112,9 +121,7 @@ int main(int argc, char *argv[]) {
         QCoreApplication diagnosticApplication(argc, argv);
         const QByteArray output = WindowsUpdateTrustDiagnostic::canonicalJson(
             WindowsUpdateProductConfiguration::fromBuild());
-        if (std::fwrite(output.constData(), 1,
-                        static_cast<size_t>(output.size()), stdout)
-                != static_cast<size_t>(output.size())) return 2;
+        if (!writeWindowsDiagnosticOutput(output)) return 2;
         return 0;
     }
 #endif

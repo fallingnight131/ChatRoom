@@ -130,6 +130,8 @@ Windows 客户端的 qmake 与 CMake 产品目标都显式链接 `User32`，为�
 产品图策略校验会把 qmake 源文件路径统一为正斜杠，避免运行器路径分隔符
 导致源文件缺失误报。CMake Windows 产品构建继续静态链接 Protobuf/Abseil，
 但统一使用与共享 Qt 一致的动态 MSVC 运行库，避免 `/MT` 与 `/MD` 混用。
+Windows GUI 子系统中的产品配置诊断通过继承的标准输出句柄写入 JSON，确保
+PowerShell 门禁可以读取最终 `ChatClient.exe` 的默认关闭配置。
 
 ## 项目结构
 

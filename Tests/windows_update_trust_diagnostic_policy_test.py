@@ -16,7 +16,9 @@ def main() -> int:
     required = (
         "WindowsUpdateProductConfiguration::fromBuild()",
         "WindowsUpdateTrustDiagnostic::canonicalJson",
-        "std::fwrite",
+        "GetStdHandle(STD_OUTPUT_HANDLE)",
+        "WriteFile",
+        "writeWindowsDiagnosticOutput(output)",
         argument,
     )
     for marker in required:
