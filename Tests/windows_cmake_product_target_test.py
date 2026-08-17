@@ -56,6 +56,7 @@ def main() -> int:
         "WindowsDeviceManagementController.cpp",
         'CHAT_UPDATE_CONFIGURATION_ENABLED=1',
         'CHAT_UPDATE_MANIFEST_URL="${CHATROOM_UPDATE_MANIFEST_URL}"',
+        "V2WindowsForwardTargetDialogTest PROPERTIES AUTOMOC ON",
     )
     for marker in required_cmake:
         if marker not in cmake:

@@ -135,6 +135,8 @@ PowerShell 门禁可以读取最终 `ChatClient.exe` 的默认关闭配置；Win
 脚本会显式重定向并等待 GUI 进程，避免 PowerShell 直接调用 GUI 程序时丢失输出。
 qmake 回退载荷会从同一 Qt SDK 补齐 CMake V2 产品图所需的 WebSockets 运行库，
 使两套构建的可部署 DLL 清单和字节保持一致。
+V2 转发目标对话框的独立 CMake 测试目标启用 Qt `AUTOMOC`，确保 Windows
+功能候选构建会生成并链接其元对象代码。
 
 ## 项目结构
 

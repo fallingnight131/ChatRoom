@@ -985,6 +985,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Tests/V2WindowsForwardTargetDialogTest.cpp
                 Client/V2WindowsForwardTargetDialog.cpp
                 Client/V2WindowsForwardTargetDialog.h)
+            set_target_properties(
+                V2WindowsForwardTargetDialogTest PROPERTIES AUTOMOC ON)
             target_link_libraries(
                 V2WindowsForwardTargetDialogTest
                 PRIVATE Qt6::Widgets chatroom_windows_v2_messaging_product)
