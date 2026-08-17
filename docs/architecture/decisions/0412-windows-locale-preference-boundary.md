@@ -77,6 +77,13 @@ message storage, server behavior, or the supported Web/Windows product scope.
   into the reusable cropper. Its title, custom-painted instruction, preview,
   actions, and accessible description are presentation only; crop geometry,
   source pixels, and the 256x256 result remain locale-independent.
+- Migrate the whole room-settings surface together: limit summaries/forms,
+  administrator avatar/name/password actions, leave/delete confirmations,
+  validation, file dialogs, and accessible label buddies use catalog copy.
+  Room IDs, names, numeric limits, and unsaved form values remain unchanged.
+  Password entry is masked, password/developer-key fields clear after dispatch,
+  and the query action is named as password-status inspection because the
+  server never returns the non-recoverable password.
 
 ## Consequences
 
@@ -116,3 +123,6 @@ database migration or protocol compatibility window is required.
   preview recomposition without changing Unicode display or account identity.
 - avatar-cropper composition proves both entry points carry the shared boundary
   and a live language switch leaves the resulting image pixel-equivalent.
+- room-settings composition proves administrator and limit groups switch
+  together without changing unsaved Unicode/secret input; successful commands
+  clear secret fields and keep unchanged room identity on the transport path.

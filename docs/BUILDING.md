@@ -3265,6 +3265,12 @@ instruction semantics, preview and actions, plus a 256x256 crop that remains
 pixel-identical through a live switch. Static composition additionally locks
 both profile and room-settings entry paths to the application ViewModel. The
 offscreen run remains development-host evidence.
+`WindowsRoomSettingsLocalizationTest` composes the real administrator Widget,
+switches all limit/admin groups and actions to English while preserving unsaved
+Unicode and secret form state, verifies password masking, then dispatches the
+existing room-limit and password commands and requires both secret inputs to be
+cleared. The source-composition gate locks the shared cropper and server-status
+wording; native Windows dialogs and assistive technology remain release gates.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

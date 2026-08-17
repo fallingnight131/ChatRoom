@@ -2002,6 +2002,13 @@ The reusable Windows avatar cropper now receives that same ViewModel through
 both the profile and room-settings entry paths. Its title, custom-painted drag/
 wheel instruction, preview, actions, and accessible semantics change live;
 crop coordinates and the 256x256 pixel result do not depend on locale.
+The complete Windows room-settings surface now follows the same boundary for
+limit summaries/forms, administrator avatar/name/password controls, destructive
+confirmations, validation, and file selection. Live recomposition preserves
+room identity, numeric limits, and unsaved Unicode form text. Password entry is
+masked, password and developer-key fields clear immediately after command
+dispatch, and the UI accurately offers password-status inspection rather than
+password recovery; authorization and `hasPassword` truth remain server-side.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

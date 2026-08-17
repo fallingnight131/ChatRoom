@@ -89,7 +89,12 @@ int main(int argc, char **argv) {
                 || english.userInfoAdministrator
                     != QStringLiteral("Administrator")
                 || english.avatarCropTitle != QStringLiteral("Crop avatar")
-                || english.avatarCropConfirm != QStringLiteral("Confirm")) {
+                || english.avatarCropConfirm != QStringLiteral("Confirm")
+                || english.roomSettingsTitle != QStringLiteral("Room settings")
+                || english.roomDeleteConfirmTitle
+                    != QStringLiteral("Confirm deletion")
+                || english.roomDeveloperKeyRequired
+                    != QStringLiteral("Enter the developer key")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }

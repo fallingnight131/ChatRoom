@@ -288,6 +288,46 @@ WindowsLocaleMessages createZhCn() {
     m.avatarCropPreview = QStringLiteral("预览：");
     m.avatarCropPreviewAccessible = QStringLiteral("裁剪后的头像预览");
     m.avatarCropConfirm = QStringLiteral("确定");
+    m.roomSettingsTitle = QStringLiteral("房间设置");
+    m.roomCurrentLimits = QStringLiteral("当前限制");
+    m.roomMaxSingleFile = QStringLiteral("单文件最大：");
+    m.roomTotalFileSpace = QStringLiteral("总文件空间：");
+    m.roomMaxFileCount = QStringLiteral("文件数量上限：");
+    m.roomMaxMembers = QStringLiteral("聊天室最大人数：");
+    m.roomLimitSettings = QStringLiteral("限制设置（需开发者秘钥）");
+    m.roomMaxSingleFileGb = QStringLiteral("单文件上限 (GB)：");
+    m.roomTotalFileSpaceGb = QStringLiteral("总文件空间 (GB)：");
+    m.roomDeveloperKey = QStringLiteral("开发者秘钥：");
+    m.roomDeveloperKeyPlaceholder = QStringLiteral("输入开发者秘钥后可保存限制");
+    m.roomSaveLimits = QStringLiteral("保存限制");
+    m.roomAdministratorSettings = QStringLiteral("管理员设置");
+    m.roomAvatar = QStringLiteral("聊天室头像：");
+    m.roomChooseImage = QStringLiteral("选择图片");
+    m.roomName = QStringLiteral("聊天室名称：");
+    m.roomSave = QStringLiteral("保存");
+    m.roomPassword = QStringLiteral("聊天室密码：");
+    m.roomPasswordPlaceholder = QStringLiteral("留空表示取消密码");
+    m.roomSetPassword = QStringLiteral("设置");
+    m.roomViewPassword = QStringLiteral("查看密码状态");
+    m.roomLeave = QStringLiteral("退出聊天室");
+    m.roomLeaveQuestion = QStringLiteral("确定要退出聊天室 %1 吗？");
+    m.roomDelete = QStringLiteral("删除聊天室");
+    m.roomDeleteConfirmTitle = QStringLiteral("确认删除");
+    m.roomDeleteConfirmPrompt = QStringLiteral(
+        "此操作不可恢复！\n请输入聊天室名称 \"%1\" 确认删除：");
+    m.roomDeleteFailedTitle = QStringLiteral("删除失败");
+    m.roomDeleteNameMismatch = QStringLiteral("输入的名称不匹配，删除已取消");
+    m.roomClose = QStringLiteral("关闭");
+    m.roomErrorTitle = QStringLiteral("错误");
+    m.roomNameRequired = QStringLiteral("聊天室名称不能为空");
+    m.roomLimitErrorTitle = QStringLiteral("限制错误");
+    m.roomDeveloperKeyRequired = QStringLiteral("请输入开发者秘钥");
+    m.roomTotalSpaceTooSmall = QStringLiteral("总文件空间不能小于单文件上限");
+    m.roomChooseAvatar = QStringLiteral("选择聊天室头像");
+    m.roomImageFiles = QStringLiteral("图片文件 (*.png *.jpg *.jpeg *.bmp *.gif)");
+    m.roomCannotLoadImage = QStringLiteral("无法加载图片");
+    m.roomNoticeTitle = QStringLiteral("提示");
+    m.roomAvatarTooLarge = QStringLiteral("头像数据过大，请选择更小的图片或裁剪区域");
     return m;
 }
 
@@ -586,6 +626,50 @@ WindowsLocaleMessages createEnUs() {
     m.avatarCropPreview = QStringLiteral("Preview:");
     m.avatarCropPreviewAccessible = QStringLiteral("Cropped avatar preview");
     m.avatarCropConfirm = QStringLiteral("Confirm");
+    m.roomSettingsTitle = QStringLiteral("Room settings");
+    m.roomCurrentLimits = QStringLiteral("Current limits");
+    m.roomMaxSingleFile = QStringLiteral("Maximum file size:");
+    m.roomTotalFileSpace = QStringLiteral("Total file storage:");
+    m.roomMaxFileCount = QStringLiteral("Maximum file count:");
+    m.roomMaxMembers = QStringLiteral("Maximum members:");
+    m.roomLimitSettings = QStringLiteral("Limit settings (developer key required)");
+    m.roomMaxSingleFileGb = QStringLiteral("Maximum file size (GB):");
+    m.roomTotalFileSpaceGb = QStringLiteral("Total file storage (GB):");
+    m.roomDeveloperKey = QStringLiteral("Developer key:");
+    m.roomDeveloperKeyPlaceholder = QStringLiteral(
+        "Enter the developer key to save limits");
+    m.roomSaveLimits = QStringLiteral("Save limits");
+    m.roomAdministratorSettings = QStringLiteral("Administrator settings");
+    m.roomAvatar = QStringLiteral("Room avatar:");
+    m.roomChooseImage = QStringLiteral("Choose image");
+    m.roomName = QStringLiteral("Room name:");
+    m.roomSave = QStringLiteral("Save");
+    m.roomPassword = QStringLiteral("Room password:");
+    m.roomPasswordPlaceholder = QStringLiteral("Leave empty to remove the password");
+    m.roomSetPassword = QStringLiteral("Set");
+    m.roomViewPassword = QStringLiteral("Check status");
+    m.roomLeave = QStringLiteral("Leave room");
+    m.roomLeaveQuestion = QStringLiteral("Leave room %1?");
+    m.roomDelete = QStringLiteral("Delete room");
+    m.roomDeleteConfirmTitle = QStringLiteral("Confirm deletion");
+    m.roomDeleteConfirmPrompt = QStringLiteral(
+        "This cannot be undone.\nEnter the room name \"%1\" to confirm deletion:");
+    m.roomDeleteFailedTitle = QStringLiteral("Deletion failed");
+    m.roomDeleteNameMismatch = QStringLiteral(
+        "The name does not match; deletion was cancelled");
+    m.roomClose = QStringLiteral("Close");
+    m.roomErrorTitle = QStringLiteral("Error");
+    m.roomNameRequired = QStringLiteral("Room name is required");
+    m.roomLimitErrorTitle = QStringLiteral("Invalid limits");
+    m.roomDeveloperKeyRequired = QStringLiteral("Enter the developer key");
+    m.roomTotalSpaceTooSmall = QStringLiteral(
+        "Total file storage cannot be smaller than the maximum file size");
+    m.roomChooseAvatar = QStringLiteral("Choose room avatar");
+    m.roomImageFiles = QStringLiteral("Image files (*.png *.jpg *.jpeg *.bmp *.gif)");
+    m.roomCannotLoadImage = QStringLiteral("Unable to load the image");
+    m.roomNoticeTitle = QStringLiteral("Notice");
+    m.roomAvatarTooLarge = QStringLiteral(
+        "Avatar data is too large; choose a smaller image or crop area");
     return m;
 }
 

@@ -2,6 +2,7 @@
 #include "NetworkManager.h"
 #include "Protocol.h"
 #include "AvatarCropDialog.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -30,7 +31,7 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
     : QDialog(parent), m_roomId(roomId), m_roomName(roomName),
       m_isAdmin(isAdmin), m_localeViewModel(localeViewModel)
 {
-    setWindowTitle(QStringLiteral("房间设置"));
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
     setMinimumWidth(380);
     auto *mainLayout = new QVBoxLayout(this);
 
@@ -77,24 +78,29 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
     mainLayout->addSpacing(8);
 
     // --- 所有人可见：当前限制 ---
-    auto *limitsGroup = new QGroupBox(QStringLiteral("当前限制"));
-    auto *limitsForm = new QFormLayout(limitsGroup);
-    limitsForm->addRow(QStringLiteral("单文件最大:"),
+    m_limitsGroup = new QGroupBox;
+    auto *limitsForm = new QFormLayout(m_limitsGroup);
+    m_maxFileSizeLabel = new QLabel;
+    m_totalFileSpaceLabel = new QLabel;
+    m_maxFileCountLabel = new QLabel;
+    m_maxMembersLabel = new QLabel;
+    limitsForm->addRow(m_maxFileSizeLabel,
                        new QLabel(QString("%1 GB").arg(maxFileSize / (1024.0 * 1024.0 * 1024.0), 0, 'f', 1)));
-    limitsForm->addRow(QStringLiteral("总文件空间:"),
+    limitsForm->addRow(m_totalFileSpaceLabel,
                        new QLabel(QString("%1 GB").arg(totalFileSpace / 1024 / 1024 / 1024)));
-    limitsForm->addRow(QStringLiteral("文件数量上限:"),
+    limitsForm->addRow(m_maxFileCountLabel,
                        new QLabel(QString::number(maxFileCount)));
-    limitsForm->addRow(QStringLiteral("聊天室最大人数:"),
+    limitsForm->addRow(m_maxMembersLabel,
                        new QLabel(QString::number(maxMembers)));
-    mainLayout->addWidget(limitsGroup);
+    mainLayout->addWidget(m_limitsGroup);
     mainLayout->addSpacing(8);
 
-    auto *limitsEditGroup = new QGroupBox(QStringLiteral("限制设置（需开发者秘钥）"));
-    auto *limitsEditLayout = new QVBoxLayout(limitsEditGroup);
+    m_limitsEditGroup = new QGroupBox;
+    auto *limitsEditLayout = new QVBoxLayout(m_limitsEditGroup);
 
     auto *fileLayout = new QHBoxLayout;
-    fileLayout->addWidget(new QLabel(QStringLiteral("单文件上限(GB)：")));
+    m_editMaxFileSizeLabel = new QLabel;
+    fileLayout->addWidget(m_editMaxFileSizeLabel);
     m_fileSizeSpin = new QDoubleSpinBox;
     m_fileSizeSpin->setRange(0.1, 10240.0);
     m_fileSizeSpin->setDecimals(1);
@@ -106,7 +112,8 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
     limitsEditLayout->addLayout(fileLayout);
 
     auto *totalLayout = new QHBoxLayout;
-    totalLayout->addWidget(new QLabel(QStringLiteral("总文件空间(GB)：")));
+    m_editTotalFileSpaceLabel = new QLabel;
+    totalLayout->addWidget(m_editTotalFileSpaceLabel);
     m_totalSpaceSpin = new QDoubleSpinBox;
     m_totalSpaceSpin->setRange(1.0, 10240.0);
     m_totalSpaceSpin->setDecimals(0);
@@ -116,7 +123,8 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
     limitsEditLayout->addLayout(totalLayout);
 
     auto *countLayout = new QHBoxLayout;
-    countLayout->addWidget(new QLabel(QStringLiteral("文件数量上限：")));
+    m_editFileCountLabel = new QLabel;
+    countLayout->addWidget(m_editFileCountLabel);
     m_fileCountSpin = new QSpinBox;
     m_fileCountSpin->setRange(1, 1000000);
     m_fileCountSpin->setValue(maxFileCount);
@@ -124,7 +132,8 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
     limitsEditLayout->addLayout(countLayout);
 
     auto *memberLayout = new QHBoxLayout;
-    memberLayout->addWidget(new QLabel(QStringLiteral("聊天室最大人数：")));
+    m_editMemberLimitLabel = new QLabel;
+    memberLayout->addWidget(m_editMemberLimitLabel);
     m_memberLimitSpin = new QSpinBox;
     m_memberLimitSpin->setRange(2, 1000000);
     m_memberLimitSpin->setValue(maxMembers);
@@ -132,106 +141,164 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
     limitsEditLayout->addLayout(memberLayout);
 
     auto *keyLayout = new QHBoxLayout;
-    keyLayout->addWidget(new QLabel(QStringLiteral("开发者秘钥：")));
+    m_developerKeyLabel = new QLabel;
+    keyLayout->addWidget(m_developerKeyLabel);
     m_developerKeyEdit = new QLineEdit;
     m_developerKeyEdit->setEchoMode(QLineEdit::Password);
-    m_developerKeyEdit->setPlaceholderText(QStringLiteral("输入开发者秘钥后可保存限制"));
     keyLayout->addWidget(m_developerKeyEdit, 1);
-    auto *saveFileBtn = new QPushButton(QStringLiteral("保存限制"));
-    connect(saveFileBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onSaveLimits);
-    keyLayout->addWidget(saveFileBtn);
+    m_saveLimitsButton = new QPushButton;
+    connect(m_saveLimitsButton, &QPushButton::clicked,
+            this, &RoomSettingsDialog::onSaveLimits);
+    keyLayout->addWidget(m_saveLimitsButton);
     limitsEditLayout->addLayout(keyLayout);
 
-    mainLayout->addWidget(limitsEditGroup);
+    mainLayout->addWidget(m_limitsEditGroup);
     mainLayout->addSpacing(8);
 
     if (isAdmin) {
         // --- 管理员设置组 ---
-        auto *adminGroup = new QGroupBox(QStringLiteral("管理员设置"));
-        auto *adminLayout = new QVBoxLayout(adminGroup);
+        m_adminGroup = new QGroupBox;
+        auto *adminLayout = new QVBoxLayout(m_adminGroup);
 
         // 聊天室头像上传
         auto *avatarUploadLayout = new QHBoxLayout;
-        avatarUploadLayout->addWidget(new QLabel(QStringLiteral("聊天室头像：")));
+        m_roomAvatarLabel = new QLabel;
+        avatarUploadLayout->addWidget(m_roomAvatarLabel);
         avatarUploadLayout->addStretch();
-        auto *uploadAvatarBtn = new QPushButton(QStringLiteral("选择图片"));
-        connect(uploadAvatarBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onUploadAvatar);
-        avatarUploadLayout->addWidget(uploadAvatarBtn);
+        m_uploadAvatarButton = new QPushButton;
+        connect(m_uploadAvatarButton, &QPushButton::clicked,
+                this, &RoomSettingsDialog::onUploadAvatar);
+        avatarUploadLayout->addWidget(m_uploadAvatarButton);
         adminLayout->addLayout(avatarUploadLayout);
 
         // 聊天室名称
         auto *nameLayout = new QHBoxLayout;
-        nameLayout->addWidget(new QLabel(QStringLiteral("聊天室名称：")));
+        m_nameLabel = new QLabel;
+        nameLayout->addWidget(m_nameLabel);
         m_nameEdit = new QLineEdit(roomName);
         nameLayout->addWidget(m_nameEdit, 1);
-        auto *saveNameBtn = new QPushButton(QStringLiteral("保存"));
-        connect(saveNameBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onSaveName);
-        nameLayout->addWidget(saveNameBtn);
+        m_saveNameButton = new QPushButton;
+        connect(m_saveNameButton, &QPushButton::clicked,
+                this, &RoomSettingsDialog::onSaveName);
+        nameLayout->addWidget(m_saveNameButton);
         adminLayout->addLayout(nameLayout);
 
         // 密码设置
         auto *pwdLayout = new QHBoxLayout;
-        pwdLayout->addWidget(new QLabel(QStringLiteral("聊天室密码：")));
+        m_passwordLabel = new QLabel;
+        pwdLayout->addWidget(m_passwordLabel);
         m_passwordEdit = new QLineEdit;
-        m_passwordEdit->setPlaceholderText(QStringLiteral("留空表示取消密码"));
+        m_passwordEdit->setEchoMode(QLineEdit::Password);
         pwdLayout->addWidget(m_passwordEdit, 1);
-        auto *setPwdBtn = new QPushButton(QStringLiteral("设置"));
-        connect(setPwdBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onSetPassword);
-        pwdLayout->addWidget(setPwdBtn);
-        auto *viewPwdBtn = new QPushButton(QStringLiteral("查看"));
-        connect(viewPwdBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onViewPassword);
-        pwdLayout->addWidget(viewPwdBtn);
+        m_setPasswordButton = new QPushButton;
+        connect(m_setPasswordButton, &QPushButton::clicked,
+                this, &RoomSettingsDialog::onSetPassword);
+        pwdLayout->addWidget(m_setPasswordButton);
+        m_viewPasswordButton = new QPushButton;
+        connect(m_viewPasswordButton, &QPushButton::clicked,
+                this, &RoomSettingsDialog::onViewPassword);
+        pwdLayout->addWidget(m_viewPasswordButton);
         adminLayout->addLayout(pwdLayout);
 
-        mainLayout->addWidget(adminGroup);
+        mainLayout->addWidget(m_adminGroup);
         mainLayout->addSpacing(8);
     }
 
     // --- 底部按钮 ---
     auto *btnLayout = new QHBoxLayout;
 
-    auto *leaveBtn = new QPushButton(QStringLiteral("退出聊天室"));
-    leaveBtn->setStyleSheet("QPushButton { color: #e67e22; }");
-    connect(leaveBtn, &QPushButton::clicked, this, [this] {
-        if (QMessageBox::question(this, QStringLiteral("退出聊天室"),
-                QString("确定要退出聊天室 %1 吗？").arg(m_roomName))
+    m_leaveButton = new QPushButton;
+    m_leaveButton->setStyleSheet("QPushButton { color: #e67e22; }");
+    connect(m_leaveButton, &QPushButton::clicked, this, [this] {
+        const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+        if (QMessageBox::question(this, copy.roomLeave,
+                copy.roomLeaveQuestion.arg(m_roomName))
             == QMessageBox::Yes) {
             emit leaveRoomRequested(m_roomId);
             accept();
         }
     });
-    btnLayout->addWidget(leaveBtn);
+    btnLayout->addWidget(m_leaveButton);
 
     if (isAdmin) {
-        auto *deleteBtn = new QPushButton(QStringLiteral("删除聊天室"));
-        deleteBtn->setStyleSheet("QPushButton { color: red; }");
-        connect(deleteBtn, &QPushButton::clicked, this, [this] {
-            QString input = QInputDialog::getText(this, QStringLiteral("确认删除"),
-                QString("此操作不可恢复！\n请输入聊天室名称 \"%1\" 确认删除:").arg(m_roomName));
+        m_deleteButton = new QPushButton;
+        m_deleteButton->setStyleSheet("QPushButton { color: red; }");
+        connect(m_deleteButton, &QPushButton::clicked, this, [this] {
+            const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+            QString input = QInputDialog::getText(
+                this, copy.roomDeleteConfirmTitle,
+                copy.roomDeleteConfirmPrompt.arg(m_roomName));
             if (input.trimmed() != m_roomName) {
                 if (!input.isEmpty())
-                    QMessageBox::warning(this, QStringLiteral("删除失败"),
-                                         QStringLiteral("输入的名称不匹配，删除已取消"));
+                    QMessageBox::warning(this, copy.roomDeleteFailedTitle,
+                                         copy.roomDeleteNameMismatch);
                 return;
             }
             emit deleteRoomRequested(m_roomId, m_roomName);
             accept();
         });
-        btnLayout->addWidget(deleteBtn);
+        btnLayout->addWidget(m_deleteButton);
     }
 
     btnLayout->addStretch();
-    auto *closeBtn = new QPushButton(QStringLiteral("关闭"));
-    connect(closeBtn, &QPushButton::clicked, this, &QDialog::close);
-    btnLayout->addWidget(closeBtn);
+    m_closeButton = new QPushButton;
+    connect(m_closeButton, &QPushButton::clicked, this, &QDialog::close);
+    btnLayout->addWidget(m_closeButton);
 
     mainLayout->addLayout(btnLayout);
+    if (m_localeViewModel) {
+        connect(m_localeViewModel, &WindowsLocaleViewModel::changed,
+                this, &RoomSettingsDialog::applyLocale);
+    }
+    applyLocale();
+}
+
+void RoomSettingsDialog::applyLocale() {
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    setWindowTitle(copy.roomSettingsTitle);
+    m_avatarPreview->setAccessibleName(copy.roomAvatar);
+    m_limitsGroup->setTitle(copy.roomCurrentLimits);
+    m_maxFileSizeLabel->setText(copy.roomMaxSingleFile);
+    m_totalFileSpaceLabel->setText(copy.roomTotalFileSpace);
+    m_maxFileCountLabel->setText(copy.roomMaxFileCount);
+    m_maxMembersLabel->setText(copy.roomMaxMembers);
+    m_limitsEditGroup->setTitle(copy.roomLimitSettings);
+    m_editMaxFileSizeLabel->setText(copy.roomMaxSingleFileGb);
+    m_editMaxFileSizeLabel->setBuddy(m_fileSizeSpin);
+    m_editTotalFileSpaceLabel->setText(copy.roomTotalFileSpaceGb);
+    m_editTotalFileSpaceLabel->setBuddy(m_totalSpaceSpin);
+    m_editFileCountLabel->setText(copy.roomMaxFileCount);
+    m_editFileCountLabel->setBuddy(m_fileCountSpin);
+    m_editMemberLimitLabel->setText(copy.roomMaxMembers);
+    m_editMemberLimitLabel->setBuddy(m_memberLimitSpin);
+    m_developerKeyLabel->setText(copy.roomDeveloperKey);
+    m_developerKeyLabel->setBuddy(m_developerKeyEdit);
+    m_developerKeyEdit->setPlaceholderText(copy.roomDeveloperKeyPlaceholder);
+    m_saveLimitsButton->setText(copy.roomSaveLimits);
+    if (m_adminGroup) {
+        m_adminGroup->setTitle(copy.roomAdministratorSettings);
+        m_roomAvatarLabel->setText(copy.roomAvatar);
+        m_uploadAvatarButton->setText(copy.roomChooseImage);
+        m_nameLabel->setText(copy.roomName);
+        m_nameLabel->setBuddy(m_nameEdit);
+        m_saveNameButton->setText(copy.roomSave);
+        m_passwordLabel->setText(copy.roomPassword);
+        m_passwordLabel->setBuddy(m_passwordEdit);
+        m_passwordEdit->setPlaceholderText(copy.roomPasswordPlaceholder);
+        m_setPasswordButton->setText(copy.roomSetPassword);
+        m_viewPasswordButton->setText(copy.roomViewPassword);
+        m_deleteButton->setText(copy.roomDelete);
+    }
+    m_leaveButton->setText(copy.roomLeave);
+    m_closeButton->setText(copy.roomClose);
 }
 
 void RoomSettingsDialog::onSaveName() {
     QString newName = m_nameEdit->text().trimmed();
     if (newName.isEmpty()) {
-        QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("聊天室名称不能为空"));
+        const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+        QMessageBox::warning(this, copy.roomErrorTitle, copy.roomNameRequired);
         return;
     }
     if (newName == m_roomName) return;
@@ -253,7 +320,9 @@ void RoomSettingsDialog::setRoomName(const QString &roomName) {
 void RoomSettingsDialog::onSaveLimits() {
     const QString developerKey = m_developerKeyEdit ? m_developerKeyEdit->text().trimmed() : QString();
     if (developerKey.isEmpty()) {
-        QMessageBox::warning(this, QStringLiteral("限制错误"), QStringLiteral("请输入开发者秘钥"));
+        const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+        QMessageBox::warning(
+            this, copy.roomLimitErrorTitle, copy.roomDeveloperKeyRequired);
         return;
     }
 
@@ -265,7 +334,9 @@ void RoomSettingsDialog::onSaveLimits() {
     int maxMembers = m_memberLimitSpin->value();
 
     if (totalBytes < sizeBytes) {
-        QMessageBox::warning(this, QStringLiteral("限制错误"), QStringLiteral("总文件空间不能小于单文件上限"));
+        const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+        QMessageBox::warning(
+            this, copy.roomLimitErrorTitle, copy.roomTotalSpaceTooSmall);
         return;
     }
 
@@ -279,6 +350,7 @@ void RoomSettingsDialog::onSaveLimits() {
     emit roomLimitsSaveRequested(m_roomId);
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
+    m_developerKeyEdit->clear();
 }
 
 void RoomSettingsDialog::onSetPassword() {
@@ -289,6 +361,7 @@ void RoomSettingsDialog::onSetPassword() {
     data["password"] = password;
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::SET_ROOM_PASSWORD_REQ, data));
+    m_passwordEdit->clear();
 }
 
 void RoomSettingsDialog::onViewPassword() {
@@ -299,14 +372,14 @@ void RoomSettingsDialog::onViewPassword() {
 }
 
 void RoomSettingsDialog::onUploadAvatar() {
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     QString filePath = QFileDialog::getOpenFileName(this,
-        QStringLiteral("选择聊天室头像"), QString(),
-        QStringLiteral("图片文件 (*.png *.jpg *.jpeg *.bmp *.gif)"));
+        copy.roomChooseAvatar, QString(), copy.roomImageFiles);
     if (filePath.isEmpty()) return;
 
     QPixmap img(filePath);
     if (img.isNull()) {
-        QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("无法加载图片"));
+        QMessageBox::warning(this, copy.roomErrorTitle, copy.roomCannotLoadImage);
         return;
     }
 
@@ -324,7 +397,7 @@ void RoomSettingsDialog::onUploadAvatar() {
     buf.close();
 
     if (pngData.size() > 256 * 1024) {
-        QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("头像数据过大，请选择更小的图片或裁剪区域"));
+        QMessageBox::warning(this, copy.roomNoticeTitle, copy.roomAvatarTooLarge);
         return;
     }
 

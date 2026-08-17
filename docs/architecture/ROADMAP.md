@@ -2836,6 +2836,10 @@ Candidate slices:
     - [x] Migrate the shared Windows avatar-cropper leaf from both profile and
       room-settings entry points, including painted instructions, preview and
       accessible semantics without mutating crop geometry or output pixels.
+    - [x] Migrate the complete Windows room-settings surface: preserve room and
+      form state across live language changes, keep authority server-side,
+      mask/clear password and developer-key inputs, and label password status
+      accurately without exposing the non-recoverable secret.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 
