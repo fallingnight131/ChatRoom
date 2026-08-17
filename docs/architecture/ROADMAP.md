@@ -2870,6 +2870,8 @@ Candidate slices:
       cursor, keyboard-send and room/direct dispatch behavior across switching.
     - [x] Localize Windows room/friend navigation in place and separate friend
       online state from identity text and locale-independent avatar generation.
+    - [x] Localize the Windows conversation header and room-member sidebar from
+      structured room, direct-chat, administrator and online-state data.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

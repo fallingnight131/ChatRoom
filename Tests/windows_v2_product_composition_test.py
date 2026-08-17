@@ -174,6 +174,10 @@ def main() -> int:
         "item->setData(Qt::UserRole + 3, isOnline)",
         "generateDefaultAvatar(identity, qHash(username))",
         "m_avatarPreview->pixmap().isNull()",
+        "&ChatWindow::refreshConversationShellText",
+        "copy.mainConversationDirectTitle.arg(identity)",
+        "copy.mainConversationAdminTitle.arg(item->text())",
+        "copy.mainConversationMemberOfflineAccessible.arg(displayName)",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -214,6 +218,26 @@ def main() -> int:
         "m_roomList->setCurrentRow(", "m_friendList->setCurrentRow(",
     )):
         raise AssertionError("locale projection must not rebuild navigation identity")
+    conversation_projection = window[
+        window.index("void ChatWindow::refreshConversationShellText()"):
+        window.index("void ChatWindow::showAboutDialog()")
+    ]
+    if any(marker in conversation_projection for marker in (
+        "m_messageView->setModel(", "m_userList->clear()",
+        "m_currentRoomId =", "m_currentFriendUsername.clear()",
+    )):
+        raise AssertionError("locale projection must not mutate conversation identity")
+    conversation_setup = window[
+        window.index("// --- 中间：消息区域 ---"):
+        window.index("// 组装")
+    ]
+    if any(text in conversation_setup for text in (
+        'new QLabel("请选择一个窗口")',
+        'setToolTip("房间设置")', 'new QLabel("聊天室成员")',
+    )):
+        raise AssertionError("conversation shell must not embed localized copy")
+    if 'new QLabel(isOnline ? "在线" : "离线")' in window:
+        raise AssertionError("member status presentation must come from the catalog")
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

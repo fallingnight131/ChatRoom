@@ -160,7 +160,17 @@ int main(int argc, char **argv) {
                 || english.mainNavigationFriendOnline
                     != QStringLiteral("%1 [online]")
                 || english.mainNavigationFriendOfflineAccessible
-                    != QStringLiteral("%1, offline")) {
+                    != QStringLiteral("%1, offline")
+                || english.mainConversationEmptyTitle
+                    != QStringLiteral("Select a conversation")
+                || english.mainConversationDirectTitle
+                    != QStringLiteral("Chat with %1")
+                || english.mainConversationAdminTitle
+                    != QStringLiteral("%1 [admin]")
+                || english.mainConversationMembers
+                    != QStringLiteral("Room members")
+                || english.mainConversationMemberOffline
+                    != QStringLiteral("Offline")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -178,6 +188,10 @@ int main(int argc, char **argv) {
                 || chinese.mainComposerSend != QStringLiteral("发送")
                 || chinese.mainNavigationRooms != QStringLiteral("房间")
                 || chinese.mainNavigationFriends != QStringLiteral("好友")
+                || chinese.mainConversationEmptyTitle
+                    != QStringLiteral("请选择一个会话")
+                || chinese.mainConversationMembers
+                    != QStringLiteral("聊天室成员")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

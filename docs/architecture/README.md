@@ -2093,6 +2093,10 @@ and create/search/refresh/request actions. Friend identity, display name,
 friendship ID, online state, unread count and avatar remain distinct data.
 Locale changes update existing items in place and preserve selection/unread
 roles; default-avatar generation no longer depends on a localized online suffix.
+The conversation header and member sidebar use the same projection boundary:
+room/peer identity, administrator role, and presence remain structured state.
+A language switch may replace member row widgets, but retains list items,
+selection, the active message model, and conversation identity.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

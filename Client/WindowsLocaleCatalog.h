@@ -485,6 +485,18 @@ struct WindowsLocaleMessages {
     QString mainNavigationFriendOnline;
     QString mainNavigationFriendOnlineAccessible;
     QString mainNavigationFriendOfflineAccessible;
+    QString mainConversationEmptyTitle;
+    QString mainConversationDirectTitle;
+    QString mainConversationAdminTitle;
+    QString mainConversationTitleAccessible;
+    QString mainConversationRoomSettings;
+    QString mainConversationRoomSettingsAccessible;
+    QString mainConversationMembers;
+    QString mainConversationMemberListAccessible;
+    QString mainConversationMemberOnline;
+    QString mainConversationMemberOffline;
+    QString mainConversationMemberOnlineAccessible;
+    QString mainConversationMemberOfflineAccessible;
 };
 
 class WindowsLocaleCatalog final {

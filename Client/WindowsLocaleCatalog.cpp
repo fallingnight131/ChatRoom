@@ -492,6 +492,18 @@ WindowsLocaleMessages createZhCn() {
     m.mainNavigationFriendOnline = QStringLiteral("%1 [在线]");
     m.mainNavigationFriendOnlineAccessible = QStringLiteral("%1，在线");
     m.mainNavigationFriendOfflineAccessible = QStringLiteral("%1，离线");
+    m.mainConversationEmptyTitle = QStringLiteral("请选择一个会话");
+    m.mainConversationDirectTitle = QStringLiteral("私聊 - %1");
+    m.mainConversationAdminTitle = QStringLiteral("%1 [管理员]");
+    m.mainConversationTitleAccessible = QStringLiteral("当前会话：%1");
+    m.mainConversationRoomSettings = QStringLiteral("房间设置");
+    m.mainConversationRoomSettingsAccessible = QStringLiteral("打开房间设置");
+    m.mainConversationMembers = QStringLiteral("聊天室成员");
+    m.mainConversationMemberListAccessible = QStringLiteral("聊天室成员列表");
+    m.mainConversationMemberOnline = QStringLiteral("在线");
+    m.mainConversationMemberOffline = QStringLiteral("离线");
+    m.mainConversationMemberOnlineAccessible = QStringLiteral("%1，在线");
+    m.mainConversationMemberOfflineAccessible = QStringLiteral("%1，离线");
     return m;
 }
 
@@ -1005,6 +1017,18 @@ WindowsLocaleMessages createEnUs() {
     m.mainNavigationFriendOnline = QStringLiteral("%1 [online]");
     m.mainNavigationFriendOnlineAccessible = QStringLiteral("%1, online");
     m.mainNavigationFriendOfflineAccessible = QStringLiteral("%1, offline");
+    m.mainConversationEmptyTitle = QStringLiteral("Select a conversation");
+    m.mainConversationDirectTitle = QStringLiteral("Chat with %1");
+    m.mainConversationAdminTitle = QStringLiteral("%1 [admin]");
+    m.mainConversationTitleAccessible = QStringLiteral("Current conversation: %1");
+    m.mainConversationRoomSettings = QStringLiteral("Room settings");
+    m.mainConversationRoomSettingsAccessible = QStringLiteral("Open room settings");
+    m.mainConversationMembers = QStringLiteral("Room members");
+    m.mainConversationMemberListAccessible = QStringLiteral("Room member list");
+    m.mainConversationMemberOnline = QStringLiteral("Online");
+    m.mainConversationMemberOffline = QStringLiteral("Offline");
+    m.mainConversationMemberOnlineAccessible = QStringLiteral("%1, online");
+    m.mainConversationMemberOfflineAccessible = QStringLiteral("%1, offline");
     return m;
 }
 

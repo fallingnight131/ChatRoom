@@ -350,6 +350,8 @@ ChatWindow::ChatWindow(QWidget *parent, WindowsLocaleViewModel *localeViewModel)
             this, &ChatWindow::refreshComposerText);
     connect(m_windowsLocaleViewModel, &WindowsLocaleViewModel::changed,
             this, &ChatWindow::refreshNavigationText);
+    connect(m_windowsLocaleViewModel, &WindowsLocaleViewModel::changed,
+            this, &ChatWindow::refreshConversationShellText);
     connect(m_connectionStatusViewModel.get(),
             &WindowsConnectionStatusViewModel::changed,
             this, &ChatWindow::refreshConnectionStatus);
@@ -576,7 +578,7 @@ void ChatWindow::setupUi() {
     auto *centerLayout = new QVBoxLayout(centerPanel);
     centerLayout->setContentsMargins(4, 4, 4, 4);
 
-    m_roomTitle = new QLabel("请选择一个窗口");
+    m_roomTitle = new QLabel;
     m_roomTitle->setStyleSheet("font-weight: bold; font-size: 16px; padding: 8px;");
 
     // 用图标代替文字，避免字体渲染问题
@@ -597,7 +599,6 @@ void ChatWindow::setupUi() {
         m_roomSettingsBtn->setIconSize(QSize(32, 32));
     }
     m_roomSettingsBtn->setFixedSize(32, 32);
-    m_roomSettingsBtn->setToolTip("房间设置");
     m_roomSettingsBtn->setStyleSheet("QPushButton { border: none; background: transparent; }"
                                       "QPushButton:hover { background-color: rgba(200,200,200,0.5); border-radius: 4px; }");
     m_roomSettingsBtn->setVisible(false); // 未选择房间时隐藏
@@ -682,9 +683,9 @@ void ChatWindow::setupUi() {
     auto *rightLayout = new QVBoxLayout(m_rightPanel);
     rightLayout->setContentsMargins(4, 4, 4, 4);
 
-    auto *userLabel = new QLabel("聊天室成员");
-    userLabel->setStyleSheet("font-weight: bold; font-size: 14px; padding: 4px;");
-    rightLayout->addWidget(userLabel);
+    m_memberListLabel = new QLabel;
+    m_memberListLabel->setStyleSheet("font-weight: bold; font-size: 14px; padding: 4px;");
+    rightLayout->addWidget(m_memberListLabel);
 
     m_userList = new QListWidget;
     m_userList->setMinimumWidth(140);
@@ -712,6 +713,7 @@ void ChatWindow::setupUi() {
     m_emojiPicker = new EmojiPicker(this, m_windowsLocaleViewModel);
     m_emojiPicker->hide();
     refreshNavigationText();
+    refreshConversationShellText();
 }
 
 void ChatWindow::setupMenuBar() {
@@ -871,6 +873,39 @@ void ChatWindow::refreshFriendListPresentation() {
             ? copy.mainNavigationFriendOnlineAccessible.arg(identity)
             : copy.mainNavigationFriendOfflineAccessible.arg(identity));
     }
+}
+
+void ChatWindow::refreshConversationShellText() {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    QString title = copy.mainConversationEmptyTitle;
+    if (m_isFriendChat && !m_currentFriendUsername.isEmpty()) {
+        const QString identity = m_currentFriendDisplayName.isEmpty()
+            ? m_currentFriendUsername : m_currentFriendDisplayName;
+        title = copy.mainConversationDirectTitle.arg(identity);
+    } else if (m_currentRoomId > 0) {
+        for (int index = 0; index < m_roomList->count(); ++index) {
+            auto *item = m_roomList->item(index);
+            if (item->data(Qt::UserRole).toInt() != m_currentRoomId) continue;
+            title = m_adminRooms.value(m_currentRoomId, false)
+                ? copy.mainConversationAdminTitle.arg(item->text())
+                : item->text();
+            break;
+        }
+    }
+    m_roomTitle->setText(title);
+    m_roomTitle->setAccessibleName(copy.mainConversationTitleAccessible.arg(title));
+    m_roomSettingsBtn->setToolTip(copy.mainConversationRoomSettings);
+    m_roomSettingsBtn->setAccessibleName(
+        copy.mainConversationRoomSettingsAccessible);
+    m_memberListLabel->setText(copy.mainConversationMembers);
+    m_userList->setAccessibleName(copy.mainConversationMemberListAccessible);
+    refreshMemberListPresentation();
+}
+
+void ChatWindow::refreshMemberListPresentation() {
+    for (int index = 0; index < m_userList->count(); ++index)
+        updateUserListItemWidget(m_userList->item(index));
 }
 
 void ChatWindow::showAboutDialog() {
@@ -1397,7 +1432,7 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
         if (m_currentRoomId == roomId) {
             m_currentRoomId = -1;
             m_messageView->setModel(nullptr);
-            m_roomTitle->setText(QStringLiteral("请选择一个窗口"));
+            refreshConversationShellText();
             m_userList->clear();
             m_restoringDraft = true;
             m_inputEdit->clear();
@@ -1546,11 +1581,11 @@ void ChatWindow::switchRoom(int roomId) {
     for (int i = 0; i < m_roomList->count(); ++i) {
         auto *item = m_roomList->item(i);
         if (item->data(Qt::UserRole).toInt() == roomId) {
-            m_roomTitle->setText(item->text());
             m_roomList->setCurrentItem(item);
             break;
         }
     }
+    refreshConversationShellText();
     m_roomSettingsBtn->setVisible(true);
 
     // 请求用户列表和历史消息
@@ -3254,9 +3289,8 @@ void ChatWindow::onRecallNotify(const QJsonObject &data) {
 void ChatWindow::onAdminStatusChanged(int roomId, bool isAdmin) {
     m_adminRooms[roomId] = isAdmin;
     if (roomId == m_currentRoomId) {
-        m_roomTitle->setText(m_roomTitle->text().remove(QStringLiteral(" [管理员]")));
+        refreshConversationShellText();
         if (isAdmin) {
-            m_roomTitle->setText(m_roomTitle->text() + QStringLiteral(" [管理员]"));
             m_statusLabel->setText(QStringLiteral("提示: 右键消息或用户列表可使用管理功能"));
         }
         // 刷新用户列表以实时更新管理员名字颜色
@@ -3952,7 +3986,7 @@ void ChatWindow::onLeaveRoomResponse(bool success, int roomId) {
                 onRoomSelected(m_roomList->item(0));
             } else {
                 m_currentRoomId = -1;
-                m_roomTitle->setText("请选择一个窗口");
+                refreshConversationShellText();
                 m_userList->clear();
                 m_messageView->setModel(nullptr);
             }
@@ -3996,7 +4030,11 @@ void ChatWindow::updateUserListItemWidget(QListWidgetItem *item) {
         nameLabel->setStyleSheet("color: #C5A200;");
     }
 
-    auto *statusLabel = new QLabel(isOnline ? "在线" : "离线");
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    auto *statusLabel = new QLabel(isOnline
+        ? copy.mainConversationMemberOnline
+        : copy.mainConversationMemberOffline);
     if (isOnline) {
         statusLabel->setStyleSheet("color: green; font-size: 11px;");
     } else {
@@ -4008,6 +4046,9 @@ void ChatWindow::updateUserListItemWidget(QListWidgetItem *item) {
     layout->addStretch();
     layout->addWidget(statusLabel);
 
+    item->setData(Qt::AccessibleTextRole, isOnline
+        ? copy.mainConversationMemberOnlineAccessible.arg(displayName)
+        : copy.mainConversationMemberOfflineAccessible.arg(displayName));
     m_userList->setItemWidget(item, widget);
 }
 
@@ -4377,10 +4418,7 @@ void ChatWindow::onRenameRoomResponse(bool success, int roomId, const QString &n
             }
         }
         if (roomId == m_currentRoomId) {
-            QString title = newName;
-            if (m_adminRooms.value(roomId, false))
-                title += QStringLiteral(" [管理员]");
-            m_roomTitle->setText(title);
+            refreshConversationShellText();
         }
 
         for (RoomSettingsDialog *dlg : findChildren<RoomSettingsDialog*>()) {
@@ -4402,10 +4440,7 @@ void ChatWindow::onRenameRoomNotify(int roomId, const QString &newName) {
         }
     }
     if (roomId == m_currentRoomId) {
-        QString title = newName;
-        if (m_adminRooms.value(roomId, false))
-            title += QStringLiteral(" [管理员]");
-        m_roomTitle->setText(title);
+        refreshConversationShellText();
     }
 
     for (RoomSettingsDialog *dlg : findChildren<RoomSettingsDialog*>()) {
@@ -4488,7 +4523,7 @@ void ChatWindow::onKickedFromRoom(int roomId, const QString &roomName, const QSt
     // 如果当前正在该房间，切走
     if (m_currentRoomId == roomId) {
         m_currentRoomId = -1;
-        m_roomTitle->setText("请选择一个窗口");
+        refreshConversationShellText();
         m_userList->clear();
         m_messageView->setModel(nullptr);
         m_restoringDraft = true;
@@ -5512,9 +5547,7 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
             if (current["username"].toString() != m_currentFriendUsername) continue;
             m_currentFriendDisplayName = current["displayName"].toString();
             m_currentFriendshipId = current["friendshipId"].toInt();
-            m_roomTitle->setText(QString("私聊 - %1").arg(
-                m_currentFriendDisplayName.isEmpty() ? m_currentFriendUsername
-                                                     : m_currentFriendDisplayName));
+            refreshConversationShellText();
             break;
         }
     }
@@ -6136,7 +6169,7 @@ void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString
     m_roomList->clearSelection();
 
     // 更新标题
-    m_roomTitle->setText(QString("私聊 - %1").arg(friendDisplayName.isEmpty() ? friendUsername : friendDisplayName));
+    refreshConversationShellText();
     m_roomSettingsBtn->setVisible(false);
 
     // 隐藏用户列表（私聊不需要）
@@ -6180,7 +6213,7 @@ void ChatWindow::switchToRoomMode() {
     if (m_currentRoomId > 0) {
         switchRoom(m_currentRoomId);
     } else {
-        m_roomTitle->setText("请选择一个窗口");
+        refreshConversationShellText();
         m_roomSettingsBtn->setVisible(false);
         m_messageView->setModel(nullptr);
         m_restoringDraft = true;

@@ -222,3 +222,6 @@ database migration or protocol compatibility window is required.
   Chinese copy in its construction path; native Windows focus/IME remains open.
 - navigation composition rejects fixed control copy and online-state text as
   data, while locking stable item roles and locale-independent avatar input.
+- conversation-shell composition derives titles and member rows from stable
+  identity, administrator and online roles; locale changes retain the active
+  message model, conversation identity, member items and selection.

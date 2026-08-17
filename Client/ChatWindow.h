@@ -262,6 +262,8 @@ private:
     void refreshComposerText();
     void refreshNavigationText();
     void refreshFriendListPresentation();
+    void refreshConversationShellText();
+    void refreshMemberListPresentation();
     void showAboutDialog();
     void connectSignals();
     void completeUploadBytes();
@@ -350,6 +352,7 @@ private:
     QLabel       *m_statusLabel    = nullptr;
     QLabel       *m_connectionStatusLabel = nullptr;
     QLabel       *m_roomTitle      = nullptr;
+    QLabel       *m_memberListLabel = nullptr;
     QLabel       *m_nicknameLabel  = nullptr;
     QPushButton  *m_roomSettingsBtn = nullptr;
     ProfileDialog *m_profileDialog = nullptr;
