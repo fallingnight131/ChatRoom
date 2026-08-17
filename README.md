@@ -123,6 +123,8 @@ Authenticode 验证针对普通安装器路径，不受无扩展名临时文件�
 更新安装器下载在 Windows 上使用安全唯一临时文件并继承每用户暂存目录
 ACL；POSIX 平台继续显式收紧 owner-only 权限，不依赖 Windows 上无法设置 ACL 的
 `QFile::setPermissions()` 作为下载成功条件。
+失败或取消更新下载时会先销毁临时文件对象、释放 Windows 文件资源，
+再删除 `.part` 文件，避免暂存目录遗留不完整安装器。
 
 ## 项目结构
 

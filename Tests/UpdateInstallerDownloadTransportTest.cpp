@@ -198,7 +198,8 @@ int main(int argc, char *argv[]) {
     for (const auto &name : {QStringLiteral("length"), QStringLiteral("oversize"),
                              QStringLiteral("redirect"), QStringLiteral("cancel")}) {
         if (!check(QDir(root.filePath(name)).entryList(QDir::Files | QDir::NoDotAndDotDot).isEmpty(),
-                   QStringLiteral("failure directory contains a partial file"))) return 1;
+                   QStringLiteral("failure directory '%1' contains a partial file")
+                       .arg(name))) return 1;
     }
 
     const QString destroyedDirectory = root.filePath(QStringLiteral("destroyed"));

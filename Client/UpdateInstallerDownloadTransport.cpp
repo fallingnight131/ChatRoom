@@ -85,8 +85,8 @@ bool UpdateInstallerDownloadTransport::start(
     if (!fileReady) {
         const QString path = file->fileName();
         file->close();
+        delete file;
         if (!path.isEmpty()) QFile::remove(path);
-        file->deleteLater();
         fail(error, QStringLiteral("update staging file cannot be created securely"));
         return false;
     }
@@ -172,7 +172,10 @@ void UpdateInstallerDownloadTransport::complete() {
     }
 
     const QString path = m_file->fileName();
-    m_file->close();
+    auto *stagingFile = m_file;
+    m_file = nullptr;
+    stagingFile->close();
+    delete stagingFile;
     const Outcome outcome = m_cancelled ? Outcome::Cancelled
         : (m_failure.isEmpty() ? Outcome::Succeeded : Outcome::Rejected);
     if (outcome != Outcome::Succeeded) QFile::remove(path);
@@ -180,9 +183,7 @@ void UpdateInstallerDownloadTransport::complete() {
     const QString emittedError = m_cancelled
         ? QStringLiteral("update download cancelled") : m_failure;
     m_reply->deleteLater();
-    m_file->deleteLater();
     m_reply = nullptr;
-    m_file = nullptr;
     m_expectedSize = 0;
     m_receivedSize = 0;
     emit finished(outcome, emittedPath, emittedError);
@@ -190,11 +191,12 @@ void UpdateInstallerDownloadTransport::complete() {
 
 void UpdateInstallerDownloadTransport::cleanup() {
     if (m_file) {
-        const QString path = m_file->fileName();
-        m_file->close();
-        QFile::remove(path);
-        delete m_file;
+        auto *stagingFile = m_file;
+        const QString path = stagingFile->fileName();
         m_file = nullptr;
+        stagingFile->close();
+        delete stagingFile;
+        QFile::remove(path);
     }
     m_expectedSize = 0;
     m_receivedSize = 0;
