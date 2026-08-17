@@ -6,7 +6,8 @@ param(
   [Parameter(Mandatory = $true)][string]$MakensisPath,
   [Parameter(Mandatory = $true)][string]$InstallerScript,
   [Parameter(Mandatory = $true)][string]$IconFile,
-  [Parameter(Mandatory = $true)][string]$WorkRoot
+  [Parameter(Mandatory = $true)][string]$WorkRoot,
+  [string]$PublishedInstallerPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,6 +33,11 @@ foreach ($required in @(
 }
 if (-not (Get-ChildItem $payload -Filter "*sodium*.dll" -File)) {
   throw "CMake payload libsodium runtime is missing"
+}
+$publishedInstaller = $null
+if ($PublishedInstallerPath) {
+  $publishedInstaller = [IO.Path]::GetFullPath($PublishedInstallerPath)
+  Remove-Item $publishedInstaller -Force -ErrorAction SilentlyContinue
 }
 
 if (Test-Path $WorkRoot) { Remove-Item $WorkRoot -Recurse -Force }
@@ -202,6 +208,17 @@ try {
   if (Test-Path $installRoot) { throw "CMake payload uninstall left program files" }
   if (-not (Test-Path $sentinel -PathType Leaf)) {
     throw "CMake payload install/uninstall deleted account-local data"
+  }
+  if ($publishedInstaller) {
+    New-Item -ItemType Directory -Force (Split-Path $publishedInstaller -Parent) |
+      Out-Null
+    Copy-Item -LiteralPath $setup -Destination $publishedInstaller
+    $verifiedHash = (Get-FileHash $setup -Algorithm SHA256).Hash
+    $publishedHash = (Get-FileHash $publishedInstaller -Algorithm SHA256).Hash
+    if ($verifiedHash -cne $publishedHash) {
+      Remove-Item $publishedInstaller -Force -ErrorAction SilentlyContinue
+      throw "Published CMake installer bytes differ from the verified installer"
+    }
   }
   Write-Host "Windows CMake installer verification passed"
 } finally {

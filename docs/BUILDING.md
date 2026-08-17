@@ -695,6 +695,11 @@ attempts cleanup on failure. Its cross-host source policy is:
 python3 Tests/windows_cmake_installer_gate_test.py
 ```
 
+After every lifecycle check succeeds, the script copies those exact verified
+installer bytes to the ordinary CI artifact directory. The following artifact
+step only verifies unsigned-release rejection and does not run a second adjacent
+install/uninstall cycle, avoiding cross-fixture NSIS teardown state.
+
 The initial ADR-0157 slice deliberately stopped before upgrade/downgrade parity
 and did not replace the uploaded qmake installer. No signing success is inferred
 from unsigned rejection.

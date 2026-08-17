@@ -27,6 +27,8 @@ def main() -> int:
         'result.outcome -ne "trust-rejected"',
         "CMake payload uninstall left program files",
         "deleted account-local data",
+        "PublishedInstallerPath",
+        "Published CMake installer bytes differ from the verified installer",
     )
     for marker in required_script:
         if marker not in script:
@@ -37,6 +39,7 @@ def main() -> int:
         "-PayloadDirectory build/m4/windows-cmake-payload",
         "-Version \"${{ steps.product-version.outputs.version }}\"",
         "-SourceRevision \"${{ github.sha }}\"",
+        "-PublishedInstallerPath",
     )
     for marker in required_workflow:
         if marker not in workflow:

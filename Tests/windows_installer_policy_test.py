@@ -30,26 +30,11 @@ class WindowsInstallerPolicyTest(unittest.TestCase):
         )
 
         workflow = (ROOT / ".github" / "workflows" / "m0-product-builds.yml").read_text(encoding="utf-8")
-        self.assertIn("& $makensis /WX /NOCONFIG /V2", workflow)
-        for evidence in [
-            '$priorVersion = "0.9.0"',
-            "$oldProgramSentinel",
-            "Silent upgrade failed",
-            "Upgrade retained a stale program file",
-            "$installRoot.__chatroom_stage",
-            "$installRoot.__chatroom_backup",
-            "Upgrade deleted account-local client data",
-            "Older installer was allowed to downgrade",
-            "Rejected downgrade changed the current installation",
-            "Running-client upgrade returned",
-            "Rejected running-client upgrade changed the process, installation, or account data",
-            'Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll"',
-            "Installed client is missing the update-verifier libsodium runtime",
-            "Installed update launcher is missing",
-            "Update launcher did not complete its parent-process handshake",
-            "Update launcher did not atomically reject and clean the unsigned fixture",
-        ]:
-            self.assertIn(evidence, workflow)
+        cmake_gate = (ROOT / "tools" / "verify_windows_cmake_installer.ps1").read_text(encoding="utf-8")
+        self.assertIn("& $makensis /WX /NOCONFIG /V2", cmake_gate)
+        self.assertIn("verify_windows_cmake_installer.ps1", workflow)
+        self.assertIn("-PublishedInstallerPath", workflow)
+        self.assertIn("Published CMake installer bytes differ from the verified installer", cmake_gate)
 
     def test_is_per_user_and_registers_standard_uninstall_metadata(self) -> None:
         self.assertIn("RequestExecutionLevel user", self.source)

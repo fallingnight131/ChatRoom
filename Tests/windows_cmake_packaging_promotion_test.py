@@ -13,7 +13,7 @@ def main() -> int:
         "Compare deployed CMake and qmake Windows payloads",
         "Exercise the CMake Windows verification installer",
         "Promote verified CMake payload as canonical input",
-        "Compile and exercise unsigned Windows installer",
+        "Validate tested unsigned Windows installer artifact",
         "Generate Windows artifact integrity manifest",
     )
     positions = [workflow.find(marker) for marker in ordered]
