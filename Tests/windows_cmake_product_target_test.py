@@ -94,6 +94,8 @@ def main() -> int:
         "abseil-cpp-20250512.1.tar.gz",
         "SHA256=9b7a064305e9fd94d124ffa6cc358592eb42b5da588fb4e07d09254aa40086db",
         'set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)',
+        'set(ABSL_MSVC_STATIC_RUNTIME OFF CACHE BOOL "" FORCE)',
+        'set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "" FORCE)',
     )
     for marker in required_protobuf:
         if marker not in protobuf_policy:

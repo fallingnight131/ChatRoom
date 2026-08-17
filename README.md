@@ -128,7 +128,8 @@ ACL；POSIX 平台继续显式收紧 owner-only 权限，不依赖 Windows 上�
 Windows 客户端的 qmake 与 CMake 产品目标都显式链接 `User32`，为视频缩略图
 截取使用的 `GetDC`/`ReleaseDC` 提供稳定的 Win32 链接依赖。Windows CMake
 产品图策略校验会把 qmake 源文件路径统一为正斜杠，避免运行器路径分隔符
-导致源文件缺失误报。
+导致源文件缺失误报。CMake Windows 产品构建继续静态链接 Protobuf/Abseil，
+但统一使用与共享 Qt 一致的动态 MSVC 运行库，避免 `/MT` 与 `/MD` 混用。
 
 ## 项目结构
 
