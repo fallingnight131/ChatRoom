@@ -311,7 +311,13 @@ int main(int argc, char **argv) {
                 || !english.cacheClearPrompt.contains(
                        QStringLiteral("Drafts and messages that are sending or failed to send are retained."))
                 || english.cacheCleared.arg(QStringLiteral("1.0 MB"))
-                    != QStringLiteral("Cleared local messages and 1.0 MB of media cache")) {
+                    != QStringLiteral("Cleared local messages and 1.0 MB of media cache")
+                || english.attachmentRoomFileTooLarge.arg(QStringLiteral("2 GB"))
+                    != QStringLiteral("The file exceeds this room's 2 GB limit.")
+                || english.attachmentFriendTooLarge.arg(
+                       QStringLiteral("101 MB"), QStringLiteral("100 MB"))
+                    != QStringLiteral(
+                        "File size 101 MB exceeds the friend transfer limit of 100 MB.")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -405,6 +411,10 @@ int main(int argc, char **argv) {
                     != QStringLiteral("选择缓存目录")
                 || !chinese.cacheClearPrompt.contains(
                        QStringLiteral("草稿、发送中和发送失败的消息不会被删除。"))
+                || chinese.attachmentSelectImage
+                    != QStringLiteral("选择图片")
+                || chinese.attachmentImageTooLarge.arg(QStringLiteral("8 MB"))
+                    != QStringLiteral("图片大小不能超过 8 MB。")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

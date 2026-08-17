@@ -737,6 +737,19 @@ WindowsLocaleMessages createZhCn() {
     m.cacheClearFailedTitle = QStringLiteral("清除缓存失败");
     m.cacheClearFailed = QStringLiteral("本地消息缓存无法清除，请稍后重试。");
     m.cacheCleared = QStringLiteral("已清除本地消息和 %1 媒体缓存");
+    m.attachmentSelectFile = QStringLiteral("选择文件");
+    m.attachmentSelectImage = QStringLiteral("选择图片");
+    m.attachmentImageFilter = QStringLiteral("图片 (*.png *.jpg *.jpeg *.gif *.bmp *.webp)");
+    m.attachmentValidationTitle = QStringLiteral("无法发送文件");
+    m.attachmentFileTooLarge = QStringLiteral("文件大小不能超过 %1。");
+    m.attachmentImageTooLarge = QStringLiteral("图片大小不能超过 %1。");
+    m.attachmentRoomFileTooLarge = QStringLiteral("文件大小超过当前房间上限 %1。");
+    m.attachmentRoomImageTooLarge = QStringLiteral("图片大小超过当前房间上限 %1。");
+    m.attachmentSendFile = QStringLiteral("发送文件");
+    m.attachmentSendImage = QStringLiteral("发送图片");
+    m.attachmentImageFilesFilter = QStringLiteral("图片文件 (*.png *.jpg *.jpeg *.gif *.bmp *.webp)");
+    m.attachmentFriendTooLargeTitle = QStringLiteral("文件过大");
+    m.attachmentFriendTooLarge = QStringLiteral("文件大小 %1 超过好友传输上限 %2。");
     return m;
 }
 
@@ -1496,6 +1509,19 @@ WindowsLocaleMessages createEnUs() {
     m.cacheClearFailedTitle = QStringLiteral("Unable to clear cache");
     m.cacheClearFailed = QStringLiteral("Local message cache could not be cleared; try again later.");
     m.cacheCleared = QStringLiteral("Cleared local messages and %1 of media cache");
+    m.attachmentSelectFile = QStringLiteral("Select file");
+    m.attachmentSelectImage = QStringLiteral("Select image");
+    m.attachmentImageFilter = QStringLiteral("Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp)");
+    m.attachmentValidationTitle = QStringLiteral("Unable to send file");
+    m.attachmentFileTooLarge = QStringLiteral("The file cannot exceed %1.");
+    m.attachmentImageTooLarge = QStringLiteral("The image cannot exceed %1.");
+    m.attachmentRoomFileTooLarge = QStringLiteral("The file exceeds this room's %1 limit.");
+    m.attachmentRoomImageTooLarge = QStringLiteral("The image exceeds this room's %1 limit.");
+    m.attachmentSendFile = QStringLiteral("Send file");
+    m.attachmentSendImage = QStringLiteral("Send image");
+    m.attachmentImageFilesFilter = QStringLiteral("Image files (*.png *.jpg *.jpeg *.gif *.bmp *.webp)");
+    m.attachmentFriendTooLargeTitle = QStringLiteral("File too large");
+    m.attachmentFriendTooLarge = QStringLiteral("File size %1 exceeds the friend transfer limit of %2.");
     return m;
 }
 

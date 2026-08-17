@@ -715,6 +715,19 @@ struct WindowsLocaleMessages {
     QString cacheClearFailedTitle;
     QString cacheClearFailed;
     QString cacheCleared;
+    QString attachmentSelectFile;
+    QString attachmentSelectImage;
+    QString attachmentImageFilter;
+    QString attachmentValidationTitle;
+    QString attachmentFileTooLarge;
+    QString attachmentImageTooLarge;
+    QString attachmentRoomFileTooLarge;
+    QString attachmentRoomImageTooLarge;
+    QString attachmentSendFile;
+    QString attachmentSendImage;
+    QString attachmentImageFilesFilter;
+    QString attachmentFriendTooLargeTitle;
+    QString attachmentFriendTooLarge;
 };
 
 class WindowsLocaleCatalog final {

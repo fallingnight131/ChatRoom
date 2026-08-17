@@ -2268,22 +2268,27 @@ void ChatWindow::onSendFile() {
     if (m_isFriendChat) { onSendFriendFile(); return; }
     if (m_currentRoomId < 0) return;
 
-    QString filePath = QFileDialog::getOpenFileName(this, "选择文件");
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+    const QLocale locale = activeQtLocale(m_windowsLocaleViewModel);
+    QString filePath = QFileDialog::getOpenFileName(
+        this, copy.attachmentSelectFile);
     if (filePath.isEmpty()) return;
 
     QFileInfo fi(filePath);
     if (!fi.exists()) return;
 
     if (fi.size() > Protocol::MAX_LARGE_FILE) {
-        QMessageBox::warning(this, "错误",
-            QString("文件大小不能超过%1GB").arg(Protocol::MAX_LARGE_FILE / 1024 / 1024 / 1024));
+        QMessageBox::warning(this, copy.attachmentValidationTitle,
+            copy.attachmentFileTooLarge.arg(
+                locale.formattedDataSize(Protocol::MAX_LARGE_FILE)));
         return;
     }
 
     qint64 roomLimit = m_roomMaxFileSize.value(m_currentRoomId, 10LL * 1024 * 1024 * 1024);
     if (roomLimit > 0 && fi.size() > roomLimit) {
-        QMessageBox::warning(this, "错误",
-            QString("文件大小超过房间上限(%1MB)").arg(roomLimit / 1024 / 1024));
+        QMessageBox::warning(this, copy.attachmentValidationTitle,
+            copy.attachmentRoomFileTooLarge.arg(
+                locale.formattedDataSize(roomLimit)));
         return;
     }
 
@@ -2294,23 +2299,27 @@ void ChatWindow::onSendImage() {
     if (m_isFriendChat) { onSendFriendImage(); return; }
     if (m_currentRoomId < 0) return;
 
-    QString filePath = QFileDialog::getOpenFileName(this, "选择图片",
-        QString(), "图片 (*.png *.jpg *.jpeg *.gif *.bmp *.webp)");
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+    const QLocale locale = activeQtLocale(m_windowsLocaleViewModel);
+    QString filePath = QFileDialog::getOpenFileName(
+        this, copy.attachmentSelectImage, QString(), copy.attachmentImageFilter);
     if (filePath.isEmpty()) return;
 
     QFileInfo fi(filePath);
     if (!fi.exists()) return;
 
     if (fi.size() > Protocol::MAX_SMALL_FILE) {
-        QMessageBox::warning(this, "错误",
-            QString("图片大小不能超过%1MB").arg(Protocol::MAX_SMALL_FILE / 1024 / 1024));
+        QMessageBox::warning(this, copy.attachmentValidationTitle,
+            copy.attachmentImageTooLarge.arg(
+                locale.formattedDataSize(Protocol::MAX_SMALL_FILE)));
         return;
     }
 
     qint64 roomLimit = m_roomMaxFileSize.value(m_currentRoomId, 10LL * 1024 * 1024 * 1024);
     if (roomLimit > 0 && fi.size() > roomLimit) {
-        QMessageBox::warning(this, "错误",
-            QString("图片大小超过房间上限(%1MB)").arg(roomLimit / 1024 / 1024));
+        QMessageBox::warning(this, copy.attachmentValidationTitle,
+            copy.attachmentRoomImageTooLarge.arg(
+                locale.formattedDataSize(roomLimit)));
         return;
     }
 
@@ -6018,7 +6027,8 @@ void ChatWindow::onFriendFileUploadStartResponse(const QJsonObject &data) {
 void ChatWindow::onSendFriendFile() {
     if (!m_isFriendChat || m_currentFriendUsername.isEmpty()) return;
 
-    QString filePath = QFileDialog::getOpenFileName(this, "发送文件");
+    QString filePath = QFileDialog::getOpenFileName(
+        this, activeWindowsCopy(m_windowsLocaleViewModel).attachmentSendFile);
     if (filePath.isEmpty()) return;
 
     // 根据文件后缀自动判断 contentType（与房间发送一致）
@@ -6035,8 +6045,9 @@ void ChatWindow::onSendFriendFile() {
 void ChatWindow::onSendFriendImage() {
     if (!m_isFriendChat || m_currentFriendUsername.isEmpty()) return;
 
-    QString filePath = QFileDialog::getOpenFileName(this, "发送图片", QString(),
-        "图片文件 (*.png *.jpg *.jpeg *.gif *.bmp *.webp)");
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+    QString filePath = QFileDialog::getOpenFileName(
+        this, copy.attachmentSendImage, QString(), copy.attachmentImageFilesFilter);
     if (filePath.isEmpty()) return;
     sendFriendFile(filePath, "image");
 }
@@ -6046,9 +6057,12 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
     qint64 fileSize = fi.size();
 
     if (fileSize > Protocol::MAX_FRIEND_FILE) {
-        QMessageBox::warning(this, "文件过大",
-            QString("文件大小 %1 超过好友传输限制 (100MB)")
-                .arg(QLocale().formattedDataSize(fileSize)));
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        const QLocale locale = activeQtLocale(m_windowsLocaleViewModel);
+        QMessageBox::warning(this, copy.attachmentFriendTooLargeTitle,
+            copy.attachmentFriendTooLarge.arg(
+                locale.formattedDataSize(fileSize),
+                locale.formattedDataSize(Protocol::MAX_FRIEND_FILE)));
         return;
     }
 

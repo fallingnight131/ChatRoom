@@ -347,6 +347,42 @@ def main() -> int:
         raise AssertionError(
             "cache management must project copy and data sizes from the active locale"
         )
+    room_attachment_selection = window[
+        window.index("void ChatWindow::onSendFile("):
+        window.index("void ChatWindow::onFileNotify(")
+    ]
+    friend_attachment_selection = window[
+        window.index("void ChatWindow::onSendFriendFile("):
+        window.index("void ChatWindow::onFriendRecallResponse(")
+    ]
+    require(room_attachment_selection, (
+        "copy.attachmentSelectFile",
+        "copy.attachmentFileTooLarge.arg(",
+        "copy.attachmentRoomFileTooLarge.arg(",
+        "copy.attachmentSelectImage",
+        "copy.attachmentImageFilter",
+        "copy.attachmentRoomImageTooLarge.arg(",
+        "activeQtLocale(m_windowsLocaleViewModel)",
+        "startChunkedUpload(filePath);",
+    ), "Client/ChatWindow.cpp room attachment selection")
+    require(friend_attachment_selection, (
+        ").attachmentSendFile",
+        "copy.attachmentSendImage",
+        "copy.attachmentImageFilesFilter",
+        "copy.attachmentFriendTooLarge.arg(",
+        "locale.formattedDataSize(Protocol::MAX_FRIEND_FILE)",
+        "stageAttachment(AttachmentOutboxService::directTarget(",
+    ), "Client/ChatWindow.cpp friend attachment selection")
+    if any(copy in room_attachment_selection + friend_attachment_selection
+           for copy in (
+               '"\u9009\u62e9\u6587\u4ef6"', '"\u9009\u62e9\u56fe\u7247"',
+               '"\u53d1\u9001\u6587\u4ef6"', '"\u53d1\u9001\u56fe\u7247"',
+               '"\u6587\u4ef6\u8fc7\u5927"', 'QString("\u6587\u4ef6\u5927\u5c0f',
+               'QString("\u56fe\u7247\u5927\u5c0f', "QLocale().formattedDataSize",
+           )):
+        raise AssertionError(
+            "attachment selection and local limits must use the active Windows locale"
+        )
     require(message_delegate, (
         "WindowsAttachmentPresentation::unavailableText(",
         "WindowsMessagePresentation::timestampWithDelivery(",

@@ -173,6 +173,11 @@ message storage, server behavior, or the supported Web/Windows product scope.
   sending/failed outbox messages survive. Local history is cleared before disk
   media and then repaired through the existing room/direct resume paths; a
   storage failure logs diagnostic detail and stops before in-memory cleanup.
+- Localize room/direct file and image pickers plus their local size-limit
+  rejections as one attachment-entry surface. File paths and extensions remain
+  data, content-type inference and server-side limits do not change, and both
+  actual size and configured limits use the selected locale rather than fixed
+  GB/MB arithmetic. Accepted files still enter the durable attachment outbox.
 
 ## Consequences
 
@@ -309,3 +314,7 @@ database migration or protocol compatibility window is required.
   formatting, local-store-first failure handling and both resume paths. Catalog
   tests bind the outbox-retention warning and completion wording in both
   languages; native Windows destructive-dialog interaction remains open.
+- attachment-entry source composition rejects embedded picker/limit copy and
+  process-default data-size formatting while requiring the existing room and
+  direct outbox dispatch paths. Catalog tests bind room, image and friend-limit
+  wording in both languages; native Windows picker interaction remains open.
