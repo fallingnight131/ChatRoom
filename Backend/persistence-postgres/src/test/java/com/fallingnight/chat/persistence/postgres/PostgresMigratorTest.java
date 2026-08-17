@@ -200,6 +200,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HexFormat;
@@ -6378,7 +6379,7 @@ class PostgresMigratorTest {
             throws Exception {
         requireDatabase(); truncateApplicationData();
         UUID account = UUID.randomUUID(), device = UUID.randomUUID(), session = UUID.randomUUID();
-        Instant observedAt = Instant.now();
+        Instant observedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
         Instant sessionExpiresAt = observedAt.plus(Duration.ofMinutes(5));
         try (Connection connection = connect()) {
             execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "

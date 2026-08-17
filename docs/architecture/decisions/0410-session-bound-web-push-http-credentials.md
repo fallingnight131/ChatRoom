@@ -74,6 +74,8 @@ optimize lookup only as rebuildable state; PostgreSQL remains authoritative.
   by cascading foreign key to the device session. Real-database integration
   proves active-session issuance, session-lifetime clipping, immediate
   replacement, expiry, CSRF mismatch, and session/account/device revocation.
+  Its time fixture uses PostgreSQL `timestamptz` microsecond precision so the
+  exact expiry assertion compares the same durable value across JDBC and SQL.
   The issuer handler is composed only by the exact server gate.
 - The detached V2 handler accepts only an authenticated Web capability-8
   connection, an empty type-136 command, and no client operation identity. It

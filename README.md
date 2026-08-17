@@ -96,6 +96,8 @@ Windows 产品构建固定使用 Qt 6.11.1；Linux qmake 可移植性、CMake
 无界面服务端和数据库验证同时保持对 Ubuntu 系统 Qt 6.4 API 范围的
 编译兼容性。Linux/macOS 上的 Qt Widgets 可移植性测试默认使用
 `offscreen` 平台，无需图形桌面；Windows 原生交互仍由 Windows 产品门禁验证。
+PostgreSQL 真实集成测试的时间夹具对齐 `timestamptz` 的微秒精度，
+避免把 Java 纳秒值与数据库持久值误判为凭证过期契约变化。
 
 ## 项目结构
 
