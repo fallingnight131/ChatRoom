@@ -2025,6 +2025,11 @@ Room-password set/remove/query feedback now uses the same locale boundary. The
 client owns only success/status presentation; server rejection detail remains
 opaque and is shown unchanged, and the server never returns a recoverable
 password.
+Windows device management no longer stores Chinese failure sentences in its
+ViewModel. Loading, revocation and invalid-directory outcomes are stable typed
+application state, so an open security dialog can be recomposed later without
+replaying a request or losing its correlated device identity. The current UI
+mapping remains Chinese until the complete dialog migration lands.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

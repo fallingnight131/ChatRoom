@@ -100,6 +100,11 @@ message storage, server behavior, or the supported Web/Windows product scope.
   preserve server-provided failure text as opaque detail. Status presentation
   must continue to say only whether a password exists; it must never imply that
   the non-recoverable secret can be displayed.
+- Before localizing Windows device management, replace ViewModel-owned Chinese
+  failure sentences with stable `None`, `LoadFailed`, `RevokeFailed`, and
+  `InvalidDirectory` states. Presentation belongs to the dialog catalog; request
+  correlation, device identity and current-device protection remain application
+  state and must not be reconstructed from translated text.
 
 ## Consequences
 
@@ -150,3 +155,5 @@ database migration or protocol compatibility window is required.
   exact non-empty password.
 - source composition binds room-password result/status feedback to the catalog
   while passing the server `error` detail unchanged.
+- device-management ViewModel tests bind invalid directories and protocol/list
+  failures to exact typed states while preserving retry and stale-response rules.

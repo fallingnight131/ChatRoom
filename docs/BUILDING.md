@@ -3288,6 +3288,11 @@ The same source-composition check binds room-password set/remove/query feedback
 to catalog state while requiring the server-provided failure detail to remain
 the unchanged `error` value. This is deterministic source evidence; native
 message-box presentation remains part of the Windows product gate.
+`DeviceManagementViewModelTest` also locks device-management failures as stable
+`Failure` values (`LoadFailed`, `RevokeFailed`, `InvalidDirectory`) rather than
+presentation strings. The current dialog maps them to its existing Chinese copy
+until the following complete localization slice; request correlation, current-
+device protection and retry behavior remain unchanged.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

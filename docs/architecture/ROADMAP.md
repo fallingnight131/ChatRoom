@@ -2848,6 +2848,8 @@ Candidate slices:
       mask the field, and clear component plaintext before command dispatch.
     - [x] Localize Windows room-password set/remove/query feedback while keeping
       server failure detail opaque and retaining status-only password semantics.
+    - [x] Replace Windows device-management presentation-string failures with
+      stable typed state before migrating its complete security dialog.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

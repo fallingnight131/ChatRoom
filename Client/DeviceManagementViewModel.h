@@ -9,6 +9,7 @@ class DeviceManagementViewModel final : public QObject {
     Q_OBJECT
 public:
     enum class Platform { Web, Windows };
+    enum class Failure { None, LoadFailed, RevokeFailed, InvalidDirectory };
     struct Device {
         QString deviceId;
         Platform platform = Platform::Web;
@@ -25,7 +26,7 @@ public:
     bool authenticated() const;
     bool loading() const;
     QString revokingDeviceId() const;
-    QString failure() const;
+    Failure failure() const;
 
     void setAuthenticated(bool authenticated, const QString &currentDeviceId = {});
     bool refresh();
@@ -48,7 +49,7 @@ private:
     QString m_listRequestId;
     QString m_revokeRequestId;
     QString m_revokingDeviceId;
-    QString m_failure;
+    Failure m_failure = Failure::None;
     bool m_authenticated = false;
     bool m_loading = false;
 };

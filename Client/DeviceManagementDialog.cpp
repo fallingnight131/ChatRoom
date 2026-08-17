@@ -41,10 +41,22 @@ void DeviceManagementDialog::render() {
     const bool available = m_viewModel->authenticated();
     m_refresh->setEnabled(available && !m_viewModel->loading()
                           && m_viewModel->revokingDeviceId().isEmpty());
-    if (!m_viewModel->failure().isEmpty()) m_status->setText(m_viewModel->failure());
-    else if (!available) m_status->setText(QStringLiteral("连接恢复后才能管理设备。"));
-    else if (m_viewModel->loading()) m_status->setText(QStringLiteral("正在加载设备…"));
-    else m_status->clear();
+    switch (m_viewModel->failure()) {
+    case DeviceManagementViewModel::Failure::LoadFailed:
+        m_status->setText(QStringLiteral("无法加载登录设备"));
+        break;
+    case DeviceManagementViewModel::Failure::RevokeFailed:
+        m_status->setText(QStringLiteral("无法撤销该设备"));
+        break;
+    case DeviceManagementViewModel::Failure::InvalidDirectory:
+        m_status->setText(QStringLiteral("登录设备数据无效"));
+        break;
+    case DeviceManagementViewModel::Failure::None:
+        if (!available) m_status->setText(QStringLiteral("连接恢复后才能管理设备。"));
+        else if (m_viewModel->loading()) m_status->setText(QStringLiteral("正在加载设备…"));
+        else m_status->clear();
+        break;
+    }
     for (const auto &device : m_viewModel->devices()) {
         auto *item = new QListWidgetItem(m_devices);
         auto *row = new QWidget(m_devices);

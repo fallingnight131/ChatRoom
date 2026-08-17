@@ -12,7 +12,9 @@ QVector<DeviceManagementViewModel::Device> DeviceManagementViewModel::devices() 
 bool DeviceManagementViewModel::authenticated() const { return m_authenticated; }
 bool DeviceManagementViewModel::loading() const { return m_loading; }
 QString DeviceManagementViewModel::revokingDeviceId() const { return m_revokingDeviceId; }
-QString DeviceManagementViewModel::failure() const { return m_failure; }
+DeviceManagementViewModel::Failure DeviceManagementViewModel::failure() const {
+    return m_failure;
+}
 
 void DeviceManagementViewModel::setAuthenticated(
         bool authenticated, const QString &currentDeviceId) {
@@ -30,7 +32,7 @@ void DeviceManagementViewModel::setAuthenticated(
 bool DeviceManagementViewModel::refresh() {
     if (!m_authenticated || m_loading || !m_revokingDeviceId.isEmpty() || !m_list)
         return false;
-    m_failure.clear();
+    m_failure = Failure::None;
     m_loading = true;
     try {
         m_listRequestId = m_list();
@@ -39,7 +41,7 @@ bool DeviceManagementViewModel::refresh() {
     }
     if (m_listRequestId.isEmpty()) {
         m_loading = false;
-        m_failure = QStringLiteral("无法加载登录设备");
+        m_failure = Failure::LoadFailed;
         emit changed();
         return false;
     }
@@ -55,7 +57,7 @@ bool DeviceManagementViewModel::revoke(const QString &deviceId) {
     for (const Device &device : m_devices)
         target = target || (device.deviceId == deviceId && !device.current);
     if (!target) return false;
-    m_failure.clear();
+    m_failure = Failure::None;
     m_revokingDeviceId = deviceId;
     try {
         m_revokeRequestId = m_revoke(deviceId);
@@ -64,7 +66,7 @@ bool DeviceManagementViewModel::revoke(const QString &deviceId) {
     }
     if (m_revokeRequestId.isEmpty()) {
         m_revokingDeviceId.clear();
-        m_failure = QStringLiteral("无法撤销该设备");
+        m_failure = Failure::RevokeFailed;
         emit changed();
         return false;
     }
@@ -78,12 +80,12 @@ void DeviceManagementViewModel::applyDirectory(
     m_listRequestId.clear();
     m_loading = false;
     if (!validDirectory(devices, m_currentDeviceId)) {
-        m_failure = QStringLiteral("登录设备数据无效");
+        m_failure = Failure::InvalidDirectory;
         emit changed();
         return;
     }
     m_devices = devices;
-    m_failure.clear();
+    m_failure = Failure::None;
     emit changed();
 }
 
@@ -102,11 +104,11 @@ void DeviceManagementViewModel::applyProtocolError(const QString &requestId) {
     if (requestId == m_listRequestId) {
         m_listRequestId.clear();
         m_loading = false;
-        m_failure = QStringLiteral("无法加载登录设备");
+        m_failure = Failure::LoadFailed;
     } else if (requestId == m_revokeRequestId) {
         m_revokeRequestId.clear();
         m_revokingDeviceId.clear();
-        m_failure = QStringLiteral("无法撤销该设备");
+        m_failure = Failure::RevokeFailed;
     } else return;
     emit changed();
 }

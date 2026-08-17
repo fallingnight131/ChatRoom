@@ -53,11 +53,13 @@ int main(int argc, char **argv) {
     model.setAuthenticated(true, current);
     check(model.refresh(), QStringLiteral("resume must permit a fresh query"));
     model.applyDirectory(listRequest, {device(current, true), device(current, false)});
-    check(!model.failure().isEmpty() && model.devices().isEmpty(),
+    check(model.failure() == DeviceManagementViewModel::Failure::InvalidDirectory
+              && model.devices().isEmpty(),
           QStringLiteral("invalid duplicate directory must not replace safe projection"));
     check(model.refresh(), QStringLiteral("invalid directory must remain retryable"));
     model.applyProtocolError(listRequest);
-    check(!model.loading() && !model.failure().isEmpty(),
+    check(!model.loading()
+              && model.failure() == DeviceManagementViewModel::Failure::LoadFailed,
           QStringLiteral("protocol denial must use a generic retryable UI state"));
 
     if (failures) return 1;
