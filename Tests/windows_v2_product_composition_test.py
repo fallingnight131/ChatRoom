@@ -243,8 +243,10 @@ def main() -> int:
     ), "Client/V2WindowsConversationDialog.cpp")
     require(block_directory_dialog, (
         "requestUnblock",
-        "取消屏蔽所选账号",
-        "QMessageBox::question",
+        "WindowsLocaleCatalog::messages(m_locale)",
+        "WindowsLocaleViewModel::changed",
+        "failureDetail().isEmpty()",
+        "confirmation.setDefaultButton(cancel)",
     ), "Client/V2WindowsAccountBlockDirectoryDialog.cpp")
     for source in (
         "Client/WindowsDeviceManagementController.cpp",

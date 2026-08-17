@@ -110,7 +110,12 @@ int main(int argc, char **argv) {
                 || english.deviceManagementTitle
                     != QStringLiteral("Signed-in devices")
                 || english.deviceManagementRevokeFailed
-                    != QStringLiteral("Unable to revoke this device")) {
+                    != QStringLiteral("Unable to revoke this device")
+                || english.blockDirectoryTitle
+                    != QStringLiteral("Privacy and blocked accounts")
+                || english.blockDirectoryMutationDisconnected
+                    != QStringLiteral(
+                        "Connection lost; retry unblocking after reconnecting")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }

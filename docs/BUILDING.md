@@ -3298,6 +3298,15 @@ recomposes a typed load failure without
 replaying the request and locks device descriptions to plain-text rendering.
 The offscreen macOS run remains development-host evidence; native Windows focus,
 confirmation and assistive-technology behavior remain product gates.
+`V2WindowsAccountBlockDirectoryViewModelTest` now runs in the qmake gate and
+binds directory/mutation failures to stable enums, safe server reason detail to
+an opaque field, and same-account retry to one operation ID.
+`V2WindowsAccountBlockDirectoryDialogTest` composes the real security dialog,
+switches a populated server directory to English while retaining the selected
+stable account, confirms one unblock command, and proves disconnect keeps rows
+visible while disabling network actions. The custom default-No confirmation is
+source-locked; native Windows modal focus and screen-reader evidence remains a
+product gate.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

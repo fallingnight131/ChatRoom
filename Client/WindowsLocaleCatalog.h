@@ -394,6 +394,34 @@ struct WindowsLocaleMessages {
     QString deviceManagementClose;
     QString deviceManagementRevokeTitle;
     QString deviceManagementRevokePrompt;
+    QString blockDirectoryTitle;
+    QString blockDirectoryWindowAccessible;
+    QString blockDirectoryListAccessible;
+    QString blockDirectoryStatusAccessible;
+    QString blockDirectoryIntro;
+    QString blockDirectoryRefreshAccessible;
+    QString blockDirectoryLoadMoreAccessible;
+    QString blockDirectoryUnblockSelected;
+    QString blockDirectoryUnblockAccessible;
+    QString blockDirectoryFallbackAccount;
+    QString blockDirectoryRowAccessible;
+    QString blockDirectoryBlockedAt;
+    QString blockDirectoryUnblocking;
+    QString blockDirectoryReading;
+    QString blockDirectorySessionEnded;
+    QString blockDirectoryRefreshNotSent;
+    QString blockDirectoryLoadMoreNotSent;
+    QString blockDirectoryRequestFailed;
+    QString blockDirectoryServiceUnavailable;
+    QString blockDirectoryMutationNotSent;
+    QString blockDirectoryMutationRetryable;
+    QString blockDirectoryMutationFailed;
+    QString blockDirectoryMutationDisconnected;
+    QString blockDirectoryEmpty;
+    QString blockDirectoryNotConnected;
+    QString blockDirectoryLoadedCount;
+    QString blockDirectoryConfirmTitle;
+    QString blockDirectoryConfirmPrompt;
 };
 
 class WindowsLocaleCatalog final {

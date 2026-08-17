@@ -1,12 +1,17 @@
 #include "V2WindowsAccountBlockDirectoryDialog.h"
 
 #include "V2WindowsAccountBlockDirectoryViewModel.h"
+#include "WindowsLocalePreferenceRepository.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QApplication>
 #include <QDebug>
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
+#include <QDir>
+#include <QSettings>
+#include <QTemporaryDir>
 
 namespace {
 bool check(bool value, const QString &message) {
@@ -17,6 +22,13 @@ bool check(bool value, const QString &message) {
 
 int main(int argc, char **argv) {
     QApplication application(argc, argv);
+    QTemporaryDir temporary;
+    if (!temporary.isValid()) return 1;
+    QSettings settings(
+        QDir(temporary.path()).filePath(QStringLiteral("ui.ini")),
+        QSettings::IniFormat);
+    WindowsLocalePreferenceRepository repository(settings);
+    WindowsLocaleViewModel locale(&repository);
     const QString first = QStringLiteral("10000000-0000-4000-8000-000000000001");
     const QString second = QStringLiteral("20000000-0000-4000-8000-000000000001");
     QString requestedAfter;
@@ -34,7 +46,7 @@ int main(int argc, char **argv) {
         &viewModel, [&](QWidget *, const QString &displayName) {
             ++confirmations;
             return displayName == QStringLiteral("甲");
-        });
+        }, nullptr, &locale);
     dialog.show();
     application.processEvents();
     if (!check(!dialog.refreshForTest()->isEnabled()
@@ -47,6 +59,14 @@ int main(int argc, char **argv) {
     if (!check(requestedAfter.isEmpty() && viewModel.busy()
                    && !dialog.refreshForTest()->isEnabled(),
                QStringLiteral("刷新动作没有进入单飞忙碌状态"))) return 1;
+    viewModel.applyFailure(QStringLiteral("opaque Ω reason"));
+    locale.select(WindowsLocale::EnUs);
+    application.processEvents();
+    if (!check(dialog.statusForTest()->text() == QStringLiteral("opaque Ω reason"),
+               QStringLiteral("安全服务端原因不得被翻译或替换"))) return 1;
+    locale.select(WindowsLocale::ZhCn);
+    dialog.refreshForTest()->click();
+    application.processEvents();
     viewModel.applyPage({{first, QStringLiteral("甲"), 100}}, first, true);
     application.processEvents();
     if (!check(dialog.listForTest()->count() == 1
@@ -66,10 +86,18 @@ int main(int argc, char **argv) {
                    && dialog.statusForTest()->text().contains(QStringLiteral("2")),
                QStringLiteral("终止页没有更新目录和状态"))) return 1;
     dialog.listForTest()->setCurrentRow(0);
+    if (!locale.select(WindowsLocale::EnUs)) return 1;
     application.processEvents();
-    if (!check(dialog.unblockForTest()->isEnabled()
+    if (!check(dialog.windowTitle() == QStringLiteral("Privacy and blocked accounts")
+                   && dialog.listForTest()->currentItem()
+                   && dialog.listForTest()->currentItem()->data(Qt::UserRole) == first
+                   && dialog.statusForTest()->text()
+                       == QStringLiteral("Loaded 2 blocked accounts")
+                   && dialog.unblockForTest()->text()
+                       == QStringLiteral("Unblock selected account")
+                   && dialog.unblockForTest()->isEnabled()
                    && !dialog.unblockForTest()->accessibleName().isEmpty(),
-               QStringLiteral("选择服务端行没有暴露可访问取消屏蔽动作"))) return 1;
+               QStringLiteral("语言切换必须保留稳定选择和可访问取消屏蔽动作"))) return 1;
     dialog.unblockForTest()->click();
     application.processEvents();
     if (!check(confirmations == 1 && unblockTarget == first
@@ -85,7 +113,7 @@ int main(int argc, char **argv) {
     application.processEvents();
     if (!check(dialog.listForTest()->count() == 1
                    && !dialog.refreshForTest()->isEnabled()
-                   && dialog.statusForTest()->text().contains(QStringLiteral("断开")),
+                   && dialog.statusForTest()->text().contains(QStringLiteral("disconnected")),
                QStringLiteral("断线界面应保留可见行并禁用网络动作"))) return 1;
     qInfo() << "[V2WindowsAccountBlockDirectoryDialogTest] PASS";
     return 0;

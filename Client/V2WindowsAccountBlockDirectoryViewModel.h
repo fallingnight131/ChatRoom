@@ -9,6 +9,11 @@ class V2WindowsAccountBlockDirectoryViewModel final : public QObject {
     Q_OBJECT
 public:
     static constexpr qsizetype MaxRows = 500;
+    enum class Failure {
+        None, SessionEnded, RefreshNotSent, LoadMoreNotSent,
+        RequestFailed, ServiceUnavailable
+    };
+    enum class MutationFailure { None, NotSent, Retryable, Failed, Disconnected };
     struct Row {
         QString targetAccountId;
         QString targetDisplayName;
@@ -24,9 +29,10 @@ public:
     bool available() const { return m_available; }
     bool busy() const { return m_busy; }
     bool hasMore() const { return m_hasMore; }
-    QString failure() const { return m_failure; }
+    Failure failure() const { return m_failure; }
+    QString failureDetail() const { return m_failureDetail; }
     bool mutationPending() const { return m_mutationPending; }
-    QString mutationFailure() const { return m_mutationFailure; }
+    MutationFailure mutationFailure() const { return m_mutationFailure; }
 
     void bindSession(bool clearRows);
     void clearSession();
@@ -51,10 +57,11 @@ private:
     Unblock m_unblock;
     QVector<Row> m_rows;
     QString m_nextAfterTargetAccountId;
-    QString m_failure;
+    Failure m_failure = Failure::None;
+    QString m_failureDetail;
     QString m_mutationTargetAccountId;
     QString m_mutationOperationId;
-    QString m_mutationFailure;
+    MutationFailure m_mutationFailure = MutationFailure::None;
     bool m_available = false;
     bool m_busy = false;
     bool m_appendPending = false;

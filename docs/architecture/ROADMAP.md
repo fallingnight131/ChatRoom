@@ -2853,6 +2853,9 @@ Candidate slices:
     - [x] Migrate the complete Windows device-management security dialog:
       localize guidance, platform/current/activity state, failures, actions and
       confirmation while preserving stable identity and revoke correlation.
+    - [x] Type and localize the Windows V2 blocked-account directory: preserve
+      opaque safe server detail, selected stable identity, correlated unblock
+      operation/retry, disconnected rows and server-side authorization.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

@@ -18,11 +18,12 @@ void V2WindowsAccountBlockDirectoryViewModel::bindSession(bool clearRows) {
     if (clearRows) {
         m_mutationTargetAccountId.clear();
         m_mutationOperationId.clear();
-        m_mutationFailure.clear();
+        m_mutationFailure = MutationFailure::None;
         m_mutationPending = false;
     }
     m_nextAfterTargetAccountId.clear();
-    m_failure.clear();
+    m_failure = Failure::None;
+    m_failureDetail.clear();
     m_available = true;
     m_busy = false;
     m_appendPending = false;
@@ -33,14 +34,15 @@ void V2WindowsAccountBlockDirectoryViewModel::bindSession(bool clearRows) {
 void V2WindowsAccountBlockDirectoryViewModel::clearSession() {
     m_rows.clear();
     m_nextAfterTargetAccountId.clear();
-    m_failure = QStringLiteral("屏蔽目录已退出");
+    m_failure = Failure::SessionEnded;
+    m_failureDetail.clear();
     m_available = false;
     m_busy = false;
     m_appendPending = false;
     m_hasMore = false;
     m_mutationTargetAccountId.clear();
     m_mutationOperationId.clear();
-    m_mutationFailure.clear();
+    m_mutationFailure = MutationFailure::None;
     m_mutationPending = false;
     emit changed();
 }
@@ -49,11 +51,12 @@ bool V2WindowsAccountBlockDirectoryViewModel::refresh() {
     if (!m_available || m_busy || m_mutationPending) return false;
     m_busy = true;
     m_appendPending = false;
-    m_failure.clear();
+    m_failure = Failure::None;
+    m_failureDetail.clear();
     emit changed();
     if (m_list({})) return true;
     m_busy = false;
-    m_failure = QStringLiteral("无法刷新屏蔽目录");
+    m_failure = Failure::RefreshNotSent;
     emit changed();
     return false;
 }
@@ -63,12 +66,13 @@ bool V2WindowsAccountBlockDirectoryViewModel::loadMore() {
             || m_nextAfterTargetAccountId.isEmpty()) return false;
     m_busy = true;
     m_appendPending = true;
-    m_failure.clear();
+    m_failure = Failure::None;
+    m_failureDetail.clear();
     emit changed();
     if (m_list(m_nextAfterTargetAccountId)) return true;
     m_busy = false;
     m_appendPending = false;
-    m_failure = QStringLiteral("无法加载更多屏蔽账号");
+    m_failure = Failure::LoadMoreNotSent;
     emit changed();
     return false;
 }
@@ -84,7 +88,7 @@ bool V2WindowsAccountBlockDirectoryViewModel::canUnblock(
 bool V2WindowsAccountBlockDirectoryViewModel::requestUnblock(
         const QString &targetAccountId) {
     if (!canUnblock(targetAccountId)) return false;
-    const bool stableRetry = !m_mutationFailure.isEmpty()
+    const bool stableRetry = m_mutationFailure != MutationFailure::None
         && m_mutationTargetAccountId == targetAccountId
         && !m_mutationOperationId.isEmpty();
     if (!stableRetry) {
@@ -92,12 +96,12 @@ bool V2WindowsAccountBlockDirectoryViewModel::requestUnblock(
             .toString(QUuid::WithoutBraces).toLower();
     }
     m_mutationTargetAccountId = targetAccountId;
-    m_mutationFailure.clear();
+    m_mutationFailure = MutationFailure::None;
     m_mutationPending = true;
     emit changed();
     if (m_unblock(targetAccountId, m_mutationOperationId)) return true;
     m_mutationPending = false;
-    m_mutationFailure = QStringLiteral("取消屏蔽未发送，可重试");
+    m_mutationFailure = MutationFailure::NotSent;
     emit changed();
     return false;
 }
@@ -119,7 +123,7 @@ void V2WindowsAccountBlockDirectoryViewModel::applyUnblockResult(
     m_mutationPending = false;
     m_mutationTargetAccountId.clear();
     m_mutationOperationId.clear();
-    m_mutationFailure.clear();
+    m_mutationFailure = MutationFailure::None;
     emit changed();
 }
 
@@ -129,8 +133,7 @@ void V2WindowsAccountBlockDirectoryViewModel::applyUnblockFailure(
         throw std::runtime_error("uncorrelated directory unblock failure");
     m_mutationPending = false;
     m_mutationFailure = retryable
-        ? QStringLiteral("取消屏蔽暂未完成，可重试")
-        : QStringLiteral("无法取消屏蔽该账号");
+        ? MutationFailure::Retryable : MutationFailure::Failed;
     if (!retryable) {
         m_mutationTargetAccountId.clear();
         m_mutationOperationId.clear();
@@ -155,7 +158,8 @@ void V2WindowsAccountBlockDirectoryViewModel::applyPage(
     m_hasMore = hasMore && m_rows.size() < MaxRows;
     m_busy = false;
     m_appendPending = false;
-    m_failure.clear();
+    m_failure = Failure::None;
+    m_failureDetail.clear();
     emit changed();
 }
 
@@ -164,8 +168,8 @@ void V2WindowsAccountBlockDirectoryViewModel::applyFailure(
     if (!m_busy) throw std::runtime_error("unsolicited account block directory failure");
     m_busy = false;
     m_appendPending = false;
-    m_failure = safeReason.isEmpty()
-        ? QStringLiteral("屏蔽目录请求失败") : safeReason;
+    m_failure = Failure::RequestFailed;
+    m_failureDetail = safeReason;
     emit changed();
 }
 
@@ -175,10 +179,11 @@ void V2WindowsAccountBlockDirectoryViewModel::setUnavailable() {
     m_appendPending = false;
     m_hasMore = false;
     m_nextAfterTargetAccountId.clear();
-    m_failure = QStringLiteral("屏蔽服务已断开，正在重连");
+    m_failure = Failure::ServiceUnavailable;
+    m_failureDetail.clear();
     if (m_mutationPending) {
         m_mutationPending = false;
-        m_mutationFailure = QStringLiteral("连接已断开，可在重连后重试取消屏蔽");
+        m_mutationFailure = MutationFailure::Disconnected;
     }
     emit changed();
 }

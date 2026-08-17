@@ -396,6 +396,36 @@ WindowsLocaleMessages createZhCn() {
     m.deviceManagementRevokeTitle = QStringLiteral("撤销登录设备");
     m.deviceManagementRevokePrompt = QStringLiteral(
         "将立即撤销该设备的全部登录会话。是否继续？");
+    m.blockDirectoryTitle = QStringLiteral("隐私与屏蔽账号");
+    m.blockDirectoryWindowAccessible = QStringLiteral("隐私与屏蔽账号管理窗口");
+    m.blockDirectoryListAccessible = QStringLiteral("已屏蔽账号列表");
+    m.blockDirectoryStatusAccessible = QStringLiteral("屏蔽账号目录状态");
+    m.blockDirectoryIntro = QStringLiteral(
+        "这里显示由服务器保存的屏蔽关系。消息历史不会被删除。");
+    m.blockDirectoryRefreshAccessible = QStringLiteral("刷新已屏蔽账号列表");
+    m.blockDirectoryLoadMoreAccessible = QStringLiteral("加载更多已屏蔽账号");
+    m.blockDirectoryUnblockSelected = QStringLiteral("取消屏蔽所选账号");
+    m.blockDirectoryUnblockAccessible = QStringLiteral("取消屏蔽所选账号");
+    m.blockDirectoryFallbackAccount = QStringLiteral("该账号");
+    m.blockDirectoryRowAccessible = QStringLiteral("已屏蔽账号 %1");
+    m.blockDirectoryBlockedAt = QStringLiteral("屏蔽时间：%1");
+    m.blockDirectoryUnblocking = QStringLiteral("正在取消屏蔽…");
+    m.blockDirectoryReading = QStringLiteral("正在读取屏蔽账号…");
+    m.blockDirectorySessionEnded = QStringLiteral("屏蔽目录已退出");
+    m.blockDirectoryRefreshNotSent = QStringLiteral("无法刷新屏蔽目录");
+    m.blockDirectoryLoadMoreNotSent = QStringLiteral("无法加载更多屏蔽账号");
+    m.blockDirectoryRequestFailed = QStringLiteral("屏蔽目录请求失败");
+    m.blockDirectoryServiceUnavailable = QStringLiteral("屏蔽服务已断开，正在重连");
+    m.blockDirectoryMutationNotSent = QStringLiteral("取消屏蔽未发送，可重试");
+    m.blockDirectoryMutationRetryable = QStringLiteral("取消屏蔽暂未完成，可重试");
+    m.blockDirectoryMutationFailed = QStringLiteral("无法取消屏蔽该账号");
+    m.blockDirectoryMutationDisconnected = QStringLiteral(
+        "连接已断开，可在重连后重试取消屏蔽");
+    m.blockDirectoryEmpty = QStringLiteral("当前没有已屏蔽账号");
+    m.blockDirectoryNotConnected = QStringLiteral("屏蔽服务尚未连接");
+    m.blockDirectoryLoadedCount = QStringLiteral("已加载 %1 个屏蔽账号");
+    m.blockDirectoryConfirmTitle = QStringLiteral("确认取消屏蔽");
+    m.blockDirectoryConfirmPrompt = QStringLiteral("确定要取消屏蔽“%1”吗？");
     return m;
 }
 
@@ -810,6 +840,38 @@ WindowsLocaleMessages createEnUs() {
     m.deviceManagementRevokeTitle = QStringLiteral("Revoke signed-in device");
     m.deviceManagementRevokePrompt = QStringLiteral(
         "This immediately revokes every signed-in session on that device. Continue?");
+    m.blockDirectoryTitle = QStringLiteral("Privacy and blocked accounts");
+    m.blockDirectoryWindowAccessible = QStringLiteral(
+        "Privacy and blocked-account management window");
+    m.blockDirectoryListAccessible = QStringLiteral("Blocked accounts");
+    m.blockDirectoryStatusAccessible = QStringLiteral("Blocked-account directory status");
+    m.blockDirectoryIntro = QStringLiteral(
+        "These blocking relationships are stored by the server. Message history is not deleted.");
+    m.blockDirectoryRefreshAccessible = QStringLiteral("Refresh blocked accounts");
+    m.blockDirectoryLoadMoreAccessible = QStringLiteral("Load more blocked accounts");
+    m.blockDirectoryUnblockSelected = QStringLiteral("Unblock selected account");
+    m.blockDirectoryUnblockAccessible = QStringLiteral("Unblock the selected account");
+    m.blockDirectoryFallbackAccount = QStringLiteral("This account");
+    m.blockDirectoryRowAccessible = QStringLiteral("Blocked account %1");
+    m.blockDirectoryBlockedAt = QStringLiteral("Blocked at: %1");
+    m.blockDirectoryUnblocking = QStringLiteral("Unblocking…");
+    m.blockDirectoryReading = QStringLiteral("Loading blocked accounts…");
+    m.blockDirectorySessionEnded = QStringLiteral("Blocked-account directory closed");
+    m.blockDirectoryRefreshNotSent = QStringLiteral("Unable to refresh blocked accounts");
+    m.blockDirectoryLoadMoreNotSent = QStringLiteral("Unable to load more blocked accounts");
+    m.blockDirectoryRequestFailed = QStringLiteral("Blocked-account request failed");
+    m.blockDirectoryServiceUnavailable = QStringLiteral(
+        "Blocking service disconnected; reconnecting");
+    m.blockDirectoryMutationNotSent = QStringLiteral("Unblock was not sent; retry");
+    m.blockDirectoryMutationRetryable = QStringLiteral("Unblock is incomplete; retry");
+    m.blockDirectoryMutationFailed = QStringLiteral("Unable to unblock this account");
+    m.blockDirectoryMutationDisconnected = QStringLiteral(
+        "Connection lost; retry unblocking after reconnecting");
+    m.blockDirectoryEmpty = QStringLiteral("No accounts are blocked");
+    m.blockDirectoryNotConnected = QStringLiteral("Blocking service is not connected");
+    m.blockDirectoryLoadedCount = QStringLiteral("Loaded %1 blocked accounts");
+    m.blockDirectoryConfirmTitle = QStringLiteral("Confirm unblock");
+    m.blockDirectoryConfirmPrompt = QStringLiteral("Unblock “%1”?");
     return m;
 }
 

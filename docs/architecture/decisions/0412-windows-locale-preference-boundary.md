@@ -111,6 +111,12 @@ message storage, server behavior, or the supported Web/Windows product scope.
   copy. Recomposition must preserve selected/focused stable device ID, current-device
   protection and the one-at-a-time correlated revoke state. Device identifiers
   are opaque data and must use plain-text rendering.
+- Split blocked-account directory failure state into stable local directory and
+  mutation enums plus a separate safe opaque server-detail field. Catalog the
+  complete Widget, including guidance, accessibility, row/time presentation,
+  paging, actions and default-cancel confirmation. Recomposition retains the
+  selected stable account and correlated idempotent unblock operation; retry
+  and authorization remain application/server responsibilities.
 
 ## Consequences
 
@@ -167,3 +173,7 @@ database migration or protocol compatibility window is required.
   correlated revocation survive live language changes, current-device revoke is
   absent, typed failure recomposes without replay, and identifier text cannot be
   interpreted as markup.
+- blocked-directory ViewModel/Widget tests prove local failures recompose while
+  safe server detail stays verbatim, selection survives live switching, one
+  operation ID owns unblock/retry, and disconnect preserves rows while disabling
+  network mutation.

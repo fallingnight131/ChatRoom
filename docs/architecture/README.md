@@ -2034,6 +2034,13 @@ accessibility, platform/current-device presentation, locale-aware activity
 time, actions and revocation confirmation. Live recomposition preserves list
 selection/focus, stable IDs, current-device protection and one-at-a-time revocation.
 Server device identifiers are rendered as plain text rather than rich markup.
+The Windows V2 blocked-account directory now follows the same boundary. Its
+ViewModel separates stable local directory/mutation failures from an explicitly
+safe opaque server reason; the Widget catalogs guidance, accessibility, rows,
+timestamps, paging, empty/disconnected state, actions and default-cancel
+confirmation. Language changes retain the selected stable account and pending
+idempotent unblock operation; same-account retry continues to reuse that
+operation ID and server authorization remains authoritative.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

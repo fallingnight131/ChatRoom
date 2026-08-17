@@ -38,6 +38,10 @@ int main(int argc, char **argv) {
                     viewModel.applyFailure(QStringLiteral("重复响应"));
                     viewModel.applyFailure(QStringLiteral("重复响应"));
                 }), QStringLiteral("重复目录响应必须失败关闭"))) return 1;
+    if (!check(viewModel.failure()
+                   == V2WindowsAccountBlockDirectoryViewModel::Failure::RequestFailed
+                   && viewModel.failureDetail() == QStringLiteral("重复响应"),
+               QStringLiteral("安全服务端原因必须作为不透明细节保留"))) return 1;
     if (!check(viewModel.refresh(), QStringLiteral("失败后应允许刷新"))) return 1;
     viewModel.applyPage({{first, QStringLiteral("甲"), 10}}, first, true);
     if (!check(viewModel.rows().size() == 1 && viewModel.hasMore()
@@ -50,11 +54,14 @@ int main(int argc, char **argv) {
                QStringLiteral("追加页没有稳定去重或收口"))) return 1;
     send = false;
     if (!check(!viewModel.refresh() && !viewModel.busy()
-                    && !viewModel.failure().isEmpty() && viewModel.rows().size() == 2,
+                    && viewModel.failure()
+                        == V2WindowsAccountBlockDirectoryViewModel::Failure::RefreshNotSent
+                    && viewModel.rows().size() == 2,
                QStringLiteral("发送失败不应清除可见目录"))) return 1;
     viewModel.setUnavailable();
     if (!check(!viewModel.available() && viewModel.rows().size() == 2
-                    && !viewModel.failure().isEmpty(),
+                    && viewModel.failure()
+                        == V2WindowsAccountBlockDirectoryViewModel::Failure::ServiceUnavailable,
                QStringLiteral("断线应保留页面内目录并禁用分页"))) return 1;
     viewModel.bindSession(false);
     if (!check(viewModel.available() && viewModel.rows().size() == 2,
