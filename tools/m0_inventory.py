@@ -27,7 +27,12 @@ def read_source(key: str) -> str:
 
 
 def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    source = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(source).hexdigest()
+
+
+def relative_source_path(path: Path, root: Path = ROOT) -> str:
+    return path.relative_to(root).as_posix()
 
 
 def first_int(pattern: str, text: str, label: str) -> int:
@@ -79,7 +84,7 @@ def build_inventory() -> dict[str, object]:
         "inventory_format": 1,
         "sources": {
             key: {
-                "path": str(path.relative_to(ROOT)),
+                "path": relative_source_path(path),
                 "sha256": sha256(path),
             }
             for key, path in SOURCES.items()

@@ -35,6 +35,8 @@ def run(
 
 
 def verify_inventory() -> None:
+    run([sys.executable, str(
+        ROOT / "Tests" / "m0_inventory_portability_test.py")], ROOT)
     run([sys.executable, str(ROOT / "tools" / "m0_inventory.py"), "--check"], ROOT)
 
 

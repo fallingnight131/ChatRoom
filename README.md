@@ -222,6 +222,9 @@ CHATROOM_DEVELOPER_KEY=请替换成你的强密码
 python3 tools/verify_m0.py --web --db-schema --v1-smoke --performance
 ```
 
+源码清单校验会统一 Windows、macOS 与 Linux 的路径分隔符和文本换行，
+因此同一 Git 修订在不同 Runner 上应得到相同的 M0 指纹。
+
 服务端 CMake 增量路径可在 macOS 开发机上单独验证：
 
 ```bash
