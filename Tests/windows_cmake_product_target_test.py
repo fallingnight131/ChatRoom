@@ -61,6 +61,9 @@ def main() -> int:
 
     required_workflow = (
         "Build Windows CMake client targets in Release mode",
+        "Launch-VsDevShell.ps1",
+        "-Arch amd64 -HostArch amd64",
+        "Get-Command nmake.exe -ErrorAction Stop",
         "-DCHATROOM_BUILD_WINDOWS_CLIENT=ON",
         "--target ChatClient ChatRoomUpdateLauncher",
         "WindowsV2ProductConfigurationEnabledTest",

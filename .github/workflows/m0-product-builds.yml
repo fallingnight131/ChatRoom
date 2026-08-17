@@ -128,7 +128,21 @@ jobs:
           "SODIUM_ROOT=$sodiumRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build Qt server and desktop client in Release mode
-        run: python tools/verify_m0.py --qt
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installationPath = (& $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath).Trim()
+          if (-not $installationPath) {
+            throw "Visual Studio with the x64 C++ toolchain was not found"
+          }
+          & "$installationPath\Common7\Tools\Launch-VsDevShell.ps1" `
+            -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+          Get-Command nmake.exe -ErrorAction Stop | Out-Null
+          python tools/verify_m0.py --qt
+          if ($LASTEXITCODE -ne 0) { throw "Qt Release verification failed" }
 
       - name: Build Windows CMake client targets in Release mode
         shell: pwsh

@@ -3925,6 +3925,10 @@ development/portability verification, not a supported desktop release gate.
 - Run from a Qt/Visual Studio or Qt/MinGW developer environment.
 - The verifier selects `nmake` for an MSVC qmake spec and
   `mingw32-make`/`make` otherwise.
+- The native Windows CI qmake step discovers Visual Studio with `vswhere`,
+  enters the x64 developer shell, and verifies that `nmake.exe` is available
+  before invoking the verifier. Installing an MSVC Qt SDK alone does not add
+  the Visual Studio compiler tools to the step environment.
 - Native CI uses MSVC 2022 and pinned Qt 6.11.1, builds both qmake fallback and
   canonical CMake targets, proves their deployed runtime parity, then promotes
   the CMake `windeployqt` directory as the short-lived client-only unsigned
