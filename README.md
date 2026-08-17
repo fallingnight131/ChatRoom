@@ -224,6 +224,8 @@ python3 tools/verify_m0.py --web --db-schema --v1-smoke --performance
 
 源码清单校验会统一 Windows、macOS 与 Linux 的路径分隔符和文本换行，
 因此同一 Git 修订在不同 Runner 上应得到相同的 M0 指纹。
+Java V2 协议验证中的 Windows ViewModel 会显式链接共享的本地化目录，
+以确保协议生成后执行的 C++ 链接检查与客户端实际依赖保持一致。
 
 服务端 CMake 增量路径可在 macOS 开发机上单独验证：
 

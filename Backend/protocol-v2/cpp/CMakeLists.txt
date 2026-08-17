@@ -8,6 +8,16 @@ chatroom_configure_v2_protobuf()
 
 set(GENERATED_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../Client/protocol/v2/generated")
 
+add_library(
+  v2_windows_locale_catalog STATIC
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsLocaleCatalog.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsLocaleCatalog.h"
+)
+target_compile_features(v2_windows_locale_catalog PRIVATE cxx_std_17)
+target_include_directories(v2_windows_locale_catalog PUBLIC
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client")
+target_link_libraries(v2_windows_locale_catalog PUBLIC Qt6::Core)
+
 add_executable(
   v2_cpp_envelope_test
   EnvelopeCompatibilityTest.cpp
@@ -100,7 +110,8 @@ set_target_properties(v2_windows_account_block_view_model_test PROPERTIES AUTOMO
 target_compile_features(v2_windows_account_block_view_model_test PRIVATE cxx_std_17)
 target_include_directories(v2_windows_account_block_view_model_test PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client")
-target_link_libraries(v2_windows_account_block_view_model_test PRIVATE Qt6::Core)
+target_link_libraries(
+  v2_windows_account_block_view_model_test PRIVATE v2_windows_locale_catalog)
 
 add_executable(
   v2_windows_account_block_directory_view_model_test
@@ -157,7 +168,9 @@ target_compile_features(v2_windows_conversation_participant_view_model_test PRIV
 target_include_directories(
   v2_windows_conversation_participant_view_model_test
   PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../../Client")
-target_link_libraries(v2_windows_conversation_participant_view_model_test PRIVATE Qt6::Core)
+target_link_libraries(
+  v2_windows_conversation_participant_view_model_test
+  PRIVATE v2_windows_locale_catalog)
 
 add_executable(
   v2_windows_message_search_view_model_test
@@ -169,7 +182,8 @@ set_target_properties(v2_windows_message_search_view_model_test PROPERTIES AUTOM
 target_compile_features(v2_windows_message_search_view_model_test PRIVATE cxx_std_17)
 target_include_directories(v2_windows_message_search_view_model_test PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client")
-target_link_libraries(v2_windows_message_search_view_model_test PRIVATE Qt6::Core)
+target_link_libraries(
+  v2_windows_message_search_view_model_test PRIVATE v2_windows_locale_catalog)
 
 add_executable(
   v2_windows_mention_composer_test
