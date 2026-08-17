@@ -84,6 +84,12 @@ message storage, server behavior, or the supported Web/Windows product scope.
   Password entry is masked, password/developer-key fields clear after dispatch,
   and the query action is named as password-status inspection because the
   server never returns the non-recoverable password.
+- Inject the same ViewModel into the administrator room-file manager and
+  localize its entry, usage summary, accessible table, headers, type/status
+  presentation, actions and destructive confirmation together. Locale changes
+  may update row presentation but must retain Unicode filenames, timestamps,
+  stable room/file IDs, cleared eligibility and checked deletion targets.
+  Listing and deletion authorization remains server-side.
 
 ## Consequences
 
@@ -126,3 +132,6 @@ database migration or protocol compatibility window is required.
 - room-settings composition proves administrator and limit groups switch
   together without changing unsaved Unicode/secret input; successful commands
   clear secret fields and keep unchanged room identity on the transport path.
+- room-file composition proves available and cleared row presentation switches
+  together while a checked stable file ID, Unicode filename and refresh room ID
+  remain unchanged.

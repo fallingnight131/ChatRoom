@@ -1,4 +1,5 @@
 #include "RoomFileManagerDialog.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QCheckBox>
 #include <QHeaderView>
@@ -10,22 +11,19 @@
 #include <QTableWidget>
 #include <QVBoxLayout>
 
-RoomFileManagerDialog::RoomFileManagerDialog(QWidget *parent)
-    : QDialog(parent) {
-    setWindowTitle(QStringLiteral("文件管理"));
+RoomFileManagerDialog::RoomFileManagerDialog(
+    QWidget *parent, WindowsLocaleViewModel *localeViewModel)
+    : QDialog(parent), m_localeViewModel(localeViewModel) {
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
     resize(760, 520);
 
     auto *mainLayout = new QVBoxLayout(this);
 
     m_summaryLabel = new QLabel(this);
-    m_summaryLabel->setText(QStringLiteral("当前文件空间: 0 B / 0 B"));
     mainLayout->addWidget(m_summaryLabel);
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(6);
-    m_table->setHorizontalHeaderLabels(
-        {QStringLiteral("选择"), QStringLiteral("文件名"), QStringLiteral("类型"),
-         QStringLiteral("大小"), QStringLiteral("状态"), QStringLiteral("上传时间")});
     m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     m_table->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
@@ -41,8 +39,8 @@ RoomFileManagerDialog::RoomFileManagerDialog(QWidget *parent)
     auto *btnLayout = new QHBoxLayout();
     btnLayout->addStretch();
 
-    m_refreshBtn = new QPushButton(QStringLiteral("刷新"), this);
-    m_deleteBtn = new QPushButton(QStringLiteral("删除所选文件"), this);
+    m_refreshBtn = new QPushButton(this);
+    m_deleteBtn = new QPushButton(this);
 
     btnLayout->addWidget(m_refreshBtn);
     btnLayout->addWidget(m_deleteBtn);
@@ -50,15 +48,18 @@ RoomFileManagerDialog::RoomFileManagerDialog(QWidget *parent)
 
     connect(m_refreshBtn, &QPushButton::clicked, this, &RoomFileManagerDialog::onRefresh);
     connect(m_deleteBtn, &QPushButton::clicked, this, &RoomFileManagerDialog::onDeleteSelected);
+    if (m_localeViewModel) {
+        connect(m_localeViewModel, &WindowsLocaleViewModel::changed,
+                this, &RoomFileManagerDialog::applyLocale);
+    }
+    applyLocale();
 }
 
 void RoomFileManagerDialog::setRoomInfo(int roomId, qint64 usedFileSpace, qint64 maxFileSpace) {
     m_roomId = roomId;
     m_usedFileSpace = usedFileSpace;
     m_maxFileSpace = maxFileSpace;
-    m_summaryLabel->setText(
-        QStringLiteral("当前文件空间: %1 / %2")
-            .arg(formatSize(m_usedFileSpace), formatSize(m_maxFileSpace)));
+    updateSummary();
 }
 
 void RoomFileManagerDialog::setFiles(const QJsonArray &files) {
@@ -83,9 +84,50 @@ void RoomFileManagerDialog::setFiles(const QJsonArray &files) {
 
         m_table->setItem(row, 2, new QTableWidgetItem(fileTypeFromName(fileName)));
         m_table->setItem(row, 3, new QTableWidgetItem(formatSize(fileSize)));
-        m_table->setItem(row, 4, new QTableWidgetItem(cleared ? QStringLiteral("已过期/已清除")
-                                                               : QStringLiteral("有效")));
+        auto *statusItem = new QTableWidgetItem;
+        statusItem->setData(Qt::UserRole, cleared);
+        m_table->setItem(row, 4, statusItem);
         m_table->setItem(row, 5, new QTableWidgetItem(createdAt));
+    }
+    updateLocalizedRows();
+}
+
+void RoomFileManagerDialog::applyLocale() {
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    setWindowTitle(copy.roomFileManagerTitle);
+    m_summaryLabel->setAccessibleName(copy.roomFileStorageAccessible);
+    m_table->setAccessibleName(copy.roomFileTableAccessible);
+    m_table->setHorizontalHeaderLabels(
+        {copy.roomFileSelect, copy.roomFileName, copy.roomFileType,
+         copy.roomFileSize, copy.roomFileStatus, copy.roomFileUploadedAt});
+    m_refreshBtn->setText(copy.refresh);
+    m_refreshBtn->setAccessibleName(copy.roomFileRefreshAccessible);
+    m_deleteBtn->setText(copy.roomFileDeleteSelected);
+    m_deleteBtn->setAccessibleName(copy.roomFileDeleteAccessible);
+    updateSummary();
+    updateLocalizedRows();
+}
+
+void RoomFileManagerDialog::updateSummary() {
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    m_summaryLabel->setText(copy.roomFileStorageUsage.arg(
+        formatSize(m_usedFileSpace), formatSize(m_maxFileSpace)));
+}
+
+void RoomFileManagerDialog::updateLocalizedRows() {
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    for (int row = 0; row < m_table->rowCount(); ++row) {
+        auto *nameItem = m_table->item(row, 1);
+        auto *statusItem = m_table->item(row, 4);
+        if (nameItem) {
+            auto *typeItem = m_table->item(row, 2);
+            if (typeItem) typeItem->setText(fileTypeFromName(nameItem->text()));
+        }
+        if (statusItem) {
+            statusItem->setText(statusItem->data(Qt::UserRole).toBool()
+                                    ? copy.roomFileCleared : copy.roomFileAvailable);
+        }
     }
 }
 
@@ -106,12 +148,15 @@ void RoomFileManagerDialog::onDeleteSelected() {
     }
 
     if (ids.isEmpty()) {
-        QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先勾选要删除的文件"));
+        const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+        QMessageBox::information(
+            this, copy.roomFileNoticeTitle, copy.roomFileSelectBeforeDelete);
         return;
     }
 
-    if (QMessageBox::question(this, QStringLiteral("确认删除"),
-                              QStringLiteral("确定删除选中的文件吗？\n删除后聊天记录会保留，但文件将不可下载。"))
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    if (QMessageBox::question(this, copy.roomFileDeleteConfirmTitle,
+                              copy.roomFileDeleteConfirmPrompt)
         != QMessageBox::Yes) {
         return;
     }
@@ -132,12 +177,13 @@ QString RoomFileManagerDialog::formatSize(qint64 bytes) {
     return QStringLiteral("%1 GB").arg(bytes / (1024.0 * 1024.0 * 1024.0), 0, 'f', 2);
 }
 
-QString RoomFileManagerDialog::fileTypeFromName(const QString &fileName) {
+QString RoomFileManagerDialog::fileTypeFromName(const QString &fileName) const {
     const QString suffix = fileName.section('.', -1).toLower();
     static const QStringList imageExt = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
     static const QStringList videoExt = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
 
-    if (imageExt.contains(suffix)) return QStringLiteral("图片");
-    if (videoExt.contains(suffix)) return QStringLiteral("视频");
-    return QStringLiteral("文件");
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    if (imageExt.contains(suffix)) return copy.roomFileImageType;
+    if (videoExt.contains(suffix)) return copy.roomFileVideoType;
+    return copy.roomFileGenericType;
 }

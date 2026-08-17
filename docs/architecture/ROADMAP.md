@@ -2840,6 +2840,9 @@ Candidate slices:
       form state across live language changes, keep authority server-side,
       mask/clear password and developer-key inputs, and label password status
       accurately without exposing the non-recoverable secret.
+    - [x] Migrate the complete Windows room-file manager leaf: localize entry,
+      summary, accessible table, file type/status, actions and confirmation,
+      while preserving checked stable file IDs and server-side authorization.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

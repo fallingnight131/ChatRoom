@@ -35,6 +35,9 @@ def main() -> int:
     room_settings = (ROOT / "Client/RoomSettingsDialog.cpp").read_text(
         encoding="utf-8"
     )
+    room_files = (ROOT / "Client/RoomFileManagerDialog.cpp").read_text(
+        encoding="utf-8"
+    )
     bandwidth_policy = (ROOT / "Client/WindowsBandwidthPolicy.cpp").read_text(
         encoding="utf-8"
     )
@@ -114,6 +117,7 @@ def main() -> int:
         "username, displayName, avatar, role, this, m_windowsLocaleViewModel",
         "AvatarCropDialog dlg(img, this, m_windowsLocaleViewModel)",
         "maxMembers, this, m_windowsLocaleViewModel",
+        "this, m_windowsLocaleViewModel);",
     ), "Client/ChatWindow.cpp")
     require(profile, (
         "WindowsLocaleCatalog::messages(m_locale)",
@@ -134,6 +138,13 @@ def main() -> int:
         "m_passwordEdit->clear()",
         "AvatarCropDialog dlg(img, this, m_localeViewModel)",
     ), "Client/RoomSettingsDialog.cpp")
+    require(room_files, (
+        "WindowsLocaleCatalog::messages(m_locale)",
+        "WindowsLocaleViewModel::changed",
+        "updateLocalizedRows()",
+        'statusItem->setData(Qt::UserRole, cleared)',
+        "check->property(\"fileId\").toInt()",
+    ), "Client/RoomFileManagerDialog.cpp")
     require(bandwidth_policy, (
         "WindowsBandwidthPolicy::shouldAutoRequestAvatar",
         "!lowBandwidthEnabled && !cached",

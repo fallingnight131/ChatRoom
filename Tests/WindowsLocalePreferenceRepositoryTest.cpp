@@ -94,7 +94,11 @@ int main(int argc, char **argv) {
                 || english.roomDeleteConfirmTitle
                     != QStringLiteral("Confirm deletion")
                 || english.roomDeveloperKeyRequired
-                    != QStringLiteral("Enter the developer key")) {
+                    != QStringLiteral("Enter the developer key")
+                || english.roomFileManagerTitle != QStringLiteral("File manager")
+                || english.roomFileDeleteSelected
+                    != QStringLiteral("Delete selected files")
+                || english.roomFileCleared != QStringLiteral("Expired/cleared")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }

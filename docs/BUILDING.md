@@ -3271,6 +3271,13 @@ Unicode and secret form state, verifies password masking, then dispatches the
 existing room-limit and password commands and requires both secret inputs to be
 cleared. The source-composition gate locks the shared cropper and server-status
 wording; native Windows dialogs and assistive technology remain release gates.
+`WindowsRoomFileManagerLocalizationTest` composes available and cleared files,
+then switches the real administrator table from Chinese to English. It verifies
+the storage summary, headers, type/status presentation and actions while keeping
+Unicode filenames, stable file IDs, disabled cleared rows and an existing
+deletion selection unchanged. The source-composition gate also locks the shared
+locale injection and server-authoritative ID emission; native Windows table and
+confirmation interaction remains a product gate.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

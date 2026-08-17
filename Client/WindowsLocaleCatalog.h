@@ -331,6 +331,32 @@ struct WindowsLocaleMessages {
     QString roomCannotLoadImage;
     QString roomNoticeTitle;
     QString roomAvatarTooLarge;
+    QString roomFileManagerTitle;
+    QString roomFileStorageUsage;
+    QString roomFileStorageAccessible;
+    QString roomFileTableAccessible;
+    QString roomFileSelect;
+    QString roomFileName;
+    QString roomFileType;
+    QString roomFileSize;
+    QString roomFileStatus;
+    QString roomFileUploadedAt;
+    QString roomFileRefreshAccessible;
+    QString roomFileDeleteSelected;
+    QString roomFileDeleteAccessible;
+    QString roomFileCleared;
+    QString roomFileAvailable;
+    QString roomFileImageType;
+    QString roomFileVideoType;
+    QString roomFileGenericType;
+    QString roomFileNoticeTitle;
+    QString roomFileSelectBeforeDelete;
+    QString roomFileDeleteConfirmTitle;
+    QString roomFileDeleteConfirmPrompt;
+    QString roomFileAdminRequiredTitle;
+    QString roomFileAdminRequired;
+    QString roomFilesDeleted;
+    QString roomFileClearedUnavailable;
 };
 
 class WindowsLocaleCatalog final {

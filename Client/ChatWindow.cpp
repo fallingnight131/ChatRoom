@@ -3272,7 +3272,9 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
     });
 
     if (m_adminRooms.value(roomId, false)) {
-        menu.addAction(QStringLiteral("文件管理"), [this, roomId] {
+        menu.addAction(WindowsLocaleCatalog::messages(
+                           m_windowsLocaleViewModel->locale()).roomFileManagerTitle,
+                       [this, roomId] {
             showRoomFileManagerDialog(roomId);
         });
     }
@@ -4073,12 +4075,14 @@ void ChatWindow::onRoomSettingsNotify(int roomId, qint64 maxFileSize,
 void ChatWindow::onRoomFilesResponse(bool success, int roomId, const QJsonArray &files,
                                      qint64 usedFileSpace, qint64 maxFileSpace, const QString &error) {
     if (!success) {
-        QMessageBox::warning(this, QStringLiteral("文件管理"), error);
+        QMessageBox::warning(this, WindowsLocaleCatalog::messages(
+            m_windowsLocaleViewModel->locale()).roomFileManagerTitle, error);
         return;
     }
 
     if (!m_roomFileManagerDialog) {
-        m_roomFileManagerDialog = new RoomFileManagerDialog(this);
+        m_roomFileManagerDialog = new RoomFileManagerDialog(
+            this, m_windowsLocaleViewModel);
         m_roomFileManagerDialog->setAttribute(Qt::WA_DeleteOnClose);
 
         connect(m_roomFileManagerDialog, &QObject::destroyed, this, [this] {
@@ -4113,7 +4117,8 @@ void ChatWindow::onRoomFilesDeleteResponse(bool success, int roomId, int deleted
                                            qint64 usedFileSpace, qint64 maxFileSpace,
                                            const QString &error) {
     if (!success) {
-        QMessageBox::warning(this, QStringLiteral("文件管理"), error);
+        QMessageBox::warning(this, WindowsLocaleCatalog::messages(
+            m_windowsLocaleViewModel->locale()).roomFileManagerTitle, error);
         return;
     }
 
@@ -4121,7 +4126,8 @@ void ChatWindow::onRoomFilesDeleteResponse(bool success, int roomId, int deleted
     for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
     if (!ids.isEmpty()) {
         for (auto it = m_models.begin(); it != m_models.end(); ++it) {
-            it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+            it.value()->markFilesCleared(ids, WindowsLocaleCatalog::messages(
+                m_windowsLocaleViewModel->locale()).roomFileClearedUnavailable);
             persistRoomSnapshot(it.key());
         }
     }
@@ -4130,7 +4136,8 @@ void ChatWindow::onRoomFilesDeleteResponse(bool success, int roomId, int deleted
         m_roomFileManagerDialog->setRoomInfo(roomId, usedFileSpace, maxFileSpace);
     }
 
-    m_statusLabel->setText(QStringLiteral("已删除 %1 个文件").arg(deletedCount));
+    m_statusLabel->setText(WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale()).roomFilesDeleted.arg(deletedCount));
 
     QJsonObject req;
     req["roomId"] = roomId;
@@ -4554,7 +4561,10 @@ void ChatWindow::showRoomSettingsDialog(int roomId) {
 
 void ChatWindow::showRoomFileManagerDialog(int roomId) {
     if (!m_adminRooms.value(roomId, false)) {
-        QMessageBox::warning(this, QStringLiteral("权限不足"), QStringLiteral("只有管理员可以管理文件"));
+        const auto &copy = WindowsLocaleCatalog::messages(
+            m_windowsLocaleViewModel->locale());
+        QMessageBox::warning(
+            this, copy.roomFileAdminRequiredTitle, copy.roomFileAdminRequired);
         return;
     }
 

@@ -328,6 +328,33 @@ WindowsLocaleMessages createZhCn() {
     m.roomCannotLoadImage = QStringLiteral("无法加载图片");
     m.roomNoticeTitle = QStringLiteral("提示");
     m.roomAvatarTooLarge = QStringLiteral("头像数据过大，请选择更小的图片或裁剪区域");
+    m.roomFileManagerTitle = QStringLiteral("文件管理");
+    m.roomFileStorageUsage = QStringLiteral("当前文件空间：%1 / %2");
+    m.roomFileStorageAccessible = QStringLiteral("房间文件空间使用情况");
+    m.roomFileTableAccessible = QStringLiteral("房间文件列表");
+    m.roomFileSelect = QStringLiteral("选择");
+    m.roomFileName = QStringLiteral("文件名");
+    m.roomFileType = QStringLiteral("类型");
+    m.roomFileSize = QStringLiteral("大小");
+    m.roomFileStatus = QStringLiteral("状态");
+    m.roomFileUploadedAt = QStringLiteral("上传时间");
+    m.roomFileRefreshAccessible = QStringLiteral("刷新房间文件列表");
+    m.roomFileDeleteSelected = QStringLiteral("删除所选文件");
+    m.roomFileDeleteAccessible = QStringLiteral("删除勾选的可用房间文件");
+    m.roomFileCleared = QStringLiteral("已过期/已清除");
+    m.roomFileAvailable = QStringLiteral("有效");
+    m.roomFileImageType = QStringLiteral("图片");
+    m.roomFileVideoType = QStringLiteral("视频");
+    m.roomFileGenericType = QStringLiteral("文件");
+    m.roomFileNoticeTitle = QStringLiteral("提示");
+    m.roomFileSelectBeforeDelete = QStringLiteral("请先勾选要删除的文件");
+    m.roomFileDeleteConfirmTitle = QStringLiteral("确认删除");
+    m.roomFileDeleteConfirmPrompt = QStringLiteral(
+        "确定删除选中的文件吗？\n删除后聊天记录会保留，但文件将不可下载。");
+    m.roomFileAdminRequiredTitle = QStringLiteral("权限不足");
+    m.roomFileAdminRequired = QStringLiteral("只有管理员可以管理文件");
+    m.roomFilesDeleted = QStringLiteral("已删除 %1 个文件");
+    m.roomFileClearedUnavailable = QStringLiteral("文件已过期或被清除");
     return m;
 }
 
@@ -670,6 +697,35 @@ WindowsLocaleMessages createEnUs() {
     m.roomNoticeTitle = QStringLiteral("Notice");
     m.roomAvatarTooLarge = QStringLiteral(
         "Avatar data is too large; choose a smaller image or crop area");
+    m.roomFileManagerTitle = QStringLiteral("File manager");
+    m.roomFileStorageUsage = QStringLiteral("File storage: %1 / %2");
+    m.roomFileStorageAccessible = QStringLiteral("Room file storage usage");
+    m.roomFileTableAccessible = QStringLiteral("Room files");
+    m.roomFileSelect = QStringLiteral("Select");
+    m.roomFileName = QStringLiteral("File name");
+    m.roomFileType = QStringLiteral("Type");
+    m.roomFileSize = QStringLiteral("Size");
+    m.roomFileStatus = QStringLiteral("Status");
+    m.roomFileUploadedAt = QStringLiteral("Uploaded at");
+    m.roomFileRefreshAccessible = QStringLiteral("Refresh room files");
+    m.roomFileDeleteSelected = QStringLiteral("Delete selected files");
+    m.roomFileDeleteAccessible = QStringLiteral(
+        "Delete the selected available room files");
+    m.roomFileCleared = QStringLiteral("Expired/cleared");
+    m.roomFileAvailable = QStringLiteral("Available");
+    m.roomFileImageType = QStringLiteral("Image");
+    m.roomFileVideoType = QStringLiteral("Video");
+    m.roomFileGenericType = QStringLiteral("File");
+    m.roomFileNoticeTitle = QStringLiteral("Notice");
+    m.roomFileSelectBeforeDelete = QStringLiteral(
+        "Select at least one file to delete");
+    m.roomFileDeleteConfirmTitle = QStringLiteral("Confirm deletion");
+    m.roomFileDeleteConfirmPrompt = QStringLiteral(
+        "Delete the selected files?\nChat history will remain, but the files will no longer be downloadable.");
+    m.roomFileAdminRequiredTitle = QStringLiteral("Permission required");
+    m.roomFileAdminRequired = QStringLiteral("Only administrators can manage files");
+    m.roomFilesDeleted = QStringLiteral("Deleted %1 files");
+    m.roomFileClearedUnavailable = QStringLiteral("File expired or was cleared");
     return m;
 }
 

@@ -2009,6 +2009,12 @@ room identity, numeric limits, and unsaved Unicode form text. Password entry is
 masked, password and developer-key fields clear immediately after command
 dispatch, and the UI accurately offers password-status inspection rather than
 password recovery; authorization and `hasPassword` truth remain server-side.
+The adjacent Windows room-file manager now uses that same live catalog for its
+entry, storage summary, accessible table, headers, type/status presentation,
+actions and destructive confirmation. Recomposition updates only presentation:
+Unicode names, timestamps, room/file IDs, server usage values, cleared-row
+eligibility and checked deletion targets remain unchanged. The server still
+authorizes listing and deletion and remains authoritative for resulting usage.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;
