@@ -1747,6 +1747,7 @@ void ChatWindow::clearCurrentDraft() {
 }
 
 void ChatWindow::handleRoomSendResponse(const QJsonObject &data) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     const int roomId = data["roomId"].toInt();
     const QString clientMessageId = data["clientMessageId"].toString();
     if (roomId <= 0 || clientMessageId.isEmpty()) return;
@@ -1774,12 +1775,14 @@ void ChatWindow::handleRoomSendResponse(const QJsonObject &data) {
                 "[Outbox] operation=reject-room outcome=degraded roomId=%1 detail=%2")
                 .arg(roomId).arg(m_outgoingMessageService->lastError());
         }
-        m_statusLabel->setText(data["error"].toString(QStringLiteral("消息发送失败")));
+        m_statusLabel->setText(
+            data["error"].toString(copy.mainMessageRoomSendFailed));
     }
     model->addMessage(resolved);
 }
 
 void ChatWindow::handleFriendSendResponse(const QJsonObject &data) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     QString friendUsername = data["friendUsername"].toString();
     const int friendshipId = data["friendshipId"].toInt();
     if (friendUsername.isEmpty() && friendshipId > 0)
@@ -1813,7 +1816,8 @@ void ChatWindow::handleFriendSendResponse(const QJsonObject &data) {
                 "[Outbox] operation=reject-direct outcome=degraded peer=%1 detail=%2")
                 .arg(friendUsername, m_outgoingMessageService->lastError());
         }
-        m_statusLabel->setText(data["error"].toString(QStringLiteral("好友消息发送失败")));
+        m_statusLabel->setText(
+            data["error"].toString(copy.mainMessageDirectSendFailed));
     }
     model->addMessage(resolved);
 }
@@ -2049,6 +2053,7 @@ void ChatWindow::requestCurrentFriendResume() {
 // ==================== 消息处理 ====================
 
 void ChatWindow::onSendMessage() {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     QString text = m_inputEdit->toPlainText().trimmed();
     if (text.isEmpty()) return;
 
@@ -2063,7 +2068,7 @@ void ChatWindow::onSendMessage() {
                 Message::Text,
                 m_conversationSyncService->cursor(
                     friendConversation(m_currentFriendUsername)), &send)) {
-            m_statusLabel->setText(QStringLiteral("无法准备发送消息"));
+            m_statusLabel->setText(copy.mainMessageStageFailed);
             return;
         }
         if (!m_outgoingMessageService->lastError().isEmpty()) {
@@ -2079,7 +2084,9 @@ void ChatWindow::onSendMessage() {
     }
 
     if (m_currentRoomId < 0) {
-        QMessageBox::information(this, "提示", "请先加入一个聊天室");
+        QMessageBox::information(
+            this, copy.mainMessageRoomRequiredTitle,
+            copy.mainMessageRoomRequired);
         return;
     }
 
@@ -2089,7 +2096,7 @@ void ChatWindow::onSendMessage() {
             m_username, target, m_username, m_displayName, text, Message::Text,
             m_conversationSyncService->cursor(
                 roomConversation(m_currentRoomId)), &send)) {
-        m_statusLabel->setText(QStringLiteral("无法准备发送消息"));
+        m_statusLabel->setText(copy.mainMessageStageFailed);
         return;
     }
     if (!m_outgoingMessageService->lastError().isEmpty()) {
@@ -2158,13 +2165,17 @@ void ChatWindow::onSystemMessage(const QJsonObject &msg) {
 }
 
 void ChatWindow::onHistoryReceived(const QJsonObject &data) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     const auto page = V1HistoryPageAdapter::parseRoom(data, m_username);
     if (!page.valid) {
         qWarning().noquote() << QStringLiteral(
             "[Sync] operation=parse-room-history outcome=rejected code=%1 detail=%2")
             .arg(page.errorCode, page.error);
-        m_statusLabel->setText(page.error.isEmpty()
-            ? QStringLiteral("聊天记录同步失败") : page.error);
+        const QString serverError = data.contains("success")
+                && !data["success"].toBool()
+            ? data["error"].toString() : QString();
+        m_statusLabel->setText(serverError.isEmpty()
+            ? copy.mainMessageRoomHistorySyncFailed : serverError);
         return;
     }
     const int roomId = page.roomId;
@@ -2191,7 +2202,7 @@ void ChatWindow::onHistoryReceived(const QJsonObject &data) {
         qWarning().noquote() << QStringLiteral(
             "[Sync] operation=advance-room-history outcome=stopped roomId=%1 detail=%2")
             .arg(roomId).arg(m_conversationSyncService->lastError());
-        m_statusLabel->setText(QStringLiteral("聊天记录续传已停止，可重新进入会话重试"));
+        m_statusLabel->setText(copy.mainMessageRoomHistoryResumeStopped);
     }
     persistRoomSnapshot(roomId);
     if (progress.requestNext) {
@@ -3246,7 +3257,10 @@ void ChatWindow::onRecallMessage() {
 
 void ChatWindow::onRecallResponse(bool success, int messageId, const QString &error) {
     if (!success) {
-        QMessageBox::warning(this, "撤回失败", error);
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        QMessageBox::warning(
+            this, copy.mainMessageRecallFailedTitle,
+            error.isEmpty() ? copy.mainMessageRecallFailed : error);
         return;
     }
     Q_UNUSED(messageId)
@@ -5772,13 +5786,17 @@ void ChatWindow::onFriendChatMessage(const QJsonObject &data) {
 }
 
 void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     const auto page = V1HistoryPageAdapter::parseDirect(data, m_username);
     if (!page.valid) {
         qWarning().noquote() << QStringLiteral(
             "[Sync] operation=parse-direct-history outcome=rejected code=%1 detail=%2")
             .arg(page.errorCode, page.error);
-        m_statusLabel->setText(page.error.isEmpty()
-            ? QStringLiteral("好友聊天记录同步失败") : page.error);
+        const QString serverError = data.contains("success")
+                && !data["success"].toBool()
+            ? data["error"].toString() : QString();
+        m_statusLabel->setText(serverError.isEmpty()
+            ? copy.mainMessageDirectHistorySyncFailed : serverError);
         return;
     }
     const QString friendUsername = page.peerUsername;
@@ -5803,7 +5821,7 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
         qWarning().noquote() << QStringLiteral(
             "[Sync] operation=advance-direct-history outcome=stopped peer=%1 detail=%2")
             .arg(friendUsername, m_conversationSyncService->lastError());
-        m_statusLabel->setText(QStringLiteral("好友记录续传已停止，可重新进入会话重试"));
+        m_statusLabel->setText(copy.mainMessageDirectHistoryResumeStopped);
     }
     persistFriendSnapshot(friendUsername);
     if (progress.requestNext) {
@@ -6089,7 +6107,10 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
 
 void ChatWindow::onFriendRecallResponse(bool success, int messageId, const QString &error) {
     if (!success) {
-        QMessageBox::warning(this, "撤回失败", error);
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        QMessageBox::warning(
+            this, copy.mainMessageRecallFailedTitle,
+            error.isEmpty() ? copy.mainMessageRecallFailed : error);
         return;
     }
     // 撤回成功，立即更新 UI

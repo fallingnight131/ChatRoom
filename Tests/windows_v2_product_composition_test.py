@@ -445,6 +445,91 @@ def main() -> int:
         raise AssertionError(
             "forwarding feedback must project through the active Windows catalog"
         )
+    outgoing_response_surface = window[
+        window.index("void ChatWindow::handleRoomSendResponse("):
+        window.index("void ChatWindow::dispatchOutgoing(")
+    ]
+    composer_send_surface = window[
+        window.index("void ChatWindow::onSendMessage("):
+        window.index("void ChatWindow::onChatMessage(")
+    ]
+    room_history_surface = window[
+        window.index("void ChatWindow::onHistoryReceived("):
+        window.index("// ==================== 用户列表")
+    ]
+    room_recall_surface = window[
+        window.index("void ChatWindow::onRecallResponse("):
+        window.index("void ChatWindow::onRecallNotify(")
+    ]
+    direct_history_surface = window[
+        window.index("void ChatWindow::onFriendHistoryReceived("):
+        window.index("void ChatWindow::onFriendFileNotify(")
+    ]
+    direct_recall_surface = window[
+        window.index("void ChatWindow::onFriendRecallResponse("):
+        window.index("void ChatWindow::onFriendRecallNotify(")
+    ]
+    require(outgoing_response_surface, (
+        "recordAccepted(",
+        "recordFailed(",
+        'data["error"].toString(copy.mainMessageRoomSendFailed)',
+        'data["error"].toString(copy.mainMessageDirectSendFailed)',
+        "advanceRoomSyncCursor(roomId, sequence)",
+        "advanceFriendSyncCursor(friendUsername, sequence)",
+    ), "Client/ChatWindow.cpp outgoing response surface")
+    require(composer_send_surface, (
+        "copy.mainMessageStageFailed",
+        "copy.mainMessageRoomRequiredTitle",
+        "copy.mainMessageRoomRequired",
+        "m_outgoingMessageService->stage(",
+        "dispatchOutgoing(send.command)",
+        "clearCurrentDraft()",
+    ), "Client/ChatWindow.cpp composer send surface")
+    for source, surface, expected in (
+        ("room history", room_history_surface, (
+            "copy.mainMessageRoomHistorySyncFailed",
+            "copy.mainMessageRoomHistoryResumeStopped",
+            'data["error"].toString()',
+            "m_conversationSyncService->applyPage(",
+            "progress.requestNext",
+        )),
+        ("direct history", direct_history_surface, (
+            "copy.mainMessageDirectHistorySyncFailed",
+            "copy.mainMessageDirectHistoryResumeStopped",
+            'data["error"].toString()',
+            "m_conversationSyncService->applyPage(",
+            "progress.requestNext",
+        )),
+    ):
+        require(surface, expected, f"Client/ChatWindow.cpp {source} surface")
+        if "m_statusLabel->setText(page.error" in surface:
+            raise AssertionError(
+                f"{source} must log local parser detail instead of exposing it as user copy"
+            )
+    for source, surface in (
+        ("room recall", room_recall_surface),
+        ("direct recall", direct_recall_surface),
+    ):
+        require(surface, (
+            "copy.mainMessageRecallFailedTitle",
+            "error.isEmpty() ? copy.mainMessageRecallFailed : error",
+        ), f"Client/ChatWindow.cpp {source} surface")
+    messaging_feedback = (
+        outgoing_response_surface + composer_send_surface + room_history_surface
+        + room_recall_surface + direct_history_surface + direct_recall_surface
+    )
+    if any(copy in messaging_feedback for copy in (
+        'QStringLiteral("消息发送失败")',
+        'QStringLiteral("好友消息发送失败")',
+        'QStringLiteral("无法准备发送消息")',
+        '"请先加入一个聊天室"',
+        'QStringLiteral("聊天记录同步失败")',
+        'QStringLiteral("好友聊天记录同步失败")',
+        '"撤回失败"',
+    )):
+        raise AssertionError(
+            "send, recall, and synchronization feedback must use the active catalog"
+        )
     require(message_delegate, (
         "WindowsAttachmentPresentation::unavailableText(",
         "WindowsMessagePresentation::timestampWithDelivery(",

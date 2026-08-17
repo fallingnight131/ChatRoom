@@ -189,6 +189,12 @@ message storage, server behavior, or the supported Web/Windows product scope.
   target sets, file IDs and the server target cap remain authoritative inputs;
   the compatibility byte cap is formatted by selected locale. Non-empty server
   failure detail remains opaque, with catalog copy used only when it is absent.
+- Localize optimistic room/direct send rejection, local staging failure, missing
+  room guidance, history synchronization stops and recall rejection. Stable
+  `clientMessageId`, accepted/failed delivery state, authoritative message ID,
+  per-conversation sequence and continuation cursor remain application data.
+  Non-empty server rejection detail stays opaque; local adapter diagnostics are
+  logged and use catalog fallback rather than becoming user-visible English.
 
 ## Consequences
 
@@ -338,3 +344,8 @@ database migration or protocol compatibility window is required.
   rejecting embedded result copy. Catalog tests bind partial and compatibility
   results in both languages; real mixed-version forwarding remains an endpoint
   integration gate.
+- messaging-feedback source composition locks stable optimistic acceptance /
+  failure transitions, idempotency IDs and monotonic room/direct continuation
+  calls while rejecting embedded send, recall and synchronization copy. Catalog
+  tests bind both languages, local parser detail remains diagnostic-only, and
+  non-empty server rejection detail remains verbatim.

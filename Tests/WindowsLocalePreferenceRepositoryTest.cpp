@@ -283,6 +283,22 @@ int main(int argc, char **argv) {
                 || WindowsMessagePresentation::recalledText(
                        WindowsLocale::EnUs, QStringLiteral("Alice"))
                     != QStringLiteral("Alice recalled a message")
+                || english.mainMessageRoomSendFailed
+                    != QStringLiteral("Message could not be sent")
+                || english.mainMessageDirectSendFailed
+                    != QStringLiteral("Direct message could not be sent")
+                || english.mainMessageStageFailed
+                    != QStringLiteral("Unable to prepare the message for sending")
+                || english.mainMessageRoomRequired
+                    != QStringLiteral("Join a room before sending a message")
+                || english.mainMessageRoomHistoryResumeStopped
+                    != QStringLiteral(
+                        "Room history synchronization stopped; reopen the conversation to retry")
+                || english.mainMessageDirectHistorySyncFailed
+                    != QStringLiteral(
+                        "Direct-message history could not be synchronized")
+                || english.mainMessageRecallFailed
+                    != QStringLiteral("The message could not be recalled")
                 || english.mainTransferPreparingUpload
                        .arg(QStringLiteral("report.pdf"), QStringLiteral("1.0 MB"))
                     != QStringLiteral("Preparing upload: report.pdf (1.0 MB)")
@@ -402,6 +418,13 @@ int main(int argc, char **argv) {
                        WindowsLocale::ZhCn, QStringLiteral("1.0 MB"),
                        WindowsMessageTransferState::Paused, 0.42, false)
                     != QStringLiteral("1.0 MB  已暂停 42%")
+                || chinese.mainMessageRoomSendFailed
+                    != QStringLiteral("消息发送失败")
+                || chinese.mainMessageDirectHistoryResumeStopped
+                    != QStringLiteral(
+                        "好友记录续传已停止，可重新进入会话重试")
+                || chinese.mainMessageRecallFailedTitle
+                    != QStringLiteral("撤回失败")
                 || chinese.mainTransferPreparingUpload
                        .arg(QStringLiteral("report.pdf"), QStringLiteral("1.0 MB"))
                     != QStringLiteral("准备上传：report.pdf（1.0 MB）")

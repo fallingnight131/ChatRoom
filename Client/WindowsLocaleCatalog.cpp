@@ -646,6 +646,19 @@ WindowsLocaleMessages createZhCn() {
     m.mainMessageClickToDownloadSuffix = QStringLiteral("  点击下载");
     m.mainMessageLoading = QStringLiteral("加载中...");
     m.mainMessageRecalled = QStringLiteral("%1 撤回了一条消息");
+    m.mainMessageRoomSendFailed = QStringLiteral("消息发送失败");
+    m.mainMessageDirectSendFailed = QStringLiteral("好友消息发送失败");
+    m.mainMessageStageFailed = QStringLiteral("无法准备发送消息");
+    m.mainMessageRoomRequiredTitle = QStringLiteral("提示");
+    m.mainMessageRoomRequired = QStringLiteral("请先加入一个聊天室");
+    m.mainMessageRoomHistorySyncFailed = QStringLiteral("聊天记录同步失败");
+    m.mainMessageRoomHistoryResumeStopped = QStringLiteral(
+        "聊天记录续传已停止，可重新进入会话重试");
+    m.mainMessageDirectHistorySyncFailed = QStringLiteral("好友聊天记录同步失败");
+    m.mainMessageDirectHistoryResumeStopped = QStringLiteral(
+        "好友记录续传已停止，可重新进入会话重试");
+    m.mainMessageRecallFailedTitle = QStringLiteral("撤回失败");
+    m.mainMessageRecallFailed = QStringLiteral("无法撤回该消息");
     m.mainTransferFileSendTitle = QStringLiteral("文件发送");
     m.mainTransferUploadFailedTitle = QStringLiteral("上传失败");
     m.mainTransferFileReadFailedTitle = QStringLiteral("无法读取文件");
@@ -1450,6 +1463,20 @@ WindowsLocaleMessages createEnUs() {
     m.mainMessageClickToDownloadSuffix = QStringLiteral("  Select to download");
     m.mainMessageLoading = QStringLiteral("Loading...");
     m.mainMessageRecalled = QStringLiteral("%1 recalled a message");
+    m.mainMessageRoomSendFailed = QStringLiteral("Message could not be sent");
+    m.mainMessageDirectSendFailed = QStringLiteral("Direct message could not be sent");
+    m.mainMessageStageFailed = QStringLiteral("Unable to prepare the message for sending");
+    m.mainMessageRoomRequiredTitle = QStringLiteral("Select a room");
+    m.mainMessageRoomRequired = QStringLiteral("Join a room before sending a message");
+    m.mainMessageRoomHistorySyncFailed = QStringLiteral("Room history could not be synchronized");
+    m.mainMessageRoomHistoryResumeStopped = QStringLiteral(
+        "Room history synchronization stopped; reopen the conversation to retry");
+    m.mainMessageDirectHistorySyncFailed = QStringLiteral(
+        "Direct-message history could not be synchronized");
+    m.mainMessageDirectHistoryResumeStopped = QStringLiteral(
+        "Direct-message history synchronization stopped; reopen the conversation to retry");
+    m.mainMessageRecallFailedTitle = QStringLiteral("Recall failed");
+    m.mainMessageRecallFailed = QStringLiteral("The message could not be recalled");
     m.mainTransferFileSendTitle = QStringLiteral("Send file");
     m.mainTransferUploadFailedTitle = QStringLiteral("Upload failed");
     m.mainTransferFileReadFailedTitle = QStringLiteral("Unable to read file");

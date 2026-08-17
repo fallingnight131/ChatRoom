@@ -631,6 +631,17 @@ struct WindowsLocaleMessages {
     QString mainMessageClickToDownloadSuffix;
     QString mainMessageLoading;
     QString mainMessageRecalled;
+    QString mainMessageRoomSendFailed;
+    QString mainMessageDirectSendFailed;
+    QString mainMessageStageFailed;
+    QString mainMessageRoomRequiredTitle;
+    QString mainMessageRoomRequired;
+    QString mainMessageRoomHistorySyncFailed;
+    QString mainMessageRoomHistoryResumeStopped;
+    QString mainMessageDirectHistorySyncFailed;
+    QString mainMessageDirectHistoryResumeStopped;
+    QString mainMessageRecallFailedTitle;
+    QString mainMessageRecallFailed;
     QString mainTransferFileSendTitle;
     QString mainTransferUploadFailedTitle;
     QString mainTransferFileReadFailedTitle;
