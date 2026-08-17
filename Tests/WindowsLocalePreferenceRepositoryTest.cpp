@@ -295,7 +295,17 @@ int main(int argc, char **argv) {
                        QStringLiteral("not found"))
                     != QStringLiteral("Download failed: not found")
                 || english.mainTransferPauseUpload
-                    != QStringLiteral("Pause upload")) {
+                    != QStringLiteral("Pause upload")
+                || english.pendingAttachmentStateFinalizing
+                    != QStringLiteral("Waiting for server confirmation")
+                || english.pendingAttachmentFailureSourceChanged
+                    != QStringLiteral("Source file changed")
+                || english.pendingAttachmentRow.arg(
+                       QStringLiteral("report.pdf"), QStringLiteral("Room 7"),
+                       QStringLiteral("Failed"))
+                    != QStringLiteral("report.pdf  ·  Room 7  ·  Failed")
+                || english.pendingAttachmentReplaceSource
+                    != QStringLiteral("Select source file again")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -379,6 +389,12 @@ int main(int argc, char **argv) {
                     != QStringLiteral("文件缓存失败：report.pdf")
                 || chinese.mainTransferDownloadFile
                     != QStringLiteral("下载文件")
+                || chinese.pendingAttachmentStateAuthorization
+                    != QStringLiteral("等待授权")
+                || chinese.pendingAttachmentFailureFinalizeTimeout
+                    != QStringLiteral("服务器确认超时")
+                || chinese.pendingAttachmentCancelConfirm
+                    != QStringLiteral("确定不再发送这个文件吗？")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

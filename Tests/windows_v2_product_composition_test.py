@@ -285,6 +285,45 @@ def main() -> int:
         raise AssertionError(
             "file-transfer control flow must not depend on localized status copy"
         )
+    pending_attachment_surface = window[
+        window.index("void ChatWindow::showPendingAttachments("):
+        window.index("#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE",
+                     window.index("void ChatWindow::showPendingAttachments("))
+    ]
+    require(pending_attachment_surface, (
+        "copy.pendingAttachmentStoreUnavailable",
+        'failureCode == QStringLiteral("SOURCE_UNAVAILABLE")',
+        'failureCode == QStringLiteral("SOURCE_CHANGED")',
+        'failureCode == QStringLiteral("FINALIZE_TIMEOUT")',
+        "const QString selectedId = list->currentItem()",
+        "command.clientMessageId == selectedId",
+        "copy.pendingAttachmentFailureDiagnostic.arg(",
+        "Qt::convertFromPlainText(tooltip)",
+        "activeQtLocale(m_windowsLocaleViewModel)",
+        "copy.pendingAttachmentRetryFailed",
+        "copy.pendingAttachmentReplaceFailed",
+        "&WindowsLocaleViewModel::changed",
+        "refreshPresentation();",
+    ), "Client/ChatWindow.cpp pending attachment surface")
+    if any(copy in pending_attachment_surface for copy in (
+        'QStringLiteral("\u5f85\u53d1\u9001\u6587\u4ef6")',
+        'QStringLiteral("\u7b49\u5f85\u6388\u6743")',
+        'QStringLiteral("\u7b49\u5f85\u670d\u52a1\u5668\u786e\u8ba4")',
+        'QStringLiteral("\u91cd\u65b0\u9009\u62e9\u6e90\u6587\u4ef6")',
+        "QMessageBox::warning(this, QStringLiteral",
+    )):
+        raise AssertionError(
+            "pending attachment tasks must project stable state through the locale catalog"
+        )
+    if any(exposure in pending_attachment_surface for exposure in (
+        "QMessageBox::warning(this, copy.pendingAttachmentRetryTitle,\n"
+        "                                 m_attachmentOutboxService->lastError())",
+        "QMessageBox::warning(this, copy.pendingAttachmentReplaceTitle,\n"
+        "                                 m_attachmentOutboxService->lastError())",
+    )):
+        raise AssertionError(
+            "repository diagnostics must not be exposed as pending-task user copy"
+        )
     require(message_delegate, (
         "WindowsAttachmentPresentation::unavailableText(",
         "WindowsMessagePresentation::timestampWithDelivery(",

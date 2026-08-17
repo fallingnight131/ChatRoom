@@ -47,6 +47,7 @@
 #include <QListWidget>
 #include <QTextEdit>
 #include <QTextCursor>
+#include <QTextDocument>
 #include <QPushButton>
 #include <QLabel>
 #include <QMenuBar>
@@ -101,6 +102,12 @@ static qint64 syncSequenceFrom(const QJsonObject &data) {
 static const WindowsLocaleMessages &activeWindowsCopy(
         const WindowsLocaleViewModel *viewModel) {
     return WindowsLocaleCatalog::messages(viewModel->locale());
+}
+
+static QLocale activeQtLocale(const WindowsLocaleViewModel *viewModel) {
+    return viewModel->locale() == WindowsLocale::EnUs
+        ? QLocale(QLocale::English, QLocale::UnitedStates)
+        : QLocale(QLocale::Chinese, QLocale::China);
 }
 
 namespace {
@@ -1960,7 +1967,8 @@ void ChatWindow::dispatchAttachment(
     m_statusLabel->setText(activeWindowsCopy(
         m_windowsLocaleViewModel).mainTransferPreparingUpload
         .arg(command.fileName)
-        .arg(QLocale().formattedDataSize(command.fileSize)));
+        .arg(activeQtLocale(m_windowsLocaleViewModel)
+                 .formattedDataSize(command.fileSize)));
 }
 
 void ChatWindow::failActiveAttachment(
@@ -4861,18 +4869,16 @@ void ChatWindow::onChangeCacheDir() {
 
 void ChatWindow::showPendingAttachments() {
     if (!m_localRepository) {
-        QMessageBox::information(this, QStringLiteral("待发送文件"),
-                                 QStringLiteral("本地任务存储当前不可用。"));
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        QMessageBox::information(this, copy.pendingAttachmentTitle,
+                                 copy.pendingAttachmentStoreUnavailable);
         return;
     }
 
     QDialog dialog(this);
-    dialog.setWindowTitle(QStringLiteral("待发送文件"));
     dialog.resize(620, 380);
     auto *layout = new QVBoxLayout(&dialog);
-    auto *description = new QLabel(QStringLiteral(
-        "可以重试失败任务、重新选择已变更的源文件，或取消任务。\n"
-        "恢复会重新申请授权并从 0 上传，但会保留原消息 ID。"));
+    auto *description = new QLabel(&dialog);
     description->setWordWrap(true);
     layout->addWidget(description);
     auto *list = new QListWidget(&dialog);
@@ -4885,38 +4891,63 @@ void ChatWindow::showPendingAttachments() {
             m_username, LocalConversationRepository::Kind::Direct));
         return commands;
     };
-    auto stateText = [](LocalConversationRepository::AttachmentState state) {
+    auto stateText = [this](LocalConversationRepository::AttachmentState state) {
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
         switch (state) {
         case LocalConversationRepository::AttachmentState::PendingAuthorization:
-            return QStringLiteral("等待授权");
+            return copy.pendingAttachmentStateAuthorization;
         case LocalConversationRepository::AttachmentState::Uploading:
-            return QStringLiteral("上传中");
+            return copy.pendingAttachmentStateUploading;
         case LocalConversationRepository::AttachmentState::Finalizing:
-            return QStringLiteral("等待服务器确认");
+            return copy.pendingAttachmentStateFinalizing;
         case LocalConversationRepository::AttachmentState::Failed:
-            return QStringLiteral("失败");
+            return copy.pendingAttachmentStateFailed;
         }
-        return QStringLiteral("未知");
+        return copy.pendingAttachmentStateUnknown;
     };
-    auto refresh = [list, allCommands, stateText] {
+    auto failureText = [this](const QString &failureCode) {
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        if (failureCode == QStringLiteral("SOURCE_UNAVAILABLE"))
+            return copy.pendingAttachmentFailureSourceUnavailable;
+        if (failureCode == QStringLiteral("SOURCE_CHANGED"))
+            return copy.pendingAttachmentFailureSourceChanged;
+        if (failureCode == QStringLiteral("FINALIZE_TIMEOUT"))
+            return copy.pendingAttachmentFailureFinalizeTimeout;
+        return copy.pendingAttachmentFailureSendFailed;
+    };
+    auto refresh = [this, list, allCommands, stateText, failureText] {
+        const QString selectedId = list->currentItem()
+            ? list->currentItem()->data(Qt::UserRole).toString() : QString();
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
         list->clear();
+        int selectedRow = -1;
         for (const auto &command : allCommands()) {
             const QString conversation = command.kind
                     == LocalConversationRepository::Kind::Room
-                ? QStringLiteral("房间 %1").arg(command.conversationKey)
-                : QStringLiteral("私聊 %1").arg(command.conversationKey);
-            QString label = QStringLiteral("%1  ·  %2  ·  %3")
-                .arg(command.fileName, conversation, stateText(command.state));
+                ? copy.pendingAttachmentRoom.arg(command.conversationKey)
+                : copy.pendingAttachmentDirect.arg(command.conversationKey);
+            QString label = copy.pendingAttachmentRow.arg(
+                command.fileName, conversation, stateText(command.state));
             if (!command.failureCode.isEmpty())
-                label += QStringLiteral("  (%1)").arg(command.failureCode);
+                label += QStringLiteral("  ·  %1").arg(
+                    failureText(command.failureCode));
             auto *item = new QListWidgetItem(label, list);
             item->setData(Qt::UserRole, command.clientMessageId);
             item->setData(Qt::UserRole + 1, static_cast<int>(command.kind));
             item->setData(Qt::UserRole + 2, command.conversationKey);
-            item->setToolTip(QStringLiteral("大小：%1")
-                .arg(QLocale().formattedDataSize(command.fileSize)));
+            QString tooltip = copy.pendingAttachmentSize.arg(
+                activeQtLocale(m_windowsLocaleViewModel)
+                    .formattedDataSize(command.fileSize));
+            if (!command.failureCode.isEmpty())
+                tooltip += QStringLiteral("\n")
+                    + copy.pendingAttachmentFailureDiagnostic.arg(
+                        command.failureCode);
+            item->setToolTip(Qt::convertFromPlainText(tooltip));
+            if (command.clientMessageId == selectedId)
+                selectedRow = list->count() - 1;
         }
-        if (list->count() > 0) list->setCurrentRow(0);
+        if (list->count() > 0)
+            list->setCurrentRow(selectedRow >= 0 ? selectedRow : 0);
     };
     auto selectedIdentity = [list](QString *clientMessageId,
                                    LocalConversationRepository::Kind *kind,
@@ -4967,10 +4998,10 @@ void ChatWindow::showPendingAttachments() {
     };
 
     auto *buttons = new QHBoxLayout;
-    auto *retryButton = new QPushButton(QStringLiteral("重试"), &dialog);
-    auto *replaceButton = new QPushButton(QStringLiteral("重新选择源文件"), &dialog);
-    auto *cancelButton = new QPushButton(QStringLiteral("取消任务"), &dialog);
-    auto *closeButton = new QPushButton(QStringLiteral("关闭"), &dialog);
+    auto *retryButton = new QPushButton(&dialog);
+    auto *replaceButton = new QPushButton(&dialog);
+    auto *cancelButton = new QPushButton(&dialog);
+    auto *closeButton = new QPushButton(&dialog);
     buttons->addWidget(retryButton);
     buttons->addWidget(replaceButton);
     buttons->addWidget(cancelButton);
@@ -4981,31 +5012,35 @@ void ChatWindow::showPendingAttachments() {
     connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
     connect(retryButton, &QPushButton::clicked, &dialog,
             [this, selectedIdentity, resolveTarget, refresh] {
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
         QString clientMessageId;
         QString conversationKey;
         LocalConversationRepository::Kind kind;
         if (!selectedIdentity(&clientMessageId, &kind, &conversationKey)) return;
         if (clientMessageId == m_upload.clientMessageId) {
-            QMessageBox::information(this, QStringLiteral("重试文件"),
-                                     QStringLiteral("该文件正在发送。"));
+            QMessageBox::information(this, copy.pendingAttachmentRetryTitle,
+                                     copy.pendingAttachmentAlreadySending);
             return;
         }
         if (!NetworkManager::instance()->isConnected()) {
-            QMessageBox::information(this, QStringLiteral("重试文件"),
-                                     QStringLiteral("连接恢复后才能重试。"));
+            QMessageBox::information(this, copy.pendingAttachmentRetryTitle,
+                                     copy.pendingAttachmentReconnectToRetry);
             return;
         }
         AttachmentOutboxService::Target target;
         if (!resolveTarget(kind, conversationKey, &target)) {
-            QMessageBox::warning(this, QStringLiteral("重试文件"),
-                                 QStringLiteral("当前没有该会话的发送权限。"));
+            QMessageBox::warning(this, copy.pendingAttachmentRetryTitle,
+                                 copy.pendingAttachmentPermissionDenied);
             return;
         }
         AttachmentOutboxService::Command command;
         if (!m_attachmentOutboxService->prepareRetry(
                 m_username, target, clientMessageId, &command)) {
-            QMessageBox::warning(this, QStringLiteral("重试文件"),
-                                 m_attachmentOutboxService->lastError());
+            qWarning().noquote() << QStringLiteral(
+                "[AttachmentOutbox] operation=manual-retry outcome=failed clientMessageId=%1 detail=%2")
+                .arg(clientMessageId, m_attachmentOutboxService->lastError());
+            QMessageBox::warning(this, copy.pendingAttachmentRetryTitle,
+                                 copy.pendingAttachmentRetryFailed);
             refresh();
             return;
         }
@@ -5014,17 +5049,18 @@ void ChatWindow::showPendingAttachments() {
     });
     connect(replaceButton, &QPushButton::clicked, &dialog,
             [this, selectedIdentity, resolveTarget, refresh] {
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
         QString clientMessageId;
         QString conversationKey;
         LocalConversationRepository::Kind kind;
         if (!selectedIdentity(&clientMessageId, &kind, &conversationKey)) return;
         if (clientMessageId == m_upload.clientMessageId) {
-            QMessageBox::information(this, QStringLiteral("重新选择"),
-                                     QStringLiteral("请先取消当前上传。"));
+            QMessageBox::information(this, copy.pendingAttachmentReplaceTitle,
+                                     copy.pendingAttachmentCancelCurrentFirst);
             return;
         }
         const QString path = QFileDialog::getOpenFileName(
-            this, QStringLiteral("重新选择源文件"));
+            this, copy.pendingAttachmentReplaceSource);
         if (path.isEmpty()) return;
         const qint64 size = QFileInfo(path).size();
         qint64 maximum = kind == LocalConversationRepository::Kind::Direct
@@ -5036,14 +5072,17 @@ void ChatWindow::showPendingAttachments() {
             if (ok && roomMaximum > 0) maximum = qMin(maximum, roomMaximum);
         }
         if (size <= 0 || size > maximum) {
-            QMessageBox::warning(this, QStringLiteral("重新选择"),
-                                 QStringLiteral("新文件为空或超过当前会话限制。"));
+            QMessageBox::warning(this, copy.pendingAttachmentReplaceTitle,
+                                 copy.pendingAttachmentReplacementInvalid);
             return;
         }
         if (!m_attachmentOutboxService->replaceSource(
                 m_username, clientMessageId, path)) {
-            QMessageBox::warning(this, QStringLiteral("重新选择"),
-                                 m_attachmentOutboxService->lastError());
+            qWarning().noquote() << QStringLiteral(
+                "[AttachmentOutbox] operation=replace-source outcome=failed clientMessageId=%1 detail=%2")
+                .arg(clientMessageId, m_attachmentOutboxService->lastError());
+            QMessageBox::warning(this, copy.pendingAttachmentReplaceTitle,
+                                 copy.pendingAttachmentReplaceFailed);
             return;
         }
         AttachmentOutboxService::Target target;
@@ -5058,6 +5097,7 @@ void ChatWindow::showPendingAttachments() {
     });
     connect(cancelButton, &QPushButton::clicked, &dialog,
             [this, selectedIdentity, refresh] {
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
         QString clientMessageId;
         QString conversationKey;
         LocalConversationRepository::Kind kind;
@@ -5065,8 +5105,8 @@ void ChatWindow::showPendingAttachments() {
         Q_UNUSED(kind)
         Q_UNUSED(conversationKey)
         if (QMessageBox::question(
-                this, QStringLiteral("取消文件任务"),
-                QStringLiteral("确定不再发送这个文件吗？"))
+                this, copy.pendingAttachmentCancelTitle,
+                copy.pendingAttachmentCancelConfirm)
             != QMessageBox::Yes) return;
         if (clientMessageId == m_upload.clientMessageId) {
             cancelUpload();
@@ -5081,7 +5121,25 @@ void ChatWindow::showPendingAttachments() {
         refresh();
     });
 
-    refresh();
+    auto refreshPresentation = [this, &dialog, description, list, retryButton,
+                                replaceButton, cancelButton, closeButton, refresh] {
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        dialog.setWindowTitle(copy.pendingAttachmentTitle);
+        dialog.setAccessibleName(copy.pendingAttachmentTitle);
+        description->setText(copy.pendingAttachmentDescription);
+        list->setAccessibleName(copy.pendingAttachmentListAccessible);
+        retryButton->setText(copy.pendingAttachmentRetry);
+        replaceButton->setText(copy.pendingAttachmentReplaceSource);
+        cancelButton->setText(copy.pendingAttachmentCancelTask);
+        closeButton->setText(copy.pendingAttachmentClose);
+        refresh();
+    };
+    connect(m_windowsLocaleViewModel, &WindowsLocaleViewModel::changed,
+            &dialog, [refreshPresentation] {
+        refreshPresentation();
+    });
+
+    refreshPresentation();
     dialog.exec();
 }
 

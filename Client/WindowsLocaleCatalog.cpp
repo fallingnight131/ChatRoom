@@ -690,6 +690,41 @@ WindowsLocaleMessages createZhCn() {
     m.mainTransferDownloadFile = QStringLiteral("下载文件");
     m.mainTransferFriendHttpUploading = QStringLiteral("正在通过 HTTP 上传好友文件…");
     m.mainTransferFriendSendRetryableFailure = QStringLiteral("好友文件发送失败，可稍后重试");
+    m.pendingAttachmentTitle = QStringLiteral("待发送文件");
+    m.pendingAttachmentStoreUnavailable = QStringLiteral("本地任务存储当前不可用。");
+    m.pendingAttachmentDescription = QStringLiteral(
+        "可以重试失败任务、重新选择已变更的源文件，或取消任务。\n"
+        "恢复会重新申请授权并从 0 上传，但会保留原消息 ID。");
+    m.pendingAttachmentListAccessible = QStringLiteral("可恢复的文件发送任务");
+    m.pendingAttachmentStateAuthorization = QStringLiteral("等待授权");
+    m.pendingAttachmentStateUploading = QStringLiteral("上传中");
+    m.pendingAttachmentStateFinalizing = QStringLiteral("等待服务器确认");
+    m.pendingAttachmentStateFailed = QStringLiteral("失败");
+    m.pendingAttachmentStateUnknown = QStringLiteral("未知");
+    m.pendingAttachmentRoom = QStringLiteral("房间 %1");
+    m.pendingAttachmentDirect = QStringLiteral("私聊 %1");
+    m.pendingAttachmentRow = QStringLiteral("%1  ·  %2  ·  %3");
+    m.pendingAttachmentSize = QStringLiteral("大小：%1");
+    m.pendingAttachmentFailureSourceUnavailable = QStringLiteral("源文件不可用");
+    m.pendingAttachmentFailureSourceChanged = QStringLiteral("源文件已变更");
+    m.pendingAttachmentFailureFinalizeTimeout = QStringLiteral("服务器确认超时");
+    m.pendingAttachmentFailureSendFailed = QStringLiteral("文件发送失败");
+    m.pendingAttachmentFailureDiagnostic = QStringLiteral("诊断代码：%1");
+    m.pendingAttachmentRetry = QStringLiteral("重试");
+    m.pendingAttachmentReplaceSource = QStringLiteral("重新选择源文件");
+    m.pendingAttachmentCancelTask = QStringLiteral("取消任务");
+    m.pendingAttachmentClose = QStringLiteral("关闭");
+    m.pendingAttachmentRetryTitle = QStringLiteral("重试文件");
+    m.pendingAttachmentAlreadySending = QStringLiteral("该文件正在发送。");
+    m.pendingAttachmentReconnectToRetry = QStringLiteral("连接恢复后才能重试。");
+    m.pendingAttachmentPermissionDenied = QStringLiteral("当前没有该会话的发送权限。");
+    m.pendingAttachmentRetryFailed = QStringLiteral("无法恢复该文件任务。");
+    m.pendingAttachmentReplaceTitle = QStringLiteral("重新选择");
+    m.pendingAttachmentCancelCurrentFirst = QStringLiteral("请先取消当前上传。");
+    m.pendingAttachmentReplacementInvalid = QStringLiteral("新文件为空或超过当前会话限制。");
+    m.pendingAttachmentReplaceFailed = QStringLiteral("无法替换该任务的源文件。");
+    m.pendingAttachmentCancelTitle = QStringLiteral("取消文件任务");
+    m.pendingAttachmentCancelConfirm = QStringLiteral("确定不再发送这个文件吗？");
     return m;
 }
 
@@ -1402,6 +1437,41 @@ WindowsLocaleMessages createEnUs() {
     m.mainTransferDownloadFile = QStringLiteral("Download file");
     m.mainTransferFriendHttpUploading = QStringLiteral("Uploading friend file over HTTP…");
     m.mainTransferFriendSendRetryableFailure = QStringLiteral("Friend file send failed; try again later");
+    m.pendingAttachmentTitle = QStringLiteral("Pending uploads");
+    m.pendingAttachmentStoreUnavailable = QStringLiteral("Local task storage is currently unavailable.");
+    m.pendingAttachmentDescription = QStringLiteral(
+        "Retry failed tasks, select a changed source file again, or cancel a task.\n"
+        "Recovery requests new authorization and uploads from zero while retaining the original message ID.");
+    m.pendingAttachmentListAccessible = QStringLiteral("Recoverable file send tasks");
+    m.pendingAttachmentStateAuthorization = QStringLiteral("Waiting for authorization");
+    m.pendingAttachmentStateUploading = QStringLiteral("Uploading");
+    m.pendingAttachmentStateFinalizing = QStringLiteral("Waiting for server confirmation");
+    m.pendingAttachmentStateFailed = QStringLiteral("Failed");
+    m.pendingAttachmentStateUnknown = QStringLiteral("Unknown");
+    m.pendingAttachmentRoom = QStringLiteral("Room %1");
+    m.pendingAttachmentDirect = QStringLiteral("Direct chat %1");
+    m.pendingAttachmentRow = QStringLiteral("%1  ·  %2  ·  %3");
+    m.pendingAttachmentSize = QStringLiteral("Size: %1");
+    m.pendingAttachmentFailureSourceUnavailable = QStringLiteral("Source file unavailable");
+    m.pendingAttachmentFailureSourceChanged = QStringLiteral("Source file changed");
+    m.pendingAttachmentFailureFinalizeTimeout = QStringLiteral("Server confirmation timed out");
+    m.pendingAttachmentFailureSendFailed = QStringLiteral("File send failed");
+    m.pendingAttachmentFailureDiagnostic = QStringLiteral("Diagnostic code: %1");
+    m.pendingAttachmentRetry = QStringLiteral("Retry");
+    m.pendingAttachmentReplaceSource = QStringLiteral("Select source file again");
+    m.pendingAttachmentCancelTask = QStringLiteral("Cancel task");
+    m.pendingAttachmentClose = QStringLiteral("Close");
+    m.pendingAttachmentRetryTitle = QStringLiteral("Retry file");
+    m.pendingAttachmentAlreadySending = QStringLiteral("This file is already being sent.");
+    m.pendingAttachmentReconnectToRetry = QStringLiteral("Reconnect before retrying.");
+    m.pendingAttachmentPermissionDenied = QStringLiteral("You no longer have permission to send to this conversation.");
+    m.pendingAttachmentRetryFailed = QStringLiteral("Unable to recover this file task.");
+    m.pendingAttachmentReplaceTitle = QStringLiteral("Select source again");
+    m.pendingAttachmentCancelCurrentFirst = QStringLiteral("Cancel the current upload first.");
+    m.pendingAttachmentReplacementInvalid = QStringLiteral("The new file is empty or exceeds this conversation's limit.");
+    m.pendingAttachmentReplaceFailed = QStringLiteral("Unable to replace this task's source file.");
+    m.pendingAttachmentCancelTitle = QStringLiteral("Cancel file task");
+    m.pendingAttachmentCancelConfirm = QStringLiteral("Stop sending this file?");
     return m;
 }
 

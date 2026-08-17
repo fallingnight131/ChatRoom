@@ -161,6 +161,12 @@ message storage, server behavior, or the supported Web/Windows product scope.
   repository diagnostics remain opaque data. Transfer control flow may not
   inspect localized status text, so completion feedback remains until another
   activity replaces it instead of using copy-sensitive delayed clearing.
+- Treat the pending-attachment manager as a live locale projection over stable
+  `clientMessageId`, conversation kind/key, attachment state and failure code.
+  Known local codes map to actionable copy; unknown bounded codes remain only
+  in an escaped diagnostic tooltip. Locale-driven list reconstruction retains
+  the selected message ID. Repository diagnostics stay in logs, while retry,
+  replacement, permission and cancellation behavior remains application-owned.
 
 ## Consequences
 
@@ -289,3 +295,7 @@ database migration or protocol compatibility window is required.
   failures and context actions in both languages. Source composition rejects
   embedded transfer copy and rejects status-text comparisons while stable
   outbox failure codes and opaque server detail remain unchanged.
+- pending-attachment source composition locks stable-code projection, selection
+  retention, live locale wiring and non-disclosure of repository diagnostics;
+  catalog tests bind state, failure and destructive-action terminology in both
+  languages. Native Windows keyboard/screen-reader interaction remains open.
