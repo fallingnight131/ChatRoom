@@ -754,6 +754,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                     ole32
                     uuid
                     gdi32
+                    user32
             )
 
             add_executable(

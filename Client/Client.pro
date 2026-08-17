@@ -155,4 +155,4 @@ RESOURCES += \
 
 RC_ICONS = resources/app_icon.ico
 
-win32: LIBS += -lole32 -luuid -lgdi32 -lwintrust -lcrypt32
+win32: LIBS += -lole32 -luuid -lgdi32 -luser32 -lwintrust -lcrypt32

@@ -125,6 +125,8 @@ ACL；POSIX 平台继续显式收紧 owner-only 权限，不依赖 Windows 上�
 `QFile::setPermissions()` 作为下载成功条件。
 失败或取消更新下载时会先销毁临时文件对象、释放 Windows 文件资源，
 再删除 `.part` 文件，避免暂存目录遗留不完整安装器。
+Windows 客户端的 qmake 与 CMake 产品目标都显式链接 `User32`，为视频缩略图
+截取使用的 `GetDC`/`ReleaseDC` 提供稳定的 Win32 链接依赖。
 
 ## 项目结构
 
