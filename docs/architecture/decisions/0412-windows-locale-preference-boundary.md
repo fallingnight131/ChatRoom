@@ -249,3 +249,5 @@ database migration or protocol compatibility window is required.
   active catalog at event time. Stable usernames remain command/cache keys,
   display names and server errors remain opaque, and removal confirmation plus
   the existing V1/cache-cleanup flow are unchanged.
+- leave-room confirmation and rejection feedback use the active catalog while
+  the stable room ID, V1 command and successful cache/model cleanup stay intact.

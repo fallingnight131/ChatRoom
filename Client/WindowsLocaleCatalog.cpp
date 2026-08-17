@@ -585,6 +585,9 @@ WindowsLocaleMessages createZhCn() {
     m.mainFriendRequestAcceptedByStatus = QStringLiteral("%1 已接受你的好友申请");
     m.mainFriendRemovedStatus = QStringLiteral("已删除好友 %1");
     m.mainFriendRemovedByStatus = QStringLiteral("%1 已将你从好友列表移除");
+    m.mainLeaveRoomTitle = QStringLiteral("退出聊天室");
+    m.mainLeaveRoomConfirm = QStringLiteral("确定要退出聊天室 %1 吗？");
+    m.mainLeaveRoomFailed = QStringLiteral("退出聊天室失败");
     return m;
 }
 
@@ -1191,6 +1194,9 @@ WindowsLocaleMessages createEnUs() {
     m.mainFriendRequestAcceptedByStatus = QStringLiteral("%1 accepted your friend request");
     m.mainFriendRemovedStatus = QStringLiteral("Removed friend %1");
     m.mainFriendRemovedByStatus = QStringLiteral("%1 removed you from their friends");
+    m.mainLeaveRoomTitle = QStringLiteral("Leave room");
+    m.mainLeaveRoomConfirm = QStringLiteral("Leave room %1?");
+    m.mainLeaveRoomFailed = QStringLiteral("Unable to leave room");
     return m;
 }
 

@@ -2125,6 +2125,9 @@ time: context actions and removal confirmation, request submission/receipt,
 acceptance and removal notifications all preserve opaque account/display
 identity and server failure detail. Empty display names fall back to the stable
 username; the existing V1 commands and local conversation cleanup are unchanged.
+The Windows leave-room edge now uses the catalog for confirmation and exposes
+an explicit localized rejection status. Stable room ID dispatch and the
+successful local model/cache cleanup sequence are unchanged.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

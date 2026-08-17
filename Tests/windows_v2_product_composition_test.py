@@ -216,6 +216,8 @@ def main() -> int:
         "copy.mainFriendRequestNotificationBody.arg(identity)",
         "copy.mainFriendRequestAcceptedByStatus.arg(identity)",
         "copy.mainFriendRemovedByStatus.arg(identity)",
+        "copy.mainLeaveRoomConfirm.arg(roomName)",
+        "m_statusLabel->setText(copy.mainLeaveRoomFailed)",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -355,6 +357,12 @@ def main() -> int:
             raise AssertionError(
                 "friend lifecycle must not embed localized presentation copy"
             )
+    leave_room_surface = window[
+        window.index("void ChatWindow::leaveRoom("):
+        window.index("// ==================== 用户列表辅助方法")
+    ]
+    if "退出聊天室" in leave_room_surface:
+        raise AssertionError("leave-room flow must use catalog presentation copy")
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

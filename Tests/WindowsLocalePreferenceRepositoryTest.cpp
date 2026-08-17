@@ -214,7 +214,12 @@ int main(int argc, char **argv) {
                 || english.mainFriendRequestAcceptedByStatus
                     != QStringLiteral("%1 accepted your friend request")
                 || english.mainFriendRemovedByStatus
-                    != QStringLiteral("%1 removed you from their friends")) {
+                    != QStringLiteral("%1 removed you from their friends")
+                || english.mainLeaveRoomTitle != QStringLiteral("Leave room")
+                || english.mainLeaveRoomConfirm
+                    != QStringLiteral("Leave room %1?")
+                || english.mainLeaveRoomFailed
+                    != QStringLiteral("Unable to leave room")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -257,6 +262,8 @@ int main(int argc, char **argv) {
                     != QStringLiteral("确定要删除好友 %1 吗？")
                 || chinese.mainFriendRequestSentStatus
                     != QStringLiteral("好友申请已发送")
+                || chinese.mainLeaveRoomTitle
+                    != QStringLiteral("退出聊天室")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

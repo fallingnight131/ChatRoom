@@ -578,6 +578,9 @@ struct WindowsLocaleMessages {
     QString mainFriendRequestAcceptedByStatus;
     QString mainFriendRemovedStatus;
     QString mainFriendRemovedByStatus;
+    QString mainLeaveRoomTitle;
+    QString mainLeaveRoomConfirm;
+    QString mainLeaveRoomFailed;
 };
 
 class WindowsLocaleCatalog final {

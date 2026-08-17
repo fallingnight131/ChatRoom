@@ -3868,8 +3868,10 @@ void ChatWindow::leaveRoom(int roomId) {
         }
     }
 
-    if (QMessageBox::question(this, "退出聊天室",
-            QString("确定要退出聊天室 %1 吗？").arg(roomName))
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    if (QMessageBox::question(this, copy.mainLeaveRoomTitle,
+            copy.mainLeaveRoomConfirm.arg(roomName))
         != QMessageBox::Yes) return;
 
     NetworkManager::instance()->sendMessage(Protocol::makeLeaveRoom(roomId));
@@ -3915,6 +3917,10 @@ void ChatWindow::onLeaveRoomResponse(bool success, int roomId) {
                 m_messageView->setModel(nullptr);
             }
         }
+    } else {
+        const auto &copy = WindowsLocaleCatalog::messages(
+            m_windowsLocaleViewModel->locale());
+        m_statusLabel->setText(copy.mainLeaveRoomFailed);
     }
 }
 

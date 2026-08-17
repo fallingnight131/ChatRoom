@@ -3318,6 +3318,9 @@ acceptance and removal feedback must resolve from the active locale without
 turning account/display identity or server errors into catalog keys. Native
 Windows context-menu, confirmation, tray and screen-reader behavior remains
 release evidence to collect.
+The same source/catalog gate locks leave-room confirmation and the previously
+silent negative response while preserving stable room-ID dispatch and success
+cleanup. Native Windows modal focus and keyboard behavior remain release evidence.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live
