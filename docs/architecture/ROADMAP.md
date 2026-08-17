@@ -2411,7 +2411,7 @@ Candidate slices:
     - [x] Add an injected AES-256-GCM/HMAC-SHA256 protection adapter with
       account/install/purpose AAD, fresh nonces, separate endpoint lookup key,
       authenticated decryption, and old encryption key-ID resolution.
-    - [ ] Add production key-custody configuration plus lookup/encryption-key
+    - [x] Add production key-custody configuration plus lookup/encryption-key
       rotation, backup/restore, and erasure composition/rehearsal.
       - [x] Add strict mounted-file custody with one active and multiple prior
         encryption key IDs, a cryptographically separate lookup key, POSIX
@@ -2419,7 +2419,7 @@ Candidate slices:
         closed-state refusal (ADR-0411).
       - [x] Compose path-only runtime key-ring configuration and close custody
         after the product listener/workers stop.
-      - [ ] Rehearse encryption-key rollover, lookup-tag rewrite,
+      - [x] Rehearse encryption-key rollover, lookup-tag rewrite,
         backup/restore, and account erasure.
         - [x] Add an offline, row-capped, whole-table PostgreSQL rewrite that
           authenticates with source custody, re-protects encryption and lookup
@@ -2429,8 +2429,11 @@ Candidate slices:
           target mounted-file custody, schema validation, row ceiling, exact
           gateway-stopped/backup/destructive confirmations, redacted report,
           and deterministic custody cleanup.
-        - [ ] Rehearse database backup, restore, forward rotation, rollback, and
-          old-key retirement with real mounted keys.
+        - [x] Rehearse custom-format database backup, isolated restore rollback,
+          restored-copy forward rotation, source-key refusal, old-file
+          retirement, and account erasure with real mounted keys in disposable
+          PostgreSQL; retain production durability/RTO and traffic-drain proof
+          as deployment evidence rather than repository completion evidence.
     - [x] Produce the outbox only under an explicit enabled policy in the
       new-message transaction; prove default-off behavior, stable message
       identity, mention metadata, idempotent replay, 24-hour expiry, and atomic

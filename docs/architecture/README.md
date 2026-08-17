@@ -2009,8 +2009,12 @@ deletion cascade. The offline `migration-cli` now composes real source and
 target mounted-file custodies only after exact gateway-stopped, restorable-backup
 and destructive-command confirmations; it validates schema and bounded inputs,
 prints no credential/path data, and closes both custodies. Those confirmations
-are operator assertions: database backup/restore and full forward/reverse/key-
-retirement rehearsal remain open.
+are operator assertions. The disposable PostgreSQL gate independently executes
+a custom-format `pg_dump`, forward rotation, isolated `pg_restore` rollback,
+source-key read, restored-copy forward rotation, target-only read/source-key
+refusal, old-file deletion, and account-erasure cascade. This closes the local
+procedure rehearsal; production backup durability/RTO, traffic drain, and
+external custody audit remain deployment release evidence.
 The detached subscription mutation use case now consumes an account-free,
 zeroable request and binds identity only from its authenticated caller. Its exact
 default-off policy and account/install/action admission boundary run before

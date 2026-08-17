@@ -50,6 +50,8 @@ def main() -> int:
     initdb = required_command("initdb")
     pg_ctl = required_command("pg_ctl")
     createdb = required_command("createdb")
+    pg_dump = required_command("pg_dump")
+    pg_restore = required_command("pg_restore")
     wrapper = BACKEND / ("gradlew.bat" if os.name == "nt" else "gradlew")
     if not wrapper.is_file():
         raise RuntimeError(f"Gradle wrapper not found: {wrapper}")
@@ -105,6 +107,10 @@ def main() -> int:
                     f"jdbc:postgresql://127.0.0.1:{port}/{TEST_DATABASE}",
                 "CHATROOM_TEST_POSTGRES_USER": TEST_USER,
                 "CHATROOM_TEST_POSTGRES_PASSWORD": "",
+                "CHATROOM_TEST_POSTGRES_ADMIN_URL":
+                    f"jdbc:postgresql://127.0.0.1:{port}/postgres",
+                "CHATROOM_TEST_PG_DUMP": pg_dump,
+                "CHATROOM_TEST_PG_RESTORE": pg_restore,
             })
             run([
                 str(wrapper),

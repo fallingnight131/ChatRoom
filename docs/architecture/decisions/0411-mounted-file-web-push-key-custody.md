@@ -63,8 +63,10 @@ target mounted custodies after exact gateway-stopped, restorable-backup, and
 destructive-command confirmations, validates the schema and row ceiling, emits
 only identity-free counts/key IDs, and closes both rings. These values are
 operator assertions: the command does not itself stop the gateway,
-provision/delete keys, take a database backup, or prove restore readiness, so a
-backup/restore rehearsal remains required.
+provision/delete keys, take a database backup, or prove production restore
+readiness. The disposable PostgreSQL gate owns a separate local backup/restore
+and retirement rehearsal; production durability/RTO remains deployment
+evidence.
 
 ## Verification and rollback
 
@@ -85,8 +87,12 @@ backup/restore rehearsal remains required.
 - The same disposable database runs the operator command with real strict-
   permission source/target key files, decrypts the result only through target
   custody, and asserts that stdout contains no endpoint or key-directory path.
+- The PostgreSQL gate takes a real custom-format pre-rotation dump, rotates the
+  original, restores into an isolated database as rollback, proves source-key
+  readability, rotates the restored copy forward, proves target-only read and
+  source-key refusal, deletes old key files, and proves account-erasure cascade.
 - Rollback removes runtime references before removing this additive adapter.
   Before target-key activation, rollback keeps the source custody mounted and
   leaves existing ciphertext untouched. After a successful rewrite, rollback
-  requires a rehearsed database restore or a reverse rewrite while both key
-  sets remain available.
+  selects the rehearsed database restore while both key sets remain available;
+  deployment must set its own recovery window and durability/RTO gate.

@@ -3315,8 +3315,8 @@ boundary serially after repository tests. Operator procedure and stop conditions
 `docs/deployment/V1_IDENTITY_IMPORT_RUNBOOK.md`.
 
 Run the V2 PostgreSQL migration gate with local PostgreSQL server tools
-(`initdb`, `pg_ctl`, and `createdb`) available either on `PATH` or through
-`pg_config --bindir`:
+(`initdb`, `pg_ctl`, `createdb`, `pg_dump`, and `pg_restore`) available either
+on `PATH` or through `pg_config --bindir`:
 
 ```bash
 python3 tools/verify_m0.py --postgres
@@ -3330,6 +3330,17 @@ device reuse, digest-only session tokens, and revoked/disabled denial. It never
 reads or modifies a developer or production database. CI runs the same gate
 using the PostgreSQL tools bundled
 with the Ubuntu runner.
+The gate also performs the ADR-0411 Web Push key-rotation rehearsal against that
+disposable cluster: seed with real source mounted keys, take a custom-format
+`pg_dump`, rotate the original database, restore the pre-rotation backup into a
+separate database, prove source-key rollback readability, rotate the restored
+copy forward, prove target-only readability and source-key refusal, delete the
+old key files, and prove account deletion removes the remaining ciphertext.
+JUnit report `WebPushKeyRotationBackupRestorePostgresTest` must show one executed
+test with zero skips; a green suite with that test skipped is not rehearsal
+evidence. This local gate proves the procedure and compatibility of the tools,
+not production backup durability, recovery time, gateway traffic drain, or
+external secret-provider audit.
 V044 additionally verifies immutable reply-reference creation from a live
 same-conversation target, exact duplicate replay, changed-target conflict,
 missing-target denial, and authoritative history projection (ADR-0329).
