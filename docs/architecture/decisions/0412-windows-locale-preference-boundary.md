@@ -167,6 +167,12 @@ message storage, server behavior, or the supported Web/Windows product scope.
   in an escaped diagnostic tooltip. Locale-driven list reconstruction retains
   the selected message ID. Repository diagnostics stay in logs, while retry,
   replacement, permission and cancellation behavior remains application-owned.
+- Localize cache-directory selection and account-cache clearing as one safety
+  surface. Account identity and filesystem paths remain opaque; media sizes use
+  the selected locale. Confirmation must continue to state that drafts and
+  sending/failed outbox messages survive. Local history is cleared before disk
+  media and then repaired through the existing room/direct resume paths; a
+  storage failure logs diagnostic detail and stops before in-memory cleanup.
 
 ## Consequences
 
@@ -299,3 +305,7 @@ database migration or protocol compatibility window is required.
   retention, live locale wiring and non-disclosure of repository diagnostics;
   catalog tests bind state, failure and destructive-action terminology in both
   languages. Native Windows keyboard/screen-reader interaction remains open.
+- cache source composition locks catalog projection, selected-locale data-size
+  formatting, local-store-first failure handling and both resume paths. Catalog
+  tests bind the outbox-retention warning and completion wording in both
+  languages; native Windows destructive-dialog interaction remains open.

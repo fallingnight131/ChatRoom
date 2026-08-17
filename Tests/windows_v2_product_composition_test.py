@@ -324,6 +324,29 @@ def main() -> int:
         raise AssertionError(
             "repository diagnostics must not be exposed as pending-task user copy"
         )
+    cache_surface = window[
+        window.index("void ChatWindow::onChangeCacheDir("):
+        window.index("// ==================== 好友系统")
+    ]
+    require(cache_surface, (
+        "copy.cacheChooseDirectory",
+        "copy.cacheDirectoryChanged.arg(newDir)",
+        "copy.cacheClearPrompt.arg(m_username, sizeText)",
+        "activeQtLocale(",
+        "copy.cacheClearFailed",
+        "copy.cacheCleared.arg(sizeText)",
+        "m_conversationSyncService->clearCachedMessages()",
+        "requestCurrentRoomResume();",
+        "requestCurrentFriendResume();",
+    ), "Client/ChatWindow.cpp cache management surface")
+    if any(copy in cache_surface for copy in (
+        '"\u9009\u62e9\u7f13\u5b58\u76ee\u5f55"', '"\u6e05\u9664\u7f13\u5b58"',
+        'QString("\u5f53\u524d\u8d26\u53f7', 'QStringLiteral("\u6e05\u9664\u7f13\u5b58\u5931\u8d25")',
+        'QString("\u5df2\u6e05\u9664\u672c\u5730\u6d88\u606f',
+    )):
+        raise AssertionError(
+            "cache management must project copy and data sizes from the active locale"
+        )
     require(message_delegate, (
         "WindowsAttachmentPresentation::unavailableText(",
         "WindowsMessagePresentation::timestampWithDelivery(",

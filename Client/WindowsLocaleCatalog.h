@@ -708,6 +708,13 @@ struct WindowsLocaleMessages {
     QString pendingAttachmentReplaceFailed;
     QString pendingAttachmentCancelTitle;
     QString pendingAttachmentCancelConfirm;
+    QString cacheChooseDirectory;
+    QString cacheDirectoryChanged;
+    QString cacheClearTitle;
+    QString cacheClearPrompt;
+    QString cacheClearFailedTitle;
+    QString cacheClearFailed;
+    QString cacheCleared;
 };
 
 class WindowsLocaleCatalog final {

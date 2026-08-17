@@ -305,7 +305,13 @@ int main(int argc, char **argv) {
                        QStringLiteral("Failed"))
                     != QStringLiteral("report.pdf  ·  Room 7  ·  Failed")
                 || english.pendingAttachmentReplaceSource
-                    != QStringLiteral("Select source file again")) {
+                    != QStringLiteral("Select source file again")
+                || english.cacheDirectoryChanged.arg(QStringLiteral("C:/Cache"))
+                    != QStringLiteral("Cache directory changed to: C:/Cache")
+                || !english.cacheClearPrompt.contains(
+                       QStringLiteral("Drafts and messages that are sending or failed to send are retained."))
+                || english.cacheCleared.arg(QStringLiteral("1.0 MB"))
+                    != QStringLiteral("Cleared local messages and 1.0 MB of media cache")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -395,6 +401,10 @@ int main(int argc, char **argv) {
                     != QStringLiteral("服务器确认超时")
                 || chinese.pendingAttachmentCancelConfirm
                     != QStringLiteral("确定不再发送这个文件吗？")
+                || chinese.cacheChooseDirectory
+                    != QStringLiteral("选择缓存目录")
+                || !chinese.cacheClearPrompt.contains(
+                       QStringLiteral("草稿、发送中和发送失败的消息不会被删除。"))
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

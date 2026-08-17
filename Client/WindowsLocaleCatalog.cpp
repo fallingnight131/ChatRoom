@@ -725,6 +725,18 @@ WindowsLocaleMessages createZhCn() {
     m.pendingAttachmentReplaceFailed = QStringLiteral("无法替换该任务的源文件。");
     m.pendingAttachmentCancelTitle = QStringLiteral("取消文件任务");
     m.pendingAttachmentCancelConfirm = QStringLiteral("确定不再发送这个文件吗？");
+    m.cacheChooseDirectory = QStringLiteral("选择缓存目录");
+    m.cacheDirectoryChanged = QStringLiteral("缓存目录已更改为：%1");
+    m.cacheClearTitle = QStringLiteral("清除缓存");
+    m.cacheClearPrompt = QStringLiteral(
+        "当前账号 [%1] 的媒体缓存为 %2\n\n"
+        "清除后将删除已下载的文件、图片和本地消息历史，\n"
+        "需要时会重新从服务器同步。\n"
+        "草稿、发送中和发送失败的消息不会被删除。\n\n"
+        "确定要清除缓存吗？");
+    m.cacheClearFailedTitle = QStringLiteral("清除缓存失败");
+    m.cacheClearFailed = QStringLiteral("本地消息缓存无法清除，请稍后重试。");
+    m.cacheCleared = QStringLiteral("已清除本地消息和 %1 媒体缓存");
     return m;
 }
 
@@ -1472,6 +1484,18 @@ WindowsLocaleMessages createEnUs() {
     m.pendingAttachmentReplaceFailed = QStringLiteral("Unable to replace this task's source file.");
     m.pendingAttachmentCancelTitle = QStringLiteral("Cancel file task");
     m.pendingAttachmentCancelConfirm = QStringLiteral("Stop sending this file?");
+    m.cacheChooseDirectory = QStringLiteral("Choose cache directory");
+    m.cacheDirectoryChanged = QStringLiteral("Cache directory changed to: %1");
+    m.cacheClearTitle = QStringLiteral("Clear cache");
+    m.cacheClearPrompt = QStringLiteral(
+        "Media cached for account [%1]: %2\n\n"
+        "Clearing removes downloaded files, images, and local message history.\n"
+        "They will be synchronized from the server again when needed.\n"
+        "Drafts and messages that are sending or failed to send are retained.\n\n"
+        "Clear the cache?");
+    m.cacheClearFailedTitle = QStringLiteral("Unable to clear cache");
+    m.cacheClearFailed = QStringLiteral("Local message cache could not be cleared; try again later.");
+    m.cacheCleared = QStringLiteral("Cleared local messages and %1 of media cache");
     return m;
 }
 
