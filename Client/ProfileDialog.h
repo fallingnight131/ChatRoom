@@ -16,6 +16,8 @@ public:
                            const QString &displayName, const QPixmap &avatar,
                            QWidget *parent = nullptr,
                            WindowsBandwidthViewModel *bandwidthViewModel = nullptr);
+    QCheckBox *lowBandwidthForTest() const { return m_lowBandwidth; }
+    QLabel *bandwidthStatusForTest() const { return m_bandwidthStatus; }
 
 signals:
     /// 用户请求更换头像（ChatWindow 触发文件选择流程）

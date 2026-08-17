@@ -55,3 +55,5 @@ code. Older clients ignore the harmless QSettings key.
   preference is disabled;
 - product composition distinguishes automatic avatar loading from explicit
   profile access and keeps message synchronization independent of the setting.
+- the offscreen profile Widget verifies accessible description, activation,
+  restart persistence, and UI rollback on an unwritable settings target.

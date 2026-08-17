@@ -1958,6 +1958,10 @@ login/list/search-result avatar requests pass through a coordinator; explicit
 profile access and upload-completion refresh remain available. A failed write
 restores the accepted checkbox value and exposes visible and accessible failure
 status. The V2 messaging controller remains independent of the preference.
+The real profile Widget is covered separately from the pure policy: its
+checkbox activation persists through a fresh settings instance, while an
+unwritable target restores the prior checked state and retains announced local
+failure text.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

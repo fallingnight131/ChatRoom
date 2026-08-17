@@ -2795,6 +2795,8 @@ Candidate slices:
       - [x] Compose the preference ViewModel into the Windows profile dialog,
         route avatar dispatch through the policy, retain explicit profile/upload
         refreshes, and restore plus announce failed preference writes.
+        - [x] Drive the real profile checkbox offscreen to prove accessible
+          description, restart persistence, and visible write-failure rollback.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

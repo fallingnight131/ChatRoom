@@ -426,6 +426,7 @@ def run_qt_client_unit_tests(jobs: int, build_root: Path) -> None:
         "V2WindowsForwardTargetDialogTest",
         "V2WindowsAccountBlockDialogTest",
         "V2WindowsConversationDialogTest",
+        "WindowsProfileBandwidthTest",
         "AttachmentOutboxServiceTest",
         "OutgoingMessageServiceTest",
         "ConversationSyncServiceTest",
