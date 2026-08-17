@@ -82,7 +82,14 @@ V2WindowsDeviceManagementTransport::V2WindowsDeviceManagementTransport(
     });
     connect(m_socket, &QWebSocket::disconnected,
             this, &V2WindowsDeviceManagementTransport::handleDisconnected);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     connect(m_socket, &QWebSocket::errorOccurred, this, [this] {
+#else
+    connect(m_socket,
+            static_cast<void (QWebSocket::*)(QAbstractSocket::SocketError)>(
+                &QWebSocket::error),
+            this, [this] {
+#endif
         emit failure(QStringLiteral("V2 连接发生错误"));
     });
 }

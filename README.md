@@ -106,6 +106,8 @@ Windows 原生 qmake 门禁会先通过 Visual Studio 开发者环境加载 x64 
 并确认 `nmake.exe` 可用，避免仅安装 Qt SDK 后因编译工具未进入 `PATH` 而失败。
 V2 Windows 消息编辑、失败重试和冲突变基路径保持显式控制流，Linux
 GCC 严格告警构建不会再把同一行中的条件语句误判为非预期执行分支。
+V2 Windows WebSocket 传输会按 Qt 版本选择连接错误信号，兼容 Ubuntu
+系统 Qt 6.4 与 Windows 产品 Qt 6.11。
 
 ## 项目结构
 
