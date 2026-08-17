@@ -198,6 +198,9 @@ struct WindowsLocaleMessages {
     QString accountBlockFailure;
     QString accountBlockDisconnectedRetry;
     QString accountBlockServiceReconnecting;
+    QString localeSaveFailed;
+    QString languageSelectorAccessible;
+    QString localePreferenceStatusAccessible;
 };
 
 class WindowsLocaleCatalog final {

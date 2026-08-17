@@ -181,6 +181,51 @@ V2WindowsMessagingPanel::~V2WindowsMessagingPanel() {
     flushDraft();
 }
 
+void V2WindowsMessagingPanel::setLocale(WindowsLocale locale) {
+    if (m_locale == locale) return;
+    m_locale = locale;
+    m_viewModel->setLocale(locale);
+    m_participantViewModel->setLocale(locale);
+    if (m_directoryViewModel) m_directoryViewModel->setLocale(locale);
+    if (m_searchViewModel) m_searchViewModel->setLocale(locale);
+    applyLocaleCopy();
+    render();
+    renderParticipants();
+    renderSearch();
+    reconcileComposer();
+}
+
+void V2WindowsMessagingPanel::applyLocaleCopy() {
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    setAccessibleName(copy.messagePanel);
+    m_status->setAccessibleName(copy.messageStatusAccessible);
+    m_searchButton->setText(copy.search);
+    m_searchLoadMore->setText(copy.loadMoreResults);
+    m_searchPane->setAccessibleName(copy.searchPaneAccessible);
+    m_searchInput->setAccessibleName(copy.searchInputAccessible);
+    m_searchInput->setPlaceholderText(copy.searchPlaceholder);
+    m_searchButton->setAccessibleName(copy.searchSubmitAccessible);
+    m_searchStatus->setAccessibleName(copy.searchStatusAccessible);
+    m_searchResults->setAccessibleName(copy.searchResultsAccessible);
+    m_searchLoadMore->setAccessibleName(copy.searchLoadMoreAccessible);
+    m_replyBanner->setAccessibleName(copy.replyTargetAccessible);
+    m_messages->setAccessibleName(copy.messageList);
+    m_composer->setAccessibleName(copy.composer);
+    m_composer->setPlaceholderText(copy.composerPlaceholder);
+    m_participantPane->setAccessibleName(copy.participantPaneAccessible);
+    m_participantStatus->setAccessibleName(copy.participantStatusAccessible);
+    m_participants->setAccessibleName(copy.participantListAccessible);
+    m_refreshParticipants->setText(copy.refreshParticipants);
+    m_loadMoreParticipants->setText(copy.loadMore);
+    m_closeParticipants->setText(copy.close);
+    m_refreshParticipants->setAccessibleName(copy.refreshParticipantsAccessible);
+    m_loadMoreParticipants->setAccessibleName(copy.loadMoreParticipantsAccessible);
+    m_closeParticipants->setAccessibleName(copy.closeParticipantsAccessible);
+    m_mention->setText(copy.mention);
+    m_mention->setAccessibleName(copy.mentionAccessible);
+    m_composerBudget->setAccessibleName(copy.composerBudgetAccessible);
+}
+
 bool V2WindowsMessagingPanel::eventFilter(QObject *watched, QEvent *event) {
     if (watched != m_composer || event->type() != QEvent::KeyPress)
         return QWidget::eventFilter(watched, event);

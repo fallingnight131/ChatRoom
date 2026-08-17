@@ -37,6 +37,7 @@ public:
                      const QString &clientOperationId);
     void applyFailure(const QString &clientOperationId, bool retryable);
     void setUnavailable();
+    void setLocale(WindowsLocale locale);
 
 signals:
     void changed();

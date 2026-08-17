@@ -106,6 +106,7 @@ public:
     void configureForwarding(StageForward stageForward);
     bool forwardMessage(const QString &sourceMessageId,
                         const QString &targetConversationId);
+    void setLocale(WindowsLocale locale);
 
 signals:
     void changed();

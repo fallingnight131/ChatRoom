@@ -83,6 +83,9 @@ def main() -> int:
         "accountBlockDirectoryViewModel()",
         "V2WindowsAccountBlockDirectoryDialog",
         "TrayManager::notificationActivated",
+        "WindowsLocalePreferenceRepository",
+        "WindowsLocaleViewModel",
+        "m_windowsLocaleViewModel->locale()",
     ), "Client/ChatWindow.cpp")
     require(controller, (
         "ReadyForAuthentication",
@@ -118,13 +121,13 @@ def main() -> int:
         "key->modifiers() == Qt::ControlModifier",
         "key->key() == Qt::Key_Escape",
         "V2LocalMessageRepository::MaxTextBytes",
-        'setAccessibleName(QStringLiteral("消息字节数"))',
-        'setAccessibleName(QStringLiteral("复制此消息正文"))',
+        "copy.composerBudgetAccessible",
+        "copy.copyMessageAccessible",
         "QGuiApplication::clipboard()",
         "m_mentionsEnabled && !m_conversationId.isEmpty()",
         "V2WindowsMentionComposer::serialize",
         'setProperty("mentionTargetAccountIds"',
-        'setAccessibleName(QStringLiteral("搜索当前会话消息"))',
+        "copy.searchInputAccessible",
         "V2WindowsMessageSearchViewModel::loadMore",
         "scrollToItem(item, QAbstractItemView::PositionAtCenter)",
     ), "Client/V2WindowsMessagingPanel.cpp")
@@ -132,6 +135,8 @@ def main() -> int:
         "V2WindowsAccountBlockDialog",
         "m_selectedConversationDirect",
         "m_accountBlock->setEnabled",
+        "m_localeViewModel->select(locale)",
+        "m_messagingPanel->setLocale(m_locale)",
     ), "Client/V2WindowsConversationDialog.cpp")
     require(block_directory_dialog, (
         "requestUnblock",

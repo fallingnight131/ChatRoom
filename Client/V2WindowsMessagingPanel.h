@@ -31,6 +31,7 @@ public:
         WindowsLocale locale = WindowsLocale::ZhCn);
     ~V2WindowsMessagingPanel() override;
     void setConversation(const QString &conversationId);
+    void setLocale(WindowsLocale locale);
     QPlainTextEdit *composerForTest() const { return m_composer; }
     QListWidget *messageListForTest() const { return m_messages; }
     QListWidget *participantListForTest() const { return m_participants; }
@@ -63,6 +64,7 @@ private:
     void flushDraft();
     void restoreDraft();
     void sendComposition();
+    void applyLocaleCopy();
     V2WindowsMessagingViewModel *m_viewModel;
     V2WindowsConversationParticipantViewModel *m_participantViewModel;
     V2WindowsConversationDirectoryViewModel *m_directoryViewModel;

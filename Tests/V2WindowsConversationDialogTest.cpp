@@ -4,13 +4,19 @@
 #include "V2WindowsConversationParticipantViewModel.h"
 #include "V2WindowsMessagingPanel.h"
 #include "V2WindowsMessagingViewModel.h"
+#include "WindowsLocalePreferenceRepository.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QApplication>
+#include <QComboBox>
 #include <QDebug>
 #include <QLabel>
 #include <QListWidget>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QSettings>
+#include <QTemporaryDir>
+#include <algorithm>
 
 namespace {
 bool check(bool condition, const QString &message) {
@@ -91,6 +97,48 @@ int main(int argc, char **argv) {
                 || !check(english.messagingPanelForTest()->composerBudgetForTest()->text()
                               .endsWith(QStringLiteral("bytes")),
                           QStringLiteral("English byte budget must be localized"))) return 1;
+    }
+
+    {
+        QTemporaryDir temporary;
+        if (!check(temporary.isValid(),
+                   QStringLiteral("locale preference directory must be available"))) return 1;
+        const QString path = temporary.filePath(QStringLiteral("ui.ini"));
+        QSettings settings(path, QSettings::IniFormat);
+        WindowsLocalePreferenceRepository repository(settings);
+        WindowsLocaleViewModel localeViewModel(&repository);
+        V2WindowsConversationDialog localized(
+            &directory, &messaging, &participants, nullptr, true, false,
+            nullptr, nullptr, WindowsLocale::ZhCn, &localeViewModel);
+        if (!check(!localized.localeSelectorForTest()->isHidden()
+                       && localized.localeSelectorForTest()->currentIndex() == 0,
+                   QStringLiteral("persisted locale selector must expose the current value")))
+            return 1;
+        localized.localeSelectorForTest()->setCurrentIndex(1);
+        app.processEvents();
+        localized.conversationListForTest()->setCurrentRow(0);
+        app.processEvents();
+        QSettings restarted(path, QSettings::IniFormat);
+        const auto localizedButtons = localized.findChildren<QPushButton *>(
+            QString(), Qt::FindChildrenRecursively);
+        const auto hasLocalizedButton = [&](const QString &text) {
+            return std::any_of(localizedButtons.cbegin(), localizedButtons.cend(),
+                [&](QPushButton *button) { return button->text() == text; });
+        };
+        if (!check(localized.windowTitle()
+                       == QStringLiteral("Conversations and replies (Preview)")
+                       && localized.messagingPanelForTest()->sendForTest()->text()
+                           == QStringLiteral("Send message")
+                       && hasLocalizedButton(QStringLiteral("Copy"))
+                       && hasLocalizedButton(QStringLiteral("Reply"))
+                       && localized.messagingPanelForTest()->participantListForTest()
+                              ->accessibleName()
+                           == QStringLiteral("Mentionable conversation members")
+                       && restarted.value(QStringLiteral("ui/locale")).toString()
+                           == QStringLiteral("en-US"),
+                   QStringLiteral("locale selection must persist and recompose")))
+            return 1;
+        openCalls = 0;
     }
 
     V2WindowsConversationDialog dialog(

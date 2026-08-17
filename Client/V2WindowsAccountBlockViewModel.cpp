@@ -136,6 +136,35 @@ void V2WindowsAccountBlockViewModel::setUnavailable() {
     emit changed();
 }
 
+void V2WindowsAccountBlockViewModel::setLocale(WindowsLocale locale) {
+    if (m_locale == locale) return;
+    m_locale = locale;
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    switch (m_state) {
+    case State::Unavailable:
+        m_statusText = m_actorAccountId.isEmpty()
+            ? copy.accountBlockServiceDisconnected
+            : (m_targetAccountId.isEmpty()
+                ? copy.accountBlockOpenDirect
+                : copy.accountBlockServiceReconnecting);
+        break;
+    case State::Unknown:
+        m_statusText = copy.accountBlockStateUnknown;
+        break;
+    case State::Pending:
+        m_statusText = m_operationBlocked
+            ? copy.accountBlocking : copy.accountUnblocking;
+        break;
+    case State::Applied:
+        m_statusText = m_blocked ? copy.accountBlocked : copy.accountUnblocked;
+        break;
+    case State::Failed:
+        m_statusText = copy.accountBlockFailure;
+        break;
+    }
+    emit changed();
+}
+
 void V2WindowsAccountBlockViewModel::resetTarget(const QString &status) {
     m_conversationId.clear();
     m_targetAccountId.clear();

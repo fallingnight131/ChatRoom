@@ -7,7 +7,9 @@
 #include "V2WindowsMessagingPanel.h"
 #include "V2WindowsMessagingViewModel.h"
 #include "V2WindowsMessageSearchViewModel.h"
+#include "WindowsLocaleViewModel.h"
 
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -18,6 +20,13 @@
 #include <QStringList>
 #include <QVBoxLayout>
 
+namespace {
+WindowsLocale resolvedLocale(
+        WindowsLocale fallback, const WindowsLocaleViewModel *viewModel) {
+    return viewModel ? viewModel->locale() : fallback;
+}
+}
+
 V2WindowsConversationDialog::V2WindowsConversationDialog(
         V2WindowsConversationDirectoryViewModel *directoryViewModel,
         V2WindowsMessagingViewModel *messagingViewModel,
@@ -25,19 +34,32 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
         QWidget *parent, bool mentionsEnabled, bool forwardingEnabled,
         V2WindowsMessageSearchViewModel *searchViewModel,
         V2WindowsAccountBlockViewModel *accountBlockViewModel,
-        WindowsLocale locale)
+        WindowsLocale locale, WindowsLocaleViewModel *localeViewModel)
     : QDialog(parent), m_directoryViewModel(directoryViewModel),
       m_participantViewModel(participantViewModel),
+      m_messagingViewModel(messagingViewModel), m_searchViewModel(searchViewModel),
       m_accountBlockViewModel(accountBlockViewModel),
+      m_localeViewModel(localeViewModel), m_localeLabel(new QLabel(this)),
+      m_localeSelector(new QComboBox(this)), m_localeStatus(new QLabel(this)),
+      m_directoryTitle(new QLabel(this)),
       m_directoryStatus(new QLabel(this)), m_conversationTitle(new QLabel(this)),
       m_conversations(new QListWidget(this)),
-      m_refresh(new QPushButton(WindowsLocaleCatalog::messages(locale).refresh, this)),
-      m_loadMore(new QPushButton(WindowsLocaleCatalog::messages(locale).loadMore, this)),
-      m_accountBlock(new QPushButton(WindowsLocaleCatalog::messages(locale).accountBlock, this)),
+      m_refresh(new QPushButton(
+          WindowsLocaleCatalog::messages(resolvedLocale(locale, localeViewModel)).refresh,
+          this)),
+      m_loadMore(new QPushButton(
+          WindowsLocaleCatalog::messages(resolvedLocale(locale, localeViewModel)).loadMore,
+          this)),
+      m_accountBlock(new QPushButton(
+          WindowsLocaleCatalog::messages(resolvedLocale(locale, localeViewModel)).accountBlock,
+          this)),
       m_messagingPanel(new V2WindowsMessagingPanel(
           messagingViewModel, participantViewModel, this, mentionsEnabled,
-          directoryViewModel, forwardingEnabled, searchViewModel, locale)),
-      m_locale(locale) {
+          directoryViewModel, forwardingEnabled, searchViewModel,
+          resolvedLocale(locale, localeViewModel))),
+      m_splitter(new QSplitter(Qt::Horizontal, this)),
+      m_closeButtons(new QDialogButtonBox(QDialogButtonBox::Close, this)),
+      m_locale(resolvedLocale(locale, localeViewModel)) {
     Q_ASSERT(m_directoryViewModel);
     Q_ASSERT(messagingViewModel);
     Q_ASSERT(participantViewModel);
@@ -46,8 +68,8 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
     setAccessibleName(copy.previewWindowAccessible);
     setMinimumSize(900, 600);
 
-    auto *directoryTitle = new QLabel(copy.conversationDirectory, this);
-    directoryTitle->setAccessibleName(copy.conversationDirectoryAccessible);
+    m_directoryTitle->setText(copy.conversationDirectory);
+    m_directoryTitle->setAccessibleName(copy.conversationDirectoryAccessible);
     m_directoryStatus->setAccessibleName(copy.conversationDirectoryStatusAccessible);
     m_directoryStatus->setWordWrap(true);
     m_conversations->setAccessibleName(copy.conversationListAccessible);
@@ -66,7 +88,7 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
     directoryButtons->addWidget(m_loadMore);
     auto *directoryPane = new QWidget(this);
     auto *directoryLayout = new QVBoxLayout(directoryPane);
-    directoryLayout->addWidget(directoryTitle);
+    directoryLayout->addWidget(m_directoryTitle);
     directoryLayout->addWidget(m_directoryStatus);
     directoryLayout->addWidget(m_conversations, 1);
     directoryLayout->addLayout(directoryButtons);
@@ -79,19 +101,31 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
     messageLayout->addLayout(messageHeader);
     messageLayout->addWidget(m_messagingPanel, 1);
 
-    auto *splitter = new QSplitter(Qt::Horizontal, this);
-    splitter->setAccessibleName(copy.conversationSplitterAccessible);
-    splitter->addWidget(directoryPane);
-    splitter->addWidget(messagePane);
-    splitter->setStretchFactor(0, 1);
-    splitter->setStretchFactor(1, 3);
+    m_splitter->setAccessibleName(copy.conversationSplitterAccessible);
+    m_splitter->addWidget(directoryPane);
+    m_splitter->addWidget(messagePane);
+    m_splitter->setStretchFactor(0, 1);
+    m_splitter->setStretchFactor(1, 3);
 
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
+    m_closeButtons->button(QDialogButtonBox::Close)->setText(copy.close);
+    m_localeSelector->addItem(copy.chinese, static_cast<int>(WindowsLocale::ZhCn));
+    m_localeSelector->addItem(copy.english, static_cast<int>(WindowsLocale::EnUs));
+    m_localeSelector->setAccessibleName(copy.languageSelectorAccessible);
+    m_localeStatus->setAccessibleName(copy.localePreferenceStatusAccessible);
+    m_localeStatus->setWordWrap(true);
+    auto *localeRow = new QHBoxLayout;
+    localeRow->addWidget(m_localeLabel);
+    localeRow->addWidget(m_localeSelector);
+    localeRow->addWidget(m_localeStatus, 1);
+    m_localeLabel->setVisible(m_localeViewModel != nullptr);
+    m_localeSelector->setVisible(m_localeViewModel != nullptr);
+    m_localeStatus->setVisible(m_localeViewModel != nullptr);
     auto *layout = new QVBoxLayout(this);
-    layout->addWidget(splitter, 1);
-    layout->addWidget(buttons);
+    layout->addLayout(localeRow);
+    layout->addWidget(m_splitter, 1);
+    layout->addWidget(m_closeButtons);
 
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(m_closeButtons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(m_refresh, &QPushButton::clicked,
             m_directoryViewModel, &V2WindowsConversationDirectoryViewModel::refresh);
     connect(m_loadMore, &QPushButton::clicked,
@@ -113,6 +147,58 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
         dialog.setConversation(m_selectedConversationId, true);
         dialog.exec();
     });
+    if (m_localeViewModel) {
+        connect(m_localeViewModel, &WindowsLocaleViewModel::changed,
+                this, &V2WindowsConversationDialog::applyLocale);
+        connect(m_localeSelector, qOverload<int>(&QComboBox::currentIndexChanged),
+                this, [this](int index) {
+                    const auto locale = static_cast<WindowsLocale>(
+                        m_localeSelector->itemData(index).toInt());
+                    m_localeViewModel->select(locale);
+                });
+    }
+    applyLocale();
+    renderDirectory();
+}
+
+void V2WindowsConversationDialog::applyLocale() {
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
+    m_directoryViewModel->setLocale(m_locale);
+    m_participantViewModel->setLocale(m_locale);
+    m_messagingViewModel->setLocale(m_locale);
+    if (m_searchViewModel) m_searchViewModel->setLocale(m_locale);
+    if (m_accountBlockViewModel) m_accountBlockViewModel->setLocale(m_locale);
+    m_messagingPanel->setLocale(m_locale);
+
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    setWindowTitle(copy.previewWindowTitle);
+    setAccessibleName(copy.previewWindowAccessible);
+    m_localeLabel->setText(copy.language);
+    m_localeSelector->setAccessibleName(copy.languageSelectorAccessible);
+    m_localeStatus->setAccessibleName(copy.localePreferenceStatusAccessible);
+    m_localeStatus->setText(m_localeViewModel ? m_localeViewModel->failure() : QString());
+    {
+        const QSignalBlocker blocker(m_localeSelector);
+        m_localeSelector->setItemText(0, copy.chinese);
+        m_localeSelector->setItemText(1, copy.english);
+        m_localeSelector->setCurrentIndex(
+            m_locale == WindowsLocale::EnUs ? 1 : 0);
+    }
+    m_directoryTitle->setText(copy.conversationDirectory);
+    m_directoryTitle->setAccessibleName(copy.conversationDirectoryAccessible);
+    m_directoryStatus->setAccessibleName(copy.conversationDirectoryStatusAccessible);
+    m_conversations->setAccessibleName(copy.conversationListAccessible);
+    m_refresh->setText(copy.refresh);
+    m_refresh->setAccessibleName(copy.refreshConversationsAccessible);
+    m_loadMore->setText(copy.loadMore);
+    m_loadMore->setAccessibleName(copy.loadMoreConversationsAccessible);
+    m_conversationTitle->setAccessibleName(copy.currentConversationAccessible);
+    if (m_selectedConversationId.isEmpty())
+        m_conversationTitle->setText(copy.selectConversation);
+    m_accountBlock->setText(copy.accountBlock);
+    m_accountBlock->setAccessibleName(copy.accountBlockAccessible);
+    m_splitter->setAccessibleName(copy.conversationSplitterAccessible);
+    m_closeButtons->button(QDialogButtonBox::Close)->setText(copy.close);
     renderDirectory();
 }
 

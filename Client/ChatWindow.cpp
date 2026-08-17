@@ -28,6 +28,8 @@
 #include "V2WindowsAccountBlockDirectoryViewModel.h"
 #include "WindowsDeviceManagementController.h"
 #include "WindowsMessageNotificationPresenter.h"
+#include "WindowsLocalePreferenceRepository.h"
+#include "WindowsLocaleViewModel.h"
 #endif
 
 #include <QVBoxLayout>
@@ -56,6 +58,7 @@
 #include <QJsonObject>
 #include <QApplication>
 #include <QScreen>
+#include <QSettings>
 #include <QScrollBar>
 #include <QFile>
 #include <QFileInfo>
@@ -4860,13 +4863,22 @@ void ChatWindow::showV2Conversations() {
         m_v2ConversationDialog->activateWindow();
         return;
     }
+    if (!m_windowsLocaleViewModel) {
+        m_windowsLocaleSettings = std::make_unique<QSettings>();
+        m_windowsLocaleRepository =
+            std::make_unique<WindowsLocalePreferenceRepository>(
+                *m_windowsLocaleSettings);
+        m_windowsLocaleViewModel = std::make_unique<WindowsLocaleViewModel>(
+            m_windowsLocaleRepository.get());
+    }
     m_v2ConversationDialog = new V2WindowsConversationDialog(
         m_deviceManagementController->conversationDirectoryViewModel(),
         m_deviceManagementController->messagingViewModel(),
         m_deviceManagementController->conversationParticipantViewModel(), this, true,
         m_v2MessageForwardingEnabled,
         m_deviceManagementController->messageSearchViewModel(),
-        m_deviceManagementController->accountBlockViewModel());
+        m_deviceManagementController->accountBlockViewModel(),
+        m_windowsLocaleViewModel->locale(), m_windowsLocaleViewModel.get());
     m_v2ConversationDialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(m_v2ConversationDialog, &QObject::destroyed, this, [this] {
         m_v2ConversationDialog = nullptr;

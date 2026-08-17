@@ -1,5 +1,6 @@
 #include "WindowsLocaleCatalog.h"
 #include "WindowsLocalePreferenceRepository.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -28,6 +29,31 @@ int main(int argc, char **argv) {
         }
         if (!repository.save(WindowsLocale::EnUs)) {
             qCritical() << "locale preference was not persisted";
+            return 1;
+        }
+    }
+
+    {
+        QSettings settings(path, QSettings::IniFormat);
+        WindowsLocalePreferenceRepository repository(settings);
+        WindowsLocaleViewModel viewModel(&repository);
+        if (!viewModel.select(WindowsLocale::EnUs)
+                || viewModel.locale() != WindowsLocale::EnUs
+                || !viewModel.failure().isEmpty()) {
+            qCritical() << "locale view model did not persist exact English";
+            return 1;
+        }
+    }
+
+    {
+        QSettings settings(temporary.path(), QSettings::IniFormat);
+        WindowsLocalePreferenceRepository repository(settings);
+        WindowsLocaleViewModel viewModel(&repository);
+        if (viewModel.select(WindowsLocale::EnUs)
+                || viewModel.locale() != WindowsLocale::ZhCn
+                || repository.load() != WindowsLocale::ZhCn
+                || viewModel.failure().isEmpty()) {
+            qCritical() << "locale save failure did not preserve current language";
             return 1;
         }
     }

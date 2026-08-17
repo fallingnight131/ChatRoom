@@ -2761,7 +2761,7 @@ Candidate slices:
     - [x] Migrate the static Windows V2 conversation shell, accessible names,
       composer actions, and exact UTF-8 byte budget to the locale boundary,
       with detached English composition evidence (ADR-0412).
-    - [ ] Migrate runtime status/failure copy, search, participants, and message
+    - [x] Migrate runtime status/failure copy, search, participants, and message
       timeline actions before exposing a persisted language selector.
       - [x] Move messaging ViewModel failures, reply state, delivery labels,
         recall copy, and missing/recalled reply previews into the exact locale
@@ -2772,14 +2772,15 @@ Candidate slices:
       - [x] Move Widget-owned search, participant, edit/reaction/pin, mention,
         and timeline action/accessibility copy into the locale catalog with
         detached English composition evidence.
-      - [ ] Localize conversation-owned forward/block child dialogs, then bind
+      - [x] Localize conversation-owned forward/block child dialogs, then bind
         the complete surface to one persisted locale selector.
         - [x] Localize the authorized forward-target dialog, privacy/access
           explanation, fail-closed states, buttons, and accessibility copy.
         - [x] Localize the account-block ViewModel, confirmation, fail-closed
           state, dialog actions, and accessibility copy.
-        - [ ] Bind the complete conversation surface to one persisted locale
-          state and expose its exact two-value selector.
+        - [x] Bind the complete conversation surface to one persisted locale
+          ViewModel and expose its exact two-value selector; failed persistence
+          keeps the current language and reports a fixed local error.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

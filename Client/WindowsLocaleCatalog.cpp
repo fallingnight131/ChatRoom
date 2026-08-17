@@ -192,6 +192,9 @@ WindowsLocaleMessages createZhCn() {
     m.accountBlockFailure = QStringLiteral("无法完成该操作");
     m.accountBlockDisconnectedRetry = QStringLiteral("连接已断开，可在重连后重试");
     m.accountBlockServiceReconnecting = QStringLiteral("屏蔽服务已断开，正在重连");
+    m.localeSaveFailed = QStringLiteral("无法保存语言偏好，已保持当前语言");
+    m.languageSelectorAccessible = QStringLiteral("会话界面语言");
+    m.localePreferenceStatusAccessible = QStringLiteral("语言偏好状态");
     return m;
 }
 
@@ -386,6 +389,9 @@ WindowsLocaleMessages createEnUs() {
     m.accountBlockFailure = QStringLiteral("Unable to complete this action");
     m.accountBlockDisconnectedRetry = QStringLiteral("Connection lost; retry after reconnecting");
     m.accountBlockServiceReconnecting = QStringLiteral("Account blocking service disconnected; reconnecting");
+    m.localeSaveFailed = QStringLiteral("Unable to save language preference; the current language was kept");
+    m.languageSelectorAccessible = QStringLiteral("Conversation interface language");
+    m.localePreferenceStatusAccessible = QStringLiteral("Language preference status");
     return m;
 }
 

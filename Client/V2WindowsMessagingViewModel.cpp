@@ -291,6 +291,17 @@ bool V2WindowsMessagingViewModel::forwardMessage(
     return true;
 }
 
+void V2WindowsMessagingViewModel::setLocale(WindowsLocale locale) {
+    if (m_locale == locale) return;
+    m_locale = locale;
+    m_failure.clear();
+    if (!m_conversationId.isEmpty()) {
+        refresh();
+        return;
+    }
+    emit changed();
+}
+
 void V2WindowsMessagingViewModel::project(
         const V2LocalMessageRepository::Snapshot &snapshot) {
     m_rows.clear();
@@ -369,11 +380,16 @@ void V2WindowsMessagingViewModel::project(
         m_rows.append(std::move(row));
     }
     if (!m_replyTargetMessageId.isEmpty()) {
-        const bool available = std::any_of(m_rows.cbegin(), m_rows.cend(),
-            [&](const Row &row) { return row.messageId == m_replyTargetMessageId && row.canReply; });
-        if (!available) {
+        const auto target = std::find_if(m_rows.cbegin(), m_rows.cend(),
+            [&](const Row &row) {
+                return row.messageId == m_replyTargetMessageId && row.canReply;
+            });
+        if (target == m_rows.cend()) {
             m_replyTargetMessageId.clear();
             m_replyBanner.clear();
+        } else {
+            m_replyBanner = WindowsLocaleCatalog::messages(m_locale).replyBanner.arg(
+                target->text.left(80).replace(QLatin1Char('\n'), QLatin1Char(' ')));
         }
     }
 }

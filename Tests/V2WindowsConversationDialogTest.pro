@@ -25,6 +25,8 @@ SOURCES += \
     ../Client/V2WindowsMentionComposer.cpp \
     ../Client/V2WindowsMessagingViewModel.cpp \
     ../Client/WindowsLocaleCatalog.cpp \
+    ../Client/WindowsLocalePreferenceRepository.cpp \
+    ../Client/WindowsLocaleViewModel.cpp \
     ../Client/V2LocalMessageRepository.cpp
 
 HEADERS += \
@@ -39,4 +41,6 @@ HEADERS += \
     ../Client/V2WindowsMentionComposer.h \
     ../Client/V2WindowsMessagingViewModel.h \
     ../Client/WindowsLocaleCatalog.h \
+    ../Client/WindowsLocalePreferenceRepository.h \
+    ../Client/WindowsLocaleViewModel.h \
     ../Client/V2LocalMessageRepository.h

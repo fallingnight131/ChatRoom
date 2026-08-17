@@ -144,3 +144,10 @@ void V2WindowsMessageSearchViewModel::setUnavailable() {
     m_failure = WindowsLocaleCatalog::messages(m_locale).searchServiceUnavailable;
     emit changed();
 }
+
+void V2WindowsMessageSearchViewModel::setLocale(WindowsLocale locale) {
+    if (m_locale == locale) return;
+    m_locale = locale;
+    m_failure.clear();
+    emit changed();
+}

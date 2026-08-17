@@ -84,3 +84,10 @@ void V2WindowsConversationDirectoryViewModel::setUnavailable() {
     m_failure = WindowsLocaleCatalog::messages(m_locale).conversationServiceUnavailable;
     emit changed();
 }
+
+void V2WindowsConversationDirectoryViewModel::setLocale(WindowsLocale locale) {
+    if (m_locale == locale) return;
+    m_locale = locale;
+    m_failure.clear();
+    emit changed();
+}

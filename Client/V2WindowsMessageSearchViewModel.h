@@ -45,6 +45,7 @@ public:
     void applyFailure(const QString &conversationId, const QString &query,
                       const QString &safeReason);
     void setUnavailable();
+    void setLocale(WindowsLocale locale);
 
 signals:
     void changed();

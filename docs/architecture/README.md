@@ -1912,11 +1912,9 @@ the fail-closed default; only the bounded non-secret code is stored under
 foundation is exercised on the macOS development host, but no selector is shown
 until one complete surface can switch without mixed catalog-owned strings, and
 native Windows accessibility evidence remains required.
-The first presentation migration covers the static V2 conversation directory,
-accessible shell names, and composer controls. Runtime view-model diagnostics,
-search, participant picking, and timeline actions remain outside that slice, so
-the stored preference is still not product-composed and cannot create a mixed-
-language user path.
+The first presentation migration covered the static V2 conversation directory,
+accessible shell names, and composer controls before runtime and child-dialog
+copy was admitted to the same boundary.
 Messaging ViewModel projections now use that same boundary for local failures,
 reply state, delivery/recall labels, and unavailable reply previews. User text,
 account names, role labels, and server diagnostics remain data and are never
@@ -1927,15 +1925,19 @@ opaque presentation data; localization never changes their meaning or uses
 them to select a catalog entry.
 The message panel itself now sources search, participant, edit/reaction/pin,
 mention, timeline action, and accessibility copy from the exact catalog.
-The account-block child dialog still needs the same boundary before the
-persisted selector can be exposed for this surface.
 The authorized forward-target child dialog now consumes that boundary too,
 including privacy/access explanation and fail-closed states. Conversation
 names, kinds, and roles remain authorized server data rather than catalog keys.
 The direct-account block child path now uses the same locale for its ViewModel,
-confirmation wording, fail-closed status, actions, and accessible names. The
-selector remains closed until product composition can supply one persisted
-locale to every conversation-owned ViewModel and Widget.
+confirmation wording, fail-closed status, actions, and accessible names.
+That product composition is now present for the V2 conversation surface.
+`ChatWindow` is the composition root for `QSettings`, the preference repository,
+and the locale ViewModel; Widgets never read settings. The exact two-value
+selector recomposes the directory, messaging/search/participant projections,
+composer, timeline actions, and forward/block child dialogs. A failed write
+leaves both the current locale and stored value unchanged and exposes only a
+fixed local diagnostic. The rest of the legacy Windows UI remains Chinese and
+will migrate as separate complete surfaces rather than inheriting partial copy.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

@@ -29,6 +29,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
 - Do not expose a language selector until one complete Windows surface can
   switch without mixed catalog-owned copy. Migrate vertical slices and retain
   the existing Chinese default throughout the compatibility window.
+- The first exposed selector belongs to the complete V2 conversation surface.
+  `ChatWindow` composes settings, repository, and locale ViewModel; one accepted
+  change recomposes every conversation-owned ViewModel, Widget, and child
+  dialog. Persistence failure retains the old locale and reports fixed copy.
 
 ## Consequences
 
@@ -47,5 +51,8 @@ database migration or protocol compatibility window is required.
 - exact English persists across a fresh `QSettings` instance and can return to
   exact Chinese;
 - catalog tests bind stable language, composer action, and byte-budget copy;
+- conversation composition proves a Chinese-to-English persisted switch across
+  shell, timeline actions, participant accessibility, and a fresh settings
+  instance, while a write failure preserves the active locale;
 - later UI slices must run native Windows keyboard/accessibility checks and may
   not claim product localization from this foundation alone.

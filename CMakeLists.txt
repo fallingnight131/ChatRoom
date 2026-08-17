@@ -323,6 +323,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             Client/WindowsLocaleCatalog.h
             Client/WindowsLocalePreferenceRepository.cpp
             Client/WindowsLocalePreferenceRepository.h
+            Client/WindowsLocaleViewModel.cpp
+            Client/WindowsLocaleViewModel.h
         )
         set_target_properties(
             chatroom_v2_messaging_ui_core

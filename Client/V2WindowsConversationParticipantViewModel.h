@@ -28,6 +28,7 @@ public:
                    bool append, bool hasMore);
     void applyFailure(const QString &conversationId, const QString &safeReason);
     void setUnavailable();
+    void setLocale(WindowsLocale locale);
 
 signals:
     void changed();

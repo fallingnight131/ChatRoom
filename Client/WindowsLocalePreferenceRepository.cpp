@@ -18,7 +18,15 @@ WindowsLocale WindowsLocalePreferenceRepository::load() const {
 }
 
 bool WindowsLocalePreferenceRepository::save(WindowsLocale locale) {
+    const bool hadPrevious = m_settings.contains(PreferenceKey);
+    const QVariant previous = m_settings.value(PreferenceKey);
     m_settings.setValue(PreferenceKey, WindowsLocaleCatalog::code(locale));
     m_settings.sync();
-    return m_settings.status() == QSettings::NoError;
+    if (m_settings.status() == QSettings::NoError) return true;
+    if (hadPrevious)
+        m_settings.setValue(PreferenceKey, previous);
+    else
+        m_settings.remove(PreferenceKey);
+    m_settings.sync();
+    return false;
 }

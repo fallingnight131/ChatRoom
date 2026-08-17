@@ -24,6 +24,7 @@ class QStackedWidget;
 class QAction;
 class QMenu;
 class QTimer;
+class QSettings;
 
 class MessageModel;
 class Message;
@@ -41,6 +42,8 @@ class DeviceManagementDialog;
 class V2WindowsConversationDialog;
 class V2WindowsAccountBlockDirectoryDialog;
 class WindowsMessageNotificationPresenter;
+class WindowsLocalePreferenceRepository;
+class WindowsLocaleViewModel;
 #endif
 
 /// 主聊天窗口 —— MVC 架构的 View/Controller 层
@@ -348,6 +351,9 @@ private:
     bool m_v2MessagingWasReady = false;
     bool m_v2MessageForwardingEnabled = false;
     std::unique_ptr<WindowsMessageNotificationPresenter> m_v2NotificationPresenter;
+    std::unique_ptr<QSettings> m_windowsLocaleSettings;
+    std::unique_ptr<WindowsLocalePreferenceRepository> m_windowsLocaleRepository;
+    std::unique_ptr<WindowsLocaleViewModel> m_windowsLocaleViewModel;
 #endif
     RoomFileManagerDialog *m_roomFileManagerDialog = nullptr;
     QLabel       *m_avatarPreview  = nullptr;

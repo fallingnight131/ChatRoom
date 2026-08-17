@@ -86,3 +86,10 @@ void V2WindowsConversationParticipantViewModel::setUnavailable() {
     m_failure = WindowsLocaleCatalog::messages(m_locale).participantServiceUnavailable;
     emit changed();
 }
+
+void V2WindowsConversationParticipantViewModel::setLocale(WindowsLocale locale) {
+    if (m_locale == locale) return;
+    m_locale = locale;
+    m_failure.clear();
+    emit changed();
+}
