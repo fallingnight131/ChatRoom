@@ -506,7 +506,7 @@ void V2WindowsMessagingPanel::chooseForward(const QString &messageId) {
     if (!m_forwardingEnabled || !m_directoryViewModel
             || m_conversationId.isEmpty() || messageId.isEmpty()) return;
     V2WindowsForwardTargetDialog dialog(
-        m_directoryViewModel->rows(), m_conversationId, this, true);
+        m_directoryViewModel->rows(), m_conversationId, this, true, m_locale);
     if (dialog.exec() != QDialog::Accepted) return;
     m_viewModel->forwardMessage(messageId, dialog.selectedConversationId());
 }

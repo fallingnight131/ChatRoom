@@ -157,6 +157,18 @@ struct WindowsLocaleMessages {
     QString mentionsRestoreFailed;
     QString mentionInsertFailed;
     QString mentionInvalid;
+    QString forwardTargetTitle;
+    QString forwardTargetWindowAccessible;
+    QString forwardPrivacyExplanation;
+    QString forwardPrivacyAccessible;
+    QString forwardTargetStatusAccessible;
+    QString forwardTargetListAccessible;
+    QString forwardConfirmAccessible;
+    QString cancel;
+    QString forwardingDisabled;
+    QString forwardTargetsFailed;
+    QString noForwardTargets;
+    QString selectForwardTarget;
 };
 
 class WindowsLocaleCatalog final {

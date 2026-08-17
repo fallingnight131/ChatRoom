@@ -151,6 +151,18 @@ WindowsLocaleMessages createZhCn() {
     m.mentionsRestoreFailed = QStringLiteral("无法恢复消息中的提及，暂不能编辑");
     m.mentionInsertFailed = QStringLiteral("无法插入提及，请刷新成员列表后重试");
     m.mentionInvalid = QStringLiteral("提及内容已失效，请重新选择成员");
+    m.forwardTargetTitle = QStringLiteral("选择转发目标");
+    m.forwardTargetWindowAccessible = QStringLiteral("转发目标选择窗口");
+    m.forwardPrivacyExplanation = QStringLiteral("服务器会校验你对原会话和目标会话的权限。目标消息不会显示原会话或原发送者。");
+    m.forwardPrivacyAccessible = QStringLiteral("转发隐私与权限说明");
+    m.forwardTargetStatusAccessible = QStringLiteral("转发目标状态");
+    m.forwardTargetListAccessible = QStringLiteral("可转发的会话列表");
+    m.forwardConfirmAccessible = QStringLiteral("确认转发到所选会话");
+    m.cancel = QStringLiteral("取消");
+    m.forwardingDisabled = QStringLiteral("转发功能尚未启用");
+    m.forwardTargetsFailed = QStringLiteral("无法加载转发目标");
+    m.noForwardTargets = QStringLiteral("没有可用的其他会话");
+    m.selectForwardTarget = QStringLiteral("请选择一个目标会话");
     return m;
 }
 
@@ -304,6 +316,18 @@ WindowsLocaleMessages createEnUs() {
     m.mentionsRestoreFailed = QStringLiteral("Unable to restore mentions; this message cannot be edited yet");
     m.mentionInsertFailed = QStringLiteral("Unable to insert mention; refresh members and try again");
     m.mentionInvalid = QStringLiteral("Mention is no longer valid; select the member again");
+    m.forwardTargetTitle = QStringLiteral("Select forward target");
+    m.forwardTargetWindowAccessible = QStringLiteral("Forward target selection window");
+    m.forwardPrivacyExplanation = QStringLiteral("The server verifies access to the source and target conversations. The forwarded message does not expose the source conversation or original sender.");
+    m.forwardPrivacyAccessible = QStringLiteral("Forward privacy and access explanation");
+    m.forwardTargetStatusAccessible = QStringLiteral("Forward target status");
+    m.forwardTargetListAccessible = QStringLiteral("Available forward destinations");
+    m.forwardConfirmAccessible = QStringLiteral("Forward to the selected conversation");
+    m.cancel = QStringLiteral("Cancel");
+    m.forwardingDisabled = QStringLiteral("Forwarding is not enabled");
+    m.forwardTargetsFailed = QStringLiteral("Unable to load forward destinations");
+    m.noForwardTargets = QStringLiteral("No other conversations are available");
+    m.selectForwardTarget = QStringLiteral("Select a destination conversation");
     return m;
 }
 

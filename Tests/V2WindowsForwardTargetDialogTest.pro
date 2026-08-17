@@ -14,8 +14,10 @@ INCLUDEPATH += ../Client
 
 SOURCES += \
     V2WindowsForwardTargetDialogTest.cpp \
-    ../Client/V2WindowsForwardTargetDialog.cpp
+    ../Client/V2WindowsForwardTargetDialog.cpp \
+    ../Client/WindowsLocaleCatalog.cpp
 
 HEADERS += \
     ../Client/V2WindowsForwardTargetDialog.h \
-    ../Client/V2WindowsConversationDirectoryViewModel.h
+    ../Client/V2WindowsConversationDirectoryViewModel.h \
+    ../Client/WindowsLocaleCatalog.h

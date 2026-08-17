@@ -75,6 +75,19 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    V2WindowsForwardTargetDialog english(
+        rows, QStringLiteral("conversation-source"), nullptr, true,
+        WindowsLocale::EnUs);
+    if (english.windowTitle() != QStringLiteral("Select forward target")
+            || english.targetListForTest()->accessibleName()
+                != QStringLiteral("Available forward destinations")
+            || english.forwardForTest()->text() != QStringLiteral("Forward")
+            || english.statusForTest()->text()
+                != QStringLiteral("Select a destination conversation")) {
+        qCritical() << "English forward dialog was not fully composed";
+        return 1;
+    }
+
     qInfo() << "[V2WindowsForwardTargetDialogTest] PASS";
     return 0;
 }

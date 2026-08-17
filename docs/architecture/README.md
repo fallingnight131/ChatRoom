@@ -1927,8 +1927,11 @@ opaque presentation data; localization never changes their meaning or uses
 them to select a catalog entry.
 The message panel itself now sources search, participant, edit/reaction/pin,
 mention, timeline action, and accessibility copy from the exact catalog.
-Forward and account-block child dialogs still need the same boundary before the
+The account-block child dialog still needs the same boundary before the
 persisted selector can be exposed for this surface.
+The authorized forward-target child dialog now consumes that boundary too,
+including privacy/access explanation and fail-closed states. Conversation
+names, kinds, and roles remain authorized server data rather than catalog keys.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

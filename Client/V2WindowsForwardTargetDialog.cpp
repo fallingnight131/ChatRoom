@@ -11,27 +11,26 @@
 V2WindowsForwardTargetDialog::V2WindowsForwardTargetDialog(
         const QVector<V2WindowsConversationDirectoryViewModel::Row> &authorizedRows,
         const QString &sourceConversationId, QWidget *parent,
-        bool forwardingEnabled)
+        bool forwardingEnabled, WindowsLocale locale)
     : QDialog(parent), m_status(new QLabel(this)),
       m_targets(new QListWidget(this)), m_forward(nullptr) {
-    setWindowTitle(QStringLiteral("选择转发目标"));
-    setAccessibleName(QStringLiteral("转发目标选择窗口"));
+    const auto &copy = WindowsLocaleCatalog::messages(locale);
+    setWindowTitle(copy.forwardTargetTitle);
+    setAccessibleName(copy.forwardTargetWindowAccessible);
     setMinimumSize(420, 360);
 
-    auto *explanation = new QLabel(
-        QStringLiteral("服务器会校验你对原会话和目标会话的权限。"
-                       "目标消息不会显示原会话或原发送者。"),
-        this);
+    auto *explanation = new QLabel(copy.forwardPrivacyExplanation, this);
     explanation->setWordWrap(true);
-    explanation->setAccessibleName(QStringLiteral("转发隐私与权限说明"));
+    explanation->setAccessibleName(copy.forwardPrivacyAccessible);
     m_status->setWordWrap(true);
-    m_status->setAccessibleName(QStringLiteral("转发目标状态"));
-    m_targets->setAccessibleName(QStringLiteral("可转发的会话列表"));
+    m_status->setAccessibleName(copy.forwardTargetStatusAccessible);
+    m_targets->setAccessibleName(copy.forwardTargetListAccessible);
     m_targets->setSelectionMode(QAbstractItemView::SingleSelection);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    m_forward = buttons->addButton(QStringLiteral("转发"), QDialogButtonBox::AcceptRole);
-    m_forward->setAccessibleName(QStringLiteral("确认转发到所选会话"));
+    buttons->button(QDialogButtonBox::Cancel)->setText(copy.cancel);
+    m_forward = buttons->addButton(copy.forward, QDialogButtonBox::AcceptRole);
+    m_forward->setAccessibleName(copy.forwardConfirmAccessible);
     m_forward->setEnabled(false);
 
     auto *layout = new QVBoxLayout(this);
@@ -41,10 +40,10 @@ V2WindowsForwardTargetDialog::V2WindowsForwardTargetDialog(
     layout->addWidget(buttons);
 
     if (!forwardingEnabled) {
-        m_status->setText(QStringLiteral("转发功能尚未启用"));
+        m_status->setText(copy.forwardingDisabled);
         m_targets->setEnabled(false);
     } else if (sourceConversationId.isEmpty()) {
-        m_status->setText(QStringLiteral("无法加载转发目标"));
+        m_status->setText(copy.forwardTargetsFailed);
         m_targets->setEnabled(false);
     } else {
         QSet<QString> identities;
@@ -66,8 +65,7 @@ V2WindowsForwardTargetDialog::V2WindowsForwardTargetDialog(
             item->setToolTip(row.displayName);
         }
         m_status->setText(m_targets->count() == 0
-            ? QStringLiteral("没有可用的其他会话")
-            : QStringLiteral("请选择一个目标会话"));
+            ? copy.noForwardTargets : copy.selectForwardTarget);
     }
 
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);

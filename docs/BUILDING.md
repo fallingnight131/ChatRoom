@@ -3192,6 +3192,10 @@ preserving supplied safe server reasons as data.
 English search, member-picker, timeline Copy/Reply/Pin actions, accessible
 member naming, and search byte bounds. Structural emoji, keyboard shortcuts,
 user/server text, and stable identities remain locale-independent data.
+`V2WindowsForwardTargetDialogTest` now runs both default Chinese and detached
+English composition. It keeps authorized conversation names/roles opaque while
+localizing the privacy explanation, fail-closed states, action, cancellation,
+and accessible destination naming.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the
