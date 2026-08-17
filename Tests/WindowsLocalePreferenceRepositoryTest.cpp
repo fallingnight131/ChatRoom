@@ -266,6 +266,17 @@ int main(int argc, char **argv) {
                 || english.mainRoomKickedByAdministrator
                     != QStringLiteral(
                         "Administrator %1 removed you from room \"%2\"")
+                || english.mainAdministratorHint
+                    != QStringLiteral(
+                        "Tip: right-click a message or member to use administrator actions")
+                || english.mainAdministratorStatusSet.arg(QStringLiteral("Alice"))
+                    != QStringLiteral("Updated administrator status for Alice")
+                || english.mainMessagesDeleted.arg(3)
+                    != QStringLiteral("Deleted 3 messages")
+                || english.mainMessagesClearedByAdministrator
+                    != QStringLiteral("An administrator cleared message history")
+                || english.mainUserKickConfirm.arg(QStringLiteral("Alice"))
+                    != QStringLiteral("Remove Alice from the room?")
                 || english.mainAttachmentCannotDownload
                     != QStringLiteral(
                         "This file expired or was removed and cannot be downloaded.")
@@ -420,6 +431,14 @@ int main(int argc, char **argv) {
                     != QStringLiteral("聊天室名称修改成功")
                 || chinese.mainRoomKickSucceeded
                     != QStringLiteral("已将 %1 移出聊天室")
+                || chinese.mainAdministratorSetFailedTitle
+                    != QStringLiteral("设置管理员失败")
+                || chinese.mainMessagesDeleteFailed
+                    != QStringLiteral("无法删除消息")
+                || chinese.mainUserGiveUpAdministrator
+                    != QStringLiteral("放弃管理员权限")
+                || chinese.mainUserKick
+                    != QStringLiteral("移出聊天室")
                 || chinese.mainAttachmentCannotOpen
                     != QStringLiteral("文件已过期或被清除，无法打开")
                 || WindowsAttachmentPresentation::unavailableText(

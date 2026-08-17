@@ -617,6 +617,18 @@ struct WindowsLocaleMessages {
     QString mainRoomKickFailed;
     QString mainRoomKickedTitle;
     QString mainRoomKickedByAdministrator;
+    QString mainAdministratorHint;
+    QString mainAdministratorStatusSet;
+    QString mainAdministratorSetFailedTitle;
+    QString mainAdministratorSetFailed;
+    QString mainMessagesDeleted;
+    QString mainMessagesDeleteFailedTitle;
+    QString mainMessagesDeleteFailed;
+    QString mainMessagesClearedByAdministrator;
+    QString mainUserGiveUpAdministrator;
+    QString mainUserMakeAdministrator;
+    QString mainUserKick;
+    QString mainUserKickConfirm;
     QString mainAttachmentUnavailableTitle;
     QString mainAttachmentCannotDownload;
     QString mainAttachmentCannotOpen;

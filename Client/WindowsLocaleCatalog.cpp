@@ -630,6 +630,19 @@ WindowsLocaleMessages createZhCn() {
     m.mainRoomKickedTitle = QStringLiteral("已被移出聊天室");
     m.mainRoomKickedByAdministrator = QStringLiteral(
         "你已被管理员 %1 移出聊天室“%2”");
+    m.mainAdministratorHint = QStringLiteral(
+        "提示：右键消息或用户列表可使用管理功能");
+    m.mainAdministratorStatusSet = QStringLiteral("已设置 %1 的管理员状态");
+    m.mainAdministratorSetFailedTitle = QStringLiteral("设置管理员失败");
+    m.mainAdministratorSetFailed = QStringLiteral("无法设置管理员状态");
+    m.mainMessagesDeleted = QStringLiteral("已删除 %1 条消息");
+    m.mainMessagesDeleteFailedTitle = QStringLiteral("删除消息失败");
+    m.mainMessagesDeleteFailed = QStringLiteral("无法删除消息");
+    m.mainMessagesClearedByAdministrator = QStringLiteral("管理员清理了消息记录");
+    m.mainUserGiveUpAdministrator = QStringLiteral("放弃管理员权限");
+    m.mainUserMakeAdministrator = QStringLiteral("设为管理员");
+    m.mainUserKick = QStringLiteral("移出聊天室");
+    m.mainUserKickConfirm = QStringLiteral("确定要将 %1 移出聊天室吗？");
     m.mainAttachmentUnavailableTitle = QStringLiteral("文件不可用");
     m.mainAttachmentCannotDownload = QStringLiteral(
         "文件已过期或被清除，无法下载");
@@ -1453,6 +1466,23 @@ WindowsLocaleMessages createEnUs() {
     m.mainRoomKickedTitle = QStringLiteral("Removed from room");
     m.mainRoomKickedByAdministrator = QStringLiteral(
         "Administrator %1 removed you from room \"%2\"");
+    m.mainAdministratorHint = QStringLiteral(
+        "Tip: right-click a message or member to use administrator actions");
+    m.mainAdministratorStatusSet = QStringLiteral(
+        "Updated administrator status for %1");
+    m.mainAdministratorSetFailedTitle = QStringLiteral(
+        "Administrator update failed");
+    m.mainAdministratorSetFailed = QStringLiteral(
+        "Administrator status could not be updated");
+    m.mainMessagesDeleted = QStringLiteral("Deleted %1 messages");
+    m.mainMessagesDeleteFailedTitle = QStringLiteral("Message deletion failed");
+    m.mainMessagesDeleteFailed = QStringLiteral("Messages could not be deleted");
+    m.mainMessagesClearedByAdministrator = QStringLiteral(
+        "An administrator cleared message history");
+    m.mainUserGiveUpAdministrator = QStringLiteral("Give up administrator role");
+    m.mainUserMakeAdministrator = QStringLiteral("Make administrator");
+    m.mainUserKick = QStringLiteral("Remove from room");
+    m.mainUserKickConfirm = QStringLiteral("Remove %1 from the room?");
     m.mainAttachmentUnavailableTitle = QStringLiteral("File unavailable");
     m.mainAttachmentCannotDownload = QStringLiteral(
         "This file expired or was removed and cannot be downloaded.");

@@ -573,6 +573,48 @@ def main() -> int:
         raise AssertionError(
             "send, recall, and synchronization feedback must use the active catalog"
         )
+    administrator_surface = window[
+        window.index("// ==================== 管理员功能"):
+        window.index("// ==================== 表情")
+    ]
+    require(administrator_surface, (
+        "copy.mainAdministratorHint",
+        "copy.mainAdministratorStatusSet.arg(username)",
+        "error.isEmpty() ? copy.mainAdministratorSetFailed : error",
+        "copy.mainMessagesDeleted.arg(",
+        'data["error"].toString(copy.mainMessagesDeleteFailed)',
+        "copy.mainMessagesClearedByAdministrator",
+        "copy.mainUserGiveUpAdministrator",
+        "copy.mainLeaveRoomTitle",
+        "copy.mainUserMakeAdministrator",
+        "copy.mainUserKick",
+        "copy.mainUserKickConfirm.arg(targetDisplayName)",
+        "copy.roomSettingsTitle",
+        "copy.roomFileManagerTitle",
+        'data["isAdmin"] = false',
+        'data["isAdmin"] = true',
+        "Protocol::MsgType::SET_ADMIN_REQ",
+        "Protocol::MsgType::KICK_USER_REQ",
+        "model->applyDeletionEvents({data})",
+        "advanceRoomSyncCursor(roomId, syncSequenceFrom(data))",
+        "persistRoomSnapshot(roomId)",
+    ), "Client/ChatWindow.cpp administrator surface")
+    if any(copy in administrator_surface for copy in (
+        'QStringLiteral("提示: 右键消息',
+        'QStringLiteral("已设置 %1 的管理员状态")',
+        '"设置管理员失败"',
+        'QStringLiteral("已删除 %1 条消息")',
+        '"删除消息失败"',
+        '"管理员清理了消息记录"',
+        'QStringLiteral("放弃管理员权限")',
+        'QStringLiteral("退出聊天室")',
+        'QStringLiteral("设为管理员")',
+        'QStringLiteral("踢出聊天室")',
+        'QStringLiteral("房间设置")',
+    )):
+        raise AssertionError(
+            "administrator feedback and menus must use the active Windows catalog"
+        )
     require(message_delegate, (
         "WindowsAttachmentPresentation::unavailableText(",
         "WindowsMessagePresentation::timestampWithDelivery(",

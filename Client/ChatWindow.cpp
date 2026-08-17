@@ -3299,11 +3299,12 @@ void ChatWindow::onRecallNotify(const QJsonObject &data) {
 // ==================== 管理员功能 ====================
 
 void ChatWindow::onAdminStatusChanged(int roomId, bool isAdmin) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     m_adminRooms[roomId] = isAdmin;
     if (roomId == m_currentRoomId) {
         refreshConversationShellText();
         if (isAdmin) {
-            m_statusLabel->setText(QStringLiteral("提示: 右键消息或用户列表可使用管理功能"));
+            m_statusLabel->setText(copy.mainAdministratorHint);
         }
         // 刷新用户列表以实时更新管理员名字颜色
         QJsonObject userData;
@@ -3314,9 +3315,10 @@ void ChatWindow::onAdminStatusChanged(int roomId, bool isAdmin) {
 }
 
 void ChatWindow::onSetAdminResponse(bool success, int roomId, const QString &username, const QString &error) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     Q_UNUSED(roomId)
     if (success) {
-        m_statusLabel->setText(QStringLiteral("已设置 %1 的管理员状态").arg(username));
+        m_statusLabel->setText(copy.mainAdministratorStatusSet.arg(username));
         // 刷新用户列表以更新管理员标识
         if (roomId == m_currentRoomId) {
             QJsonObject userData;
@@ -3325,16 +3327,20 @@ void ChatWindow::onSetAdminResponse(bool success, int roomId, const QString &use
                 Protocol::makeMessage(Protocol::MsgType::USER_LIST_REQ, userData));
         }
     } else {
-        QMessageBox::warning(this, "设置管理员失败", error);
+        QMessageBox::warning(
+            this, copy.mainAdministratorSetFailedTitle,
+            error.isEmpty() ? copy.mainAdministratorSetFailed : error);
     }
 }
 
 void ChatWindow::onDeleteMsgsResponse(const QJsonObject &data) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     const bool success = data["success"].toBool();
     const int roomId = data["roomId"].toInt();
     const QJsonArray deletedFileIds = data["deletedFileIds"].toArray();
     if (success) {
-        m_statusLabel->setText(QStringLiteral("已删除 %1 条消息").arg(data["deletedCount"].toInt()));
+        m_statusLabel->setText(
+            copy.mainMessagesDeleted.arg(data["deletedCount"].toInt()));
         // 只清除服务端返回的被删除文件的缓存
         for (const QJsonValue &v : deletedFileIds) {
             int fid = v.toInt();
@@ -3348,11 +3354,14 @@ void ChatWindow::onDeleteMsgsResponse(const QJsonObject &data) {
         advanceRoomSyncCursor(roomId, syncSequenceFrom(data));
         persistRoomSnapshot(roomId);
     } else {
-        QMessageBox::warning(this, "删除消息失败", data["error"].toString());
+        QMessageBox::warning(
+            this, copy.mainMessagesDeleteFailedTitle,
+            data["error"].toString(copy.mainMessagesDeleteFailed));
     }
 }
 
 void ChatWindow::onDeleteMsgsNotify(const QJsonObject &data) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     const int roomId = data["roomId"].toInt();
     const QJsonArray deletedFileIds = data["deletedFileIds"].toArray();
     MessageModel *model = getOrCreateModel(roomId);
@@ -3371,10 +3380,11 @@ void ChatWindow::onDeleteMsgsNotify(const QJsonObject &data) {
     advanceRoomSyncCursor(roomId, syncSequenceFrom(data));
     persistRoomSnapshot(roomId);
 
-    m_statusLabel->setText("管理员清理了消息记录");
+    m_statusLabel->setText(copy.mainMessagesClearedByAdministrator);
 }
 
 void ChatWindow::onUserContextMenu(const QPoint &pos) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     if (m_currentRoomId < 0) return;
 
     QListWidgetItem *item = m_userList->itemAt(pos);
@@ -3389,7 +3399,7 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
     if (targetUser == m_username) {
         // 管理员可以放弃自己的管理员权限
         if (m_adminRooms.value(m_currentRoomId, false)) {
-            menu.addAction(QStringLiteral("放弃管理员权限"), [this] {
+            menu.addAction(copy.mainUserGiveUpAdministrator, [this] {
                 QJsonObject data;
                 data["roomId"] = m_currentRoomId;
                 data["username"] = m_username;
@@ -3399,7 +3409,7 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
             });
             menu.addSeparator();
         }
-        menu.addAction(QStringLiteral("退出聊天室"), [this] {
+        menu.addAction(copy.mainLeaveRoomTitle, [this] {
             leaveRoom(m_currentRoomId);
         });
         menu.exec(m_userList->viewport()->mapToGlobal(pos));
@@ -3414,7 +3424,7 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
             targetIsAdmin = targetItem->data(Qt::UserRole + 1).toBool();
 
         if (!targetIsAdmin) {
-            menu.addAction(QStringLiteral("设为管理员"), [this, targetUser] {
+            menu.addAction(copy.mainUserMakeAdministrator, [this, targetUser] {
                 QJsonObject data;
                 data["roomId"] = m_currentRoomId;
                 data["username"] = targetUser;
@@ -3423,9 +3433,12 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
                     Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
             });
 
-            menu.addAction(QStringLiteral("踢出聊天室"), [this, targetUser, targetDisplayName] {
-                if (QMessageBox::question(this, "确认",
-                        QString("确定要将 %1 踢出聊天室吗？").arg(targetDisplayName))
+            menu.addAction(copy.mainUserKick,
+                [this, targetUser,
+                 confirmTitle = copy.messageMenuConfirmTitle,
+                 confirmPrompt = copy.mainUserKickConfirm.arg(targetDisplayName)] {
+                if (QMessageBox::question(
+                        this, confirmTitle, confirmPrompt)
                     != QMessageBox::Yes) return;
                 QJsonObject data;
                 data["roomId"] = m_currentRoomId;
@@ -3441,6 +3454,7 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
 }
 
 void ChatWindow::onRoomContextMenu(const QPoint &pos) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     QListWidgetItem *item = m_roomList->itemAt(pos);
     if (!item) return;
 
@@ -3448,13 +3462,12 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
 
     QMenu menu(this);
 
-    menu.addAction(QStringLiteral("房间设置"), [this, roomId] {
+    menu.addAction(copy.roomSettingsTitle, [this, roomId] {
         showRoomSettingsDialog(roomId);
     });
 
     if (m_adminRooms.value(roomId, false)) {
-        menu.addAction(WindowsLocaleCatalog::messages(
-                           m_windowsLocaleViewModel->locale()).roomFileManagerTitle,
+        menu.addAction(copy.roomFileManagerTitle,
                        [this, roomId] {
             showRoomFileManagerDialog(roomId);
         });

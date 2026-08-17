@@ -203,6 +203,11 @@ message storage, server behavior, or the supported Web/Windows product scope.
   migration. Repository diagnostics remain logs; the activity surface reports
   online-only mode while outgoing messages, attachments and synchronization all
   receive the same null repository as before.
+- Localize room administrator hints, role mutation results, deletion results,
+  member actions and room context actions at event/menu construction time.
+  Stable room/account IDs, role booleans, deletion events and continuation
+  sequences still drive commands and local reconciliation. Non-empty server
+  rejection detail remains opaque and all authority remains server-side.
 
 ## Consequences
 
@@ -364,3 +369,7 @@ database migration or protocol compatibility window is required.
   fallback across message, attachment and synchronization services while
   rejecting embedded degradation copy. Catalog tests bind both languages and
   repository diagnostics remain log-only.
+- administrator source composition locks role and kick commands, server deletion
+  events, cursor advancement, snapshot persistence and stable menu identities
+  while rejecting embedded action/result copy. Catalog tests bind both languages
+  and non-empty server rejection detail remains verbatim.
