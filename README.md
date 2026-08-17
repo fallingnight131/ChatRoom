@@ -224,8 +224,8 @@ python3 tools/verify_m0.py --web --db-schema --v1-smoke --performance
 
 源码清单校验会统一 Windows、macOS 与 Linux 的路径分隔符和文本换行，
 因此同一 Git 修订在不同 Runner 上应得到相同的 M0 指纹。
-Java V2 协议验证中的 Windows ViewModel 会显式链接共享的本地化目录，
-以确保协议生成后执行的 C++ 链接检查与客户端实际依赖保持一致。
+Java V2 协议验证中的 Windows ViewModel 及其聚合控制器目标会显式链接
+共享的本地化目录，以确保协议生成后的 C++ 链接检查与客户端实际依赖保持一致。
 CMake 无界面验证会先构建所有已注册的 `v1_`、`m4_`、`m6_` 测试目标，
 再交给 CTest 执行，避免因测试可执行文件未生成而出现伪失败。
 

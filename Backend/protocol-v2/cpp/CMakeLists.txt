@@ -313,6 +313,7 @@ target_include_directories(
 target_link_libraries(
   v2_windows_device_management_controller_test
   PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::WebSockets protobuf::libprotobuf
+          v2_windows_locale_catalog
 )
 
 add_executable(
@@ -347,7 +348,8 @@ target_include_directories(
   PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../../Client" "${GENERATED_ROOT}")
 target_link_libraries(
   v2_windows_messaging_controller_test
-  PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::WebSockets protobuf::libprotobuf)
+  PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::WebSockets protobuf::libprotobuf
+          v2_windows_locale_catalog)
 
 if(MSVC)
   target_compile_options(v2_cpp_envelope_test PRIVATE /W4 /WX)
