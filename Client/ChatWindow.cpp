@@ -3459,6 +3459,7 @@ void ChatWindow::onEmojiSelected(const QString &emoji) {
 // ==================== 右键菜单 ====================
 
 void ChatWindow::onMessageContextMenu(const QPoint &pos) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     QModelIndex idx = m_messageView->indexAt(pos);
 
     MessageModel *model = qobject_cast<MessageModel*>(m_messageView->model());
@@ -3482,7 +3483,7 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
         QString sender = idx.data(MessageModel::SenderRole).toString();
         QString senderName = idx.data(MessageModel::SenderNameRole).toString();
         QMenu menu(this);
-        menu.addAction(QStringLiteral("查看用户信息"), [this, sender, senderName] {
+        menu.addAction(copy.messageMenuViewUser, [this, sender, senderName] {
             showUserInfoDialog(sender, senderName);
         });
         menu.exec(m_messageView->viewport()->mapToGlobal(pos));
@@ -3502,7 +3503,7 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
             && !msg.clientMessageId().isEmpty()
             && (msg.contentType() == Message::Text || msg.contentType() == Message::Emoji)) {
             const Message retry = msg;
-            menu.addAction(QStringLiteral("重试发送"), [this, model, retry] {
+            menu.addAction(copy.messageMenuRetrySend, [this, model, retry] {
                 OutgoingMessageService::Command command;
                 if (m_isFriendChat && !m_currentFriendUsername.isEmpty()) {
                     const auto target = OutgoingMessageService::directTarget(
@@ -3535,8 +3536,6 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
         // 文件消息操作
         if (msg.contentType() == Message::File) {
             int fileId = msg.fileId();
-            const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
-
             // 上传中/上传暂停 → 提供暂停/恢复/取消上传
             if (isUploading) {
                 if (dlState == Message::Uploading) {
@@ -3565,11 +3564,11 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
             }
             // 已缓存 → 打开文件
             else if (FileCache::instance()->isCached(fileId)) {
-                menu.addAction("打开文件", [fileId] {
+                menu.addAction(copy.messageMenuOpenFile, [fileId] {
                     QString path = FileCache::instance()->cachedFilePath(fileId);
                     FileCache::openWithSystem(path);
                 });
-                menu.addAction("打开所在文件夹", [fileId] {
+                menu.addAction(copy.messageMenuOpenFolder, [fileId] {
                     QString path = FileCache::instance()->cachedFilePath(fileId);
                     QFileInfo fi(path);
                     FileCache::openWithSystem(fi.absolutePath());
@@ -3589,20 +3588,20 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
         if (msg.sender() == m_username && !msg.recalled() && !isUploading) {
             int secs = msg.timestamp().secsTo(QDateTime::currentDateTime());
             if (secs <= Protocol::RECALL_TIME_LIMIT_SEC) {
-                menu.addAction("撤回消息", this, &ChatWindow::onRecallMessage);
+                menu.addAction(copy.messageMenuRecall, this, &ChatWindow::onRecallMessage);
                 hasMessageActions = true;
             }
         }
 
         // 复制文本
-        menu.addAction("复制文本", [&msg] {
+        menu.addAction(copy.messageMenuCopyText, [&msg] {
             QApplication::clipboard()->setText(msg.content());
         });
         hasMessageActions = true;
 
         // 转发消息/文件
         if (!isUploading && msg.contentType() != Message::System) {
-            menu.addAction("转发消息", [this, msg] {
+            menu.addAction(copy.messageMenuForward, [this, msg] {
                 QList<ForwardSelectDialog::RoomTarget> roomTargets;
                 for (int i = 0; i < m_roomList->count(); ++i) {
                     auto *it = m_roomList->item(i);
@@ -3710,7 +3709,7 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
         if (m_adminRooms.value(m_currentRoomId, false) && !msg.recalled() && !isUploading) {
             menu.addSeparator();
             int msgId = msg.id();
-            menu.addAction("删除此消息", [this, msgId] {
+            menu.addAction(copy.messageMenuDelete, [this, msgId] {
                 QJsonObject data;
                 data["roomId"] = m_currentRoomId;
                 data["mode"] = QStringLiteral("selected");
@@ -3727,10 +3726,12 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
     // ====== 管理员批量操作（始终显示，无需选中消息）======
     if (m_adminRooms.value(m_currentRoomId, false)) {
         if (hasMessageActions) menu.addSeparator();
-        QMenu *adminMenu = menu.addMenu("管理员操作");
+        QMenu *adminMenu = menu.addMenu(copy.messageMenuAdministrator);
 
-        adminMenu->addAction("清空所有消息", [this] {
-            if (QMessageBox::question(this, "确认", "确定要清空所有聊天记录吗？\n此操作不可恢复！")
+        adminMenu->addAction(copy.messageMenuClearAll, [this] {
+            const auto &activeCopy = activeWindowsCopy(m_windowsLocaleViewModel);
+            if (QMessageBox::question(this, activeCopy.messageMenuConfirmTitle,
+                                      activeCopy.messageMenuClearAllConfirm)
                 == QMessageBox::Yes) {
                 QJsonObject data;
                 data["roomId"] = m_currentRoomId;
@@ -3741,10 +3742,12 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
             }
         });
 
-        adminMenu->addAction("删除N天前的消息...", [this] {
+        adminMenu->addAction(copy.messageMenuDeleteBefore, [this] {
+            const auto &activeCopy = activeWindowsCopy(m_windowsLocaleViewModel);
             bool ok;
-            int days = QInputDialog::getInt(this, "删除旧消息",
-                "删除多少天前的消息:", 7, 1, 365, 1, &ok);
+            int days = QInputDialog::getInt(
+                this, activeCopy.messageMenuDeleteBeforeTitle,
+                activeCopy.messageMenuDeleteBeforePrompt, 7, 1, 365, 1, &ok);
             if (!ok) return;
             QDateTime cutoff = QDateTime::currentDateTime().addDays(-days);
             QJsonObject data;
@@ -3756,10 +3759,12 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                 Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_REQ, data));
         });
 
-        adminMenu->addAction("删除最近N天的消息...", [this] {
+        adminMenu->addAction(copy.messageMenuDeleteRecent, [this] {
+            const auto &activeCopy = activeWindowsCopy(m_windowsLocaleViewModel);
             bool ok;
-            int days = QInputDialog::getInt(this, "删除近期消息",
-                "删除最近几天的消息:", 1, 1, 365, 1, &ok);
+            int days = QInputDialog::getInt(
+                this, activeCopy.messageMenuDeleteRecentTitle,
+                activeCopy.messageMenuDeleteRecentPrompt, 1, 1, 365, 1, &ok);
             if (!ok) return;
             QDateTime cutoff = QDateTime::currentDateTime().addDays(-days);
             QJsonObject data;

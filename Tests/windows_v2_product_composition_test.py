@@ -383,6 +383,41 @@ def main() -> int:
         raise AssertionError(
             "attachment selection and local limits must use the active Windows locale"
         )
+    message_menu_surface = window[
+        window.index("void ChatWindow::onMessageContextMenu("):
+        window.index("int ChatWindow::forwardFileWithLegacyProtocol(")
+    ]
+    require(message_menu_surface, (
+        "copy.messageMenuViewUser",
+        "copy.messageMenuRetrySend",
+        "copy.messageMenuOpenFile",
+        "copy.messageMenuOpenFolder",
+        "copy.messageMenuRecall",
+        "copy.messageMenuCopyText",
+        "copy.messageMenuForward",
+        "copy.messageMenuDelete",
+        "copy.messageMenuAdministrator",
+        "activeCopy.messageMenuClearAllConfirm",
+        "activeCopy.messageMenuDeleteBeforePrompt",
+        "activeCopy.messageMenuDeleteRecentPrompt",
+        'data["mode"] = QStringLiteral("selected")',
+        'data["mode"] = QStringLiteral("all")',
+        'data["mode"] = QStringLiteral("before")',
+        'data["mode"] = QStringLiteral("after")',
+        'data["clientOperationId"] = QUuid::createUuid()',
+    ), "Client/ChatWindow.cpp message context menu")
+    if any(copy in message_menu_surface for copy in (
+        '"\u67e5\u770b\u7528\u6237\u4fe1\u606f"', '"\u91cd\u8bd5\u53d1\u9001"',
+        '"\u6253\u5f00\u6587\u4ef6"', '"\u6253\u5f00\u6240\u5728\u6587\u4ef6\u5939"',
+        '"\u64a4\u56de\u6d88\u606f"', '"\u590d\u5236\u6587\u672c"',
+        '"\u8f6c\u53d1\u6d88\u606f"', '"\u5220\u9664\u6b64\u6d88\u606f"',
+        '"\u7ba1\u7406\u5458\u64cd\u4f5c"', '"\u6e05\u7a7a\u6240\u6709\u6d88\u606f"',
+        '"\u5220\u9664N\u5929\u524d\u7684\u6d88\u606f..."',
+        '"\u5220\u9664\u6700\u8fd1N\u5929\u7684\u6d88\u606f..."',
+    )):
+        raise AssertionError(
+            "message context actions must project from the active Windows catalog"
+        )
     require(message_delegate, (
         "WindowsAttachmentPresentation::unavailableText(",
         "WindowsMessagePresentation::timestampWithDelivery(",

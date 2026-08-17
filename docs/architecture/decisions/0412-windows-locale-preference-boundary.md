@@ -178,6 +178,12 @@ message storage, server behavior, or the supported Web/Windows product scope.
   data, content-type inference and server-side limits do not change, and both
   actual size and configured limits use the selected locale rather than fixed
   GB/MB arithmetic. Accepted files still enter the durable attachment outbox.
+- Project the message context menu from the active catalog at menu construction
+  time. Stable sender/message/file identities, recall eligibility, cache state,
+  administrator authority and outbox retry state continue to decide which
+  actions exist. Destructive bulk actions resolve the active locale again when
+  invoked, while their stable `selected`/`all`/`before`/`after` modes and fresh
+  idempotency operation IDs remain unchanged.
 
 ## Consequences
 
@@ -318,3 +324,7 @@ database migration or protocol compatibility window is required.
   process-default data-size formatting while requiring the existing room and
   direct outbox dispatch paths. Catalog tests bind room, image and friend-limit
   wording in both languages; native Windows picker interaction remains open.
+- message-menu source composition rejects embedded action/destructive copy and
+  locks the stable deletion modes, fresh operation IDs and existing command
+  targets. Catalog tests bind common file, retry and administrator terminology;
+  native Windows mouse/keyboard menu interaction remains open.

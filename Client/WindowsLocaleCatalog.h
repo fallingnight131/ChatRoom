@@ -728,6 +728,24 @@ struct WindowsLocaleMessages {
     QString attachmentImageFilesFilter;
     QString attachmentFriendTooLargeTitle;
     QString attachmentFriendTooLarge;
+    QString messageMenuViewUser;
+    QString messageMenuRetrySend;
+    QString messageMenuOpenFile;
+    QString messageMenuOpenFolder;
+    QString messageMenuRecall;
+    QString messageMenuCopyText;
+    QString messageMenuForward;
+    QString messageMenuDelete;
+    QString messageMenuAdministrator;
+    QString messageMenuClearAll;
+    QString messageMenuConfirmTitle;
+    QString messageMenuClearAllConfirm;
+    QString messageMenuDeleteBefore;
+    QString messageMenuDeleteBeforeTitle;
+    QString messageMenuDeleteBeforePrompt;
+    QString messageMenuDeleteRecent;
+    QString messageMenuDeleteRecentTitle;
+    QString messageMenuDeleteRecentPrompt;
 };
 
 class WindowsLocaleCatalog final {

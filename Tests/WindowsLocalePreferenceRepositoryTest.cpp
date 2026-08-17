@@ -317,7 +317,14 @@ int main(int argc, char **argv) {
                 || english.attachmentFriendTooLarge.arg(
                        QStringLiteral("101 MB"), QStringLiteral("100 MB"))
                     != QStringLiteral(
-                        "File size 101 MB exceeds the friend transfer limit of 100 MB.")) {
+                        "File size 101 MB exceeds the friend transfer limit of 100 MB.")
+                || english.messageMenuOpenFolder
+                    != QStringLiteral("Open containing folder")
+                || english.messageMenuClearAllConfirm
+                    != QStringLiteral(
+                        "Clear all chat history?\nThis action cannot be undone.")
+                || english.messageMenuDeleteRecent
+                    != QStringLiteral("Delete messages from the last N days…")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -415,6 +422,10 @@ int main(int argc, char **argv) {
                     != QStringLiteral("选择图片")
                 || chinese.attachmentImageTooLarge.arg(QStringLiteral("8 MB"))
                     != QStringLiteral("图片大小不能超过 8 MB。")
+                || chinese.messageMenuRetrySend
+                    != QStringLiteral("重试发送")
+                || chinese.messageMenuAdministrator
+                    != QStringLiteral("管理员操作")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

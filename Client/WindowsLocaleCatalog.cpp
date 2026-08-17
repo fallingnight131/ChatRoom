@@ -750,6 +750,24 @@ WindowsLocaleMessages createZhCn() {
     m.attachmentImageFilesFilter = QStringLiteral("图片文件 (*.png *.jpg *.jpeg *.gif *.bmp *.webp)");
     m.attachmentFriendTooLargeTitle = QStringLiteral("文件过大");
     m.attachmentFriendTooLarge = QStringLiteral("文件大小 %1 超过好友传输上限 %2。");
+    m.messageMenuViewUser = QStringLiteral("查看用户信息");
+    m.messageMenuRetrySend = QStringLiteral("重试发送");
+    m.messageMenuOpenFile = QStringLiteral("打开文件");
+    m.messageMenuOpenFolder = QStringLiteral("打开所在文件夹");
+    m.messageMenuRecall = QStringLiteral("撤回消息");
+    m.messageMenuCopyText = QStringLiteral("复制文本");
+    m.messageMenuForward = QStringLiteral("转发消息");
+    m.messageMenuDelete = QStringLiteral("删除此消息");
+    m.messageMenuAdministrator = QStringLiteral("管理员操作");
+    m.messageMenuClearAll = QStringLiteral("清空所有消息");
+    m.messageMenuConfirmTitle = QStringLiteral("确认");
+    m.messageMenuClearAllConfirm = QStringLiteral("确定要清空所有聊天记录吗？\n此操作不可恢复！");
+    m.messageMenuDeleteBefore = QStringLiteral("删除 N 天前的消息…");
+    m.messageMenuDeleteBeforeTitle = QStringLiteral("删除旧消息");
+    m.messageMenuDeleteBeforePrompt = QStringLiteral("删除多少天前的消息：");
+    m.messageMenuDeleteRecent = QStringLiteral("删除最近 N 天的消息…");
+    m.messageMenuDeleteRecentTitle = QStringLiteral("删除近期消息");
+    m.messageMenuDeleteRecentPrompt = QStringLiteral("删除最近几天的消息：");
     return m;
 }
 
@@ -1522,6 +1540,24 @@ WindowsLocaleMessages createEnUs() {
     m.attachmentImageFilesFilter = QStringLiteral("Image files (*.png *.jpg *.jpeg *.gif *.bmp *.webp)");
     m.attachmentFriendTooLargeTitle = QStringLiteral("File too large");
     m.attachmentFriendTooLarge = QStringLiteral("File size %1 exceeds the friend transfer limit of %2.");
+    m.messageMenuViewUser = QStringLiteral("View user information");
+    m.messageMenuRetrySend = QStringLiteral("Retry send");
+    m.messageMenuOpenFile = QStringLiteral("Open file");
+    m.messageMenuOpenFolder = QStringLiteral("Open containing folder");
+    m.messageMenuRecall = QStringLiteral("Recall message");
+    m.messageMenuCopyText = QStringLiteral("Copy text");
+    m.messageMenuForward = QStringLiteral("Forward message");
+    m.messageMenuDelete = QStringLiteral("Delete this message");
+    m.messageMenuAdministrator = QStringLiteral("Administrator actions");
+    m.messageMenuClearAll = QStringLiteral("Clear all messages");
+    m.messageMenuConfirmTitle = QStringLiteral("Confirm");
+    m.messageMenuClearAllConfirm = QStringLiteral("Clear all chat history?\nThis action cannot be undone.");
+    m.messageMenuDeleteBefore = QStringLiteral("Delete messages older than N days…");
+    m.messageMenuDeleteBeforeTitle = QStringLiteral("Delete older messages");
+    m.messageMenuDeleteBeforePrompt = QStringLiteral("Delete messages older than how many days:");
+    m.messageMenuDeleteRecent = QStringLiteral("Delete messages from the last N days…");
+    m.messageMenuDeleteRecentTitle = QStringLiteral("Delete recent messages");
+    m.messageMenuDeleteRecentPrompt = QStringLiteral("Delete messages from the last how many days:");
     return m;
 }
 
