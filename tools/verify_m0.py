@@ -23,10 +23,15 @@ def command_path(*names: str) -> str:
     raise RuntimeError(f"required command not found: {', '.join(names)}")
 
 
-def run(command: list[str], cwd: Path) -> None:
+def run(
+    command: list[str],
+    cwd: Path,
+    *,
+    env: dict[str, str] | None = None,
+) -> None:
     rendered = " ".join(command)
     print(f"\n[M0] {cwd.relative_to(ROOT) if cwd.is_relative_to(ROOT) else cwd}$ {rendered}")
-    subprocess.run(command, cwd=cwd, check=True)
+    subprocess.run(command, cwd=cwd, check=True, env=env)
 
 
 def verify_inventory() -> None:
@@ -414,6 +419,10 @@ def build_qt_unit_test(
 
 
 def run_qt_client_unit_tests(jobs: int, build_root: Path) -> None:
+    test_env = os.environ.copy()
+    if os.name != "nt":
+        test_env.setdefault("QT_QPA_PLATFORM", "offscreen")
+
     for name in (
         "HttpUploadTransportTest",
         "HttpDownloadTransportTest",
@@ -464,7 +473,11 @@ def run_qt_client_unit_tests(jobs: int, build_root: Path) -> None:
         "WindowsUpdateProductConfigurationEnabledTest",
         "WindowsClientInstanceGuardTest",
     ):
-        run([str(build_qt_unit_test(jobs, build_root, name))], ROOT)
+        run(
+            [str(build_qt_unit_test(jobs, build_root, name))],
+            ROOT,
+            env=test_env,
+        )
 
 
 def verify_v1_smoke(jobs: int, build_root: Path) -> None:
