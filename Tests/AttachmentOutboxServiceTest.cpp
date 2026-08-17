@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
         if (!check(writeSource(sourcePath, QByteArray(150000, 'b')),
                    QStringLiteral("cannot replace attachment source"))) return 1;
         QFile source(sourcePath);
-        if (!check(source.open(QIODevice::ReadOnly)
+        if (!check(source.open(QIODevice::ReadWrite)
                        && source.setFileTime(
                            QDateTime::fromMSecsSinceEpoch(stored.first().sourceModifiedAtMs),
                            QFileDevice::FileModificationTime),
