@@ -364,6 +364,16 @@ struct WindowsLocaleMessages {
     QString roomPasswordJoinStatusAccessible;
     QString roomPasswordJoinRequired;
     QString roomPasswordJoinAction;
+    QString roomPasswordSetStatus;
+    QString roomPasswordRemovedStatus;
+    QString roomPasswordChangeSucceededTitle;
+    QString roomPasswordSetSucceeded;
+    QString roomPasswordRemoved;
+    QString roomPasswordSetFailedTitle;
+    QString roomPasswordStatusTitle;
+    QString roomPasswordPresent;
+    QString roomPasswordAbsent;
+    QString roomPasswordStatusFailedTitle;
 };
 
 class WindowsLocaleCatalog final {

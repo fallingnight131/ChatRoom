@@ -2846,6 +2846,8 @@ Candidate slices:
     - [x] Extract and localize the Windows protected-room password prompt:
       preserve the original server room ID and exact secret, reject empty input,
       mask the field, and clear component plaintext before command dispatch.
+    - [x] Localize Windows room-password set/remove/query feedback while keeping
+      server failure detail opaque and retaining status-only password semantics.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

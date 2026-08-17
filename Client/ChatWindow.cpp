@@ -4288,14 +4288,16 @@ void ChatWindow::onRenameRoomNotify(int roomId, const QString &newName) {
 
 void ChatWindow::onSetRoomPasswordResponse(bool success, int roomId, bool hasPassword, const QString &error) {
     Q_UNUSED(roomId)
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success) {
-        m_statusLabel->setText(hasPassword ? QStringLiteral("聊天室密码已设置")
-                                           : QStringLiteral("聊天室密码已取消"));
-        QMessageBox::information(this, QStringLiteral("修改成功"),
-                                 hasPassword ? QStringLiteral("聊天室密码设置成功")
-                                             : QStringLiteral("聊天室密码已取消"));
+        m_statusLabel->setText(hasPassword ? copy.roomPasswordSetStatus
+                                           : copy.roomPasswordRemovedStatus);
+        QMessageBox::information(this, copy.roomPasswordChangeSucceededTitle,
+                                 hasPassword ? copy.roomPasswordSetSucceeded
+                                             : copy.roomPasswordRemoved);
     } else {
-        QMessageBox::warning(this, "设置密码失败", error);
+        QMessageBox::warning(this, copy.roomPasswordSetFailedTitle, error);
     }
 }
 
@@ -4303,15 +4305,14 @@ void ChatWindow::onGetRoomPasswordResponse(bool success, int roomId,
                                            bool hasPassword,
                                            const QString &error) {
     Q_UNUSED(roomId)
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success) {
-        if (hasPassword) {
-            QMessageBox::information(this, "聊天室密码",
-                QStringLiteral("当前聊天室已设置密码。密码不可查看，可由管理员直接重设。"));
-        } else {
-            QMessageBox::information(this, "聊天室密码", "当前聊天室未设置密码");
-        }
+        QMessageBox::information(this, copy.roomPasswordStatusTitle,
+                                 hasPassword ? copy.roomPasswordPresent
+                                             : copy.roomPasswordAbsent);
     } else {
-        QMessageBox::warning(this, "查询密码状态失败", error);
+        QMessageBox::warning(this, copy.roomPasswordStatusFailedTitle, error);
     }
 }
 

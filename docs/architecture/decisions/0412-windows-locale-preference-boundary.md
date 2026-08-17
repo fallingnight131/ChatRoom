@@ -96,6 +96,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
   and retain server-side join authorization. Empty input is a local validation
   state and must recompose with the active locale. A newer server challenge
   closes and replaces stale prompt state before capturing its room ID.
+- Catalog local room-password set/remove/query success and status feedback, but
+  preserve server-provided failure text as opaque detail. Status presentation
+  must continue to say only whether a password exists; it must never imply that
+  the non-recoverable secret can be displayed.
 
 ## Consequences
 
@@ -144,3 +148,5 @@ database migration or protocol compatibility window is required.
 - protected-room composition proves empty local rejection and live validation
   recomposition, then requires clear-before-emit with the unchanged room ID and
   exact non-empty password.
+- source composition binds room-password result/status feedback to the catalog
+  while passing the server `error` detail unchanged.

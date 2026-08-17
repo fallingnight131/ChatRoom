@@ -2021,6 +2021,10 @@ local empty-input status, and clears component plaintext before dispatch. The
 original server-provided room ID and exact password are sent through the
 existing V1 command; a newer challenge closes stale prompt state, and the
 server remains the only join authority.
+Room-password set/remove/query feedback now uses the same locale boundary. The
+client owns only success/status presentation; server rejection detail remains
+opaque and is shown unchanged, and the server never returns a recoverable
+password.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

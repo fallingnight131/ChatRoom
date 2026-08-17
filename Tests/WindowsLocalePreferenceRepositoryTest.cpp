@@ -101,7 +101,12 @@ int main(int argc, char **argv) {
                 || english.roomFileCleared != QStringLiteral("Expired/cleared")
                 || english.roomPasswordRequiredTitle
                     != QStringLiteral("Password required")
-                || english.roomPasswordJoinAction != QStringLiteral("Join")) {
+                || english.roomPasswordJoinAction != QStringLiteral("Join")
+                || english.roomPasswordStatusTitle
+                    != QStringLiteral("Room password status")
+                || english.roomPasswordPresent
+                    != QStringLiteral(
+                        "This room has a password. It cannot be viewed; an administrator can replace it.")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }

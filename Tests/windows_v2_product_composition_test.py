@@ -124,6 +124,8 @@ def main() -> int:
         "new RoomPasswordPromptDialog(",
         "m_roomPasswordPromptDialog->close()",
         "if (m_roomPasswordPromptDialog == dialog)",
+        "copy.roomPasswordSetStatus",
+        "copy.roomPasswordStatusFailedTitle, error",
     ), "Client/ChatWindow.cpp")
     require(profile, (
         "WindowsLocaleCatalog::messages(m_locale)",

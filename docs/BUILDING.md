@@ -3284,6 +3284,10 @@ to English, then proves the password control is cleared before emitting the
 unchanged server room ID and exact password. The source-composition gate locks
 the real ChatWindow entry and password echo mode; native Windows focus and
 screen-reader behavior remains a release gate.
+The same source-composition check binds room-password set/remove/query feedback
+to catalog state while requiring the server-provided failure detail to remain
+the unchanged `error` value. This is deterministic source evidence; native
+message-box presentation remains part of the Windows product gate.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

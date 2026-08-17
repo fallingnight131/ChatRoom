@@ -363,6 +363,17 @@ WindowsLocaleMessages createZhCn() {
     m.roomPasswordJoinStatusAccessible = QStringLiteral("聊天室加入密码状态");
     m.roomPasswordJoinRequired = QStringLiteral("请输入聊天室密码");
     m.roomPasswordJoinAction = QStringLiteral("加入");
+    m.roomPasswordSetStatus = QStringLiteral("聊天室密码已设置");
+    m.roomPasswordRemovedStatus = QStringLiteral("聊天室密码已取消");
+    m.roomPasswordChangeSucceededTitle = QStringLiteral("修改成功");
+    m.roomPasswordSetSucceeded = QStringLiteral("聊天室密码设置成功");
+    m.roomPasswordRemoved = QStringLiteral("聊天室密码已取消");
+    m.roomPasswordSetFailedTitle = QStringLiteral("设置密码失败");
+    m.roomPasswordStatusTitle = QStringLiteral("聊天室密码状态");
+    m.roomPasswordPresent = QStringLiteral(
+        "当前聊天室已设置密码。密码不可查看，可由管理员直接重设。");
+    m.roomPasswordAbsent = QStringLiteral("当前聊天室未设置密码");
+    m.roomPasswordStatusFailedTitle = QStringLiteral("查询密码状态失败");
     return m;
 }
 
@@ -742,6 +753,18 @@ WindowsLocaleMessages createEnUs() {
     m.roomPasswordJoinStatusAccessible = QStringLiteral("Room join password status");
     m.roomPasswordJoinRequired = QStringLiteral("Enter the room password");
     m.roomPasswordJoinAction = QStringLiteral("Join");
+    m.roomPasswordSetStatus = QStringLiteral("Room password set");
+    m.roomPasswordRemovedStatus = QStringLiteral("Room password removed");
+    m.roomPasswordChangeSucceededTitle = QStringLiteral("Change succeeded");
+    m.roomPasswordSetSucceeded = QStringLiteral("Room password set successfully");
+    m.roomPasswordRemoved = QStringLiteral("Room password removed");
+    m.roomPasswordSetFailedTitle = QStringLiteral("Unable to set room password");
+    m.roomPasswordStatusTitle = QStringLiteral("Room password status");
+    m.roomPasswordPresent = QStringLiteral(
+        "This room has a password. It cannot be viewed; an administrator can replace it.");
+    m.roomPasswordAbsent = QStringLiteral("This room does not have a password");
+    m.roomPasswordStatusFailedTitle = QStringLiteral(
+        "Unable to query room password status");
     return m;
 }
 
