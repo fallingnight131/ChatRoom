@@ -117,6 +117,7 @@ jobs:
           version: ${{ env.QT_VERSION }}
           arch: win64_msvc2022_64
           modules: qtmultimedia qtwebsockets
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git@7e5a5c3d95cf962cfc2f36c86ffa0d2c07f1a0d4
           cache: true
 
       - name: Install server password hashing dependency

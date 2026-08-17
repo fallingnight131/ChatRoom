@@ -73,6 +73,8 @@ def main() -> int:
         "Compare deployed CMake and qmake Windows payloads",
         "compare_windows_client_payloads.py",
         "windows_client_payload_parity_test.py",
+        "aqtsource: git+https://github.com/miurahr/aqtinstall.git@"
+        "7e5a5c3d95cf962cfc2f36c86ffa0d2c07f1a0d4",
     )
     for marker in required_workflow:
         if marker not in workflow:
