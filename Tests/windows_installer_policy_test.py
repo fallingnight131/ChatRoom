@@ -78,6 +78,7 @@ class WindowsInstallerPolicyTest(unittest.TestCase):
             'Rename "$BackupDir" "$INSTDIR"',
             'IfFileExists "$StageDir\\sqldrivers\\qsqlite.dll" 0 stage_invalid',
             'IfFileExists "$StageDir\\${PRODUCT_UPDATE_LAUNCHER}" 0 stage_invalid',
+            'SetOutPath "$TEMP"',
             '${VersionCompare} "${VERSION}" "$1" $2',
             'StrCmp $2 "2" downgrade_install',
         ]:
@@ -86,6 +87,7 @@ class WindowsInstallerPolicyTest(unittest.TestCase):
         self.assertIn('StrCmp $0 "${PRODUCT_INSTALL_ID}" 0 unsafe_install', self.source)
         self.assertIn('StrCmp $0 "${PRODUCT_INSTALL_ID}" 0 unsafe_uninstall', self.source)
         self.assertLess(self.source.index('File /r "${PAYLOAD_DIR}\\*"'), self.source.index('Rename "$StageDir" "$INSTDIR"'))
+        self.assertLess(self.source.index('SetOutPath "$TEMP"'), self.source.index('Rename "$StageDir" "$INSTDIR"'))
 
     def test_rejects_a_running_client_before_mutation(self) -> None:
         self.assertIn('!define PRODUCT_RUNNING_MUTEX "Local\\ChatRoom.WindowsClient.Running.v1"', self.source)

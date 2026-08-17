@@ -147,6 +147,7 @@ Section "$(MainSectionName)" MainSection
   !else
     WriteUninstaller "$StageDir\Uninstall.exe"
   !endif
+  SetOutPath "$TEMP"
   IfFileExists "$StageDir\${PRODUCT_EXE}" 0 stage_invalid
   IfFileExists "$StageDir\${PRODUCT_UPDATE_LAUNCHER}" 0 stage_invalid
   IfFileExists "$StageDir\sqldrivers\qsqlite.dll" 0 stage_invalid
