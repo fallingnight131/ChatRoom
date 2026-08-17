@@ -3291,6 +3291,9 @@ never compared with localized UI text. The shell recreates the login dialog
 through one shared activation path after either outcome.
 The source gate also requires a guarded single re-login dialog so repeated
 session-end notifications cannot create competing authentication windows.
+Create-room source composition rejects the static convenience dialog and binds
+its title, prompt, actions, and accessible name to the live locale. Projection
+does not write the text value; the accepted trimmed V1 room name is unchanged.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live
@@ -3869,6 +3872,11 @@ development/portability verification, not a supported desktop release gate.
   the CMake `windeployqt` directory as the short-lived client-only unsigned
   verification payload. Root `VERSION` supplies both the Qt application version
   and artifact version.
+- Qt 6.11 changed the Windows repository to architecture-specific metadata
+  directories. The Windows install step therefore pins upstream `aqtinstall`
+  commit `7e5a5c3d95cf962cfc2f36c86ffa0d2c07f1a0d4`, which adds that layout;
+  macOS remains on the released installer. Keep the full SHA and the workflow
+  policy assertion until an audited aqt release contains the same support.
 - CI writes deterministic `artifact-manifest.json` and `SHA256SUMS` metadata
   containing schema-4 `buildSystem: cmake`, the exact Git revision, toolchain
   identity, parity-evidence hash, file sizes, and hashes.

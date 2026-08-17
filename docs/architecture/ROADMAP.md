@@ -2876,6 +2876,8 @@ Candidate slices:
       close, hide, exit or notification-activation behavior.
     - [x] Replace the Windows local-logout presentation-string sentinel with a
       typed lifecycle signal and keep remote session termination independent.
+    - [x] Migrate the Windows create-room leaf to live locale projection while
+      preserving the room-name draft and unchanged V1 command boundary.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

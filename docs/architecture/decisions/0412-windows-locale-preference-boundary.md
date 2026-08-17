@@ -230,3 +230,5 @@ database migration or protocol compatibility window is required.
 - local sign-out uses an explicit lifecycle signal rather than localized text;
   remote session termination retains opaque server detail under a localized
   application-owned title.
+- create-room presentation recomposes the existing modal in place, preserving
+  its Unicode draft and sending only the trimmed accepted value through V1.

@@ -2104,6 +2104,9 @@ routes a translated sentinel through the remote-session failure signal; remote
 termination detail stays opaque while its application-owned title is localized.
 The application composition root owns one re-login dialog at a time, preventing
 duplicate lifecycle events from creating competing authentication surfaces.
+The create-room modal is now an owned, live-recomposable leaf instead of a
+static convenience call. Locale changes preserve its Unicode draft and the
+accepted value still crosses the existing V1 command boundary unchanged.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

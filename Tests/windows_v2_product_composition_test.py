@@ -188,6 +188,9 @@ def main() -> int:
         "copy.mainTrayMinimizedTitle, copy.mainTrayMinimizedBody",
         "copy.mainLogoutTitle, copy.mainLogoutConfirm",
         "emit logoutRequested()",
+        "dialog.setWindowTitle(copy.mainCreateRoomTitle)",
+        "dialog.setLabelText(copy.mainCreateRoomPrompt)",
+        "dialog.setAccessibleName(copy.mainCreateRoomAccessible)",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -248,6 +251,16 @@ def main() -> int:
         raise AssertionError("conversation shell must not embed localized copy")
     if 'new QLabel(isOnline ? "在线" : "离线")' in window:
         raise AssertionError("member status presentation must come from the catalog")
+    create_room_surface = window[
+        window.index("void ChatWindow::onCreateRoom()"):
+        window.index("void ChatWindow::onSearchRoom()")
+    ]
+    if "QInputDialog::getText" in create_room_surface:
+        raise AssertionError("create-room dialog must support live locale projection")
+    if any(marker in create_room_surface for marker in (
+        "dialog.setTextValue(", "dialog.textValue().clear()",
+    )):
+        raise AssertionError("locale projection must not replace the room-name draft")
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

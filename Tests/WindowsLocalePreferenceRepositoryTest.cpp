@@ -177,7 +177,11 @@ int main(int argc, char **argv) {
                 || english.mainLogoutConfirm
                     != QStringLiteral("Sign out of the current account?")
                 || english.mainForcedOfflineTitle
-                    != QStringLiteral("Session ended")) {
+                    != QStringLiteral("Session ended")
+                || english.mainCreateRoomTitle
+                    != QStringLiteral("Create room")
+                || english.mainCreateRoomPrompt
+                    != QStringLiteral("Enter a room name:")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -202,6 +206,8 @@ int main(int argc, char **argv) {
                 || chinese.mainTrayMinimizedTitle
                     != QStringLiteral("聊天软件")
                 || chinese.mainLogoutTitle != QStringLiteral("注销")
+                || chinese.mainCreateRoomTitle
+                    != QStringLiteral("创建聊天室")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

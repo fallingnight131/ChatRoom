@@ -502,6 +502,9 @@ struct WindowsLocaleMessages {
     QString mainLogoutTitle;
     QString mainLogoutConfirm;
     QString mainForcedOfflineTitle;
+    QString mainCreateRoomTitle;
+    QString mainCreateRoomPrompt;
+    QString mainCreateRoomAccessible;
 };
 
 class WindowsLocaleCatalog final {

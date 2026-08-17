@@ -1180,7 +1180,22 @@ void ChatWindow::requestRoomList() {
 }
 
 void ChatWindow::onCreateRoom() {
-    QString name = QInputDialog::getText(this, "创建聊天室", "请输入聊天室名称:");
+    QInputDialog dialog(this);
+    dialog.setInputMode(QInputDialog::TextInput);
+    auto refreshText = [this, &dialog] {
+        const auto &copy = WindowsLocaleCatalog::messages(
+            m_windowsLocaleViewModel->locale());
+        dialog.setWindowTitle(copy.mainCreateRoomTitle);
+        dialog.setLabelText(copy.mainCreateRoomPrompt);
+        dialog.setOkButtonText(copy.mainNavigationCreateRoom);
+        dialog.setCancelButtonText(copy.cancel);
+        dialog.setAccessibleName(copy.mainCreateRoomAccessible);
+    };
+    connect(m_windowsLocaleViewModel, &WindowsLocaleViewModel::changed,
+            &dialog, refreshText);
+    refreshText();
+    if (dialog.exec() != QDialog::Accepted) return;
+    const QString name = dialog.textValue();
     if (name.trimmed().isEmpty()) return;
 
     NetworkManager::instance()->sendMessage(Protocol::makeCreateRoomReq(name.trimmed()));
