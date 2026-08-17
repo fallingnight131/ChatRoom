@@ -45,6 +45,28 @@ WindowsLocaleMessages createZhCn() {
     m.composerBudgetAccessible = QStringLiteral("消息字节数");
     m.bytesUsed = QStringLiteral("%1 / %2 字节");
     m.bytesOverLimit = QStringLiteral("超过上限 %1 字节（最多 %2 字节）");
+    m.loadLocalMessagesFailed = QStringLiteral("无法加载本地消息");
+    m.replyBanner = QStringLiteral("回复 %1");
+    m.sendMessageFailed = QStringLiteral("无法发送消息");
+    m.sentButDraftClearFailed = QStringLiteral("消息已发送，但无法清除本地草稿");
+    m.sendReplyFailed = QStringLiteral("无法发送回复");
+    m.replySentButDraftClearFailed = QStringLiteral("回复已发送，但无法清除本地草稿");
+    m.saveDraftFailed = QStringLiteral("无法保存本地草稿");
+    m.retryMessageFailed = QStringLiteral("无法重试该消息");
+    m.updateReactionFailed = QStringLiteral("无法更新消息反应");
+    m.retryReactionFailed = QStringLiteral("无法重试消息反应");
+    m.updatePinFailed = QStringLiteral("无法更新置顶状态");
+    m.retryPinFailed = QStringLiteral("无法重试置顶操作");
+    m.editMessageFailed = QStringLiteral("无法编辑该消息");
+    m.retryEditFailed = QStringLiteral("无法重试编辑");
+    m.newerVersionUnavailable = QStringLiteral("新版本尚未同步");
+    m.discardEditFailed = QStringLiteral("无法放弃编辑草稿");
+    m.forwardMessageFailed = QStringLiteral("无法转发该消息");
+    m.recalledMessage = QStringLiteral("此消息已被撤回");
+    m.sending = QStringLiteral("发送中…");
+    m.sendFailed = QStringLiteral("发送失败");
+    m.replyUnavailable = QStringLiteral("引用的消息不可用");
+    m.replyRecalled = QStringLiteral("引用的消息已撤回");
     return m;
 }
 
@@ -92,6 +114,28 @@ WindowsLocaleMessages createEnUs() {
     m.composerBudgetAccessible = QStringLiteral("Message byte count");
     m.bytesUsed = QStringLiteral("%1 / %2 bytes");
     m.bytesOverLimit = QStringLiteral("%1 bytes over the limit (%2 maximum)");
+    m.loadLocalMessagesFailed = QStringLiteral("Unable to load local messages");
+    m.replyBanner = QStringLiteral("Reply to %1");
+    m.sendMessageFailed = QStringLiteral("Unable to send message");
+    m.sentButDraftClearFailed = QStringLiteral("Message sent, but the local draft could not be cleared");
+    m.sendReplyFailed = QStringLiteral("Unable to send reply");
+    m.replySentButDraftClearFailed = QStringLiteral("Reply sent, but the local draft could not be cleared");
+    m.saveDraftFailed = QStringLiteral("Unable to save local draft");
+    m.retryMessageFailed = QStringLiteral("Unable to retry this message");
+    m.updateReactionFailed = QStringLiteral("Unable to update message reaction");
+    m.retryReactionFailed = QStringLiteral("Unable to retry message reaction");
+    m.updatePinFailed = QStringLiteral("Unable to update pin state");
+    m.retryPinFailed = QStringLiteral("Unable to retry pin action");
+    m.editMessageFailed = QStringLiteral("Unable to edit this message");
+    m.retryEditFailed = QStringLiteral("Unable to retry edit");
+    m.newerVersionUnavailable = QStringLiteral("The newer version has not synced yet");
+    m.discardEditFailed = QStringLiteral("Unable to discard edit draft");
+    m.forwardMessageFailed = QStringLiteral("Unable to forward this message");
+    m.recalledMessage = QStringLiteral("This message was recalled");
+    m.sending = QStringLiteral("Sending…");
+    m.sendFailed = QStringLiteral("Send failed");
+    m.replyUnavailable = QStringLiteral("Referenced message is unavailable");
+    m.replyRecalled = QStringLiteral("Referenced message was recalled");
     return m;
 }
 

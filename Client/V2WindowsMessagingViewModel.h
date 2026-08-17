@@ -1,6 +1,7 @@
 #pragma once
 
 #include "V2LocalMessageRepository.h"
+#include "WindowsLocaleCatalog.h"
 
 #include <QObject>
 #include <QVector>
@@ -73,7 +74,7 @@ public:
         Retry retry, SetReaction setReaction, RetryReaction retryReaction,
         SetPin setPin, RetryPin retryPin, Edit edit, EditOperation retryEdit,
         EditOperation rebaseEdit, DiscardEdit discardEdit,
-        QObject *parent = nullptr);
+        QObject *parent = nullptr, WindowsLocale locale = WindowsLocale::ZhCn);
     bool openConversation(const QString &conversationId);
     bool refresh();
     bool applyTransientContext(
@@ -137,4 +138,5 @@ private:
     QString m_failure;
     QVector<Row> m_rows;
     QList<V2LocalMessageRepository::Message> m_transientContext;
+    WindowsLocale m_locale;
 };

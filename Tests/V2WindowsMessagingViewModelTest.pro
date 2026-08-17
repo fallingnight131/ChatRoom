@@ -10,8 +10,10 @@ INCLUDEPATH += ../Client
 SOURCES += \
     V2WindowsMessagingViewModelTest.cpp \
     ../Client/V2WindowsMessagingViewModel.cpp \
+    ../Client/WindowsLocaleCatalog.cpp \
     ../Client/V2LocalMessageRepository.cpp
 
 HEADERS += \
     ../Client/V2WindowsMessagingViewModel.h \
+    ../Client/WindowsLocaleCatalog.h \
     ../Client/V2LocalMessageRepository.h

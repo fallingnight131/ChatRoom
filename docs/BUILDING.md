@@ -3180,6 +3180,10 @@ catalog through the directory shell and composer, including accessible action
 copy and the UTF-8 byte budget. Runtime status/failure copy, search,
 participants, and timeline actions remain Chinese and therefore the product
 language selector stays intentionally unavailable.
+`V2WindowsMessagingViewModelTest` also projects a detached `en-US` runtime and
+proves English reply fallback/banner and send-failure state. This covers local
+application diagnostics, delivery/recall labels, and reply previews without
+translating server-provided or user-authored data.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

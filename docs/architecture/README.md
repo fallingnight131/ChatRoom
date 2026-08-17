@@ -1917,6 +1917,10 @@ accessible shell names, and composer controls. Runtime view-model diagnostics,
 search, participant picking, and timeline actions remain outside that slice, so
 the stored preference is still not product-composed and cannot create a mixed-
 language user path.
+Messaging ViewModel projections now use that same boundary for local failures,
+reply state, delivery/recall labels, and unavailable reply previews. User text,
+account names, role labels, and server diagnostics remain data and are never
+used as catalog lookup keys.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

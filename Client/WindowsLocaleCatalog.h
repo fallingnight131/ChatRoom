@@ -51,6 +51,28 @@ struct WindowsLocaleMessages {
     QString composerBudgetAccessible;
     QString bytesUsed;
     QString bytesOverLimit;
+    QString loadLocalMessagesFailed;
+    QString replyBanner;
+    QString sendMessageFailed;
+    QString sentButDraftClearFailed;
+    QString sendReplyFailed;
+    QString replySentButDraftClearFailed;
+    QString saveDraftFailed;
+    QString retryMessageFailed;
+    QString updateReactionFailed;
+    QString retryReactionFailed;
+    QString updatePinFailed;
+    QString retryPinFailed;
+    QString editMessageFailed;
+    QString retryEditFailed;
+    QString newerVersionUnavailable;
+    QString discardEditFailed;
+    QString forwardMessageFailed;
+    QString recalledMessage;
+    QString sending;
+    QString sendFailed;
+    QString replyUnavailable;
+    QString replyRecalled;
 };
 
 class WindowsLocaleCatalog final {

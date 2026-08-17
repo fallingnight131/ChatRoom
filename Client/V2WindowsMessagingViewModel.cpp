@@ -9,7 +9,8 @@ V2WindowsMessagingViewModel::V2WindowsMessagingViewModel(
         StageReply stageReply, SaveDraft saveDraft,
         Retry retry, SetReaction setReaction, RetryReaction retryReaction,
         SetPin setPin, RetryPin retryPin, Edit edit, EditOperation retryEdit,
-        EditOperation rebaseEdit, DiscardEdit discardEdit, QObject *parent)
+        EditOperation rebaseEdit, DiscardEdit discardEdit, QObject *parent,
+        WindowsLocale locale)
     : QObject(parent), m_accountId(std::move(accountId)), m_loader(std::move(loader)),
       m_stageText(std::move(stageText)),
       m_stageReply(std::move(stageReply)), m_saveDraft(std::move(saveDraft)),
@@ -17,7 +18,8 @@ V2WindowsMessagingViewModel::V2WindowsMessagingViewModel(
       m_setReaction(std::move(setReaction)), m_retryReaction(std::move(retryReaction)),
       m_setPin(std::move(setPin)), m_retryPin(std::move(retryPin)),
       m_edit(std::move(edit)), m_retryEdit(std::move(retryEdit)),
-      m_rebaseEdit(std::move(rebaseEdit)), m_discardEdit(std::move(discardEdit)) {
+      m_rebaseEdit(std::move(rebaseEdit)), m_discardEdit(std::move(discardEdit)),
+      m_locale(locale) {
     if (m_accountId.isEmpty() || !m_loader || !m_stageText || !m_stageReply
             || !m_saveDraft || !m_retry
             || !m_setReaction || !m_retryReaction || !m_setPin || !m_retryPin
@@ -55,7 +57,7 @@ bool V2WindowsMessagingViewModel::refresh() {
             });
         project(snapshot);
     } catch (...) {
-        m_failure = QStringLiteral("无法加载本地消息");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).loadLocalMessagesFailed;
         emit changed();
         return false;
     }
@@ -103,7 +105,7 @@ bool V2WindowsMessagingViewModel::chooseReply(const QString &messageId) {
         [&](const Row &row) { return row.messageId == messageId && row.canReply; });
     if (position == m_rows.cend()) return false;
     m_replyTargetMessageId = messageId;
-    m_replyBanner = QStringLiteral("回复 %1").arg(
+    m_replyBanner = WindowsLocaleCatalog::messages(m_locale).replyBanner.arg(
         position->text.left(80).replace(QLatin1Char('\n'), QLatin1Char(' ')));
     m_failure.clear();
     emit changed();
@@ -125,14 +127,14 @@ bool V2WindowsMessagingViewModel::sendText(
     if (m_conversationId.isEmpty() || text.trimmed().isEmpty()) return false;
     V2LocalMessageRepository::Message optimistic;
     if (!m_stageText(m_conversationId, text, &optimistic, mentions)) {
-        m_failure = QStringLiteral("无法发送消息");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).sendMessageFailed;
         emit changed();
         return false;
     }
     const bool draftCleared = m_saveDraft(m_conversationId, {});
     refresh();
     if (!draftCleared) {
-        m_failure = QStringLiteral("消息已发送，但无法清除本地草稿");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).sentButDraftClearFailed;
         emit changed();
     }
     return true;
@@ -146,7 +148,7 @@ bool V2WindowsMessagingViewModel::sendReply(
     V2LocalMessageRepository::Message optimistic;
     if (!m_stageReply(
             m_conversationId, m_replyTargetMessageId, text, &optimistic, mentions)) {
-        m_failure = QStringLiteral("无法发送回复");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).sendReplyFailed;
         emit changed();
         return false;
     }
@@ -155,7 +157,7 @@ bool V2WindowsMessagingViewModel::sendReply(
     const bool draftCleared = m_saveDraft(m_conversationId, {});
     refresh();
     if (!draftCleared) {
-        m_failure = QStringLiteral("回复已发送，但无法清除本地草稿");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).replySentButDraftClearFailed;
         emit changed();
     }
     return true;
@@ -164,7 +166,7 @@ bool V2WindowsMessagingViewModel::sendReply(
 bool V2WindowsMessagingViewModel::persistDraft(
         const QString &conversationId, const QString &draft) {
     if (conversationId.isEmpty() || !m_saveDraft(conversationId, draft)) {
-        m_failure = QStringLiteral("无法保存本地草稿");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).saveDraftFailed;
         emit changed();
         return false;
     }
@@ -177,7 +179,7 @@ bool V2WindowsMessagingViewModel::retry(const QString &clientMessageId) {
     const auto position = std::find_if(m_rows.cbegin(), m_rows.cend(),
         [&](const Row &row) { return row.clientMessageId == clientMessageId && row.canRetry; });
     if (position == m_rows.cend() || !m_retry(m_conversationId, clientMessageId)) {
-        m_failure = QStringLiteral("无法重试该消息");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).retryMessageFailed;
         emit changed();
         return false;
     }
@@ -189,14 +191,14 @@ bool V2WindowsMessagingViewModel::setReaction(
     const auto position = std::find_if(m_rows.cbegin(), m_rows.cend(),
         [&](const Row &row) { return row.messageId == messageId && row.canReply; });
     if (position == m_rows.cend() || !m_setReaction(m_conversationId, messageId, reaction)) {
-        m_failure = QStringLiteral("无法更新消息反应"); emit changed(); return false;
+        m_failure = WindowsLocaleCatalog::messages(m_locale).updateReactionFailed; emit changed(); return false;
     }
     return refresh();
 }
 
 bool V2WindowsMessagingViewModel::retryReaction(const QString &clientOperationId) {
     if (!m_retryReaction(m_conversationId, clientOperationId)) {
-        m_failure = QStringLiteral("无法重试消息反应"); emit changed(); return false;
+        m_failure = WindowsLocaleCatalog::messages(m_locale).retryReactionFailed; emit changed(); return false;
     }
     return refresh();
 }
@@ -205,14 +207,14 @@ bool V2WindowsMessagingViewModel::setPin(const QString &messageId) {
     const auto position = std::find_if(m_rows.cbegin(), m_rows.cend(),
         [&](const Row &row) { return row.messageId == messageId && row.canReply; });
     if (position == m_rows.cend() || !m_setPin(m_conversationId, messageId)) {
-        m_failure = QStringLiteral("无法更新置顶状态"); emit changed(); return false;
+        m_failure = WindowsLocaleCatalog::messages(m_locale).updatePinFailed; emit changed(); return false;
     }
     return refresh();
 }
 
 bool V2WindowsMessagingViewModel::retryPin(const QString &clientOperationId) {
     if (!m_retryPin(m_conversationId, clientOperationId)) {
-        m_failure = QStringLiteral("无法重试置顶操作"); emit changed(); return false;
+        m_failure = WindowsLocaleCatalog::messages(m_locale).retryPinFailed; emit changed(); return false;
     }
     return refresh();
 }
@@ -224,7 +226,7 @@ bool V2WindowsMessagingViewModel::editMessage(
         [&](const Row &row) { return row.messageId == messageId && row.canEdit; });
     if (position == m_rows.cend() || text.trimmed().isEmpty()
             || !m_edit(m_conversationId, messageId, text, mentions)) {
-        m_failure = QStringLiteral("无法编辑该消息");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).editMessageFailed;
         emit changed();
         return false;
     }
@@ -233,7 +235,7 @@ bool V2WindowsMessagingViewModel::editMessage(
 
 bool V2WindowsMessagingViewModel::retryEdit(const QString &operationId) {
     if (!m_retryEdit(m_conversationId, operationId)) {
-        m_failure = QStringLiteral("无法重试编辑");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).retryEditFailed;
         emit changed();
         return false;
     }
@@ -242,7 +244,7 @@ bool V2WindowsMessagingViewModel::retryEdit(const QString &operationId) {
 
 bool V2WindowsMessagingViewModel::rebaseEdit(const QString &operationId) {
     if (!m_rebaseEdit(m_conversationId, operationId)) {
-        m_failure = QStringLiteral("新版本尚未同步");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).newerVersionUnavailable;
         emit changed();
         return false;
     }
@@ -251,7 +253,7 @@ bool V2WindowsMessagingViewModel::rebaseEdit(const QString &operationId) {
 
 bool V2WindowsMessagingViewModel::discardEdit(const QString &operationId) {
     if (!m_discardEdit(operationId)) {
-        m_failure = QStringLiteral("无法放弃编辑草稿");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).discardEditFailed;
         emit changed();
         return false;
     }
@@ -273,14 +275,14 @@ bool V2WindowsMessagingViewModel::forwardMessage(
             || targetConversationId.isEmpty()
             || targetConversationId == m_conversationId
             || position == m_rows.cend()) {
-        m_failure = QStringLiteral("无法转发该消息");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).forwardMessageFailed;
         emit changed();
         return false;
     }
     V2LocalMessageRepository::Message optimistic;
     if (!m_stageForward(
             m_conversationId, sourceMessageId, targetConversationId, &optimistic)) {
-        m_failure = QStringLiteral("无法转发该消息");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).forwardMessageFailed;
         emit changed();
         return false;
     }
@@ -298,7 +300,8 @@ void V2WindowsMessagingViewModel::project(
         Row row;
         row.messageId = message.messageId;
         row.clientMessageId = message.clientMessageId;
-        row.text = message.recalled ? QStringLiteral("此消息已被撤回") : message.text;
+        row.text = message.recalled
+            ? WindowsLocaleCatalog::messages(m_locale).recalledMessage : message.text;
         row.senderAccountId = message.senderAccountId;
         if (!message.recalled) row.mentions = message.mentions;
         row.mine = message.senderAccountId == m_accountId;
@@ -338,9 +341,9 @@ void V2WindowsMessagingViewModel::project(
             row.pinOperationId = pinCommand->clientOperationId;
         }
         if (message.state == V2LocalMessageRepository::DeliveryState::Pending)
-            row.deliveryLabel = QStringLiteral("发送中…");
+            row.deliveryLabel = WindowsLocaleCatalog::messages(m_locale).sending;
         else if (message.state == V2LocalMessageRepository::DeliveryState::Failed)
-            row.deliveryLabel = QStringLiteral("发送失败");
+            row.deliveryLabel = WindowsLocaleCatalog::messages(m_locale).sendFailed;
         row.replyPreview = previewFor(message, snapshot);
         for (int value = static_cast<int>(V2LocalMessageRepository::ReactionKind::Like);
              value <= static_cast<int>(V2LocalMessageRepository::ReactionKind::Angry); ++value) {
@@ -381,7 +384,9 @@ QString V2WindowsMessagingViewModel::previewFor(
     if (!message.hasReply) return {};
     const auto target = std::find_if(snapshot.messages.cbegin(), snapshot.messages.cend(),
         [&](const auto &candidate) { return candidate.messageId == message.reply.targetMessageId; });
-    if (target == snapshot.messages.cend()) return QStringLiteral("引用的消息不可用");
-    if (target->recalled) return QStringLiteral("引用的消息已撤回");
+    if (target == snapshot.messages.cend())
+        return WindowsLocaleCatalog::messages(m_locale).replyUnavailable;
+    if (target->recalled)
+        return WindowsLocaleCatalog::messages(m_locale).replyRecalled;
     return target->text.left(120).replace(QLatin1Char('\n'), QLatin1Char(' '));
 }

@@ -249,6 +249,41 @@ int main(int argc, char **argv) {
     check(model.rows().size() == snapshot.messages.size(),
           QStringLiteral("transient context survived explicit session cleanup"));
 
+    V2WindowsMessagingViewModel english(
+        account, [&](const QString &) { return snapshot; },
+        [](const QString &, const QString &,
+           V2LocalMessageRepository::Message *,
+           const QList<V2LocalMessageRepository::Mention> &) { return false; },
+        [](const QString &, const QString &, const QString &,
+           V2LocalMessageRepository::Message *,
+           const QList<V2LocalMessageRepository::Mention> &) { return false; },
+        [](const QString &, const QString &) { return true; },
+        [](const QString &, const QString &) { return false; },
+        [](const QString &, const QString &,
+           V2LocalMessageRepository::ReactionKind) { return false; },
+        [](const QString &, const QString &) { return false; },
+        [](const QString &, const QString &) { return false; },
+        [](const QString &, const QString &) { return false; },
+        [](const QString &, const QString &, const QString &,
+           const QList<V2LocalMessageRepository::Mention> &) { return false; },
+        [](const QString &, const QString &) { return false; },
+        [](const QString &, const QString &) { return false; },
+        [](const QString &) { return false; }, nullptr, WindowsLocale::EnUs);
+    check(english.openConversation(conversation),
+          QStringLiteral("English projection did not open"));
+    const auto englishRows = english.rows();
+    check(!englishRows.isEmpty()
+              && englishRows.first().replyPreview
+                  == QStringLiteral("Referenced message is unavailable"),
+          QStringLiteral("English reply fallback was not projected"));
+    check(english.chooseReply(englishRows.first().messageId)
+              && english.replyBanner().startsWith(QStringLiteral("Reply to ")),
+          QStringLiteral("English reply banner was not projected"));
+    english.cancelReply();
+    check(!english.sendText(QStringLiteral("will fail"))
+              && english.failure() == QStringLiteral("Unable to send message"),
+          QStringLiteral("English send failure was not projected"));
+
     if (failures) return 1;
     qInfo() << "[V2WindowsMessagingViewModelTest] PASS";
     return 0;

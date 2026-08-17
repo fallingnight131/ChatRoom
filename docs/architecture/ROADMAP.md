@@ -2763,6 +2763,11 @@ Candidate slices:
       with detached English composition evidence (ADR-0412).
     - [ ] Migrate runtime status/failure copy, search, participants, and message
       timeline actions before exposing a persisted language selector.
+      - [x] Move messaging ViewModel failures, reply state, delivery labels,
+        recall copy, and missing/recalled reply previews into the exact locale
+        catalog with detached English projection evidence.
+      - [ ] Move remaining Widget-owned search, participant, edit/reaction/pin,
+        and timeline action copy into the locale catalog.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 
