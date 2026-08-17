@@ -78,6 +78,9 @@
 | 构建 | qmake (Qt) / Vite (Web) |
 | 协议 | TCP: 自定义二进制帧（4 字节长度头 + JSON）<br>WebSocket: 纯 JSON 文本帧 |
 
+Windows 产品构建固定使用 Qt 6.11.1；Linux 可移植性和数据库验证同时
+保持对 Ubuntu 系统 Qt 6.4 API 范围的编译兼容性。
+
 ## 项目结构
 
 ```

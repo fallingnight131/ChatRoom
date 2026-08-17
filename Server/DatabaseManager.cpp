@@ -135,7 +135,11 @@ bool reserveMessageSequence(QSqlDatabase &db,
 
 qint64 utcTimestampMs(const QVariant &value) {
     QDateTime timestamp = value.toDateTime();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     timestamp.setTimeZone(QTimeZone::UTC);
+#else
+    timestamp.setTimeSpec(Qt::UTC);
+#endif
     return timestamp.toMSecsSinceEpoch();
 }
 
