@@ -11,6 +11,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 
+#include <cstdio>
 #include <cstring>
 #include <utility>
 
@@ -100,7 +101,10 @@ private:
 };
 
 bool check(bool condition, const QString &message) {
-    if (!condition) qCritical().noquote() << "[UpdateInstallerDownloadTransportTest]" << message;
+    if (!condition) {
+        const QByteArray bytes = message.toLocal8Bit();
+        std::fprintf(stderr, "[UpdateInstallerDownloadTransportTest] %s\n", bytes.constData());
+    }
     return condition;
 }
 
@@ -143,7 +147,7 @@ Result run(const Response &response, const QString &directory,
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     QTemporaryDir root;
-    if (!root.isValid()) return 1;
+    if (!check(root.isValid(), QStringLiteral("temporary directory creation failed"))) return 1;
     const QByteArray payload("signed-installer-bytes");
 
     for (const auto &url : {
@@ -204,7 +208,8 @@ int main(int argc, char *argv[]) {
         Transport::Request request{
             QUrl(QStringLiteral("https://updates.example.test/stable/ChatRoom-1.2.3-Setup.exe")),
             payload.size(), destroyedDirectory};
-        if (!transport.start(request)) return 1;
+        if (!check(transport.start(request),
+                   QStringLiteral("destroyed transport fixture did not start"))) return 1;
     }
     if (!check(QDir(destroyedDirectory).entryList(
                        QDir::Files | QDir::NoDotAndDotDot).isEmpty(),

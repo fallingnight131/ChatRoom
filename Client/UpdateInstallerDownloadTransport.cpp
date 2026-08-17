@@ -61,10 +61,14 @@ bool UpdateInstallerDownloadTransport::start(
         return false;
     }
     const QFileInfo directory(request.stagingDirectory);
-    if (!directory.isDir() || directory.isSymLink()
-            || !QFile::setPermissions(request.stagingDirectory,
-                                      QFileDevice::ReadOwner | QFileDevice::WriteOwner
-                                          | QFileDevice::ExeOwner)) {
+    bool safeDirectory = directory.isDir() && !directory.isSymLink();
+#ifndef Q_OS_WIN
+    safeDirectory = safeDirectory
+        && QFile::setPermissions(request.stagingDirectory,
+                                 QFileDevice::ReadOwner | QFileDevice::WriteOwner
+                                     | QFileDevice::ExeOwner);
+#endif
+    if (!safeDirectory) {
         fail(error, QStringLiteral("update staging directory is unsafe"));
         return false;
     }
@@ -73,8 +77,12 @@ bool UpdateInstallerDownloadTransport::start(
         QDir(request.stagingDirectory).filePath(
             QStringLiteral("installer-XXXXXX.exe.part")), this);
     file->setAutoRemove(false);
-    if (!file->open() || !file->setPermissions(
-            QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {
+    bool fileReady = file->open();
+#ifndef Q_OS_WIN
+    fileReady = fileReady && file->setPermissions(
+        QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+#endif
+    if (!fileReady) {
         const QString path = file->fileName();
         file->close();
         if (!path.isEmpty()) QFile::remove(path);
