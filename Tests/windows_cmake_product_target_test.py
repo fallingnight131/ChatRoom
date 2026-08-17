@@ -17,7 +17,7 @@ def qmake_sources(project: Path, prefix: str) -> set[str]:
     for raw in match.group("body").splitlines():
         value = raw.strip().removesuffix("\\").strip()
         if value:
-            sources.add(str(Path(prefix, value)))
+            sources.add(Path(prefix, value).as_posix())
     return sources
 
 
@@ -28,7 +28,9 @@ def main() -> int:
     )
     expected = qmake_sources(ROOT / "Client/Client.pro", "Client")
     expected |= qmake_sources(ROOT / "UpdaterLauncher/UpdaterLauncher.pro", "UpdaterLauncher")
-    expected = {str((ROOT / value).resolve().relative_to(ROOT)) for value in expected}
+    expected = {
+        (ROOT / value).resolve().relative_to(ROOT).as_posix() for value in expected
+    }
     missing = sorted(value for value in expected if value not in cmake)
     if missing:
         raise AssertionError(f"CMake product graph omits qmake sources: {missing}")
