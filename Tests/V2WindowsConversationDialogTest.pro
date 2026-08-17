@@ -15,6 +15,8 @@ INCLUDEPATH += ../Client
 SOURCES += \
     V2WindowsConversationDialogTest.cpp \
     ../Client/V2WindowsConversationDialog.cpp \
+    ../Client/V2WindowsAccountBlockDialog.cpp \
+    ../Client/V2WindowsAccountBlockViewModel.cpp \
     ../Client/V2WindowsConversationDirectoryViewModel.cpp \
     ../Client/V2WindowsConversationParticipantViewModel.cpp \
     ../Client/V2WindowsMessageSearchViewModel.cpp \
@@ -26,6 +28,8 @@ SOURCES += \
 
 HEADERS += \
     ../Client/V2WindowsConversationDialog.h \
+    ../Client/V2WindowsAccountBlockDialog.h \
+    ../Client/V2WindowsAccountBlockViewModel.h \
     ../Client/V2WindowsConversationDirectoryViewModel.h \
     ../Client/V2WindowsConversationParticipantViewModel.h \
     ../Client/V2WindowsMessageSearchViewModel.h \

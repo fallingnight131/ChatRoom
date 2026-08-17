@@ -32,9 +32,13 @@ int main(int argc, char **argv) {
     snapshot.messages.append(message);
     V2WindowsMessagingViewModel messaging(
         accountId, [&](const QString &) { return snapshot; },
+        [](const QString &, const QString &,
+           V2LocalMessageRepository::Message *,
+           const QList<V2LocalMessageRepository::Mention> &) { return true; },
         [](const QString &, const QString &, const QString &,
            V2LocalMessageRepository::Message *,
            const QList<V2LocalMessageRepository::Mention> &) { return true; },
+        [](const QString &, const QString &) { return true; },
         [](const QString &, const QString &) { return true; },
         [](const QString &, const QString &,
            V2LocalMessageRepository::ReactionKind) { return true; },
@@ -53,7 +57,7 @@ int main(int argc, char **argv) {
     V2WindowsConversationDirectoryViewModel directory(
         [&] { ++refreshCalls; return true; },
         [&] { ++loadMoreCalls; return true; },
-        [&](const QString &selected) {
+        [&](const QString &selected) -> bool {
             ++openCalls;
             return messaging.openConversation(selected);
         });
