@@ -306,6 +306,9 @@ public final class PostgresMessagingBaseline {
                     + "platform) VALUES (?, ?, 'performance-device', 'WEB')", device, account);
             execute(connection, "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
                     conversation);
+            execute(connection, "INSERT INTO chat.direct_conversation(conversation_id, "
+                    + "first_account_id, second_account_id) VALUES (?, ?, ?)",
+                    conversation, account, account);
             execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
                     + "account_id) VALUES (?, ?)", conversation, account);
             connection.commit();
