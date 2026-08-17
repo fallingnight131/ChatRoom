@@ -205,6 +205,12 @@ jobs:
           Copy-Item $client.FullName "$baseline/ChatClient.exe"
           Copy-Item $launcher.FullName "$baseline/ChatRoomUpdateLauncher.exe"
           windeployqt --release --no-translations "$baseline/ChatClient.exe"
+          $qtBin = Split-Path (Get-Command windeployqt.exe -ErrorAction Stop).Source
+          $webSocketsDll = Join-Path $qtBin "Qt6WebSockets.dll"
+          if (-not (Test-Path $webSocketsDll -PathType Leaf)) {
+            throw "qmake fallback is missing the Qt WebSockets runtime source"
+          }
+          Copy-Item $webSocketsDll "$baseline/Qt6WebSockets.dll"
           $sodiumDll = Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll" | Select-Object -First 1
           if (-not $sodiumDll) { throw "Windows client artifact is missing the libsodium runtime source" }
           Copy-Item $sodiumDll.FullName "$baseline/$($sodiumDll.Name)"

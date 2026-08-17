@@ -76,6 +76,7 @@ def main() -> int:
         "CMake client version does not match canonical VERSION",
         "CMake update launcher version does not match canonical VERSION",
         "Compare deployed CMake and qmake Windows payloads",
+        'Copy-Item $webSocketsDll "$baseline/Qt6WebSockets.dll"',
         "compare_windows_client_payloads.py",
         "windows_client_payload_parity_test.py",
         "aqtsource: git+https://github.com/miurahr/aqtinstall.git@"

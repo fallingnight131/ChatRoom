@@ -133,6 +133,8 @@ Windows 客户端的 qmake 与 CMake 产品目标都显式链接 `User32`，为�
 Windows GUI 子系统中的产品配置诊断通过继承的标准输出句柄写入 JSON，确保
 PowerShell 门禁可以读取最终 `ChatClient.exe` 的默认关闭配置；Windows 验证
 脚本会显式重定向并等待 GUI 进程，避免 PowerShell 直接调用 GUI 程序时丢失输出。
+qmake 回退载荷会从同一 Qt SDK 补齐 CMake V2 产品图所需的 WebSockets 运行库，
+使两套构建的可部署 DLL 清单和字节保持一致。
 
 ## 项目结构
 
