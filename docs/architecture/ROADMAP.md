@@ -2806,6 +2806,9 @@ Candidate slices:
         response, low-bandwidth status, and accessible description together.
       - [x] Verify live Chinese-to-English recomposition and a fresh profile
         instance starting from the persisted locale on the development host.
+      - [x] Expose the shared exact locale selector from the complete profile
+        surface so ordinary Windows users do not depend on the V2 preview;
+        restore and announce failed writes without mixed-language state.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

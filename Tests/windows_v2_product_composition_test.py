@@ -98,6 +98,8 @@ def main() -> int:
     require(profile, (
         "WindowsLocaleCatalog::messages(m_locale)",
         "WindowsLocaleViewModel::changed",
+        "m_localeSelector->addItem",
+        "m_localeViewModel->select",
         "copy.profileLowBandwidth",
         "copy.profileChangePassword",
         "m_bandwidthViewModel->enabled()",

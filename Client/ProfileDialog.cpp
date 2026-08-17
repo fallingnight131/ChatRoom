@@ -19,6 +19,7 @@
 #include <QCheckBox>
 #include <QSignalBlocker>
 #include <QAccessible>
+#include <QComboBox>
 
 static QPixmap roundedPixmap(const QPixmap &src, int radius) {
     QPixmap dst(src.size());
@@ -43,6 +44,26 @@ ProfileDialog::ProfileDialog(int userId, const QString &username,
 {
     setMinimumWidth(400);
     auto *mainLayout = new QVBoxLayout(this);
+
+    if (m_localeViewModel) {
+        auto *localeRow = new QHBoxLayout;
+        m_localeLabel = new QLabel;
+        m_localeSelector = new QComboBox;
+        m_localeStatus = new QLabel;
+        m_localeSelector->addItem({}, static_cast<int>(WindowsLocale::ZhCn));
+        m_localeSelector->addItem({}, static_cast<int>(WindowsLocale::EnUs));
+        m_localeLabel->setBuddy(m_localeSelector);
+        m_localeStatus->setWordWrap(true);
+        localeRow->addWidget(m_localeLabel);
+        localeRow->addWidget(m_localeSelector);
+        localeRow->addWidget(m_localeStatus, 1);
+        mainLayout->addLayout(localeRow);
+        connect(m_localeSelector, qOverload<int>(&QComboBox::currentIndexChanged),
+                this, [this](int index) {
+                    m_localeViewModel->select(static_cast<WindowsLocale>(
+                        m_localeSelector->itemData(index).toInt()));
+                });
+    }
 
     // --- 头像区域 ---
     m_avatarGroup = new QGroupBox;
@@ -205,6 +226,23 @@ void ProfileDialog::applyLocale() {
     if (m_localeViewModel) m_locale = m_localeViewModel->locale();
     const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     setWindowTitle(copy.profileTitle);
+    if (m_localeSelector) {
+        m_localeLabel->setText(copy.language);
+        m_localeSelector->setAccessibleName(copy.languageSelectorAccessible);
+        m_localeSelector->setAccessibleDescription(
+            copy.languageSelectorDescription);
+        m_localeStatus->setAccessibleName(copy.localePreferenceStatusAccessible);
+        m_localeStatus->setText(m_localeViewModel->failure());
+        if (!m_localeViewModel->failure().isEmpty() && isVisible()) {
+            QAccessibleEvent announcement(m_localeStatus, QAccessible::Alert);
+            QAccessible::updateAccessibility(&announcement);
+        }
+        const QSignalBlocker blocker(m_localeSelector);
+        m_localeSelector->setItemText(0, copy.chinese);
+        m_localeSelector->setItemText(1, copy.english);
+        m_localeSelector->setCurrentIndex(
+            m_locale == WindowsLocale::EnUs ? 1 : 0);
+    }
     m_avatarGroup->setTitle(copy.profileAvatar);
     if (m_avatarLabel->pixmap().isNull())
         m_avatarLabel->setText(copy.profileAvatarFallback);

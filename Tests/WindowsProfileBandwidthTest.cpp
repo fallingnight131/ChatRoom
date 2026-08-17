@@ -6,6 +6,7 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDebug>
 #include <QDir>
 #include <QLabel>
@@ -56,7 +57,12 @@ int main(int argc, char **argv) {
         &viewModel, &localeViewModel);
     localized.show();
     application.processEvents();
-    if (!localeViewModel.select(WindowsLocale::EnUs)) return 1;
+    if (!check(localized.localeSelectorForTest()
+                   && localized.localeSelectorForTest()->currentIndex() == 0
+                   && !localized.localeSelectorForTest()
+                       ->accessibleDescription().isEmpty(),
+               QStringLiteral("profile must expose the accepted locale"))) return 1;
+    localized.localeSelectorForTest()->setCurrentIndex(1);
     application.processEvents();
     const auto buttons = localized.findChildren<QPushButton *>();
     const auto hasButton = [&](const QString &text) {
@@ -87,9 +93,11 @@ int main(int argc, char **argv) {
     QSettings unwritable(temporary.path(), QSettings::IniFormat);
     WindowsBandwidthPreferenceRepository failingRepository(unwritable);
     WindowsBandwidthViewModel failingViewModel(&failingRepository);
+    WindowsLocalePreferenceRepository failingLocaleRepository(unwritable);
+    WindowsLocaleViewModel failingLocaleViewModel(&failingLocaleRepository);
     ProfileDialog failingDialog(
         2, QStringLiteral("bob"), QStringLiteral("Bob"), {}, nullptr,
-        &failingViewModel);
+        &failingViewModel, &failingLocaleViewModel);
     failingDialog.show();
     application.processEvents();
     failingDialog.lowBandwidthForTest()->click();
@@ -99,6 +107,14 @@ int main(int argc, char **argv) {
                    && failingDialog.bandwidthStatusForTest()
                    && !failingDialog.bandwidthStatusForTest()->text().isEmpty(),
                QStringLiteral("failed profile save must restore and report old state")))
+        return 1;
+    failingDialog.localeSelectorForTest()->setCurrentIndex(1);
+    application.processEvents();
+    if (!check(failingDialog.localeSelectorForTest()->currentIndex() == 0
+                   && failingLocaleViewModel.locale() == WindowsLocale::ZhCn
+                   && failingDialog.localeStatusForTest()
+                   && !failingDialog.localeStatusForTest()->text().isEmpty(),
+               QStringLiteral("failed profile locale save must restore old value")))
         return 1;
 
     qInfo() << "[WindowsProfileBandwidthTest] PASS";

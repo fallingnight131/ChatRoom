@@ -8,6 +8,7 @@ class QLineEdit;
 class QPushButton;
 class QCheckBox;
 class QGroupBox;
+class QComboBox;
 class WindowsBandwidthViewModel;
 class WindowsLocaleViewModel;
 
@@ -22,6 +23,8 @@ public:
                            WindowsLocaleViewModel *localeViewModel = nullptr);
     QCheckBox *lowBandwidthForTest() const { return m_lowBandwidth; }
     QLabel *bandwidthStatusForTest() const { return m_bandwidthStatus; }
+    QComboBox *localeSelectorForTest() const { return m_localeSelector; }
+    QLabel *localeStatusForTest() const { return m_localeStatus; }
 
 signals:
     /// 用户请求更换头像（ChatWindow 触发文件选择流程）
@@ -73,4 +76,7 @@ private:
     QPushButton *m_saveUid = nullptr;
     QPushButton *m_changePassword = nullptr;
     QPushButton *m_close = nullptr;
+    QLabel *m_localeLabel = nullptr;
+    QComboBox *m_localeSelector = nullptr;
+    QLabel *m_localeStatus = nullptr;
 };

@@ -3234,6 +3234,10 @@ in Chinese, drives the shared locale ViewModel to English, requires localized
 profile actions and low-bandwidth accessibility copy, and constructs a fresh
 profile from the persisted English preference. This remains development-host
 composition evidence rather than native Windows assistive-technology evidence.
+The same Widget test drives the profile's real exact locale selector and checks
+its accessible description. An unwritable locale target must restore Chinese,
+retain the ViewModel/store value, and expose localized failure status; the
+selector therefore remains usable even when the V2 preview is absent.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

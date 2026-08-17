@@ -1968,6 +1968,11 @@ identity, password, low-bandwidth, validation, and local response copy.
 conversation surface. An open profile recomposes on locale changes; labels are
 buddies for their identity/password fields; a fresh profile starts from the
 persisted locale. Server-provided password failures remain opaque data.
+The profile is now the primary Windows language entry point, so the setting is
+available without enabling the V2 preview. Its exact two-value selector and the
+conversation selector share one ViewModel and QSettings value. Save failure
+restores the accepted profile selection and emits both status text and an
+accessibility Alert.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

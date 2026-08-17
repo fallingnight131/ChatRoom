@@ -44,6 +44,11 @@ message storage, server behavior, or the supported Web/Windows product scope.
   conversation surfaces. Profile labels establish buddy relationships for
   identity and password fields, and an open profile recomposes on the same
   `changed` signal as the conversation surface.
+- Once the complete profile is localized, expose the same exact selector there
+  as the primary Windows language entry point. The V2 conversation selector may
+  remain as a contextual duplicate; both consume the same ViewModel and stored
+  value. Failed profile writes restore the accepted selection and emit visible
+  status plus an accessibility Alert.
 
 ## Consequences
 
