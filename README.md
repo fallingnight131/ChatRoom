@@ -98,6 +98,8 @@ Windows 产品构建固定使用 Qt 6.11.1；Linux qmake 可移植性、CMake
 `offscreen` 平台，无需图形桌面；Windows 原生交互仍由 Windows 产品门禁验证。
 PostgreSQL 真实集成测试的时间夹具对齐 `timestamptz` 的微秒精度，
 避免把 Java 纳秒值与数据库持久值误判为凭证过期契约变化。
+Windows V2 会话目录的单击打开路径不再依赖“当前行发生变化”，
+首行已是当前行时仍会按隐藏会话标识正确打开会话。
 
 ## 项目结构
 

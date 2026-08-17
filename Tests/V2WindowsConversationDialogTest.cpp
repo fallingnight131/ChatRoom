@@ -17,6 +17,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSettings>
+#include <QSignalBlocker>
 #include <QTemporaryDir>
 #include <QTest>
 #include <algorithm>
@@ -185,7 +186,14 @@ int main(int argc, char **argv) {
             || !check(dialog.loadMoreForTest()->isEnabled(),
                       QStringLiteral("validated continuation must enable load more"))) return 1;
 
-    dialog.conversationListForTest()->setCurrentRow(0);
+    {
+        const QSignalBlocker blocker(dialog.conversationListForTest());
+        dialog.conversationListForTest()->setCurrentRow(0);
+    }
+    const QRect firstRow = dialog.conversationListForTest()->visualItemRect(
+        dialog.conversationListForTest()->item(0));
+    QTest::mouseClick(dialog.conversationListForTest()->viewport(), Qt::LeftButton,
+                      Qt::NoModifier, firstRow.center());
     app.processEvents();
     if (!check(openCalls == 1,
                QStringLiteral("selecting a row must open its hidden authorized identity"))

@@ -142,6 +142,8 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
             m_directoryViewModel, &V2WindowsConversationDirectoryViewModel::loadMore);
     connect(m_conversations, &QListWidget::itemActivated,
             this, &V2WindowsConversationDialog::openItem);
+    connect(m_conversations, &QListWidget::itemClicked,
+            this, &V2WindowsConversationDialog::openItem);
     connect(m_conversations, &QListWidget::currentItemChanged,
             this, [this](QListWidgetItem *current) { openItem(current); });
     auto *refreshShortcut = new QShortcut(QKeySequence(Qt::Key_F5), this);
