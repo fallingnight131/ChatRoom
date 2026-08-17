@@ -98,6 +98,11 @@ static qint64 syncSequenceFrom(const QJsonObject &data) {
     return qMax(sequence, data["syncSequence"].toVariant().toLongLong());
 }
 
+static const WindowsLocaleMessages &activeWindowsCopy(
+        const WindowsLocaleViewModel *viewModel) {
+    return WindowsLocaleCatalog::messages(viewModel->locale());
+}
+
 namespace {
 struct PendingHistoryDownload {
     int fileId = 0;
@@ -1825,17 +1830,18 @@ bool ChatWindow::stageAttachment(
     AttachmentOutboxService::Command command;
     if (!m_attachmentOutboxService->stage(
             m_username, target, filePath, contentType, &command)) {
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
         QMessageBox::warning(
-            this, QStringLiteral("文件发送"),
-            QStringLiteral("无法安全保存发送任务：%1")
-                .arg(m_attachmentOutboxService->lastError()));
+            this, copy.mainTransferFileSendTitle,
+            copy.mainTransferStageFailed.arg(
+                m_attachmentOutboxService->lastError()));
         return false;
     }
     if (NetworkManager::instance()->isConnected()) {
         enqueueAttachments({command});
     } else {
-        m_statusLabel->setText(
-            QStringLiteral("文件任务已保存，连接恢复后发送"));
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferQueuedOffline);
     }
     return true;
 }
@@ -1865,8 +1871,8 @@ void ChatWindow::processNextAttachment() {
                 "[AttachmentOutbox] operation=prepare outcome=failed clientMessageId=%1 detail=%2")
                 .arg(queued.clientMessageId,
                      m_attachmentOutboxService->lastError());
-            m_statusLabel->setText(
-                QStringLiteral("有文件任务需要重新选择源文件"));
+            m_statusLabel->setText(activeWindowsCopy(
+                m_windowsLocaleViewModel).mainTransferSourceReselectNeeded);
             continue;
         }
         dispatchAttachment(command);
@@ -1951,7 +1957,8 @@ void ChatWindow::dispatchAttachment(
         NetworkManager::instance()->sendMessage(Protocol::makeMessage(
             Protocol::MsgType::FRIEND_FILE_UPLOAD_START, data));
     }
-    m_statusLabel->setText(QString("准备上传: %1 (%2)")
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferPreparingUpload
         .arg(command.fileName)
         .arg(QLocale().formattedDataSize(command.fileSize)));
 }
@@ -2418,7 +2425,9 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
 void ChatWindow::onFileDownloadReady(const QJsonObject &data) {
     if (!data["success"].toBool()) {
         int failId = data["fileId"].toInt();
-        m_statusLabel->setText("文件下载失败: " + data["error"].toString());
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferDownloadFailed.arg(
+                data["error"].toString()));
         updateAllModelsDownloadProgress(failId, Message::NotDownloaded, 0.0);
         return;
     }
@@ -2460,10 +2469,12 @@ void ChatWindow::onUploadStartResponse(const QJsonObject &data) {
     if (!responseClientId.isEmpty()
         && responseClientId != m_upload.clientMessageId) return;
     if (!data["success"].toBool()) {
-        QMessageBox::warning(this, "上传失败", data["error"].toString());
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        QMessageBox::warning(this, copy.mainTransferUploadFailedTitle,
+                             data["error"].toString());
         failActiveAttachment(data["errorCode"].toString(
                                  QStringLiteral("UPLOAD_START_REJECTED")),
-                             QStringLiteral("文件上传失败，可稍后重试"));
+                             copy.mainTransferUploadRetryableFailure);
         return;
     }
     m_upload.uploadId = data["uploadId"].toString();
@@ -2480,12 +2491,15 @@ void ChatWindow::onUploadStartResponse(const QJsonObject &data) {
         if (NetworkManager::instance()->uploadRawFile(
                 m_upload.uploadId, uploadPath, m_upload.filePath)) {
             m_upload.rawHttp = true;
-            m_statusLabel->setText("正在通过 HTTP 上传...");
+            m_statusLabel->setText(activeWindowsCopy(
+                m_windowsLocaleViewModel).mainTransferHttpUploading);
             return;
         }
-        QMessageBox::warning(this, "上传失败", "无法启动 HTTP 上传，请重试");
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        QMessageBox::warning(this, copy.mainTransferUploadFailedTitle,
+                             copy.mainTransferHttpUploadStartFailed);
         failActiveAttachment(QStringLiteral("HTTP_UPLOAD_START_FAILED"),
-                             QStringLiteral("无法启动 HTTP 上传"));
+                             copy.mainTransferHttpUploadStartFailed);
         return;
     }
     // 旧服务端不返回 HTTP 地址时，保留 V1 Base64 分块兼容路径。
@@ -2496,15 +2510,19 @@ void ChatWindow::onUploadStartResponse(const QJsonObject &data) {
 void ChatWindow::sendNextChunk() {
     if (m_upload.uploadId.isEmpty()) {
         qWarning() << "[Upload] uploadId 为空，无法发送分块";
-        QMessageBox::warning(this, "上传失败", "上传ID无效，请重试");
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        QMessageBox::warning(this, copy.mainTransferUploadFailedTitle,
+                             copy.mainTransferInvalidUploadId);
         return;
     }
 
     QFile file(m_upload.filePath);
     if (!file.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, "错误", "无法读取文件");
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        QMessageBox::warning(this, copy.mainTransferFileReadFailedTitle,
+                             copy.mainTransferSourceUnreadable);
         failActiveAttachment(QStringLiteral("SOURCE_UNAVAILABLE"),
-                             QStringLiteral("源文件不可读，请重新选择"));
+                             copy.mainTransferSourceUnreadable);
         return;
     }
 
@@ -2524,7 +2542,9 @@ void ChatWindow::sendNextChunk() {
 
     m_upload.offset += chunk.size();
     double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize;
-    m_statusLabel->setText(QString("上传中 %1%...").arg(static_cast<int>(progress * 60)));
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferUploading.arg(
+            static_cast<int>(progress * 60)));
 
     // 更新 UI 进度（如果有对应的消息）——上传阶段占 0-60%
     if (m_uploadingFileId != 0) {
@@ -2534,10 +2554,12 @@ void ChatWindow::sendNextChunk() {
 
 void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
     if (!data["success"].toBool()) {
-        QMessageBox::warning(this, "上传失败", data["error"].toString());
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        QMessageBox::warning(this, copy.mainTransferUploadFailedTitle,
+                             data["error"].toString());
         failActiveAttachment(data["errorCode"].toString(
                                  QStringLiteral("UPLOAD_CHUNK_REJECTED")),
-                             QStringLiteral("文件上传中断，可稍后重试"));
+                             copy.mainTransferUploadInterrupted);
         return;
     }
 
@@ -2545,8 +2567,9 @@ void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
         completeUploadBytes();
     } else if (m_uploadPaused) {
         // 上传暂停 — 不继续发送下一块
-        m_statusLabel->setText(QString("上传已暂停 %1%")
-            .arg(static_cast<int>(m_upload.offset * 60 / m_upload.fileSize)));
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferUploadPaused.arg(
+                static_cast<int>(m_upload.offset * 60 / m_upload.fileSize)));
     } else {
         sendNextChunk();
     }
@@ -2568,12 +2591,14 @@ void ChatWindow::completeUploadBytes() {
     }
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_END, endData));
-    m_statusLabel->setText("文件已上传，正在同步到云端...");
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferFinalizing);
     const QString savedClientId = m_upload.clientMessageId;
     QTimer::singleShot(10000, this, [this, savedClientId]() {
         if (m_upload.clientMessageId == savedClientId) {
             failActiveAttachment(QStringLiteral("FINALIZE_TIMEOUT"),
-                                 QStringLiteral("服务器确认超时，可安全重试"));
+                                 activeWindowsCopy(m_windowsLocaleViewModel)
+                                     .mainTransferFinalizeTimeout);
         }
     });
 }
@@ -2587,12 +2612,13 @@ void ChatWindow::onUploadFinalizeResponse(const QJsonObject &data) {
         return;
 
     if (!data["success"].toBool()) {
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
         QMessageBox::warning(
-            this, "上传失败",
-            data["error"].toString("服务器未能确认文件消息"));
+            this, copy.mainTransferUploadFailedTitle,
+            data["error"].toString(copy.mainTransferFinalizeRejected));
         failActiveAttachment(data["errorCode"].toString(
                                  QStringLiteral("UPLOAD_FINALIZE_REJECTED")),
-                             QStringLiteral("文件发送失败，可稍后重试"));
+                             copy.mainTransferSendRetryableFailure);
         return;
     }
     const bool duplicate = data["duplicate"].toBool();
@@ -2609,18 +2635,18 @@ void ChatWindow::onUploadFinalizeResponse(const QJsonObject &data) {
         m_pendingSentFiles[completedFileName] = completedSourcePath;
         m_pendingSentFilesByClientId[completedClientId] = completedSourcePath;
     }
-    m_statusLabel->setText(duplicate ? "文件已在服务器中，已避免重复发送"
-                                     : "文件发送成功");
-    QTimer::singleShot(2000, this, [this]() {
-        if (m_statusLabel->text().contains("文件")) m_statusLabel->clear();
-    });
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+    m_statusLabel->setText(duplicate ? copy.mainTransferDuplicateAccepted
+                                     : copy.mainTransferSendSucceeded);
 }
 
 void ChatWindow::onRawUploadProgress(const QString &uploadId, qint64 sent, qint64 total) {
     if (!m_upload.rawHttp || uploadId != m_upload.uploadId || total <= 0) return;
     m_upload.offset = sent;
     const double ratio = qBound(0.0, static_cast<double>(sent) / total, 1.0);
-    m_statusLabel->setText(QString("HTTP 上传中 %1%...").arg(static_cast<int>(ratio * 60)));
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferUploading.arg(
+            static_cast<int>(ratio * 60)));
     if (m_uploadingFileId != 0)
         updateAllModelsDownloadProgress(m_uploadingFileId, Message::Uploading, ratio * 0.6);
 }
@@ -2629,9 +2655,10 @@ void ChatWindow::onRawUploadFinished(const QString &uploadId, bool success,
                                      const QString &error) {
     if (!m_upload.rawHttp || uploadId != m_upload.uploadId) return;
     if (!success) {
-        QMessageBox::warning(this, "上传失败", error);
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        QMessageBox::warning(this, copy.mainTransferUploadFailedTitle, error);
         failActiveAttachment(QStringLiteral("HTTP_UPLOAD_FAILED"),
-                             QStringLiteral("HTTP 上传中断，可稍后重试"));
+                             copy.mainTransferHttpUploadInterrupted);
         return;
     }
     m_upload.offset = m_upload.fileSize;
@@ -2654,7 +2681,8 @@ void ChatWindow::onFileCosProgress(const QJsonObject &data) {
     double overallProgress = 0.6 + cosRatio * 0.4;
     int pct = static_cast<int>(overallProgress * 100);
 
-    m_statusLabel->setText(QString("同步到云端 %1%...").arg(pct));
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferCloudSyncing.arg(pct));
 
     if (m_uploadingFileId != 0) {
         updateAllModelsDownloadProgress(m_uploadingFileId, Message::Uploading, overallProgress);
@@ -2662,21 +2690,19 @@ void ChatWindow::onFileCosProgress(const QJsonObject &data) {
 
     if (sent >= total) {
         // COS 上传完成
-        m_statusLabel->setText("文件上传完成");
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferUploadComplete);
         m_upload.uploadId.clear();
         m_uploadingFileId = 0;
         m_uploadingFileName.clear();
-        QTimer::singleShot(2000, this, [this]() {
-            if (m_statusLabel->text() == "文件上传完成")
-                m_statusLabel->clear();
-        });
     }
 }
 
 void ChatWindow::pauseUpload() {
     if (m_upload.uploadId.isEmpty()) return;
     if (m_upload.rawHttp) {
-        m_statusLabel->setText("HTTP 上传不支持暂停，可取消后重新上传");
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferHttpPauseUnsupported);
         return;
     }
     m_uploadPaused = true;
@@ -2684,8 +2710,9 @@ void ChatWindow::pauseUpload() {
         double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize * 0.6;
         updateAllModelsDownloadProgress(m_uploadingFileId, Message::UploadPaused, progress);
     }
-    m_statusLabel->setText(QString("上传已暂停 %1%")
-        .arg(static_cast<int>(m_upload.offset * 60 / m_upload.fileSize)));
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferUploadPaused.arg(
+            static_cast<int>(m_upload.offset * 60 / m_upload.fileSize)));
 }
 
 void ChatWindow::resumeUpload() {
@@ -2720,7 +2747,8 @@ void ChatWindow::cancelUpload() {
             .arg(cancelledClientId, m_attachmentOutboxService->lastError());
     }
     clearUploadState(true);
-    m_statusLabel->setText("上传已取消");
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferUploadCancelled);
 }
 
 void ChatWindow::clearUploadState(bool removeTemporaryMessage) {
@@ -2770,7 +2798,8 @@ void ChatWindow::pauseDownload(int fileId) {
     updateAllModelsDownloadProgress(fileId, Message::Paused, progress);
     // 对于活跃下载：标记为暂停，不再请求下一块（onDownloadChunkResponse 会检查）
     // 对于队列中的：只需标记状态即可
-    m_statusLabel->setText("下载已暂停");
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferDownloadPaused);
 }
 
 void ChatWindow::resumeDownload(int fileId) {
@@ -2787,7 +2816,9 @@ void ChatWindow::resumeDownload(int fileId) {
         reqData["chunkSize"] = Protocol::FILE_CHUNK_SIZE;
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ, reqData));
-        m_statusLabel->setText(QString("下载中 %1%...").arg(static_cast<int>(progress * 100)));
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferDownloading.arg(
+                static_cast<int>(progress * 100)));
     } else if (m_activeDownloadId == 0) {
         // 没有活跃下载，立即启动
         m_activeDownloadId = fileId;
@@ -2797,7 +2828,9 @@ void ChatWindow::resumeDownload(int fileId) {
         reqData["chunkSize"] = Protocol::FILE_CHUNK_SIZE;
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ, reqData));
-        m_statusLabel->setText(QString("下载中 %1%...").arg(static_cast<int>(progress * 100)));
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferDownloading.arg(
+                static_cast<int>(progress * 100)));
     }
     // 否则仍在队列中等待
 }
@@ -2814,7 +2847,8 @@ void ChatWindow::cancelDownload(int fileId) {
         m_activeDownloadId = 0;
         processNextDownload();
     }
-    m_statusLabel->setText("下载已取消");
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferDownloadCancelled);
 }
 
 void ChatWindow::triggerFileDownload(int fileId, const QString &fileName, qint64 fileSize) {
@@ -2842,7 +2876,8 @@ void ChatWindow::triggerFileDownload(int fileId, const QString &fileName, qint64
 
     if (NetworkManager::instance()->downloadRawFile(fileId)) {
         m_httpDownloads[fileId] = qMakePair(fileName, fileSize);
-        m_statusLabel->setText(QString("HTTP 下载中 %1...").arg(fileName));
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferHttpDownloadingFile.arg(fileName));
         return;
     }
 
@@ -2856,7 +2891,8 @@ void ChatWindow::triggerFileDownload(int fileId, const QString &fileName, qint64
         reqData["fileName"] = fileName;
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, reqData));
-        m_statusLabel->setText(QString("下载中 %1...").arg(fileName));
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferDownloadingFile.arg(fileName));
     }
 }
 
@@ -2873,7 +2909,8 @@ void ChatWindow::processNextDownload() {
     data["chunkSize"] = Protocol::FILE_CHUNK_SIZE;
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ, data));
-    m_statusLabel->setText(QString("下载中 %1...").arg(dl.fileName));
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferDownloadingFile.arg(dl.fileName));
 }
 
 void ChatWindow::updateAllModelsDownloadProgress(int fileId, int state, double progress) {
@@ -2893,7 +2930,8 @@ void ChatWindow::onFileDownloadComplete(int fileId, const QString &fileName, con
     if (localPath.isEmpty()) {
         // 缓存失败，恢复为未下载状态以允许重试
         updateAllModelsDownloadProgress(fileId, Message::NotDownloaded, 0.0);
-        m_statusLabel->setText(QString("文件缓存失败: %1").arg(fileName));
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferCacheFailed.arg(fileName));
         return;
     }
 
@@ -2902,7 +2940,8 @@ void ChatWindow::onFileDownloadComplete(int fileId, const QString &fileName, con
 
 void ChatWindow::finishCachedDownload(int fileId, const QString &fileName,
                                       const QString &localPath) {
-    m_statusLabel->setText(QString("文件已缓存: %1").arg(fileName));
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferCached.arg(fileName));
 
     // 更新所有模型中该文件的下载状态
     updateAllModelsDownloadProgress(fileId, Message::Downloaded, 1.0);
@@ -2941,8 +2980,9 @@ void ChatWindow::onRawDownloadProgress(int fileId, qint64 received, qint64 total
     if (!m_httpDownloads.contains(fileId) || total <= 0) return;
     const double ratio = qBound(0.0, static_cast<double>(received) / total, 1.0);
     updateAllModelsDownloadProgress(fileId, Message::Downloading, ratio);
-    m_statusLabel->setText(QString("HTTP 下载中 %1%...")
-                               .arg(static_cast<int>(ratio * 100)));
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferHttpDownloading.arg(
+            static_cast<int>(ratio * 100)));
 }
 
 void ChatWindow::onRawDownloadFinished(int fileId, bool success,
@@ -3074,7 +3114,8 @@ void ChatWindow::startChunkedDownload(int fileId, const QString &fileName, qint6
         data["chunkSize"] = Protocol::FILE_CHUNK_SIZE;
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ, data));
-        m_statusLabel->setText(QString("下载中 %1...").arg(fileName));
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferDownloadingFile.arg(fileName));
     } else {
         // 已有分块下载在进行，加入队列
         if (!m_downloadQueue.contains(fileId))
@@ -3086,7 +3127,9 @@ void ChatWindow::onDownloadChunkResponse(const QJsonObject &data) {
     int fileId = data["fileId"].toInt();
 
     if (!data["success"].toBool()) {
-        m_statusLabel->setText("下载失败: " + data["error"].toString());
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).mainTransferDownloadFailed.arg(
+                data["error"].toString()));
         updateAllModelsDownloadProgress(fileId, Message::NotDownloaded, 0.0);
         m_downloads.remove(fileId);
         if (m_activeDownloadId == fileId) {
@@ -3134,7 +3177,9 @@ void ChatWindow::onDownloadChunkResponse(const QJsonObject &data) {
     }
 
     updateAllModelsDownloadProgress(fileId, Message::Downloading, progress);
-    m_statusLabel->setText(QString("下载中 %1%...").arg(static_cast<int>(progress * 100)));
+    m_statusLabel->setText(activeWindowsCopy(
+        m_windowsLocaleViewModel).mainTransferDownloading.arg(
+            static_cast<int>(progress * 100)));
 
     if (dl.offset >= dl.fileSize) {
         // 下载完毕
@@ -3473,25 +3518,32 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
         // 文件消息操作
         if (msg.contentType() == Message::File) {
             int fileId = msg.fileId();
+            const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
 
             // 上传中/上传暂停 → 提供暂停/恢复/取消上传
             if (isUploading) {
                 if (dlState == Message::Uploading) {
-                    menu.addAction("暂停上传", [this] { pauseUpload(); });
+                    menu.addAction(copy.mainTransferPauseUpload,
+                                   [this] { pauseUpload(); });
                 } else {
-                    menu.addAction("恢复上传", [this] { resumeUpload(); });
+                    menu.addAction(copy.mainTransferResumeUpload,
+                                   [this] { resumeUpload(); });
                 }
-                menu.addAction("取消上传", [this] { cancelUpload(); });
+                menu.addAction(copy.mainTransferCancelUpload,
+                               [this] { cancelUpload(); });
                 hasMessageActions = true;
             }
             // 下载中/下载暂停 → 提供取消下载
             else if (dlState == Message::Downloading || dlState == Message::Paused) {
                 if (dlState == Message::Downloading) {
-                    menu.addAction("暂停下载", [this, fileId] { pauseDownload(fileId); });
+                    menu.addAction(copy.mainTransferPauseDownload,
+                                   [this, fileId] { pauseDownload(fileId); });
                 } else {
-                    menu.addAction("恢复下载", [this, fileId] { resumeDownload(fileId); });
+                    menu.addAction(copy.mainTransferResumeDownload,
+                                   [this, fileId] { resumeDownload(fileId); });
                 }
-                menu.addAction("取消下载", [this, fileId] { cancelDownload(fileId); });
+                menu.addAction(copy.mainTransferCancelDownload,
+                               [this, fileId] { cancelDownload(fileId); });
                 hasMessageActions = true;
             }
             // 已缓存 → 打开文件
@@ -3509,7 +3561,7 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
             }
             // 未下载
             else if (fileId != 0) {
-                menu.addAction("下载文件", [this, &msg] {
+                menu.addAction(copy.mainTransferDownloadFile, [this, &msg] {
                     triggerFileDownload(msg.fileId(), msg.fileName(), msg.fileSize());
                 });
                 hasMessageActions = true;
@@ -5869,10 +5921,12 @@ void ChatWindow::onFriendFileUploadStartResponse(const QJsonObject &data) {
     if (!responseClientId.isEmpty()
         && responseClientId != m_upload.clientMessageId) return;
     if (!data["success"].toBool()) {
-        QMessageBox::warning(this, "文件发送", data["error"].toString());
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        QMessageBox::warning(this, copy.mainTransferFileSendTitle,
+                             data["error"].toString());
         failActiveAttachment(data["errorCode"].toString(
                                  QStringLiteral("UPLOAD_START_REJECTED")),
-                             QStringLiteral("好友文件发送失败，可稍后重试"));
+                             copy.mainTransferFriendSendRetryableFailure);
         return;
     }
 
@@ -5888,12 +5942,15 @@ void ChatWindow::onFriendFileUploadStartResponse(const QJsonObject &data) {
         if (NetworkManager::instance()->uploadRawFile(
                 m_upload.uploadId, uploadPath, m_upload.filePath)) {
             m_upload.rawHttp = true;
-            m_statusLabel->setText("正在通过 HTTP 上传好友文件...");
+            m_statusLabel->setText(activeWindowsCopy(
+                m_windowsLocaleViewModel).mainTransferFriendHttpUploading);
             return;
         }
-        QMessageBox::warning(this, "文件发送", "无法启动 HTTP 上传，请重试");
+        const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
+        QMessageBox::warning(this, copy.mainTransferFileSendTitle,
+                             copy.mainTransferHttpUploadStartFailed);
         failActiveAttachment(QStringLiteral("HTTP_UPLOAD_START_FAILED"),
-                             QStringLiteral("无法启动 HTTP 上传"));
+                             copy.mainTransferHttpUploadStartFailed);
         return;
     }
     // 旧服务端兼容路径。

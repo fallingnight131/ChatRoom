@@ -253,7 +253,38 @@ def main() -> int:
         "copy.profileAvatarTooLarge",
         "copy.profileAvatarUploadSucceededStatus",
         "copy.profileAvatarUploadFailed : error",
+        ").mainTransferPreparingUpload",
+        "copy.mainTransferUploadFailedTitle",
+        "copy.mainTransferHttpUploadStartFailed",
+        "copy.mainTransferPauseUpload",
+        "copy.mainTransferDownloadFile",
+        "copy.mainTransferFriendSendRetryableFailure",
     ), "Client/ChatWindow.cpp")
+    transfer_surface = window[
+        window.index("void ChatWindow::onFileDownloadReady("):
+        window.index("// ==================== 消息撤回")
+    ]
+    friend_transfer_surface = window[
+        window.index("void ChatWindow::onFriendFileUploadStartResponse("):
+        window.index("void ChatWindow::onSendFriendFile(")
+    ]
+    embedded_transfer_copy = (
+        '"\u4e0a\u4f20\u5931\u8d25"', '"\u6b63\u5728\u901a\u8fc7 HTTP \u4e0a\u4f20..."',
+        '"\u4e0a\u4f20\u4e2d %1%..."', '"\u6587\u4ef6\u5df2\u4e0a\u4f20\uff0c\u6b63\u5728\u540c\u6b65\u5230\u4e91\u7aef..."',
+        '"\u4e0b\u8f7d\u5df2\u6682\u505c"', '"\u4e0b\u8f7d\u4e2d %1%..."',
+        '"\u6587\u4ef6\u7f13\u5b58\u5931\u8d25: %1"', '"\u6682\u505c\u4e0a\u4f20"',
+        '"\u6062\u590d\u4e0b\u8f7d"', '"\u4e0b\u8f7d\u6587\u4ef6"',
+    )
+    if any(copy in transfer_surface or copy in friend_transfer_surface
+           for copy in embedded_transfer_copy):
+        raise AssertionError(
+            "Windows file-transfer activity must project from the locale catalog"
+        )
+    if 'm_statusLabel->text().contains("\u6587\u4ef6")' in window \
+            or 'm_statusLabel->text() == "\u6587\u4ef6\u4e0a\u4f20\u5b8c\u6210"' in window:
+        raise AssertionError(
+            "file-transfer control flow must not depend on localized status copy"
+        )
     require(message_delegate, (
         "WindowsAttachmentPresentation::unavailableText(",
         "WindowsMessagePresentation::timestampWithDelivery(",

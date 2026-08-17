@@ -282,7 +282,20 @@ int main(int argc, char **argv) {
                     != QStringLiteral("1.0 MB  Uploading 42%")
                 || WindowsMessagePresentation::recalledText(
                        WindowsLocale::EnUs, QStringLiteral("Alice"))
-                    != QStringLiteral("Alice recalled a message")) {
+                    != QStringLiteral("Alice recalled a message")
+                || english.mainTransferPreparingUpload
+                       .arg(QStringLiteral("report.pdf"), QStringLiteral("1.0 MB"))
+                    != QStringLiteral("Preparing upload: report.pdf (1.0 MB)")
+                || english.mainTransferUploading.arg(42)
+                    != QStringLiteral("Uploading 42%…")
+                || english.mainTransferHttpDownloadingFile.arg(
+                       QStringLiteral("report.pdf"))
+                    != QStringLiteral("Downloading report.pdf over HTTP…")
+                || english.mainTransferDownloadFailed.arg(
+                       QStringLiteral("not found"))
+                    != QStringLiteral("Download failed: not found")
+                || english.mainTransferPauseUpload
+                    != QStringLiteral("Pause upload")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -356,6 +369,16 @@ int main(int argc, char **argv) {
                        WindowsLocale::ZhCn, QStringLiteral("1.0 MB"),
                        WindowsMessageTransferState::Paused, 0.42, false)
                     != QStringLiteral("1.0 MB  已暂停 42%")
+                || chinese.mainTransferPreparingUpload
+                       .arg(QStringLiteral("report.pdf"), QStringLiteral("1.0 MB"))
+                    != QStringLiteral("准备上传：report.pdf（1.0 MB）")
+                || chinese.mainTransferUploadPaused.arg(42)
+                    != QStringLiteral("上传已暂停 42%")
+                || chinese.mainTransferCacheFailed.arg(
+                       QStringLiteral("report.pdf"))
+                    != QStringLiteral("文件缓存失败：report.pdf")
+                || chinese.mainTransferDownloadFile
+                    != QStringLiteral("下载文件")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

@@ -155,6 +155,12 @@ message storage, server behavior, or the supported Web/Windows product scope.
   state, server-ID presence, transfer state/progress and sender display data to
   visible text. Locale changes repaint existing rows only; they must not mutate
   message state, transfer ownership or server-supplied system-message content.
+- Project the legacy upload/download activity, retryable local failure copy and
+  file-message transfer actions from the same exact catalog at event time.
+  Persist only stable attachment failure codes; filenames, server errors and
+  repository diagnostics remain opaque data. Transfer control flow may not
+  inspect localized status text, so completion feedback remains until another
+  activity replaces it instead of using copy-sensitive delayed clearing.
 
 ## Consequences
 
@@ -279,3 +285,7 @@ database migration or protocol compatibility window is required.
   accepted/read/failed delivery suffixes, bounded transfer percentages and
   recall summaries in both languages; source composition rejects those strings
   in the paint delegate and requires live-locale repaint wiring.
+- transfer catalog tests lock formatted filenames, progress copy,
+  failures and context actions in both languages. Source composition rejects
+  embedded transfer copy and rejects status-text comparisons while stable
+  outbox failure codes and opaque server detail remain unchanged.
