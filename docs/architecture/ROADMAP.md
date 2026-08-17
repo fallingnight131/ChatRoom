@@ -2850,6 +2850,9 @@ Candidate slices:
       server failure detail opaque and retaining status-only password semantics.
     - [x] Replace Windows device-management presentation-string failures with
       stable typed state before migrating its complete security dialog.
+    - [x] Migrate the complete Windows device-management security dialog:
+      localize guidance, platform/current/activity state, failures, actions and
+      confirmation while preserving stable identity and revoke correlation.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

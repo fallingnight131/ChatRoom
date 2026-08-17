@@ -374,6 +374,26 @@ struct WindowsLocaleMessages {
     QString roomPasswordPresent;
     QString roomPasswordAbsent;
     QString roomPasswordStatusFailedTitle;
+    QString deviceManagementTitle;
+    QString deviceManagementStatusAccessible;
+    QString deviceManagementListAccessible;
+    QString deviceManagementIntro;
+    QString deviceManagementDisconnected;
+    QString deviceManagementLoading;
+    QString deviceManagementLoadFailed;
+    QString deviceManagementRevokeFailed;
+    QString deviceManagementInvalidDirectory;
+    QString deviceManagementWindowsClient;
+    QString deviceManagementWebBrowser;
+    QString deviceManagementCurrentDevice;
+    QString deviceManagementRecentActivity;
+    QString deviceManagementCurrent;
+    QString deviceManagementRevoking;
+    QString deviceManagementRevoke;
+    QString deviceManagementRefreshAccessible;
+    QString deviceManagementClose;
+    QString deviceManagementRevokeTitle;
+    QString deviceManagementRevokePrompt;
 };
 
 class WindowsLocaleCatalog final {

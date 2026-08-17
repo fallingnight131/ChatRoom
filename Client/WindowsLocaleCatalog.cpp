@@ -374,6 +374,28 @@ WindowsLocaleMessages createZhCn() {
         "当前聊天室已设置密码。密码不可查看，可由管理员直接重设。");
     m.roomPasswordAbsent = QStringLiteral("当前聊天室未设置密码");
     m.roomPasswordStatusFailedTitle = QStringLiteral("查询密码状态失败");
+    m.deviceManagementTitle = QStringLiteral("登录设备");
+    m.deviceManagementStatusAccessible = QStringLiteral("设备管理状态");
+    m.deviceManagementListAccessible = QStringLiteral("登录设备列表");
+    m.deviceManagementIntro = QStringLiteral(
+        "发现陌生设备时，可撤销它的全部登录会话。");
+    m.deviceManagementDisconnected = QStringLiteral("连接恢复后才能管理设备。");
+    m.deviceManagementLoading = QStringLiteral("正在加载设备…");
+    m.deviceManagementLoadFailed = QStringLiteral("无法加载登录设备");
+    m.deviceManagementRevokeFailed = QStringLiteral("无法撤销该设备");
+    m.deviceManagementInvalidDirectory = QStringLiteral("登录设备数据无效");
+    m.deviceManagementWindowsClient = QStringLiteral("Windows 客户端");
+    m.deviceManagementWebBrowser = QStringLiteral("Web 浏览器");
+    m.deviceManagementCurrentDevice = QStringLiteral("当前设备");
+    m.deviceManagementRecentActivity = QStringLiteral("最近活动：%1");
+    m.deviceManagementCurrent = QStringLiteral("当前");
+    m.deviceManagementRevoking = QStringLiteral("撤销中…");
+    m.deviceManagementRevoke = QStringLiteral("撤销");
+    m.deviceManagementRefreshAccessible = QStringLiteral("刷新登录设备列表");
+    m.deviceManagementClose = QStringLiteral("关闭");
+    m.deviceManagementRevokeTitle = QStringLiteral("撤销登录设备");
+    m.deviceManagementRevokePrompt = QStringLiteral(
+        "将立即撤销该设备的全部登录会话。是否继续？");
     return m;
 }
 
@@ -765,6 +787,29 @@ WindowsLocaleMessages createEnUs() {
     m.roomPasswordAbsent = QStringLiteral("This room does not have a password");
     m.roomPasswordStatusFailedTitle = QStringLiteral(
         "Unable to query room password status");
+    m.deviceManagementTitle = QStringLiteral("Signed-in devices");
+    m.deviceManagementStatusAccessible = QStringLiteral("Device management status");
+    m.deviceManagementListAccessible = QStringLiteral("Signed-in device list");
+    m.deviceManagementIntro = QStringLiteral(
+        "If you see an unfamiliar device, revoke all of its signed-in sessions.");
+    m.deviceManagementDisconnected = QStringLiteral(
+        "Reconnect before managing devices.");
+    m.deviceManagementLoading = QStringLiteral("Loading devices…");
+    m.deviceManagementLoadFailed = QStringLiteral("Unable to load signed-in devices");
+    m.deviceManagementRevokeFailed = QStringLiteral("Unable to revoke this device");
+    m.deviceManagementInvalidDirectory = QStringLiteral("Device data is invalid");
+    m.deviceManagementWindowsClient = QStringLiteral("Windows client");
+    m.deviceManagementWebBrowser = QStringLiteral("Web browser");
+    m.deviceManagementCurrentDevice = QStringLiteral("Current device");
+    m.deviceManagementRecentActivity = QStringLiteral("Recent activity: %1");
+    m.deviceManagementCurrent = QStringLiteral("Current");
+    m.deviceManagementRevoking = QStringLiteral("Revoking…");
+    m.deviceManagementRevoke = QStringLiteral("Revoke");
+    m.deviceManagementRefreshAccessible = QStringLiteral("Refresh signed-in devices");
+    m.deviceManagementClose = QStringLiteral("Close");
+    m.deviceManagementRevokeTitle = QStringLiteral("Revoke signed-in device");
+    m.deviceManagementRevokePrompt = QStringLiteral(
+        "This immediately revokes every signed-in session on that device. Continue?");
     return m;
 }
 

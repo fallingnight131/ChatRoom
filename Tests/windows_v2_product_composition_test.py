@@ -41,6 +41,9 @@ def main() -> int:
     room_password = (ROOT / "Client/RoomPasswordPromptDialog.cpp").read_text(
         encoding="utf-8"
     )
+    device_dialog = (ROOT / "Client/DeviceManagementDialog.cpp").read_text(
+        encoding="utf-8"
+    )
     bandwidth_policy = (ROOT / "Client/WindowsBandwidthPolicy.cpp").read_text(
         encoding="utf-8"
     )
@@ -126,6 +129,8 @@ def main() -> int:
         "if (m_roomPasswordPromptDialog == dialog)",
         "copy.roomPasswordSetStatus",
         "copy.roomPasswordStatusFailedTitle, error",
+        "m_deviceManagementController->viewModel(), this,",
+        "m_windowsLocaleViewModel);",
     ), "Client/ChatWindow.cpp")
     require(profile, (
         "WindowsLocaleCatalog::messages(m_locale)",
@@ -161,6 +166,16 @@ def main() -> int:
         "m_passwordEdit->clear()",
         "emit joinRequested(m_roomId, password)",
     ), "Client/RoomPasswordPromptDialog.cpp")
+    require(device_dialog, (
+        "WindowsLocaleCatalog::messages(m_locale)",
+        "WindowsLocaleViewModel::changed",
+        "DeviceManagementViewModel::Failure::InvalidDirectory",
+        "item->setData(Qt::UserRole, device.deviceId)",
+        "description->setTextFormat(Qt::PlainText)",
+        "confirmation.setDefaultButton(cancel)",
+        "confirmation.clickedButton() == confirm",
+        "m_viewModel->revoke(deviceId)",
+    ), "Client/DeviceManagementDialog.cpp")
     require(bandwidth_policy, (
         "WindowsBandwidthPolicy::shouldAutoRequestAvatar",
         "!lowBandwidthEnabled && !cached",

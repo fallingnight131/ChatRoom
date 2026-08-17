@@ -3290,9 +3290,14 @@ the unchanged `error` value. This is deterministic source evidence; native
 message-box presentation remains part of the Windows product gate.
 `DeviceManagementViewModelTest` also locks device-management failures as stable
 `Failure` values (`LoadFailed`, `RevokeFailed`, `InvalidDirectory`) rather than
-presentation strings. The current dialog maps them to its existing Chinese copy
-until the following complete localization slice; request correlation, current-
-device protection and retry behavior remain unchanged.
+presentation strings. `WindowsDeviceManagementLocalizationTest` composes the
+real dialog with current Windows and remote Web devices, switches live to
+English, and preserves selected stable identity, current-device protection and
+the focused remote revoke action plus correlated revocation state. It also
+recomposes a typed load failure without
+replaying the request and locks device descriptions to plain-text rendering.
+The offscreen macOS run remains development-host evidence; native Windows focus,
+confirmation and assistive-technology behavior remain product gates.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

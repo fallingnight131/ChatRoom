@@ -105,6 +105,12 @@ message storage, server behavior, or the supported Web/Windows product scope.
   `InvalidDirectory` states. Presentation belongs to the dialog catalog; request
   correlation, device identity and current-device protection remain application
   state and must not be reconstructed from translated text.
+- Inject the shared ViewModel into the complete device-management dialog.
+  Security guidance, accessibility names, platform/current/activity
+  presentation, typed failures, actions and revocation confirmation are catalog
+  copy. Recomposition must preserve selected/focused stable device ID, current-device
+  protection and the one-at-a-time correlated revoke state. Device identifiers
+  are opaque data and must use plain-text rendering.
 
 ## Consequences
 
@@ -157,3 +163,7 @@ database migration or protocol compatibility window is required.
   while passing the server `error` detail unchanged.
 - device-management ViewModel tests bind invalid directories and protocol/list
   failures to exact typed states while preserving retry and stale-response rules.
+- device-management Widget composition proves a selected remote identity and
+  correlated revocation survive live language changes, current-device revoke is
+  absent, typed failure recomposes without replay, and identifier text cannot be
+  interpreted as markup.

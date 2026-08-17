@@ -4905,7 +4905,8 @@ void ChatWindow::showDeviceManagement() {
         return;
     }
     m_deviceManagementDialog = new DeviceManagementDialog(
-        m_deviceManagementController->viewModel(), this);
+        m_deviceManagementController->viewModel(), this,
+        m_windowsLocaleViewModel);
     m_deviceManagementDialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(m_deviceManagementDialog, &QObject::destroyed, this, [this] {
         m_deviceManagementDialog = nullptr;

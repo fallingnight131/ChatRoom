@@ -106,7 +106,11 @@ int main(int argc, char **argv) {
                     != QStringLiteral("Room password status")
                 || english.roomPasswordPresent
                     != QStringLiteral(
-                        "This room has a password. It cannot be viewed; an administrator can replace it.")) {
+                        "This room has a password. It cannot be viewed; an administrator can replace it.")
+                || english.deviceManagementTitle
+                    != QStringLiteral("Signed-in devices")
+                || english.deviceManagementRevokeFailed
+                    != QStringLiteral("Unable to revoke this device")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }

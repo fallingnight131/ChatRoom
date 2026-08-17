@@ -2028,8 +2028,12 @@ password.
 Windows device management no longer stores Chinese failure sentences in its
 ViewModel. Loading, revocation and invalid-directory outcomes are stable typed
 application state, so an open security dialog can be recomposed later without
-replaying a request or losing its correlated device identity. The current UI
-mapping remains Chinese until the complete dialog migration lands.
+replaying a request or losing its correlated device identity. The complete
+dialog now consumes the shared locale for security guidance, status/list
+accessibility, platform/current-device presentation, locale-aware activity
+time, actions and revocation confirmation. Live recomposition preserves list
+selection/focus, stable IDs, current-device protection and one-at-a-time revocation.
+Server device identifiers are rendered as plain text rather than rich markup.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;
