@@ -673,6 +673,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/RoomSettingsDialog.cpp
                 Client/RoomFileManagerDialog.cpp
                 Client/RoomPasswordPromptDialog.cpp
+                Client/RoomSearchDialog.cpp
+                Client/RoomSearchDialog.h
                 Client/ProfileDialog.cpp
                 Client/UserInfoDialog.cpp
                 Client/DeviceManagementDialog.cpp
@@ -850,6 +852,24 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             NAME m6_windows_locale_preference
             COMMAND WindowsLocalePreferenceRepositoryTest)
         set_tests_properties(m6_windows_locale_preference PROPERTIES TIMEOUT 30)
+        if(TARGET Qt6::Widgets)
+            add_executable(
+                WindowsRoomSearchDialogTest
+                Tests/WindowsRoomSearchDialogTest.cpp
+                Client/RoomSearchDialog.cpp
+                Client/RoomSearchDialog.h)
+            set_target_properties(WindowsRoomSearchDialogTest PROPERTIES AUTOMOC ON)
+            target_include_directories(WindowsRoomSearchDialogTest PRIVATE Client)
+            target_link_libraries(
+                WindowsRoomSearchDialogTest
+                PRIVATE Qt6::Widgets chatroom_v2_messaging_ui_core)
+            add_test(
+                NAME m6_windows_room_search_dialog
+                COMMAND WindowsRoomSearchDialogTest)
+            set_tests_properties(
+                m6_windows_room_search_dialog
+                PROPERTIES TIMEOUT 30 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+        endif()
         add_executable(
             WindowsConnectionStatusViewModelTest
             Tests/WindowsConnectionStatusViewModelTest.cpp

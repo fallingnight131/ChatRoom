@@ -44,6 +44,7 @@ def main() -> int:
     room_password = (ROOT / "Client/RoomPasswordPromptDialog.cpp").read_text(
         encoding="utf-8"
     )
+    room_search = (ROOT / "Client/RoomSearchDialog.cpp").read_text(encoding="utf-8")
     device_dialog = (ROOT / "Client/DeviceManagementDialog.cpp").read_text(
         encoding="utf-8"
     )
@@ -191,6 +192,10 @@ def main() -> int:
         "dialog.setWindowTitle(copy.mainCreateRoomTitle)",
         "dialog.setLabelText(copy.mainCreateRoomPrompt)",
         "dialog.setAccessibleName(copy.mainCreateRoomAccessible)",
+        "RoomSearchDialog dialog(m_windowsLocaleViewModel, this)",
+        "&RoomSearchDialog::searchRequested",
+        "&RoomSearchDialog::joinRequested",
+        "dialog.showResults(results)",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -261,6 +266,23 @@ def main() -> int:
         "dialog.setTextValue(", "dialog.textValue().clear()",
     )):
         raise AssertionError("locale projection must not replace the room-name draft")
+    room_search_surface = window[
+        window.index("void ChatWindow::onSearchRoom()"):
+        window.index("void ChatWindow::onRoomCreated(")
+    ]
+    if "new QPushButton" in room_search_surface or "new QLabel" in room_search_surface:
+        raise AssertionError("ChatWindow must not own room-search presentation")
+    require(room_search, (
+        "copy.mainRoomSearchTitle",
+        "copy.mainRoomSearchResultAccessible",
+        "emit searchRequested(keyword)",
+        "emit joinRequested(roomId)",
+        "emit roomAvatarRequested(result.roomId)",
+        "m_searchInput->text().trimmed()",
+        "m_resultList->setItemWidget(item, itemWidget)",
+    ), "Client/RoomSearchDialog.cpp")
+    if "NetworkManager" in room_search:
+        raise AssertionError("room-search presentation must not own transport")
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

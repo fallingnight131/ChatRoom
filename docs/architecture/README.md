@@ -2107,6 +2107,9 @@ duplicate lifecycle events from creating competing authentication surfaces.
 The create-room modal is now an owned, live-recomposable leaf instead of a
 static convenience call. Locale changes preserve its Unicode draft and the
 accepted value still crosses the existing V1 command boundary unchanged.
+Room search is now a separate transport-free dialog. It owns query/result/join
+presentation and stable row identity; `ChatWindow` only adapts V1 JSON, joined
+room state and cached avatars to typed rows and forwards emitted command IDs.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

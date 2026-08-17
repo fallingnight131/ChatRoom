@@ -232,3 +232,6 @@ database migration or protocol compatibility window is required.
   application-owned title.
 - create-room presentation recomposes the existing modal in place, preserving
   its Unicode draft and sending only the trimmed accepted value through V1.
+- room search is a transport-free dialog boundary: `ChatWindow` adapts V1 JSON
+  and cached avatars, while the dialog owns localized single-flight UI and
+  emits stable keyword, room-ID, and avatar intents.

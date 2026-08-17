@@ -181,7 +181,12 @@ int main(int argc, char **argv) {
                 || english.mainCreateRoomTitle
                     != QStringLiteral("Create room")
                 || english.mainCreateRoomPrompt
-                    != QStringLiteral("Enter a room name:")) {
+                    != QStringLiteral("Enter a room name:")
+                || english.mainRoomSearchTitle != QStringLiteral("Find rooms")
+                || english.mainRoomSearchMetadata
+                    != QStringLiteral("ID: %1  ·  %2 members")
+                || english.mainRoomSearchRequested
+                    != QStringLiteral("Requested")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -208,6 +213,8 @@ int main(int argc, char **argv) {
                 || chinese.mainLogoutTitle != QStringLiteral("注销")
                 || chinese.mainCreateRoomTitle
                     != QStringLiteral("创建聊天室")
+                || chinese.mainRoomSearchTitle
+                    != QStringLiteral("搜索聊天室")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

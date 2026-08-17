@@ -77,6 +77,7 @@ SOURCES += \
     RoomSettingsDialog.cpp \
     RoomFileManagerDialog.cpp \
     RoomPasswordPromptDialog.cpp \
+    RoomSearchDialog.cpp \
     ProfileDialog.cpp \
     UserInfoDialog.cpp \
     WindowsBandwidthPolicy.cpp \
@@ -130,6 +131,7 @@ HEADERS += \
     RoomSettingsDialog.h \
     RoomFileManagerDialog.h \
     RoomPasswordPromptDialog.h \
+    RoomSearchDialog.h \
     ProfileDialog.h \
     UserInfoDialog.h \
     WindowsBandwidthPolicy.h \

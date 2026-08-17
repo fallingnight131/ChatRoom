@@ -3294,6 +3294,11 @@ session-end notifications cannot create competing authentication windows.
 Create-room source composition rejects the static convenience dialog and binds
 its title, prompt, actions, and accessible name to the live locale. Projection
 does not write the text value; the accepted trimmed V1 room name is unchanged.
+`WindowsRoomSearchDialogTest` exercises the extracted transport-free room
+directory leaf offscreen: stable room IDs, Unicode query preservation, live
+language switching, opaque server detail, single-flight join/search intents,
+and deferred avatar intent. Static composition keeps `NetworkManager` outside
+the dialog while `ChatWindow` remains the V1 transport adapter.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

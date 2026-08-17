@@ -512,6 +512,25 @@ WindowsLocaleMessages createZhCn() {
     m.mainCreateRoomTitle = QStringLiteral("创建聊天室");
     m.mainCreateRoomPrompt = QStringLiteral("请输入聊天室名称：");
     m.mainCreateRoomAccessible = QStringLiteral("创建聊天室对话框");
+    m.mainRoomSearchTitle = QStringLiteral("搜索聊天室");
+    m.mainRoomSearchAccessible = QStringLiteral("搜索聊天室对话框");
+    m.mainRoomSearchPlaceholder = QStringLiteral("输入聊天室名称或 ID 搜索");
+    m.mainRoomSearchInputAccessible = QStringLiteral("聊天室搜索关键词");
+    m.mainRoomSearchSubmitAccessible = QStringLiteral("搜索聊天室");
+    m.mainRoomSearchResultsAccessible = QStringLiteral("聊天室搜索结果");
+    m.mainRoomSearchIntro = QStringLiteral("输入关键词后点击搜索");
+    m.mainRoomSearchSearching = QStringLiteral("搜索中…");
+    m.mainRoomSearchSearchingStatus = QStringLiteral("正在搜索聊天室…");
+    m.mainRoomSearchFailed = QStringLiteral("搜索失败");
+    m.mainRoomSearchEmpty = QStringLiteral("未找到匹配的聊天室");
+    m.mainRoomSearchMetadata = QStringLiteral("ID: %1  ·  %2 人");
+    m.mainRoomSearchJoined = QStringLiteral("已加入");
+    m.mainRoomSearchJoin = QStringLiteral("加入");
+    m.mainRoomSearchRequested = QStringLiteral("已申请");
+    m.mainRoomSearchJoinedAccessible = QStringLiteral("已加入聊天室 %1");
+    m.mainRoomSearchJoinAccessible = QStringLiteral("加入聊天室 %1");
+    m.mainRoomSearchRequestedAccessible = QStringLiteral("已申请加入聊天室 %1");
+    m.mainRoomSearchResultAccessible = QStringLiteral("%1，ID %2，%3 人");
     return m;
 }
 
@@ -1045,6 +1064,25 @@ WindowsLocaleMessages createEnUs() {
     m.mainCreateRoomTitle = QStringLiteral("Create room");
     m.mainCreateRoomPrompt = QStringLiteral("Enter a room name:");
     m.mainCreateRoomAccessible = QStringLiteral("Create room dialog");
+    m.mainRoomSearchTitle = QStringLiteral("Find rooms");
+    m.mainRoomSearchAccessible = QStringLiteral("Find rooms dialog");
+    m.mainRoomSearchPlaceholder = QStringLiteral("Search by room name or ID");
+    m.mainRoomSearchInputAccessible = QStringLiteral("Room search keyword");
+    m.mainRoomSearchSubmitAccessible = QStringLiteral("Search for rooms");
+    m.mainRoomSearchResultsAccessible = QStringLiteral("Room search results");
+    m.mainRoomSearchIntro = QStringLiteral("Enter a keyword, then select Search");
+    m.mainRoomSearchSearching = QStringLiteral("Searching…");
+    m.mainRoomSearchSearchingStatus = QStringLiteral("Searching for rooms…");
+    m.mainRoomSearchFailed = QStringLiteral("Search failed");
+    m.mainRoomSearchEmpty = QStringLiteral("No matching rooms found");
+    m.mainRoomSearchMetadata = QStringLiteral("ID: %1  ·  %2 members");
+    m.mainRoomSearchJoined = QStringLiteral("Joined");
+    m.mainRoomSearchJoin = QStringLiteral("Join");
+    m.mainRoomSearchRequested = QStringLiteral("Requested");
+    m.mainRoomSearchJoinedAccessible = QStringLiteral("Already joined %1");
+    m.mainRoomSearchJoinAccessible = QStringLiteral("Join room %1");
+    m.mainRoomSearchRequestedAccessible = QStringLiteral("Requested to join room %1");
+    m.mainRoomSearchResultAccessible = QStringLiteral("%1, ID %2, %3 members");
     return m;
 }
 

@@ -505,6 +505,25 @@ struct WindowsLocaleMessages {
     QString mainCreateRoomTitle;
     QString mainCreateRoomPrompt;
     QString mainCreateRoomAccessible;
+    QString mainRoomSearchTitle;
+    QString mainRoomSearchAccessible;
+    QString mainRoomSearchPlaceholder;
+    QString mainRoomSearchInputAccessible;
+    QString mainRoomSearchSubmitAccessible;
+    QString mainRoomSearchResultsAccessible;
+    QString mainRoomSearchIntro;
+    QString mainRoomSearchSearching;
+    QString mainRoomSearchSearchingStatus;
+    QString mainRoomSearchFailed;
+    QString mainRoomSearchEmpty;
+    QString mainRoomSearchMetadata;
+    QString mainRoomSearchJoined;
+    QString mainRoomSearchJoin;
+    QString mainRoomSearchRequested;
+    QString mainRoomSearchJoinedAccessible;
+    QString mainRoomSearchJoinAccessible;
+    QString mainRoomSearchRequestedAccessible;
+    QString mainRoomSearchResultAccessible;
 };
 
 class WindowsLocaleCatalog final {

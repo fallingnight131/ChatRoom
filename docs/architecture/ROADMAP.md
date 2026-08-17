@@ -2878,6 +2878,8 @@ Candidate slices:
       typed lifecycle signal and keep remote session termination independent.
     - [x] Migrate the Windows create-room leaf to live locale projection while
       preserving the room-name draft and unchanged V1 command boundary.
+    - [x] Extract the Windows room-search presentation from `ChatWindow`, with
+      live locale projection, stable result identity and transport-free UI.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 
