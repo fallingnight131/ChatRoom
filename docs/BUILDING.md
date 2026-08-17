@@ -3211,6 +3211,11 @@ transition to Refresh, and visible write-failure rollback; that failure emits a
 Qt accessibility Alert instead of relying on status text alone. These are
 development-host composition checks; native Windows keyboard and screen-reader
 evidence remains a release gate.
+The same dialog test sends real Qt key events: `Ctrl+F` must focus the enabled
+conversation-search field, while `F5` must invoke the existing guarded refresh
+command exactly once. The shortcuts do not introduce parallel request paths or
+bypass disabled controls. This remains macOS portability evidence until the
+same path passes on a native Windows Release build.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

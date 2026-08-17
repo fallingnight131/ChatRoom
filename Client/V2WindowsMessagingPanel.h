@@ -32,6 +32,7 @@ public:
     ~V2WindowsMessagingPanel() override;
     void setConversation(const QString &conversationId);
     void setLocale(WindowsLocale locale);
+    bool focusSearch();
     QPlainTextEdit *composerForTest() const { return m_composer; }
     QListWidget *messageListForTest() const { return m_messages; }
     QListWidget *participantListForTest() const { return m_participants; }

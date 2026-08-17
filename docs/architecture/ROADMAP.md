@@ -2784,6 +2784,9 @@ Candidate slices:
         - [x] Give the selector an explicit label relationship, description,
           deterministic first-tab order, and accessible alert on persistence
           failure; verify the visible dialog rolls back without mixed locale.
+    - [x] Add bounded Windows conversation keyboard commands: `Ctrl+F` focuses
+      enabled message search and `F5` invokes the existing guarded directory
+      refresh path, with offscreen focus and dispatch evidence.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

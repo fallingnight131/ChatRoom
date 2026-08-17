@@ -2,6 +2,7 @@
 
 #include "V2WindowsConversationDirectoryViewModel.h"
 #include "V2WindowsConversationParticipantViewModel.h"
+#include "V2WindowsMessageSearchViewModel.h"
 #include "V2WindowsMessagingPanel.h"
 #include "V2WindowsMessagingViewModel.h"
 #include "WindowsLocalePreferenceRepository.h"
@@ -11,11 +12,13 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QTest>
 #include <algorithm>
 
 namespace {
@@ -78,6 +81,8 @@ int main(int argc, char **argv) {
             ++participantRequests;
             return selected == conversationId && !continuation;
         });
+    V2WindowsMessageSearchViewModel search(
+        [](const QString &, const QString &, quint64, bool) { return true; });
 
     {
         V2WindowsConversationDialog english(
@@ -166,7 +171,7 @@ int main(int argc, char **argv) {
     }
 
     V2WindowsConversationDialog dialog(
-        &directory, &messaging, &participants, nullptr, true);
+        &directory, &messaging, &participants, nullptr, true, false, &search);
     dialog.show();
     app.processEvents();
     if (!check(!dialog.accessibleName().isEmpty(),
@@ -189,6 +194,11 @@ int main(int argc, char **argv) {
                       QStringLiteral("opened conversation must render cached messages"))) return 1;
     if (!check(participantRequests == 0,
                QStringLiteral("opening a conversation must not prefetch picker data"))) return 1;
+    dialog.refreshForTest()->setFocus();
+    QTest::keyClick(&dialog, Qt::Key_F, Qt::ControlModifier);
+    app.processEvents();
+    if (!check(dialog.messagingPanelForTest()->searchInputForTest()->hasFocus(),
+               QStringLiteral("Ctrl+F must focus available conversation search"))) return 1;
     messaging.chooseReply(message.messageId);
     app.processEvents();
     dialog.messagingPanelForTest()->mentionForTest()->click();
@@ -202,10 +212,10 @@ int main(int argc, char **argv) {
     if (!check(loadMoreCalls == 1 && directory.busy(),
                QStringLiteral("load more must own one in-flight request"))) return 1;
     directory.applyPage({}, true, false);
-    dialog.refreshForTest()->click();
+    QTest::keyClick(&dialog, Qt::Key_F5);
     app.processEvents();
     if (!check(refreshCalls == 1 && directory.busy(),
-               QStringLiteral("refresh must remain reachable after paging"))) return 1;
+               QStringLiteral("F5 refresh must remain reachable after paging"))) return 1;
 
     qInfo() << "[V2WindowsConversationDialogTest] PASS";
     return 0;

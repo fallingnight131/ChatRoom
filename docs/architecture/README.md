@@ -1943,6 +1943,11 @@ tab transition is fixed at Refresh. Persistence failure restores the selected
 value and emits an accessibility Alert as well as updating visible status text.
 These are portable composition guarantees, not native Windows screen-reader
 evidence.
+The conversation shell also owns two bounded Windows keyboard commands.
+`Ctrl+F` delegates to the message panel and changes focus only when negotiated
+search is present, visible, and enabled; `F5` clicks the existing Refresh
+control, preserving its busy-state guard and request ownership. Shortcut code
+does not construct transport requests directly.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

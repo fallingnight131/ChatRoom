@@ -1,4 +1,4 @@
-QT += core gui widgets sql
+QT += core gui widgets sql testlib
 CONFIG += console c++17
 CONFIG -= app_bundle
 TEMPLATE = app

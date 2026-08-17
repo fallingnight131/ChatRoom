@@ -18,6 +18,7 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSplitter>
+#include <QShortcut>
 #include <QStringList>
 #include <QVBoxLayout>
 
@@ -76,6 +77,7 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
     m_conversations->setAccessibleName(copy.conversationListAccessible);
     m_conversations->setSelectionMode(QAbstractItemView::SingleSelection);
     m_refresh->setAccessibleName(copy.refreshConversationsAccessible);
+    m_refresh->setToolTip(QStringLiteral("F5"));
     m_loadMore->setAccessibleName(copy.loadMoreConversationsAccessible);
     m_conversationTitle->setAccessibleName(copy.currentConversationAccessible);
     m_conversationTitle->setText(copy.selectConversation);
@@ -142,6 +144,13 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
             this, &V2WindowsConversationDialog::openItem);
     connect(m_conversations, &QListWidget::currentItemChanged,
             this, [this](QListWidgetItem *current) { openItem(current); });
+    auto *refreshShortcut = new QShortcut(QKeySequence(Qt::Key_F5), this);
+    connect(refreshShortcut, &QShortcut::activated, m_refresh, &QPushButton::click);
+    auto *searchShortcut = new QShortcut(
+        QKeySequence(Qt::CTRL | Qt::Key_F), this);
+    connect(searchShortcut, &QShortcut::activated, this, [this] {
+        m_messagingPanel->focusSearch();
+    });
     connect(m_directoryViewModel, &V2WindowsConversationDirectoryViewModel::changed,
             this, &V2WindowsConversationDialog::renderDirectory);
     connect(m_directoryViewModel,

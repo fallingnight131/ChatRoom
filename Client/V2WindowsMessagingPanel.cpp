@@ -64,6 +64,7 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     m_searchPane->setAccessibleName(copy.searchPaneAccessible);
     m_searchInput->setAccessibleName(copy.searchInputAccessible);
     m_searchInput->setPlaceholderText(copy.searchPlaceholder);
+    m_searchInput->setToolTip(QStringLiteral("Ctrl+F"));
     m_searchInput->setMaxLength(128);
     m_searchButton->setAccessibleName(copy.searchSubmitAccessible);
     m_searchStatus->setAccessibleName(copy.searchStatusAccessible);
@@ -264,6 +265,14 @@ void V2WindowsMessagingPanel::setConversation(const QString &conversationId) {
         renderSearch();
     }
     render();
+}
+
+bool V2WindowsMessagingPanel::focusSearch() {
+    if (!m_searchViewModel || !m_searchInput->isVisible()
+            || !m_searchInput->isEnabled())
+        return false;
+    m_searchInput->setFocus(Qt::ShortcutFocusReason);
+    return true;
 }
 
 void V2WindowsMessagingPanel::render() {
