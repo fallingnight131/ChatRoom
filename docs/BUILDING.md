@@ -3257,6 +3257,13 @@ existing QMenu/QAction objects; and reject embedded Chinese copy inside the
 menu surface. A successful macOS link proves portability only. Windows Release
 must still verify native menu mnemonics, shortcuts, visibility gates and About
 presentation.
+`WindowsConnectionStatusViewModelTest` locks the locale-independent connection
+lifecycle: disconnected default, positive reconnect attempts, duplicate-change
+suppression, and reconnect metadata clearing on connect/disconnect. The static
+composition gate requires separate activity and permanent connection labels and
+rejects lifecycle writes to the activity label. The locale test locks exact
+Chinese/English projections. macOS execution remains development-host evidence;
+native Windows status-bar accessibility and scaling remain release gates.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

@@ -2864,6 +2864,8 @@ Candidate slices:
       the application locale while preserving menu action and activation state.
     - [x] Localize Windows main-window chrome as one slice: title, menu hierarchy,
       menu actions and About copy, preserving identity, shortcuts and gate state.
+    - [x] Split Windows connection lifecycle from transient activity feedback;
+      type and localize disconnected/connected/reconnecting state independently.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

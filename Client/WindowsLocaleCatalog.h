@@ -449,6 +449,11 @@ struct WindowsLocaleMessages {
     QString mainMenuAbout;
     QString mainAboutTitle;
     QString mainAboutBody;
+    QString mainActivityStatusAccessible;
+    QString mainConnectionStatusAccessible;
+    QString mainDisconnected;
+    QString mainConnected;
+    QString mainReconnecting;
 };
 
 class WindowsLocaleCatalog final {

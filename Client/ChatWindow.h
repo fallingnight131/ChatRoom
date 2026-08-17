@@ -30,6 +30,7 @@ class WindowsBandwidthViewModel;
 class WindowsAvatarRequestCoordinator;
 class WindowsLocalePreferenceRepository;
 class WindowsLocaleViewModel;
+class WindowsConnectionStatusViewModel;
 
 class MessageModel;
 class Message;
@@ -257,6 +258,7 @@ private:
     void setupUi();
     void setupMenuBar();
     void refreshWindowChrome();
+    void refreshConnectionStatus();
     void showAboutDialog();
     void connectSignals();
     void completeUploadBytes();
@@ -343,6 +345,7 @@ private:
     QPushButton  *m_imageBtn       = nullptr;
     QPushButton  *m_avatarBtn      = nullptr;
     QLabel       *m_statusLabel    = nullptr;
+    QLabel       *m_connectionStatusLabel = nullptr;
     QLabel       *m_roomTitle      = nullptr;
     QLabel       *m_nicknameLabel  = nullptr;
     QPushButton  *m_roomSettingsBtn = nullptr;
@@ -436,6 +439,8 @@ private:
     std::unique_ptr<WindowsLocalePreferenceRepository> m_windowsLocaleRepository;
     std::unique_ptr<WindowsLocaleViewModel> m_ownedWindowsLocaleViewModel;
     WindowsLocaleViewModel *m_windowsLocaleViewModel = nullptr;
+    std::unique_ptr<WindowsConnectionStatusViewModel>
+        m_connectionStatusViewModel;
 
     // 聊天室头像缓存  roomId -> pixmap
     QMap<int, QPixmap> m_roomAvatarCache;

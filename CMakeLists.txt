@@ -661,6 +661,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/EmojiPicker.cpp
                 Client/ThemeManager.cpp
                 Client/TrayManager.cpp
+                Client/WindowsConnectionStatusViewModel.cpp
+                Client/WindowsConnectionStatusViewModel.h
                 Client/FileCache.cpp
                 Client/WindowsClientInstanceGuard.cpp
                 Client/WindowsUpdateProductConfiguration.cpp
@@ -848,6 +850,22 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             NAME m6_windows_locale_preference
             COMMAND WindowsLocalePreferenceRepositoryTest)
         set_tests_properties(m6_windows_locale_preference PROPERTIES TIMEOUT 30)
+        add_executable(
+            WindowsConnectionStatusViewModelTest
+            Tests/WindowsConnectionStatusViewModelTest.cpp
+            Client/WindowsConnectionStatusViewModel.cpp
+            Client/WindowsConnectionStatusViewModel.h)
+        set_target_properties(
+            WindowsConnectionStatusViewModelTest PROPERTIES AUTOMOC ON)
+        target_include_directories(
+            WindowsConnectionStatusViewModelTest PRIVATE Client)
+        target_link_libraries(
+            WindowsConnectionStatusViewModelTest PRIVATE Qt6::Core)
+        add_test(
+            NAME m6_windows_connection_status_view_model
+            COMMAND WindowsConnectionStatusViewModelTest)
+        set_tests_properties(
+            m6_windows_connection_status_view_model PROPERTIES TIMEOUT 30)
         add_executable(
             WindowsBandwidthPreferenceRepositoryTest
             Tests/WindowsBandwidthPreferenceRepositoryTest.cpp)

@@ -2077,6 +2077,12 @@ menus, their actions, and About copy project from the same catalog. Existing
 QMenu/QAction instances are updated rather than reconstructed, retaining
 shortcuts, V2/update visibility gates and signal ownership. The authenticated
 display name remains opaque identity data while only its title template changes.
+Connection lifecycle is now separated from transient activity feedback in the
+legacy window. A locale-independent ViewModel owns disconnected, connected, and
+bounded reconnect-attempt state; a dedicated permanent status label projects it
+through the active catalog. Upload, download, cache, and message feedback keep
+their existing activity label, so transport transitions cannot overwrite an
+unrelated operation and locale changes do not replay network work.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

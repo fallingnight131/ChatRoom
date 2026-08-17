@@ -54,6 +54,9 @@ def main() -> int:
         ROOT / "Client/WindowsMessageNotificationPresenter.cpp"
     ).read_text(encoding="utf-8")
     tray = (ROOT / "Client/TrayManager.cpp").read_text(encoding="utf-8")
+    connection_status = (
+        ROOT / "Client/WindowsConnectionStatusViewModel.cpp"
+    ).read_text(encoding="utf-8")
     bandwidth_policy = (ROOT / "Client/WindowsBandwidthPolicy.cpp").read_text(
         encoding="utf-8"
     )
@@ -150,7 +153,31 @@ def main() -> int:
         "m_v2ConversationAction->setText(copy.mainMenuV2Preview)",
         "m_accountBlockDirectoryAction->setText(copy.mainMenuBlockedAccounts)",
         "QMessageBox::about(this, copy.mainAboutTitle, copy.mainAboutBody)",
+        "m_connectionStatusViewModel->setConnected()",
+        "m_connectionStatusViewModel->setDisconnected()",
+        "m_connectionStatusViewModel->setReconnecting(attempt)",
+        "statusBar()->addWidget(m_statusLabel, 1)",
+        "statusBar()->addPermanentWidget(m_connectionStatusLabel)",
+        "copy.mainConnectionStatusAccessible",
+        "copy.mainReconnecting.arg(",
     ), "Client/ChatWindow.cpp")
+    connection_surface = window[
+        window.index("// ==================== 连接状态"):
+        window.index("// ==================== 窗口事件")
+    ]
+    if "m_statusLabel->setText" in connection_surface or any(
+        text in connection_surface for text in ("已连接", "已断开", "重连中")
+    ):
+        raise AssertionError(
+            "connection lifecycle must not overwrite activity or own localized copy"
+        )
+    require(connection_status, (
+        "State::Disconnected",
+        "State::Connected",
+        "State::Reconnecting",
+        "std::max(1, attempt)",
+        "emit changed()",
+    ), "Client/WindowsConnectionStatusViewModel.cpp")
     menu_surface = window[
         window.index("void ChatWindow::setupMenuBar()"):
         window.index("// ==================== 信号连接")

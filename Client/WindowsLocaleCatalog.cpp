@@ -455,6 +455,11 @@ WindowsLocaleMessages createZhCn() {
     m.mainAboutBody = QStringLiteral(
         "Qt聊天室 v1.0\n\n基于 Qt/C++ 开发的聊天应用\n"
         "支持群组聊天、文件传输、消息撤回等功能");
+    m.mainActivityStatusAccessible = QStringLiteral("当前操作状态");
+    m.mainConnectionStatusAccessible = QStringLiteral("服务器连接状态");
+    m.mainDisconnected = QStringLiteral("已断开");
+    m.mainConnected = QStringLiteral("已连接");
+    m.mainReconnecting = QStringLiteral("重连中（第 %1 次）");
     return m;
 }
 
@@ -931,6 +936,11 @@ WindowsLocaleMessages createEnUs() {
     m.mainAboutBody = QStringLiteral(
         "Qt Chat Room v1.0\n\nA chat application built with Qt/C++\n"
         "Supports group chat, file transfer, and message recall");
+    m.mainActivityStatusAccessible = QStringLiteral("Current activity status");
+    m.mainConnectionStatusAccessible = QStringLiteral("Server connection status");
+    m.mainDisconnected = QStringLiteral("Disconnected");
+    m.mainConnected = QStringLiteral("Connected");
+    m.mainReconnecting = QStringLiteral("Reconnecting (attempt %1)");
     return m;
 }
 

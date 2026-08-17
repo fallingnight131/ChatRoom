@@ -132,6 +132,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
   chrome surface. Update existing menu/action objects on locale changes so
   shortcuts, visibility gates and connections survive. Display names remain
   opaque identity data inserted only into the active title template.
+- Separate server connection lifecycle from the legacy window's transient
+  activity feedback. A locale-independent ViewModel owns disconnected,
+  connected and normalized reconnect-attempt state; the Widget projects it in a
+  dedicated permanent status label and never overwrites upload/download status.
 
 ## Consequences
 
@@ -203,3 +207,6 @@ database migration or protocol compatibility window is required.
 - source composition also rejects embedded menu copy, requires every gated
   action and About presentation to use the catalog, and catalog tests lock the
   exact title/menu terms; native Windows mnemonic interaction remains open.
+- connection-state tests bind fail-closed initialization, normalized attempts,
+  deduplicated change signals and metadata clearing. Source composition requires
+  a separate activity/connection label and rejects direct connection copy.

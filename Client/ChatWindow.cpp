@@ -25,6 +25,7 @@
 #include "WindowsBandwidthViewModel.h"
 #include "WindowsLocalePreferenceRepository.h"
 #include "WindowsLocaleViewModel.h"
+#include "WindowsConnectionStatusViewModel.h"
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
 #include "DeviceManagementDialog.h"
 #include "DeviceManagementViewModel.h"
@@ -314,6 +315,8 @@ ChatWindow::ChatWindow(QWidget *parent, WindowsLocaleViewModel *localeViewModel)
         std::make_unique<WindowsBandwidthPreferenceRepository>(*m_bandwidthSettings);
     m_bandwidthViewModel =
         std::make_unique<WindowsBandwidthViewModel>(m_bandwidthRepository.get());
+    m_connectionStatusViewModel =
+        std::make_unique<WindowsConnectionStatusViewModel>();
     m_avatarRequests = std::make_unique<WindowsAvatarRequestCoordinator>(
         [](const QString &username) {
             QJsonObject data;
@@ -341,6 +344,11 @@ ChatWindow::ChatWindow(QWidget *parent, WindowsLocaleViewModel *localeViewModel)
     setupMenuBar();
     connect(m_windowsLocaleViewModel, &WindowsLocaleViewModel::changed,
             this, &ChatWindow::refreshWindowChrome);
+    connect(m_windowsLocaleViewModel, &WindowsLocaleViewModel::changed,
+            this, &ChatWindow::refreshConnectionStatus);
+    connect(m_connectionStatusViewModel.get(),
+            &WindowsConnectionStatusViewModel::changed,
+            this, &ChatWindow::refreshConnectionStatus);
     connectSignals();
     connect(m_bandwidthViewModel.get(), &WindowsBandwidthViewModel::changed,
             this, [this] {
@@ -691,8 +699,11 @@ void ChatWindow::setupUi() {
     mainLayout->addWidget(m_splitter);
 
     // 状态栏
-    m_statusLabel = new QLabel("未连接");
-    statusBar()->addPermanentWidget(m_statusLabel);
+    m_statusLabel = new QLabel;
+    m_connectionStatusLabel = new QLabel;
+    statusBar()->addWidget(m_statusLabel, 1);
+    statusBar()->addPermanentWidget(m_connectionStatusLabel);
+    refreshConnectionStatus();
 
     // 表情选择器（弹窗）
     m_emojiPicker = new EmojiPicker(this, m_windowsLocaleViewModel);
@@ -772,6 +783,29 @@ void ChatWindow::refreshWindowChrome() {
     m_pendingAttachmentsAction->setText(copy.mainMenuPendingAttachments);
     m_checkForUpdatesAction->setText(copy.mainMenuCheckUpdates);
     m_aboutAction->setText(copy.mainMenuAbout);
+}
+
+void ChatWindow::refreshConnectionStatus() {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    m_statusLabel->setAccessibleName(copy.mainActivityStatusAccessible);
+    m_connectionStatusLabel->setAccessibleName(
+        copy.mainConnectionStatusAccessible);
+    switch (m_connectionStatusViewModel->state()) {
+    case WindowsConnectionStatusViewModel::State::Disconnected:
+        m_connectionStatusLabel->setText(copy.mainDisconnected);
+        m_connectionStatusLabel->setStyleSheet(QStringLiteral("color: red;"));
+        break;
+    case WindowsConnectionStatusViewModel::State::Connected:
+        m_connectionStatusLabel->setText(copy.mainConnected);
+        m_connectionStatusLabel->setStyleSheet(QStringLiteral("color: green;"));
+        break;
+    case WindowsConnectionStatusViewModel::State::Reconnecting:
+        m_connectionStatusLabel->setText(copy.mainReconnecting.arg(
+            m_connectionStatusViewModel->reconnectAttempt()));
+        m_connectionStatusLabel->setStyleSheet(QStringLiteral("color: orange;"));
+        break;
+    }
 }
 
 void ChatWindow::showAboutDialog() {
@@ -3718,8 +3752,7 @@ void ChatWindow::onToggleTheme() {
 // ==================== 连接状态 ====================
 
 void ChatWindow::onConnected() {
-    m_statusLabel->setText("已连接");
-    m_statusLabel->setStyleSheet("color: green;");
+    m_connectionStatusViewModel->setConnected();
 
     // 重连后请求房间列表，onRoomListReceived 会自动加入合适的房间
     // 不再额外发送 JOIN_ROOM_REQ，避免重复加入
@@ -3738,13 +3771,11 @@ void ChatWindow::onDisconnected() {
     }
     m_attachmentQueue.clear();
     m_queuedAttachmentIds.clear();
-    m_statusLabel->setText("已断开");
-    m_statusLabel->setStyleSheet("color: red;");
+    m_connectionStatusViewModel->setDisconnected();
 }
 
 void ChatWindow::onReconnecting(int attempt) {
-    m_statusLabel->setText(QString("重连中... (第%1次)").arg(attempt));
-    m_statusLabel->setStyleSheet("color: orange;");
+    m_connectionStatusViewModel->setReconnecting(attempt);
 }
 
 // ==================== 窗口事件 ====================

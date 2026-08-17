@@ -135,7 +135,13 @@ int main(int argc, char **argv) {
                     != QStringLiteral("Signed-in &devices...")
                 || english.mainMenuCheckUpdates
                     != QStringLiteral("Check for &updates...")
-                || english.mainAboutTitle != QStringLiteral("About")) {
+                || english.mainAboutTitle != QStringLiteral("About")
+                || english.mainConnectionStatusAccessible
+                    != QStringLiteral("Server connection status")
+                || english.mainDisconnected != QStringLiteral("Disconnected")
+                || english.mainConnected != QStringLiteral("Connected")
+                || english.mainReconnecting
+                    != QStringLiteral("Reconnecting (attempt %1)")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -147,6 +153,8 @@ int main(int argc, char **argv) {
                 || chinese.trayQuit != QStringLiteral("退出")
                 || chinese.mainMenuFile != QStringLiteral("文件(&F)")
                 || chinese.mainMenuAbout != QStringLiteral("关于(&A)")
+                || chinese.mainDisconnected != QStringLiteral("已断开")
+                || chinese.mainConnected != QStringLiteral("已连接")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";
