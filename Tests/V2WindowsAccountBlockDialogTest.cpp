@@ -73,6 +73,31 @@ int main(int argc, char **argv) {
     if (!check(!dialog.blockForTest()->isEnabled()
                    && dialog.statusForTest()->text().contains(QStringLiteral("仅可管理")),
                QStringLiteral("group context must remove account-block actions"))) return 1;
+
+    V2WindowsAccountBlockViewModel englishViewModel(
+        [](const QString &, bool, const QString &) { return true; },
+        nullptr, WindowsLocale::EnUs);
+    englishViewModel.bindSession(actor);
+    V2WindowsConversationParticipantViewModel englishParticipants(
+        [](const QString &, bool) { return true; }, nullptr, WindowsLocale::EnUs);
+    englishParticipants.activate(conversation);
+    englishParticipants.applyPage(conversation,
+        {{target, QStringLiteral("Other person"), QStringLiteral("Member")}},
+        false, false);
+    V2WindowsAccountBlockDialog english(
+        &englishViewModel, &englishParticipants,
+        [](QWidget *, const QString &, bool) { return false; },
+        nullptr, WindowsLocale::EnUs);
+    english.setConversation(conversation, true);
+    application.processEvents();
+    if (!check(english.windowTitle()
+                   == QStringLiteral("Direct-message account blocking")
+                   && english.blockForTest()->text() == QStringLiteral("Block account")
+                   && english.targetForTest()->text()
+                       == QStringLiteral("Current account: Other person")
+                   && english.statusForTest()->text()
+                       == QStringLiteral("Current block state is unknown; submit the desired state"),
+               QStringLiteral("English account-block dialog was not fully composed"))) return 1;
     qInfo() << "[V2WindowsAccountBlockDialogTest] PASS";
     return 0;
 }

@@ -2776,7 +2776,10 @@ Candidate slices:
         the complete surface to one persisted locale selector.
         - [x] Localize the authorized forward-target dialog, privacy/access
           explanation, fail-closed states, buttons, and accessibility copy.
-        - [ ] Localize the account-block ViewModel, confirmation, and dialog.
+        - [x] Localize the account-block ViewModel, confirmation, fail-closed
+          state, dialog actions, and accessibility copy.
+        - [ ] Bind the complete conversation surface to one persisted locale
+          state and expose its exact two-value selector.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

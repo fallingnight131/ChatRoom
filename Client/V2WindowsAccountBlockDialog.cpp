@@ -14,37 +14,39 @@
 V2WindowsAccountBlockDialog::V2WindowsAccountBlockDialog(
         V2WindowsAccountBlockViewModel *viewModel,
         V2WindowsConversationParticipantViewModel *participantViewModel,
-        Confirm confirm, QWidget *parent)
+        Confirm confirm, QWidget *parent, WindowsLocale locale)
     : QDialog(parent), m_viewModel(viewModel),
       m_participantViewModel(participantViewModel), m_confirm(std::move(confirm)),
       m_target(new QLabel(this)), m_status(new QLabel(this)),
-      m_block(new QPushButton(QStringLiteral("屏蔽账号"), this)),
-      m_unblock(new QPushButton(QStringLiteral("取消屏蔽"), this)) {
+      m_block(new QPushButton(WindowsLocaleCatalog::messages(locale).blockAccount, this)),
+      m_unblock(new QPushButton(WindowsLocaleCatalog::messages(locale).unblockAccount, this)),
+      m_locale(locale) {
     if (!m_viewModel || !m_participantViewModel)
         throw std::invalid_argument("account block dialog requires view models");
     if (!m_confirm) {
-        m_confirm = [](QWidget *parent, const QString &target, bool blocked) {
-            const QString action = blocked ? QStringLiteral("屏蔽")
-                                           : QStringLiteral("取消屏蔽");
-            return QMessageBox::question(parent, QStringLiteral("确认%1").arg(action),
-                QStringLiteral("确定要%1“%2”吗？").arg(action, target),
+        m_confirm = [locale](QWidget *parent, const QString &target, bool blocked) {
+            const auto &copy = WindowsLocaleCatalog::messages(locale);
+            const QString action = blocked ? copy.blockAction : copy.unblockAction;
+            return QMessageBox::question(parent, copy.blockConfirmTitle.arg(action),
+                copy.blockConfirmPrompt.arg(action, target),
                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
         };
     }
-    setWindowTitle(QStringLiteral("私聊账号屏蔽"));
-    setAccessibleName(QStringLiteral("私聊账号屏蔽管理窗口"));
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    setWindowTitle(copy.accountBlockTitle);
+    setAccessibleName(copy.accountBlockWindowAccessible);
     setModal(true);
-    m_target->setAccessibleName(QStringLiteral("屏蔽目标账号"));
+    m_target->setAccessibleName(copy.accountBlockTargetAccessible);
     m_target->setWordWrap(true);
-    m_status->setAccessibleName(QStringLiteral("屏蔽操作状态"));
+    m_status->setAccessibleName(copy.accountBlockStatusAccessible);
     m_status->setWordWrap(true);
-    m_block->setAccessibleName(QStringLiteral("屏蔽当前私聊账号"));
-    m_unblock->setAccessibleName(QStringLiteral("取消屏蔽当前私聊账号"));
+    m_block->setAccessibleName(copy.blockAccountAccessible);
+    m_unblock->setAccessibleName(copy.unblockAccountAccessible);
 
     auto *actions = new QDialogButtonBox(this);
     actions->addButton(m_block, QDialogButtonBox::ActionRole);
     actions->addButton(m_unblock, QDialogButtonBox::ActionRole);
-    actions->addButton(QDialogButtonBox::Close);
+    actions->addButton(QDialogButtonBox::Close)->setText(copy.close);
     auto *layout = new QVBoxLayout(this);
     layout->addWidget(m_target);
     layout->addWidget(m_status);
@@ -81,9 +83,10 @@ void V2WindowsAccountBlockDialog::synchronizeTarget() {
 
 void V2WindowsAccountBlockDialog::render() {
     const QString target = m_viewModel->targetDisplayName();
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     m_target->setText(target.isEmpty()
-        ? QStringLiteral("尚未取得可管理的私聊对象")
-        : QStringLiteral("当前对象：%1").arg(target));
+        ? copy.accountBlockTargetMissing
+        : copy.accountBlockCurrentTarget.arg(target));
     m_status->setText(m_viewModel->statusText());
     const bool enabled = m_viewModel->canSubmit();
     m_block->setEnabled(enabled);

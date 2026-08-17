@@ -3196,6 +3196,10 @@ user/server text, and stable identities remain locale-independent data.
 English composition. It keeps authorized conversation names/roles opaque while
 localizing the privacy explanation, fail-closed states, action, cancellation,
 and accessible destination naming.
+`V2WindowsAccountBlockDialogTest` now runs through the ordinary Chinese
+authorization/correlation path and separately composes an English ViewModel,
+participant boundary, target/status presentation, actions, and accessibility
+copy. Confirmation remains default-No and user/account identity remains data.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

@@ -109,7 +109,7 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
         if (!m_accountBlockViewModel || m_selectedConversationId.isEmpty()
                 || !m_selectedConversationDirect) return;
         V2WindowsAccountBlockDialog dialog(
-            m_accountBlockViewModel, m_participantViewModel, {}, this);
+            m_accountBlockViewModel, m_participantViewModel, {}, this, m_locale);
         dialog.setConversation(m_selectedConversationId, true);
         dialog.exec();
     });

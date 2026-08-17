@@ -1932,6 +1932,10 @@ persisted selector can be exposed for this surface.
 The authorized forward-target child dialog now consumes that boundary too,
 including privacy/access explanation and fail-closed states. Conversation
 names, kinds, and roles remain authorized server data rather than catalog keys.
+The direct-account block child path now uses the same locale for its ViewModel,
+confirmation wording, fail-closed status, actions, and accessible names. The
+selector remains closed until product composition can supply one persisted
+locale to every conversation-owned ViewModel and Widget.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

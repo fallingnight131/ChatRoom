@@ -169,6 +169,35 @@ struct WindowsLocaleMessages {
     QString forwardTargetsFailed;
     QString noForwardTargets;
     QString selectForwardTarget;
+    QString blockAccount;
+    QString unblockAccount;
+    QString blockAction;
+    QString unblockAction;
+    QString blockConfirmTitle;
+    QString blockConfirmPrompt;
+    QString accountBlockTitle;
+    QString accountBlockWindowAccessible;
+    QString accountBlockTargetAccessible;
+    QString accountBlockStatusAccessible;
+    QString blockAccountAccessible;
+    QString unblockAccountAccessible;
+    QString accountBlockTargetMissing;
+    QString accountBlockCurrentTarget;
+    QString accountBlockOpenDirect;
+    QString accountBlockStateUnknown;
+    QString accountBlockServiceDisconnected;
+    QString accountBlockDirectOnly;
+    QString accountBlockParticipantInvalid;
+    QString accountFallback;
+    QString accountBlocking;
+    QString accountUnblocking;
+    QString accountBlockNotSent;
+    QString accountBlocked;
+    QString accountUnblocked;
+    QString accountBlockRetryableFailure;
+    QString accountBlockFailure;
+    QString accountBlockDisconnectedRetry;
+    QString accountBlockServiceReconnecting;
 };
 
 class WindowsLocaleCatalog final {

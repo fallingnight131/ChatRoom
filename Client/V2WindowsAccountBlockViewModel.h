@@ -14,7 +14,9 @@ public:
     using Submit = std::function<bool(
         const QString &targetAccountId, bool blocked, const QString &clientOperationId)>;
 
-    explicit V2WindowsAccountBlockViewModel(Submit submit, QObject *parent = nullptr);
+    explicit V2WindowsAccountBlockViewModel(
+        Submit submit, QObject *parent = nullptr,
+        WindowsLocale locale = WindowsLocale::ZhCn);
     State state() const { return m_state; }
     QString conversationId() const { return m_conversationId; }
     QString targetAccountId() const { return m_targetAccountId; }
@@ -55,4 +57,5 @@ private:
     bool m_hasKnownState = false;
     bool m_blocked = false;
     State m_state = State::Unavailable;
+    WindowsLocale m_locale;
 };

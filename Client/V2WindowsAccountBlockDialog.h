@@ -1,5 +1,7 @@
 #pragma once
 
+#include "WindowsLocaleCatalog.h"
+
 #include <QDialog>
 #include <functional>
 
@@ -17,7 +19,8 @@ public:
     explicit V2WindowsAccountBlockDialog(
         V2WindowsAccountBlockViewModel *viewModel,
         V2WindowsConversationParticipantViewModel *participantViewModel,
-        Confirm confirm = {}, QWidget *parent = nullptr);
+        Confirm confirm = {}, QWidget *parent = nullptr,
+        WindowsLocale locale = WindowsLocale::ZhCn);
     void setConversation(const QString &conversationId, bool direct);
 
     QLabel *targetForTest() const { return m_target; }
@@ -39,4 +42,5 @@ private:
     QPushButton *m_unblock;
     QString m_conversationId;
     bool m_direct = false;
+    WindowsLocale m_locale;
 };

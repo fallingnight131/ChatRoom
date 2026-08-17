@@ -5,8 +5,8 @@
 #include <utility>
 
 V2WindowsAccountBlockViewModel::V2WindowsAccountBlockViewModel(
-        Submit submit, QObject *parent)
-    : QObject(parent), m_submit(std::move(submit)) {
+        Submit submit, QObject *parent, WindowsLocale locale)
+    : QObject(parent), m_submit(std::move(submit)), m_locale(locale) {
     if (!m_submit) throw std::invalid_argument("invalid account block submit action");
 }
 
@@ -20,9 +20,9 @@ void V2WindowsAccountBlockViewModel::bindSession(const QString &actorAccountId) 
     if (m_actorAccountId == actorAccountId) {
         if (m_state == State::Unavailable) {
             m_state = m_targetAccountId.isEmpty() ? State::Unavailable : State::Unknown;
+            const auto &copy = WindowsLocaleCatalog::messages(m_locale);
             m_statusText = m_targetAccountId.isEmpty()
-                ? QStringLiteral("请先打开私聊并刷新成员信息")
-                : QStringLiteral("当前屏蔽状态未知，可提交期望状态");
+                ? copy.accountBlockOpenDirect : copy.accountBlockStateUnknown;
             emit changed();
         }
         return;
@@ -30,14 +30,14 @@ void V2WindowsAccountBlockViewModel::bindSession(const QString &actorAccountId) 
     m_clientOperationId.clear();
     m_operationTargetAccountId.clear();
     m_actorAccountId = actorAccountId;
-    resetTarget(QStringLiteral("请先打开私聊并刷新成员信息"));
+    resetTarget(WindowsLocaleCatalog::messages(m_locale).accountBlockOpenDirect);
 }
 
 void V2WindowsAccountBlockViewModel::clearSession() {
     m_actorAccountId.clear();
     m_clientOperationId.clear();
     m_operationTargetAccountId.clear();
-    resetTarget(QStringLiteral("屏蔽服务已断开"));
+    resetTarget(WindowsLocaleCatalog::messages(m_locale).accountBlockServiceDisconnected);
 }
 
 bool V2WindowsAccountBlockViewModel::activateDirectConversation(
@@ -47,14 +47,14 @@ bool V2WindowsAccountBlockViewModel::activateDirectConversation(
     if (m_actorAccountId.isEmpty() || conversationId.isEmpty()
             || participantConversationId != conversationId || hasMore || !direct
             || participants.size() != 1) {
-        resetTarget(QStringLiteral("仅可管理成员信息完整的私聊对象"));
+        resetTarget(WindowsLocaleCatalog::messages(m_locale).accountBlockDirectOnly);
         return false;
     }
     const auto &participant = participants.first();
     const QString targetAccountId = participant.accountId;
     const QString targetDisplayName = participant.displayName;
     if (targetAccountId.isEmpty() || targetAccountId == m_actorAccountId) {
-        resetTarget(QStringLiteral("私聊成员信息无效，请刷新后重试"));
+        resetTarget(WindowsLocaleCatalog::messages(m_locale).accountBlockParticipantInvalid);
         return false;
     }
     if (m_conversationId != conversationId || m_targetAccountId != targetAccountId) {
@@ -65,9 +65,9 @@ bool V2WindowsAccountBlockViewModel::activateDirectConversation(
     m_conversationId = conversationId;
     m_targetAccountId = targetAccountId;
     m_targetDisplayName = targetDisplayName.isEmpty()
-        ? QStringLiteral("该账号") : targetDisplayName;
+        ? WindowsLocaleCatalog::messages(m_locale).accountFallback : targetDisplayName;
     m_state = State::Unknown;
-    m_statusText = QStringLiteral("当前屏蔽状态未知，可提交期望状态");
+    m_statusText = WindowsLocaleCatalog::messages(m_locale).accountBlockStateUnknown;
     emit changed();
     return true;
 }
@@ -82,12 +82,12 @@ bool V2WindowsAccountBlockViewModel::request(bool blocked) {
     m_operationTargetAccountId = m_targetAccountId;
     m_operationBlocked = blocked;
     m_state = State::Pending;
-    m_statusText = blocked ? QStringLiteral("正在屏蔽…")
-                           : QStringLiteral("正在取消屏蔽…");
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    m_statusText = blocked ? copy.accountBlocking : copy.accountUnblocking;
     emit changed();
     if (m_submit(m_targetAccountId, blocked, m_clientOperationId)) return true;
     m_state = State::Failed;
-    m_statusText = QStringLiteral("操作未发送，可使用相同期望状态重试");
+    m_statusText = copy.accountBlockNotSent;
     emit changed();
     return false;
 }
@@ -101,8 +101,8 @@ void V2WindowsAccountBlockViewModel::applyResult(
     m_hasKnownState = true;
     m_blocked = blocked;
     m_state = State::Applied;
-    m_statusText = blocked ? QStringLiteral("已屏蔽该账号")
-                           : QStringLiteral("已取消屏蔽该账号");
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    m_statusText = blocked ? copy.accountBlocked : copy.accountUnblocked;
     m_clientOperationId.clear();
     m_operationTargetAccountId.clear();
     emit changed();
@@ -113,9 +113,9 @@ void V2WindowsAccountBlockViewModel::applyFailure(
     if (m_state != State::Pending || clientOperationId != m_clientOperationId)
         throw std::runtime_error("uncorrelated account block view failure");
     m_state = State::Failed;
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     m_statusText = retryable
-        ? QStringLiteral("操作暂未完成，可重试")
-        : QStringLiteral("无法完成该操作");
+        ? copy.accountBlockRetryableFailure : copy.accountBlockFailure;
     if (!retryable) {
         m_clientOperationId.clear();
         m_operationTargetAccountId.clear();
@@ -126,10 +126,12 @@ void V2WindowsAccountBlockViewModel::applyFailure(
 void V2WindowsAccountBlockViewModel::setUnavailable() {
     if (m_state == State::Pending) {
         m_state = State::Failed;
-        m_statusText = QStringLiteral("连接已断开，可在重连后重试");
+        m_statusText = WindowsLocaleCatalog::messages(m_locale)
+            .accountBlockDisconnectedRetry;
     } else {
         m_state = State::Unavailable;
-        m_statusText = QStringLiteral("屏蔽服务已断开，正在重连");
+        m_statusText = WindowsLocaleCatalog::messages(m_locale)
+            .accountBlockServiceReconnecting;
     }
     emit changed();
 }
