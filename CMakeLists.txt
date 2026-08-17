@@ -337,6 +337,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             Client/WindowsMessageNotificationPresenter.h
             Client/WindowsAttachmentPresentation.cpp
             Client/WindowsAttachmentPresentation.h
+            Client/WindowsMessagePresentation.cpp
+            Client/WindowsMessagePresentation.h
             Client/WindowsLocaleCatalog.cpp
             Client/WindowsLocaleCatalog.h
             Client/WindowsLocalePreferenceRepository.cpp

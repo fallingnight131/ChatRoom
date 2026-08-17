@@ -1,5 +1,6 @@
 #include "WindowsLocaleCatalog.h"
 #include "WindowsAttachmentPresentation.h"
+#include "WindowsMessagePresentation.h"
 #include "WindowsLocalePreferenceRepository.h"
 #include "WindowsLocaleViewModel.h"
 
@@ -69,6 +70,8 @@ int main(int argc, char **argv) {
             return 1;
         }
         const auto &english = WindowsLocaleCatalog::messages(repository.load());
+        const QDate today(2026, 8, 17);
+        const QDateTime yesterday(QDate(2026, 8, 16), QTime(9, 5));
         if (english.sendMessage != QStringLiteral("Send message")
                 || english.bytesUsed != QStringLiteral("%1 / %2 bytes")
                 || english.profileTitle != QStringLiteral("Edit profile")
@@ -264,7 +267,22 @@ int main(int argc, char **argv) {
                     != QStringLiteral("File expired or was cleared")
                 || WindowsAttachmentPresentation::unavailableText(
                        WindowsLocale::EnUs, QStringLiteral("retention-policy"))
-                    != QStringLiteral("retention-policy")) {
+                    != QStringLiteral("retention-policy")
+                || WindowsMessagePresentation::timestamp(
+                       WindowsLocale::EnUs, yesterday, today)
+                    != QStringLiteral("Yesterday 09:05")
+                || WindowsMessagePresentation::timestampWithDelivery(
+                       WindowsLocale::EnUs, yesterday,
+                       WindowsMessageDeliveryState::Read, true, true,
+                       today)
+                    != QStringLiteral("Yesterday 09:05 · Read")
+                || WindowsMessagePresentation::transferStatus(
+                       WindowsLocale::EnUs, QStringLiteral("1.0 MB"),
+                       WindowsMessageTransferState::Uploading, 0.42, false)
+                    != QStringLiteral("1.0 MB  Uploading 42%")
+                || WindowsMessagePresentation::recalledText(
+                       WindowsLocale::EnUs, QStringLiteral("Alice"))
+                    != QStringLiteral("Alice recalled a message")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -331,6 +349,13 @@ int main(int argc, char **argv) {
                 || WindowsAttachmentPresentation::unavailableText(
                        WindowsLocale::ZhCn, QString())
                     != QStringLiteral("文件已过期或被清除")
+                || WindowsMessagePresentation::timestamp(
+                       WindowsLocale::ZhCn, yesterday, today)
+                    != QStringLiteral("昨天 09:05")
+                || WindowsMessagePresentation::transferStatus(
+                       WindowsLocale::ZhCn, QStringLiteral("1.0 MB"),
+                       WindowsMessageTransferState::Paused, 0.42, false)
+                    != QStringLiteral("1.0 MB  已暂停 42%")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

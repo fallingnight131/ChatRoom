@@ -5,6 +5,7 @@
 #include "ChatWindow.h"
 #include "ThemeManager.h"
 #include "WindowsAttachmentPresentation.h"
+#include "WindowsMessagePresentation.h"
 #include "WindowsLocaleViewModel.h"
 
 #include <QPainter>
@@ -63,35 +64,32 @@ void MessageDelegate::updateThemeColors(bool isDark) {
     }
 }
 
-/// 智能时间格式化：今天只显示时间，昨天显示"昨天 HH:mm"，其他显示完整日期
-static QString formatSmartTime(const QDateTime &dt) {
-    QDate today = QDate::currentDate();
-    QDate msgDate = dt.date();
-    if (msgDate == today)
-        return dt.toString("HH:mm");
-    else if (msgDate == today.addDays(-1))
-        return QStringLiteral("昨天 ") + dt.toString("HH:mm");
-    else if (msgDate.year() == today.year())
-        return dt.toString("M月d日 HH:mm");
-    else
-        return dt.toString("yyyy/M/d HH:mm");
+static QString formatMessageTime(const QDateTime &time,
+                                 const QModelIndex &index, bool isMine,
+                                 WindowsLocaleViewModel *localeViewModel) {
+    WindowsMessageDeliveryState delivery = WindowsMessageDeliveryState::Accepted;
+    switch (static_cast<Message::DeliveryState>(
+            index.data(MessageModel::DeliveryStateRole).toInt())) {
+    case Message::Sending: delivery = WindowsMessageDeliveryState::Sending; break;
+    case Message::Failed: delivery = WindowsMessageDeliveryState::Failed; break;
+    case Message::Read: delivery = WindowsMessageDeliveryState::Read; break;
+    case Message::Accepted: break;
+    }
+    return WindowsMessagePresentation::timestampWithDelivery(
+        localeViewModel->locale(), time,
+        delivery, isMine, index.data(MessageModel::IdRole).toInt() > 0);
 }
 
-static QString formatMessageTime(const QDateTime &time,
-                                 const QModelIndex &index, bool isMine) {
-    QString result = formatSmartTime(time);
-    if (!isMine) return result;
-    const auto state = static_cast<Message::DeliveryState>(
-        index.data(MessageModel::DeliveryStateRole).toInt());
-    if (state == Message::Sending)
-        result += QStringLiteral(" · 发送中");
-    else if (state == Message::Failed)
-        result += QStringLiteral(" · 发送失败");
-    else if (state == Message::Read)
-        result += QStringLiteral(" · 已读");
-    else if (index.data(MessageModel::IdRole).toInt() > 0)
-        result += QStringLiteral(" · 已发送");
-    return result;
+static WindowsMessageTransferState transferState(int state) {
+    switch (static_cast<Message::DownloadState>(state)) {
+    case Message::Downloading: return WindowsMessageTransferState::Downloading;
+    case Message::Downloaded: return WindowsMessageTransferState::Downloaded;
+    case Message::Paused: return WindowsMessageTransferState::Paused;
+    case Message::Uploading: return WindowsMessageTransferState::Uploading;
+    case Message::UploadPaused: return WindowsMessageTransferState::UploadPaused;
+    case Message::NotDownloaded: return WindowsMessageTransferState::NotDownloaded;
+    }
+    return WindowsMessageTransferState::NotDownloaded;
 }
 
 void MessageDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
@@ -163,7 +161,7 @@ void MessageDelegate::drawTextBubble(QPainter *painter, const QStyleOptionViewIt
     senderFont.setPointSize(senderFont.pointSize() - 1);
     QFontMetrics sfm(senderFont);
 
-    QString timeStr = formatMessageTime(time, index, isMine);
+    QString timeStr = formatMessageTime(time, index, isMine, m_localeViewModel);
     QFont timeFont = option.font;
     timeFont.setPointSize(timeFont.pointSize() - 2);
     QFontMetrics tfm(timeFont);
@@ -623,23 +621,23 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     if (fileCleared && !cached) {
         statusStr = unavailableFileText(index, m_localeViewModel);
         painter->setPen(QColor(150, 150, 150));
-    } else if (dlState == Message::Downloading) {
-        statusStr += QString("  下载中 %1%").arg(static_cast<int>(dlProgress * 100));
-    } else if (dlState == Message::Paused) {
-        statusStr += QString("  已暂停 %1%").arg(static_cast<int>(dlProgress * 100));
-    } else if (dlState == Message::Uploading) {
-        statusStr += QString("  上传中 %1%").arg(static_cast<int>(dlProgress * 100));
-    } else if (dlState == Message::UploadPaused) {
-        statusStr += QString("  上传已暂停 %1%").arg(static_cast<int>(dlProgress * 100));
-    } else if (!cached && dlState != Message::Downloaded) {
-        statusStr += QStringLiteral("  点击下载");
-        painter->setPen(QColor(66, 133, 244));  // 蓝色提示
+    } else {
+        statusStr = WindowsMessagePresentation::transferStatus(
+            m_localeViewModel->locale(), sizeStr,
+            transferState(dlState), dlProgress, cached);
+        if (!cached && dlState != Message::Downloaded
+                && dlState != Message::Downloading
+                && dlState != Message::Paused
+                && dlState != Message::Uploading
+                && dlState != Message::UploadPaused) {
+            painter->setPen(QColor(66, 133, 244));  // 蓝色提示
+        }
     }
     painter->drawText(bubbleX + 60, bubbleY + 48, statusStr);
 
     // 时间
     painter->setPen(m_timeColor);
-    QString timeStr = formatMessageTime(time, index, isMine);
+    QString timeStr = formatMessageTime(time, index, isMine, m_localeViewModel);
     QFontMetrics tfm(smallFont);
     painter->drawText(bubbleX + bubbleW - m_padding - tfm.horizontalAdvance(timeStr),
                       bubbleY + bubbleH - 8, timeStr);
@@ -851,9 +849,9 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
         QFontMetrics lfm(labelFont);
 
         // 文件名 + 大小在缩略图底部
-        QString label = (!cached && dlState != Message::Downloaded)
-                        ? sizeStr + QStringLiteral("  点击下载")
-                        : sizeStr;
+        QString label = WindowsMessagePresentation::transferStatus(
+            m_localeViewModel->locale(), sizeStr,
+            transferState(dlState), dlProgress, cached);
         int labelW = lfm.horizontalAdvance(label) + 12;
         int labelH = lfm.height() + 4;
         QRect labelRect(thumbRect.left() + 4,
@@ -867,7 +865,7 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
     }
 
     // 时间
-    QString timeStr = formatMessageTime(time, index, isMine);
+    QString timeStr = formatMessageTime(time, index, isMine, m_localeViewModel);
     painter->setPen(m_timeColor);
     painter->setFont(timeFont);
     painter->drawText(QRect(bubbleX + m_padding,
@@ -1026,12 +1024,14 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
             // 等待下载
             painter->setPen(m_timeColor);
             painter->setFont(option.font);
-            painter->drawText(imgRect, Qt::AlignCenter, QStringLiteral("加载中..."));
+            painter->drawText(imgRect, Qt::AlignCenter,
+                              WindowsLocaleCatalog::messages(
+                                  m_localeViewModel->locale()).mainMessageLoading);
         }
     }
 
     // 时间
-    QString timeStr = formatMessageTime(time, index, isMine);
+    QString timeStr = formatMessageTime(time, index, isMine, m_localeViewModel);
     painter->setPen(m_timeColor);
     painter->setFont(timeFont);
     painter->drawText(QRect(bubbleX + m_padding,
@@ -1047,7 +1047,8 @@ void MessageDelegate::drawRecalledMessage(QPainter *painter, const QStyleOptionV
     QString senderName = index.data(MessageModel::SenderNameRole).toString();
     QRect rect = option.rect;
 
-    QString text = QString("%1 撤回了一条消息").arg(senderName);
+    QString text = WindowsMessagePresentation::recalledText(
+        m_localeViewModel->locale(), senderName);
     QFont font = option.font;
     font.setPointSize(font.pointSize() - 1);
     font.setItalic(true);
@@ -1175,7 +1176,7 @@ QRect MessageDelegate::bubbleRectForIndex(const QStyleOptionViewItem &option,
     senderFont.setPointSize(senderFont.pointSize() - 1);
     QFontMetrics sfm(senderFont);
 
-    QString timeStr = formatMessageTime(time, index, isMine);
+    QString timeStr = formatMessageTime(time, index, isMine, m_localeViewModel);
     QFont timeFont = option.font;
     timeFont.setPointSize(timeFont.pointSize() - 2);
     QFontMetrics tfm(timeFont);

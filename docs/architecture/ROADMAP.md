@@ -2903,6 +2903,8 @@ Candidate slices:
     - [x] Keep cleared-attachment state language-neutral across Web and Windows
       caches, project empty local reasons from each live locale catalog, and
       preserve non-empty bounded server history reasons as opaque detail.
+    - [x] Move Windows message timestamps, delivery/transfer states, loading and
+      recall presentation out of the paint delegate into a tested locale policy.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

@@ -2153,6 +2153,14 @@ rewritten, so this is an additive presentation correction with no V1 envelope
 or local-database migration. Cached bytes remain locally openable, while the
 server remains authoritative for whether unavailable bytes may be downloaded or
 forwarded.
+The same Windows delegate now resolves timeline date formats, accepted/read/
+failed state, file transfer progress, loading placeholders and recall summaries
+through `WindowsMessagePresentation`. Its inputs remain typed message state,
+timestamps, progress and opaque sender display data; repainting after a locale
+change does not mutate the model, restart a transfer or reinterpret a server
+system message. Deterministic Core tests pin both language projections, while
+the real Qt build remains only macOS portability evidence until Windows Release
+rendering is exercised.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

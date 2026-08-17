@@ -617,6 +617,20 @@ struct WindowsLocaleMessages {
     QString mainAttachmentCannotOpen;
     QString mainAttachmentForwardFailedTitle;
     QString mainAttachmentCannotForward;
+    QString mainMessageYesterday;
+    QString mainMessageDateThisYear;
+    QString mainMessageDateOtherYear;
+    QString mainMessageSendingSuffix;
+    QString mainMessageFailedSuffix;
+    QString mainMessageReadSuffix;
+    QString mainMessageSentSuffix;
+    QString mainMessageDownloadingSuffix;
+    QString mainMessageDownloadPausedSuffix;
+    QString mainMessageUploadingSuffix;
+    QString mainMessageUploadPausedSuffix;
+    QString mainMessageClickToDownloadSuffix;
+    QString mainMessageLoading;
+    QString mainMessageRecalled;
 };
 
 class WindowsLocaleCatalog final {

@@ -150,6 +150,11 @@ message storage, server behavior, or the supported Web/Windows product scope.
   safe opaque detail and must be shown unchanged. Do not rewrite existing cache
   rows or change the compatible V1 `clearReason` field for this presentation
   correction; Web follows the same state-versus-copy boundary independently.
+- Keep the message paint delegate free of timeline and transfer prose. A pure
+  Windows presentation policy maps exact locale plus typed timestamp, delivery
+  state, server-ID presence, transfer state/progress and sender display data to
+  visible text. Locale changes repaint existing rows only; they must not mutate
+  message state, transfer ownership or server-supplied system-message content.
 
 ## Consequences
 
@@ -270,3 +275,7 @@ database migration or protocol compatibility window is required.
   bounded server reason survives repeat notification, Web snapshots contain no
   locale fallback, and the Windows delegate resolves empty reasons from the
   live catalog without embedding Chinese copy.
+- deterministic message-presentation tests lock yesterday/date formatting,
+  accepted/read/failed delivery suffixes, bounded transfer percentages and
+  recall summaries in both languages; source composition rejects those strings
+  in the paint delegate and requires live-locale repaint wiring.

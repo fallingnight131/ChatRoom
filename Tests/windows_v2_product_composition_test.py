@@ -24,6 +24,9 @@ def main() -> int:
     attachment_presentation = (
         ROOT / "Client/WindowsAttachmentPresentation.cpp"
     ).read_text(encoding="utf-8")
+    message_presentation = (
+        ROOT / "Client/WindowsMessagePresentation.cpp"
+    ).read_text(encoding="utf-8")
     controller = (ROOT / "Client/WindowsDeviceManagementController.cpp").read_text(
         encoding="utf-8"
     )
@@ -253,6 +256,9 @@ def main() -> int:
     ), "Client/ChatWindow.cpp")
     require(message_delegate, (
         "WindowsAttachmentPresentation::unavailableText(",
+        "WindowsMessagePresentation::timestampWithDelivery(",
+        "WindowsMessagePresentation::transferStatus(",
+        "WindowsMessagePresentation::recalledText(",
         "MessageModel::ClearReasonRole",
         "WindowsLocaleViewModel::changed",
         "view->viewport()->update()",
@@ -261,11 +267,28 @@ def main() -> int:
         raise AssertionError(
             "MessageDelegate must project unavailable attachment copy from the locale catalog"
         )
+    if any(copy in message_delegate for copy in (
+        'QStringLiteral("昨天 ', 'QStringLiteral(" · 发送中")',
+        'QStringLiteral(" · 发送失败")', 'QStringLiteral(" · 已读")',
+        'QStringLiteral(" · 已发送")', 'QString("  下载中',
+        'QString("  已暂停', 'QString("  上传中',
+        'QString("  上传已暂停', 'QStringLiteral("  点击下载")',
+        'QStringLiteral("加载中...")', 'QString("%1 撤回了一条消息")',
+    )):
+        raise AssertionError(
+            "MessageDelegate must not embed timeline or transfer presentation copy"
+        )
     require(attachment_presentation, (
         "!safeServerReason.trimmed().isEmpty()",
         "return safeServerReason",
         "roomFileClearedUnavailable",
     ), "Client/WindowsAttachmentPresentation.cpp")
+    require(message_presentation, (
+        "mainMessageYesterday.arg(time)",
+        "mainMessageSendingSuffix",
+        "mainMessageDownloadingSuffix.arg(percent)",
+        "mainMessageRecalled.arg(senderName)",
+    ), "Client/WindowsMessagePresentation.cpp")
     if "markFilesCleared(ids, QStringLiteral" in window:
         raise AssertionError(
             "local file-clearing events must not persist locale-specific copy"

@@ -632,6 +632,20 @@ WindowsLocaleMessages createZhCn() {
     m.mainAttachmentForwardFailedTitle = QStringLiteral("转发失败");
     m.mainAttachmentCannotForward = QStringLiteral(
         "文件已过期或缺少服务端标识，无法转发");
+    m.mainMessageYesterday = QStringLiteral("昨天 %1");
+    m.mainMessageDateThisYear = QStringLiteral("%1月%2日 %3");
+    m.mainMessageDateOtherYear = QStringLiteral("%1/%2/%3 %4");
+    m.mainMessageSendingSuffix = QStringLiteral(" · 发送中");
+    m.mainMessageFailedSuffix = QStringLiteral(" · 发送失败");
+    m.mainMessageReadSuffix = QStringLiteral(" · 已读");
+    m.mainMessageSentSuffix = QStringLiteral(" · 已发送");
+    m.mainMessageDownloadingSuffix = QStringLiteral("  下载中 %1%");
+    m.mainMessageDownloadPausedSuffix = QStringLiteral("  已暂停 %1%");
+    m.mainMessageUploadingSuffix = QStringLiteral("  上传中 %1%");
+    m.mainMessageUploadPausedSuffix = QStringLiteral("  上传已暂停 %1%");
+    m.mainMessageClickToDownloadSuffix = QStringLiteral("  点击下载");
+    m.mainMessageLoading = QStringLiteral("加载中...");
+    m.mainMessageRecalled = QStringLiteral("%1 撤回了一条消息");
     return m;
 }
 
@@ -1286,6 +1300,20 @@ WindowsLocaleMessages createEnUs() {
     m.mainAttachmentForwardFailedTitle = QStringLiteral("Forwarding failed");
     m.mainAttachmentCannotForward = QStringLiteral(
         "This file expired or has no server identifier and cannot be forwarded.");
+    m.mainMessageYesterday = QStringLiteral("Yesterday %1");
+    m.mainMessageDateThisYear = QStringLiteral("%1/%2 %3");
+    m.mainMessageDateOtherYear = QStringLiteral("%2/%3/%1 %4");
+    m.mainMessageSendingSuffix = QStringLiteral(" · Sending");
+    m.mainMessageFailedSuffix = QStringLiteral(" · Send failed");
+    m.mainMessageReadSuffix = QStringLiteral(" · Read");
+    m.mainMessageSentSuffix = QStringLiteral(" · Sent");
+    m.mainMessageDownloadingSuffix = QStringLiteral("  Downloading %1%");
+    m.mainMessageDownloadPausedSuffix = QStringLiteral("  Paused %1%");
+    m.mainMessageUploadingSuffix = QStringLiteral("  Uploading %1%");
+    m.mainMessageUploadPausedSuffix = QStringLiteral("  Upload paused %1%");
+    m.mainMessageClickToDownloadSuffix = QStringLiteral("  Select to download");
+    m.mainMessageLoading = QStringLiteral("Loading...");
+    m.mainMessageRecalled = QStringLiteral("%1 recalled a message");
     return m;
 }
 

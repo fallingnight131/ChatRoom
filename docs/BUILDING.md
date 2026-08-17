@@ -3766,6 +3766,11 @@ cleared-file Chinese copy. Web source tests enforce the same cache rule and map
 its stable `ATTACHMENT_UNAVAILABLE` error through the live Web catalog. A macOS
 Qt build is portability evidence only; native Windows rendering and interaction
 remain product-gate evidence.
+The same Core/catalog gate exercises `WindowsMessagePresentation` with a fixed
+reference date and typed delivery/transfer states. Product composition rejects
+timeline, transfer, loading and recall copy in `MessageDelegate`; a language
+change only repaints existing rows. This is deterministic policy and compile
+evidence, not native Windows font-layout or assistive-technology evidence.
 
 An eleventh V1 suite verifies server-side room/friend file forwarding, copied-byte
 integrity, notifications without inline bytes, source authorization, target
