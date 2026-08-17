@@ -36,6 +36,13 @@ Windows policy owns presentation eligibility:
   tray presentation; and
 - distinguish a structured mention only in the generic title.
 
+The policy decision stores only a stable `GenericMessage` or `Mention` kind and
+the stable conversation identity. It does not store localized title/body copy.
+The presenter reads the shared exact Windows locale when a notification is
+actually shown and maps that kind to privacy-safe Chinese or English catalog
+text. Changing language affects later notifications without clearing bounded
+deduplication or changing activation routing.
+
 The first slice does not invoke a platform API. A later Windows-only adapter
 will consume policy decisions, invoke the reviewed notification channel, and
 route activation back to the stable conversation ID. That adapter must remain

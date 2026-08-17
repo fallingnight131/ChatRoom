@@ -422,6 +422,9 @@ struct WindowsLocaleMessages {
     QString blockDirectoryLoadedCount;
     QString blockDirectoryConfirmTitle;
     QString blockDirectoryConfirmPrompt;
+    QString notificationNewMessage;
+    QString notificationMentionedYou;
+    QString notificationOpenApp;
 };
 
 class WindowsLocaleCatalog final {

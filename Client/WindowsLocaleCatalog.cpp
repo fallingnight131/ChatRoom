@@ -426,6 +426,9 @@ WindowsLocaleMessages createZhCn() {
     m.blockDirectoryLoadedCount = QStringLiteral("已加载 %1 个屏蔽账号");
     m.blockDirectoryConfirmTitle = QStringLiteral("确认取消屏蔽");
     m.blockDirectoryConfirmPrompt = QStringLiteral("确定要取消屏蔽“%1”吗？");
+    m.notificationNewMessage = QStringLiteral("新消息");
+    m.notificationMentionedYou = QStringLiteral("有人提到了你");
+    m.notificationOpenApp = QStringLiteral("打开聊天软件查看消息");
     return m;
 }
 
@@ -872,6 +875,9 @@ WindowsLocaleMessages createEnUs() {
     m.blockDirectoryLoadedCount = QStringLiteral("Loaded %1 blocked accounts");
     m.blockDirectoryConfirmTitle = QStringLiteral("Confirm unblock");
     m.blockDirectoryConfirmPrompt = QStringLiteral("Unblock “%1”?");
+    m.notificationNewMessage = QStringLiteral("New message");
+    m.notificationMentionedYou = QStringLiteral("You were mentioned");
+    m.notificationOpenApp = QStringLiteral("Open the chat app to view the message");
     return m;
 }
 

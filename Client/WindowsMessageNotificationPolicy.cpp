@@ -29,9 +29,8 @@ WindowsMessageNotificationPolicy::evaluate(
 
     Decision decision;
     decision.show = true;
-    decision.title = message.authenticatedAccountMentioned
-        ? QStringLiteral("有人提到了你") : QStringLiteral("新消息");
-    decision.body = QStringLiteral("打开聊天软件查看消息");
+    decision.kind = message.authenticatedAccountMentioned
+        ? Kind::Mention : Kind::GenericMessage;
     decision.conversationId = message.conversationId;
     return decision;
 }

@@ -2958,6 +2958,13 @@ forwarding and search candidates into `build/m6/web-forwarding-gate` and
 These jobs prove buildability only; signing, native interaction, deployment,
 and the activation evidence in the forwarding and search runbooks remain
 separate release gates.
+`WindowsMessageNotificationPolicyTest` proves the pure policy emits only a
+stable generic/mention kind plus conversation identity, with no localized copy
+or message body. `WindowsMessageNotificationPresenterTest` projects that kind
+through the live Windows locale for Chinese and English while preserving
+bounded deduplication, session reset and activation identity. These are portable
+policy/presenter checks; native Windows toast rendering and activation remain
+the release interaction gate.
 The Windows binary also exposes the side-effect-free
 `--chatroom-print-v2-configuration-json` diagnostic. CI requires the ordinary
 payload to report V2, forwarding, search, notifications, and account blocking

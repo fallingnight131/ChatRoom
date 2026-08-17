@@ -243,7 +243,7 @@ bool ChatWindow::configureDeviceManagement(
                             && m_deviceManagementController
                                 ->conversationDirectoryViewModel()
                                 ->openConversation(conversationId);
-                    });
+                    }, 256, m_windowsLocaleViewModel);
             connect(m_deviceManagementController.get(),
                     &WindowsDeviceManagementController::remoteMessagePublished,
                     this,

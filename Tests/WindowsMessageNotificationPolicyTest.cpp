@@ -27,9 +27,9 @@ int main(int argc, char **argv) {
     const auto hidden = policy.evaluate(
         message(QStringLiteral("10000000-0000-4000-8000-000000000001"), conversation),
         {false, {}});
-    if (!check(hidden.show && hidden.title == QStringLiteral("新消息")
-            && hidden.body == QStringLiteral("打开聊天软件查看消息"),
-            "background notification must use a privacy-safe body")) return 1;
+    if (!check(hidden.show
+            && hidden.kind == WindowsMessageNotificationPolicy::Kind::GenericMessage,
+            "background notification must retain only generic semantics")) return 1;
 
     const auto duplicate = policy.evaluate(
         message(QStringLiteral("10000000-0000-4000-8000-000000000001"), conversation),
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
                 QStringLiteral("20000000-0000-4000-8000-000000000002"), true),
         {true, conversation});
     if (!check(otherConversation.show
-            && otherConversation.title == QStringLiteral("有人提到了你")
+            && otherConversation.kind == WindowsMessageNotificationPolicy::Kind::Mention
             && policy.rememberedMessageCount() == 2,
             "another conversation mention must notify within the memory bound")) return 1;
 

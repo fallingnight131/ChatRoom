@@ -4,6 +4,8 @@
 
 #include <functional>
 
+class WindowsLocaleViewModel;
+
 class WindowsMessageNotificationPresenter final {
 public:
     using Show = std::function<bool(
@@ -13,7 +15,8 @@ public:
 
     WindowsMessageNotificationPresenter(
         Show show, ActivateConversation activateConversation,
-        int rememberedMessageLimit = 256);
+        int rememberedMessageLimit = 256,
+        WindowsLocaleViewModel *localeViewModel = nullptr);
 
     bool present(
         const WindowsMessageNotificationPolicy::IncomingMessage &message,
@@ -25,4 +28,5 @@ private:
     Show m_show;
     ActivateConversation m_activateConversation;
     WindowsMessageNotificationPolicy m_policy;
+    WindowsLocaleViewModel *m_localeViewModel = nullptr;
 };

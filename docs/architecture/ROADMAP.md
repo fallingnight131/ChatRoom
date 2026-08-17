@@ -2382,6 +2382,8 @@ Candidate slices:
   - [x] Compose the presenter behind a default-off product gate, carry the gate
     through binary diagnostic schema 4, and compile it in the isolated Windows
     feature candidate.
+  - [x] Separate generic/mention notification semantics from localized copy and
+    project privacy-safe Chinese/English text at Windows presentation time.
   - [ ] Retain native Windows Release presentation and activation evidence.
 - Web browser notifications:
   - [x] Define persisted-remote-live eligibility, bounded stable-message

@@ -44,6 +44,12 @@ def main() -> int:
     device_dialog = (ROOT / "Client/DeviceManagementDialog.cpp").read_text(
         encoding="utf-8"
     )
+    notification_policy = (ROOT / "Client/WindowsMessageNotificationPolicy.cpp").read_text(
+        encoding="utf-8"
+    )
+    notification_presenter = (
+        ROOT / "Client/WindowsMessageNotificationPresenter.cpp"
+    ).read_text(encoding="utf-8")
     bandwidth_policy = (ROOT / "Client/WindowsBandwidthPolicy.cpp").read_text(
         encoding="utf-8"
     )
@@ -131,6 +137,7 @@ def main() -> int:
         "copy.roomPasswordStatusFailedTitle, error",
         "m_deviceManagementController->viewModel(), this,",
         "m_windowsLocaleViewModel);",
+        "}, 256, m_windowsLocaleViewModel);",
     ), "Client/ChatWindow.cpp")
     require(profile, (
         "WindowsLocaleCatalog::messages(m_locale)",
@@ -176,6 +183,19 @@ def main() -> int:
         "confirmation.clickedButton() == confirm",
         "m_viewModel->revoke(deviceId)",
     ), "Client/DeviceManagementDialog.cpp")
+    require(notification_policy, (
+        "Kind::Mention : Kind::GenericMessage",
+        "decision.conversationId = message.conversationId",
+    ), "Client/WindowsMessageNotificationPolicy.cpp")
+    for forbidden in ("有人提到了你", "新消息", "打开聊天软件查看消息"):
+        if forbidden in notification_policy:
+            raise AssertionError("notification policy must retain semantics, not catalog copy")
+    require(notification_presenter, (
+        "m_localeViewModel->locale()",
+        "copy.notificationMentionedYou",
+        "copy.notificationNewMessage",
+        "copy.notificationOpenApp",
+    ), "Client/WindowsMessageNotificationPresenter.cpp")
     require(bandwidth_policy, (
         "WindowsBandwidthPolicy::shouldAutoRequestAvatar",
         "!lowBandwidthEnabled && !cached",

@@ -6,6 +6,7 @@
 
 class WindowsMessageNotificationPolicy final {
 public:
+    enum class Kind { GenericMessage, Mention };
     struct IncomingMessage {
         QString messageId;
         QString conversationId;
@@ -20,8 +21,7 @@ public:
 
     struct Decision {
         bool show = false;
-        QString title;
-        QString body;
+        Kind kind = Kind::GenericMessage;
         QString conversationId;
     };
 

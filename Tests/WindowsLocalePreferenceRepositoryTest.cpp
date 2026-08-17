@@ -115,7 +115,11 @@ int main(int argc, char **argv) {
                     != QStringLiteral("Privacy and blocked accounts")
                 || english.blockDirectoryMutationDisconnected
                     != QStringLiteral(
-                        "Connection lost; retry unblocking after reconnecting")) {
+                        "Connection lost; retry unblocking after reconnecting")
+                || english.notificationMentionedYou
+                    != QStringLiteral("You were mentioned")
+                || english.notificationOpenApp
+                    != QStringLiteral("Open the chat app to view the message")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
