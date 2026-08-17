@@ -473,6 +473,7 @@ struct WindowsLocaleMessages {
     QString mainAboutBody;
     QString mainActivityStatusAccessible;
     QString mainConnectionStatusAccessible;
+    QString mainLocalCacheUnavailable;
     QString mainDisconnected;
     QString mainConnected;
     QString mainReconnecting;

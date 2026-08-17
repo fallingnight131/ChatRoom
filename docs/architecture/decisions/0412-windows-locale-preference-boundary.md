@@ -199,6 +199,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
   adapter. The stable room ID still triggers the same confirmed-success avatar
   refresh, and a non-empty server rejection remains opaque; localization adds
   only the empty-error fallback and dialog presentation.
+- Localize account-startup SQLite degradation separately from profile account
+  migration. Repository diagnostics remain logs; the activity surface reports
+  online-only mode while outgoing messages, attachments and synchronization all
+  receive the same null repository as before.
 
 ## Consequences
 
@@ -356,3 +360,7 @@ database migration or protocol compatibility window is required.
 - room-avatar response composition locks the confirmed-success refresh command
   and stable room ID while rejecting embedded result copy. Catalog tests bind
   both languages and non-empty server rejection detail remains verbatim.
+- account-activation source composition locks the shared null-repository
+  fallback across message, attachment and synchronization services while
+  rejecting embedded degradation copy. Catalog tests bind both languages and
+  repository diagnostics remain log-only.

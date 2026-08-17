@@ -186,6 +186,7 @@ def main() -> int:
         "statusBar()->addWidget(m_statusLabel, 1)",
         "statusBar()->addPermanentWidget(m_connectionStatusLabel)",
         "copy.mainConnectionStatusAccessible",
+        ".mainLocalCacheUnavailable",
         "copy.mainReconnecting.arg(",
         "&ChatWindow::refreshComposerText",
         "copy.mainComposerEmojiAccessible",
@@ -264,6 +265,22 @@ def main() -> int:
         "copy.mainTransferDownloadFile",
         "copy.mainTransferFriendSendRetryableFailure",
     ), "Client/ChatWindow.cpp")
+    account_activation_surface = window[
+        window.index("void ChatWindow::setCurrentUser("):
+        window.index("// ==================== 事件过滤器")
+    ]
+    require(account_activation_surface, (
+        "repository->initialize()",
+        "m_localRepository.reset()",
+        ".mainLocalCacheUnavailable",
+        "m_outgoingMessageService->setRepository(m_localRepository.get())",
+        "m_attachmentOutboxService->setRepository(m_localRepository.get())",
+        "m_conversationSyncService->setContext(",
+    ), "Client/ChatWindow.cpp account local-cache activation")
+    if 'QStringLiteral("本地消息缓存不可用' in account_activation_surface:
+        raise AssertionError(
+            "account local-cache fallback must use the active Windows catalog"
+        )
     room_avatar_response_surface = window[
         window.index("// 聊天室头像"):
         window.index("connect(net, &NetworkManager::roomAvatarGetResponse",

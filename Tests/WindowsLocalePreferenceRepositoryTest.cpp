@@ -167,6 +167,9 @@ int main(int argc, char **argv) {
                 || english.mainAboutTitle != QStringLiteral("About")
                 || english.mainConnectionStatusAccessible
                     != QStringLiteral("Server connection status")
+                || english.mainLocalCacheUnavailable
+                    != QStringLiteral(
+                        "Local message cache is unavailable; online-only mode is active")
                 || english.mainDisconnected != QStringLiteral("Disconnected")
                 || english.mainConnected != QStringLiteral("Connected")
                 || english.mainReconnecting
@@ -360,6 +363,9 @@ int main(int argc, char **argv) {
                 || chinese.trayQuit != QStringLiteral("退出")
                 || chinese.mainMenuFile != QStringLiteral("文件(&F)")
                 || chinese.mainMenuAbout != QStringLiteral("关于(&A)")
+                || chinese.mainLocalCacheUnavailable
+                    != QStringLiteral(
+                        "本地消息缓存不可用，已切换为在线模式")
                 || chinese.mainDisconnected != QStringLiteral("已断开")
                 || chinese.mainConnected != QStringLiteral("已连接")
                 || chinese.mainComposerEmoji != QStringLiteral("表情")

@@ -405,7 +405,9 @@ void ChatWindow::setCurrentUser(int userId, const QString &username, const QStri
         qWarning().noquote() << QStringLiteral(
             "[LocalStore] operation=activate outcome=degraded detail=%1")
             .arg(repository->lastError());
-        m_statusLabel->setText(QStringLiteral("本地消息缓存不可用，已切换为在线模式"));
+        m_statusLabel->setText(
+            activeWindowsCopy(m_windowsLocaleViewModel)
+                .mainLocalCacheUnavailable);
     }
     m_outgoingMessageService->setRepository(m_localRepository.get());
     m_attachmentOutboxService->setRepository(m_localRepository.get());

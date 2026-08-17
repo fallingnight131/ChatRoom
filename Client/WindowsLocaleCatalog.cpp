@@ -482,6 +482,8 @@ WindowsLocaleMessages createZhCn() {
         "支持群组聊天、文件传输、消息撤回等功能");
     m.mainActivityStatusAccessible = QStringLiteral("当前操作状态");
     m.mainConnectionStatusAccessible = QStringLiteral("服务器连接状态");
+    m.mainLocalCacheUnavailable = QStringLiteral(
+        "本地消息缓存不可用，已切换为在线模式");
     m.mainDisconnected = QStringLiteral("已断开");
     m.mainConnected = QStringLiteral("已连接");
     m.mainReconnecting = QStringLiteral("重连中（第 %1 次）");
@@ -1303,6 +1305,8 @@ WindowsLocaleMessages createEnUs() {
         "Supports group chat, file transfer, and message recall");
     m.mainActivityStatusAccessible = QStringLiteral("Current activity status");
     m.mainConnectionStatusAccessible = QStringLiteral("Server connection status");
+    m.mainLocalCacheUnavailable = QStringLiteral(
+        "Local message cache is unavailable; online-only mode is active");
     m.mainDisconnected = QStringLiteral("Disconnected");
     m.mainConnected = QStringLiteral("Connected");
     m.mainReconnecting = QStringLiteral("Reconnecting (attempt %1)");
