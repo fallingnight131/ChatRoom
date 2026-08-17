@@ -746,6 +746,20 @@ struct WindowsLocaleMessages {
     QString messageMenuDeleteRecent;
     QString messageMenuDeleteRecentTitle;
     QString messageMenuDeleteRecentPrompt;
+    QString messageForwardTitle;
+    QString messageForwardNoTargets;
+    QString messageForwardFailedTitle;
+    QString messageForwardTargetLimit;
+    QString messageForwardCompletedTitle;
+    QString messageForwardLegacyCompleted;
+    QString messageForwardServerWorking;
+    QString messageForwardCompleted;
+    QString messageForwardLegacyNeedsDownload;
+    QString messageForwardLegacyCacheUnreadable;
+    QString messageForwardLegacyTooLarge;
+    QString messageForwardServerNone;
+    QString messageForwardPartialTitle;
+    QString messageForwardPartial;
 };
 
 class WindowsLocaleCatalog final {

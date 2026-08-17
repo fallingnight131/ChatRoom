@@ -324,7 +324,11 @@ int main(int argc, char **argv) {
                     != QStringLiteral(
                         "Clear all chat history?\nThis action cannot be undone.")
                 || english.messageMenuDeleteRecent
-                    != QStringLiteral("Delete messages from the last N days…")) {
+                    != QStringLiteral("Delete messages from the last N days…")
+                || english.messageForwardPartial.arg(3).arg(2)
+                    != QStringLiteral("Forwarded to 3 conversations; 2 targets failed")
+                || english.messageForwardLegacyTooLarge.arg(QStringLiteral("8 MB"))
+                    != QStringLiteral("The older server can forward files up to 8 MB")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -426,6 +430,8 @@ int main(int argc, char **argv) {
                     != QStringLiteral("重试发送")
                 || chinese.messageMenuAdministrator
                     != QStringLiteral("管理员操作")
+                || chinese.messageForwardTargetLimit.arg(5)
+                    != QStringLiteral("一次最多转发到 5 个会话")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

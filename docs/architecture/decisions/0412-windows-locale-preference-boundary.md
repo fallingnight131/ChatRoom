@@ -184,6 +184,11 @@ message storage, server behavior, or the supported Web/Windows product scope.
   actions exist. Destructive bulk actions resolve the active locale again when
   invoked, while their stable `selected`/`all`/`before`/`after` modes and fresh
   idempotency operation IDs remain unchanged.
+- Localize message/file forwarding feedback across direct V1 sends, bounded
+  server-side file forwarding and the older Base64 compatibility path. Stable
+  target sets, file IDs and the server target cap remain authoritative inputs;
+  the compatibility byte cap is formatted by selected locale. Non-empty server
+  failure detail remains opaque, with catalog copy used only when it is absent.
 
 ## Consequences
 
@@ -328,3 +333,8 @@ database migration or protocol compatibility window is required.
   locks the stable deletion modes, fresh operation IDs and existing command
   targets. Catalog tests bind common file, retry and administrator terminology;
   native Windows mouse/keyboard menu interaction remains open.
+- forwarding source composition locks the existing target cap, server request,
+  V1 room/direct compatibility commands and opaque server-detail fallback while
+  rejecting embedded result copy. Catalog tests bind partial and compatibility
+  results in both languages; real mixed-version forwarding remains an endpoint
+  integration gate.

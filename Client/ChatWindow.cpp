@@ -3635,7 +3635,9 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                 QSet<QString> targetFriends = dlg.selectedFriendUsernames();
 
                 if (targetRooms.isEmpty() && targetFriends.isEmpty()) {
-                    QMessageBox::information(this, QStringLiteral("转发"), QStringLiteral("没有有效目标，已取消转发"));
+                    const auto &activeCopy = activeWindowsCopy(m_windowsLocaleViewModel);
+                    QMessageBox::information(this, activeCopy.messageForwardTitle,
+                                             activeCopy.messageForwardNoTargets);
                     return;
                 }
 
@@ -3651,8 +3653,9 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                         return;
                     }
                     if (targetRooms.size() + targetFriends.size() > Protocol::MAX_FILE_FORWARD_TARGETS) {
-                        QMessageBox::warning(this, QStringLiteral("转发失败"),
-                                             QStringLiteral("一次最多转发到 %1 个会话")
+                        const auto &activeCopy = activeWindowsCopy(m_windowsLocaleViewModel);
+                        QMessageBox::warning(this, activeCopy.messageForwardFailedTitle,
+                                             activeCopy.messageForwardTargetLimit
                                                  .arg(Protocol::MAX_FILE_FORWARD_TARGETS));
                         return;
                     }
@@ -3660,9 +3663,10 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                         const int legacyCount = forwardFileWithLegacyProtocol(
                             fileId, msg.fileName(), targetRooms, targetFriends);
                         if (legacyCount > 0) {
+                            const auto &activeCopy = activeWindowsCopy(m_windowsLocaleViewModel);
                             QMessageBox::information(
-                                this, QStringLiteral("转发完成"),
-                                QStringLiteral("已通过兼容协议转发到 %1 个会话")
+                                this, activeCopy.messageForwardCompletedTitle,
+                                activeCopy.messageForwardLegacyCompleted
                                     .arg(legacyCount));
                         }
                         return;
@@ -3681,7 +3685,8 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                     data["friendUsernames"] = friendUsernames;
                     NetworkManager::instance()->sendMessage(
                         Protocol::makeMessage(Protocol::MsgType::FILE_FORWARD_REQ, data));
-                    m_statusLabel->setText("正在服务端转发文件...");
+                    m_statusLabel->setText(activeWindowsCopy(
+                        m_windowsLocaleViewModel).messageForwardServerWorking);
                     return;
                 } else {
                     QString ct = (msg.contentType() == Message::Emoji) ? QStringLiteral("emoji") : QStringLiteral("text");
@@ -3699,8 +3704,9 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                     }
                 }
 
-                QMessageBox::information(this, QStringLiteral("转发完成"),
-                    QStringLiteral("已转发到 %1 个会话").arg(forwardedCount));
+                const auto &activeCopy = activeWindowsCopy(m_windowsLocaleViewModel);
+                QMessageBox::information(this, activeCopy.messageForwardCompletedTitle,
+                    activeCopy.messageForwardCompleted.arg(forwardedCount));
             });
             hasMessageActions = true;
         }
@@ -3785,21 +3791,24 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
 int ChatWindow::forwardFileWithLegacyProtocol(
     int fileId, const QString &fileName, const QSet<int> &roomIds,
     const QSet<QString> &friendUsernames) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     if (!FileCache::instance()->isCached(fileId)) {
-        QMessageBox::warning(this, QStringLiteral("转发失败"),
-                             QStringLiteral("旧服务端需要先下载文件后才能转发"));
+        QMessageBox::warning(this, copy.messageForwardFailedTitle,
+                             copy.messageForwardLegacyNeedsDownload);
         return 0;
     }
     QFile file(FileCache::instance()->cachedFilePath(fileId));
     if (!file.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, QStringLiteral("转发失败"),
-                             QStringLiteral("无法读取本地缓存文件"));
+        QMessageBox::warning(this, copy.messageForwardFailedTitle,
+                             copy.messageForwardLegacyCacheUnreadable);
         return 0;
     }
     const QByteArray bytes = file.readAll();
     if (bytes.isEmpty() || bytes.size() > Protocol::MAX_SMALL_FILE) {
-        QMessageBox::warning(this, QStringLiteral("转发失败"),
-                             QStringLiteral("旧服务端仅支持转发 8MB 以内的文件"));
+        QMessageBox::warning(this, copy.messageForwardFailedTitle,
+                             copy.messageForwardLegacyTooLarge.arg(
+                                 activeQtLocale(m_windowsLocaleViewModel)
+                                     .formattedDataSize(Protocol::MAX_SMALL_FILE)));
         return 0;
     }
     const QString encoded = QString::fromLatin1(bytes.toBase64());
@@ -3828,22 +3837,23 @@ int ChatWindow::forwardFileWithLegacyProtocol(
 }
 
 void ChatWindow::onFileForwardResponse(const QJsonObject &data) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     const int forwarded = data["forwardedCount"].toInt();
     const int failed = data["failedCount"].toInt();
     m_statusLabel->clear();
     if (forwarded == 0) {
-        QMessageBox::warning(this, QStringLiteral("转发失败"),
-                             data["error"].toString(QStringLiteral("服务端未完成任何转发")));
+        QMessageBox::warning(this, copy.messageForwardFailedTitle,
+                             data["error"].toString(copy.messageForwardServerNone));
         return;
     }
     if (failed > 0) {
-        QMessageBox::warning(this, QStringLiteral("部分转发完成"),
-                             QStringLiteral("已转发到 %1 个会话，%2 个目标失败")
+        QMessageBox::warning(this, copy.messageForwardPartialTitle,
+                             copy.messageForwardPartial
                                  .arg(forwarded).arg(failed));
         return;
     }
-    QMessageBox::information(this, QStringLiteral("转发完成"),
-                             QStringLiteral("已转发到 %1 个会话").arg(forwarded));
+    QMessageBox::information(this, copy.messageForwardCompletedTitle,
+                             copy.messageForwardCompleted.arg(forwarded));
 }
 
 // ==================== 主题 ====================

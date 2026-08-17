@@ -768,6 +768,20 @@ WindowsLocaleMessages createZhCn() {
     m.messageMenuDeleteRecent = QStringLiteral("删除最近 N 天的消息…");
     m.messageMenuDeleteRecentTitle = QStringLiteral("删除近期消息");
     m.messageMenuDeleteRecentPrompt = QStringLiteral("删除最近几天的消息：");
+    m.messageForwardTitle = QStringLiteral("转发");
+    m.messageForwardNoTargets = QStringLiteral("没有有效目标，已取消转发");
+    m.messageForwardFailedTitle = QStringLiteral("转发失败");
+    m.messageForwardTargetLimit = QStringLiteral("一次最多转发到 %1 个会话");
+    m.messageForwardCompletedTitle = QStringLiteral("转发完成");
+    m.messageForwardLegacyCompleted = QStringLiteral("已通过兼容协议转发到 %1 个会话");
+    m.messageForwardServerWorking = QStringLiteral("正在服务端转发文件…");
+    m.messageForwardCompleted = QStringLiteral("已转发到 %1 个会话");
+    m.messageForwardLegacyNeedsDownload = QStringLiteral("旧服务端需要先下载文件后才能转发");
+    m.messageForwardLegacyCacheUnreadable = QStringLiteral("无法读取本地缓存文件");
+    m.messageForwardLegacyTooLarge = QStringLiteral("旧服务端仅支持转发 %1 以内的文件");
+    m.messageForwardServerNone = QStringLiteral("服务端未完成任何转发");
+    m.messageForwardPartialTitle = QStringLiteral("部分转发完成");
+    m.messageForwardPartial = QStringLiteral("已转发到 %1 个会话，%2 个目标失败");
     return m;
 }
 
@@ -1558,6 +1572,20 @@ WindowsLocaleMessages createEnUs() {
     m.messageMenuDeleteRecent = QStringLiteral("Delete messages from the last N days…");
     m.messageMenuDeleteRecentTitle = QStringLiteral("Delete recent messages");
     m.messageMenuDeleteRecentPrompt = QStringLiteral("Delete messages from the last how many days:");
+    m.messageForwardTitle = QStringLiteral("Forward");
+    m.messageForwardNoTargets = QStringLiteral("No valid targets; forwarding was cancelled");
+    m.messageForwardFailedTitle = QStringLiteral("Forwarding failed");
+    m.messageForwardTargetLimit = QStringLiteral("Forward to at most %1 conversations at once");
+    m.messageForwardCompletedTitle = QStringLiteral("Forwarding complete");
+    m.messageForwardLegacyCompleted = QStringLiteral("Forwarded to %1 conversations using the compatibility protocol");
+    m.messageForwardServerWorking = QStringLiteral("Forwarding the file on the server…");
+    m.messageForwardCompleted = QStringLiteral("Forwarded to %1 conversations");
+    m.messageForwardLegacyNeedsDownload = QStringLiteral("Download the file before forwarding through the older server");
+    m.messageForwardLegacyCacheUnreadable = QStringLiteral("Unable to read the locally cached file");
+    m.messageForwardLegacyTooLarge = QStringLiteral("The older server can forward files up to %1");
+    m.messageForwardServerNone = QStringLiteral("The server did not complete any forwards");
+    m.messageForwardPartialTitle = QStringLiteral("Forwarding partially complete");
+    m.messageForwardPartial = QStringLiteral("Forwarded to %1 conversations; %2 targets failed");
     return m;
 }
 

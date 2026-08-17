@@ -418,6 +418,33 @@ def main() -> int:
         raise AssertionError(
             "message context actions must project from the active Windows catalog"
         )
+    forwarding_surface = window[
+        window.index("// 转发消息/文件"):
+        window.index("// ==================== 主题")
+    ]
+    require(forwarding_surface, (
+        "activeCopy.messageForwardNoTargets",
+        "activeCopy.messageForwardTargetLimit",
+        "Protocol::MAX_FILE_FORWARD_TARGETS",
+        "activeCopy.messageForwardLegacyCompleted",
+        "messageForwardServerWorking",
+        "copy.messageForwardLegacyNeedsDownload",
+        "copy.messageForwardLegacyCacheUnreadable",
+        "copy.messageForwardLegacyTooLarge.arg(",
+        "data[\"error\"].toString(copy.messageForwardServerNone)",
+        "copy.messageForwardPartial",
+        "copy.messageForwardCompleted.arg(forwarded)",
+    ), "Client/ChatWindow.cpp forwarding surface")
+    if any(copy in forwarding_surface for copy in (
+        'QStringLiteral("\u8f6c\u53d1\u5931\u8d25")',
+        'QStringLiteral("\u8f6c\u53d1\u5b8c\u6210")',
+        'QStringLiteral("\u90e8\u5206\u8f6c\u53d1\u5b8c\u6210")',
+        'QStringLiteral("\u65e7\u670d\u52a1\u7aef',
+        '"\u6b63\u5728\u670d\u52a1\u7aef\u8f6c\u53d1\u6587\u4ef6..."',
+    )):
+        raise AssertionError(
+            "forwarding feedback must project through the active Windows catalog"
+        )
     require(message_delegate, (
         "WindowsAttachmentPresentation::unavailableText(",
         "WindowsMessagePresentation::timestampWithDelivery(",
