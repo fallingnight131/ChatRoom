@@ -4226,6 +4226,7 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
                                         const QString &error,
                                         bool needConfirm, const QJsonObject &cleanupSummary,
                                         const QJsonArray &clearedFileIds, int currentMembers) {
+    const auto &copy = activeWindowsCopy(m_windowsLocaleViewModel);
     if (success) {
         m_roomMaxFileSize[roomId] = maxFileSize;
         m_roomTotalFileSpace[roomId] = totalFileSpace;
@@ -4243,29 +4244,38 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
 
         if (m_waitingRoomSettingsSave) {
             m_waitingRoomSettingsSave = false;
-            QMessageBox::information(this, QStringLiteral("保存成功"), QStringLiteral("房间限制修改成功"));
+            QMessageBox::information(
+                this, copy.roomLimitsSaveSucceededTitle,
+                copy.roomLimitsSaveSucceeded);
         }
     } else {
         if (needConfirm) {
             int clearCount = cleanupSummary["clearFileCount"].toInt();
             qint64 afterSpace = static_cast<qint64>(cleanupSummary["afterUsedSpace"].toDouble());
             int afterCount = cleanupSummary["afterFileCount"].toInt();
-            QString text = QString("新限制将触发清理 %1 个历史文件。\n清理后将保留：%2 个文件，约 %3 MB。\n"
-                                   "这些文件在聊天中会保留记录，但状态会标为“文件已过期或被清除”。\n是否继续？")
-                               .arg(clearCount)
-                               .arg(afterCount)
-                               .arg(afterSpace / 1024 / 1024);
-            if (QMessageBox::question(this, "确认清理", text) == QMessageBox::Yes) {
+            const QString remainingSize = activeQtLocale(
+                m_windowsLocaleViewModel).formattedDataSize(afterSpace);
+            const QString text = copy.roomCleanupConfirm
+                .arg(clearCount).arg(afterCount).arg(remainingSize);
+            if (QMessageBox::question(
+                    this, copy.roomCleanupConfirmTitle, text)
+                == QMessageBox::Yes) {
                 bool keyOk = false;
                 QString developerKey = QInputDialog::getText(
                     this,
-                    QStringLiteral("开发者秘钥"),
-                    QStringLiteral("请输入开发者秘钥以继续保存限制："),
+                    copy.roomCleanupDeveloperKeyTitle,
+                    copy.roomCleanupDeveloperKeyPrompt,
                     QLineEdit::Password,
                     QString(),
                     &keyOk);
-                if (!keyOk || developerKey.trimmed().isEmpty()) {
-                    QMessageBox::warning(this, QStringLiteral("设置取消"), QStringLiteral("未输入开发者秘钥"));
+                QString normalizedDeveloperKey = developerKey.trimmed();
+                if (!keyOk || normalizedDeveloperKey.isEmpty()) {
+                    developerKey.fill(QChar('\0'));
+                    normalizedDeveloperKey.fill(QChar('\0'));
+                    m_waitingRoomSettingsSave = false;
+                    QMessageBox::warning(
+                        this, copy.roomCleanupCancelledTitle,
+                        copy.roomCleanupDeveloperKeyRequired);
                     return;
                 }
 
@@ -4276,9 +4286,12 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
                 data["maxFileCount"] = maxFileCount;
                 data["maxMembers"] = maxMembers;
                 data["forceCleanup"] = true;
-                data["developerKey"] = developerKey.trimmed();
+                data["developerKey"] = normalizedDeveloperKey;
                 NetworkManager::instance()->sendMessage(
                     Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
+                data["developerKey"] = QString();
+                developerKey.fill(QChar('\0'));
+                normalizedDeveloperKey.fill(QChar('\0'));
             } else {
                 m_waitingRoomSettingsSave = false;
             }
@@ -4286,10 +4299,14 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
         }
         m_waitingRoomSettingsSave = false;
         if (currentMembers > 0) {
-            QMessageBox::warning(this, "设置失败", QString("当前人数为 %1，不能设置更小人数上限").arg(currentMembers));
+            QMessageBox::warning(
+                this, copy.roomLimitsSaveFailedTitle,
+                copy.roomMemberLimitBelowCurrent.arg(currentMembers));
             return;
         }
-        QMessageBox::warning(this, "设置失败", error);
+        QMessageBox::warning(
+            this, copy.roomLimitsSaveFailedTitle,
+            error.isEmpty() ? copy.roomLimitsSaveFailed : error);
     }
 }
 
@@ -4404,7 +4421,8 @@ void ChatWindow::onRoomFilesNotify(int roomId, const QJsonArray &clearedFileIds,
     }
 
     if (!operatorName.isEmpty() && roomId == m_currentRoomId) {
-        m_statusLabel->setText(QStringLiteral("%1 更新了房间文件").arg(operatorName));
+        m_statusLabel->setText(activeWindowsCopy(
+            m_windowsLocaleViewModel).roomFilesUpdatedBy.arg(operatorName));
     }
 }
 

@@ -615,6 +615,50 @@ def main() -> int:
         raise AssertionError(
             "administrator feedback and menus must use the active Windows catalog"
         )
+    room_limits_surface = window[
+        window.index("void ChatWindow::onRoomSettingsResponse("):
+        window.index("// ==================== 删除聊天室")
+    ]
+    require(room_limits_surface, (
+        "copy.roomLimitsSaveSucceededTitle",
+        "copy.roomLimitsSaveSucceeded",
+        "copy.roomCleanupConfirmTitle",
+        "copy.roomCleanupConfirm",
+        "activeQtLocale(",
+        ").formattedDataSize(afterSpace)",
+        "copy.roomCleanupDeveloperKeyTitle",
+        "copy.roomCleanupDeveloperKeyPrompt",
+        "copy.roomCleanupCancelledTitle",
+        "copy.roomCleanupDeveloperKeyRequired",
+        "copy.roomMemberLimitBelowCurrent.arg(currentMembers)",
+        "error.isEmpty() ? copy.roomLimitsSaveFailed : error",
+        "roomFilesUpdatedBy.arg(operatorName)",
+        'data["forceCleanup"] = true',
+        'data["developerKey"] = normalizedDeveloperKey',
+        'data["developerKey"] = QString()',
+        "developerKey.fill(QChar('\\0'))",
+        "normalizedDeveloperKey.fill(QChar('\\0'))",
+        "m_waitingRoomSettingsSave = false",
+        "Protocol::MsgType::ROOM_SETTINGS_REQ",
+        "markFilesCleared(ids, QString())",
+        "persistRoomSnapshot(it.key())",
+    ), "Client/ChatWindow.cpp room limits and files surface")
+    if any(copy in room_limits_surface for copy in (
+        'QStringLiteral("保存成功")',
+        'QStringLiteral("房间限制修改成功")',
+        '"新限制将触发清理',
+        '"确认清理"',
+        'QStringLiteral("开发者秘钥")',
+        'QStringLiteral("请输入开发者秘钥',
+        'QStringLiteral("设置取消")',
+        'QStringLiteral("未输入开发者秘钥")',
+        '"设置失败"',
+        'QString("当前人数为',
+        'QStringLiteral("%1 更新了房间文件")',
+    )):
+        raise AssertionError(
+            "room limit and file feedback must use the active Windows catalog"
+        )
     require(message_delegate, (
         "WindowsAttachmentPresentation::unavailableText(",
         "WindowsMessagePresentation::timestampWithDelivery(",

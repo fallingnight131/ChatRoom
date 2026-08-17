@@ -344,6 +344,23 @@ WindowsLocaleMessages createZhCn() {
     m.roomLimitErrorTitle = QStringLiteral("限制错误");
     m.roomDeveloperKeyRequired = QStringLiteral("请输入开发者秘钥");
     m.roomTotalSpaceTooSmall = QStringLiteral("总文件空间不能小于单文件上限");
+    m.roomLimitsSaveSucceededTitle = QStringLiteral("保存成功");
+    m.roomLimitsSaveSucceeded = QStringLiteral("房间限制修改成功");
+    m.roomCleanupConfirmTitle = QStringLiteral("确认清理");
+    m.roomCleanupConfirm = QStringLiteral(
+        "新限制将触发清理 %1 个历史文件。\n"
+        "清理后将保留：%2 个文件，约 %3。\n"
+        "这些文件在聊天中会保留记录，但状态会标为“文件已过期或被清除”。\n"
+        "是否继续？");
+    m.roomCleanupDeveloperKeyTitle = QStringLiteral("开发者秘钥");
+    m.roomCleanupDeveloperKeyPrompt = QStringLiteral(
+        "请输入开发者秘钥以继续保存限制：");
+    m.roomCleanupCancelledTitle = QStringLiteral("设置已取消");
+    m.roomCleanupDeveloperKeyRequired = QStringLiteral("未输入开发者秘钥");
+    m.roomLimitsSaveFailedTitle = QStringLiteral("设置失败");
+    m.roomMemberLimitBelowCurrent = QStringLiteral(
+        "当前人数为 %1，不能设置更小的人数上限");
+    m.roomLimitsSaveFailed = QStringLiteral("无法保存房间限制");
     m.roomChooseAvatar = QStringLiteral("选择聊天室头像");
     m.roomImageFiles = QStringLiteral("图片文件 (*.png *.jpg *.jpeg *.bmp *.gif)");
     m.roomCannotLoadImage = QStringLiteral("无法加载图片");
@@ -380,6 +397,7 @@ WindowsLocaleMessages createZhCn() {
     m.roomFileAdminRequired = QStringLiteral("只有管理员可以管理文件");
     m.roomFilesDeleted = QStringLiteral("已删除 %1 个文件");
     m.roomFileClearedUnavailable = QStringLiteral("文件已过期或被清除");
+    m.roomFilesUpdatedBy = QStringLiteral("%1 更新了房间文件");
     m.roomPasswordRequiredTitle = QStringLiteral("需要密码");
     m.roomPasswordRequiredPrompt = QStringLiteral(
         "该聊天室需要密码才能加入，请输入密码：");
@@ -1172,6 +1190,24 @@ WindowsLocaleMessages createEnUs() {
     m.roomDeveloperKeyRequired = QStringLiteral("Enter the developer key");
     m.roomTotalSpaceTooSmall = QStringLiteral(
         "Total file storage cannot be smaller than the maximum file size");
+    m.roomLimitsSaveSucceededTitle = QStringLiteral("Limits saved");
+    m.roomLimitsSaveSucceeded = QStringLiteral("The room limits were updated");
+    m.roomCleanupConfirmTitle = QStringLiteral("Confirm file cleanup");
+    m.roomCleanupConfirm = QStringLiteral(
+        "The new limits will clear %1 historical files.\n"
+        "%2 files using approximately %3 will remain.\n"
+        "Their chat records will remain, but the files will appear expired or cleared.\n"
+        "Continue?");
+    m.roomCleanupDeveloperKeyTitle = QStringLiteral("Developer key");
+    m.roomCleanupDeveloperKeyPrompt = QStringLiteral(
+        "Enter the developer key to continue saving these limits:");
+    m.roomCleanupCancelledTitle = QStringLiteral("Settings cancelled");
+    m.roomCleanupDeveloperKeyRequired = QStringLiteral(
+        "No developer key was entered");
+    m.roomLimitsSaveFailedTitle = QStringLiteral("Unable to save limits");
+    m.roomMemberLimitBelowCurrent = QStringLiteral(
+        "The room currently has %1 members; the limit cannot be lower");
+    m.roomLimitsSaveFailed = QStringLiteral("The room limits could not be saved");
     m.roomChooseAvatar = QStringLiteral("Choose room avatar");
     m.roomImageFiles = QStringLiteral("Image files (*.png *.jpg *.jpeg *.bmp *.gif)");
     m.roomCannotLoadImage = QStringLiteral("Unable to load the image");
@@ -1211,6 +1247,7 @@ WindowsLocaleMessages createEnUs() {
     m.roomFileAdminRequired = QStringLiteral("Only administrators can manage files");
     m.roomFilesDeleted = QStringLiteral("Deleted %1 files");
     m.roomFileClearedUnavailable = QStringLiteral("File expired or was cleared");
+    m.roomFilesUpdatedBy = QStringLiteral("%1 updated the room files");
     m.roomPasswordRequiredTitle = QStringLiteral("Password required");
     m.roomPasswordRequiredPrompt = QStringLiteral(
         "This room requires a password. Enter it to join:");

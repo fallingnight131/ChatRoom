@@ -208,6 +208,13 @@ message storage, server behavior, or the supported Web/Windows product scope.
   Stable room/account IDs, role booleans, deletion events and continuation
   sequences still drive commands and local reconciliation. Non-empty server
   rejection detail remains opaque and all authority remains server-side.
+- Localize room-limit success, cleanup confirmation, current-member rejection
+  and room-file update feedback. Cleanup sizes use the selected locale, while
+  file IDs retain the stable empty `fileCleared` reason for render-time
+  projection. A cancelled key prompt clears pending-save state; a submitted
+  developer-key working value and request field are cleared after synchronous
+  serialization. Server-side key validation, room authority and cleanup remain
+  unchanged, and non-empty server errors remain opaque.
 
 ## Consequences
 
@@ -373,3 +380,8 @@ database migration or protocol compatibility window is required.
   events, cursor advancement, snapshot persistence and stable menu identities
   while rejecting embedded action/result copy. Catalog tests bind both languages
   and non-empty server rejection detail remains verbatim.
+- room-limit source composition locks the stable cleanup request fields,
+  confirmed-file clearing, snapshot persistence and server command while
+  requiring locale-aware size projection and key working-copy cleanup. Catalog
+  tests bind both languages; the server still owns authorization, key validation
+  and cleanup selection.

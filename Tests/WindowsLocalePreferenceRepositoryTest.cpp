@@ -136,6 +136,20 @@ int main(int argc, char **argv) {
                     != QStringLiteral("The room avatar was updated")
                 || english.roomAvatarUploadFailed
                     != QStringLiteral("The room avatar could not be uploaded")
+                || english.roomLimitsSaveSucceeded
+                    != QStringLiteral("The room limits were updated")
+                || english.roomCleanupConfirm.arg(3).arg(7).arg(
+                       QStringLiteral("12 MB"))
+                    != QStringLiteral(
+                        "The new limits will clear 3 historical files.\n"
+                        "7 files using approximately 12 MB will remain.\n"
+                        "Their chat records will remain, but the files will appear expired or cleared.\n"
+                        "Continue?")
+                || english.roomMemberLimitBelowCurrent.arg(42)
+                    != QStringLiteral(
+                        "The room currently has 42 members; the limit cannot be lower")
+                || english.roomFilesUpdatedBy.arg(QStringLiteral("Alice"))
+                    != QStringLiteral("Alice updated the room files")
                 || english.deviceManagementTitle
                     != QStringLiteral("Signed-in devices")
                 || english.deviceManagementRevokeFailed
@@ -396,6 +410,12 @@ int main(int argc, char **argv) {
                     != QStringLiteral("修改成功")
                 || chinese.roomAvatarUploadFailed
                     != QStringLiteral("上传聊天室头像失败")
+                || chinese.roomCleanupConfirmTitle
+                    != QStringLiteral("确认清理")
+                || chinese.roomCleanupDeveloperKeyRequired
+                    != QStringLiteral("未输入开发者秘钥")
+                || chinese.roomLimitsSaveFailed
+                    != QStringLiteral("无法保存房间限制")
                 || chinese.mainRoomSearchTitle
                     != QStringLiteral("搜索聊天室")
                 || chinese.mainFriendSearchTitle

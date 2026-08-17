@@ -344,6 +344,17 @@ struct WindowsLocaleMessages {
     QString roomLimitErrorTitle;
     QString roomDeveloperKeyRequired;
     QString roomTotalSpaceTooSmall;
+    QString roomLimitsSaveSucceededTitle;
+    QString roomLimitsSaveSucceeded;
+    QString roomCleanupConfirmTitle;
+    QString roomCleanupConfirm;
+    QString roomCleanupDeveloperKeyTitle;
+    QString roomCleanupDeveloperKeyPrompt;
+    QString roomCleanupCancelledTitle;
+    QString roomCleanupDeveloperKeyRequired;
+    QString roomLimitsSaveFailedTitle;
+    QString roomMemberLimitBelowCurrent;
+    QString roomLimitsSaveFailed;
     QString roomChooseAvatar;
     QString roomImageFiles;
     QString roomCannotLoadImage;
@@ -379,6 +390,7 @@ struct WindowsLocaleMessages {
     QString roomFileAdminRequired;
     QString roomFilesDeleted;
     QString roomFileClearedUnavailable;
+    QString roomFilesUpdatedBy;
     QString roomPasswordRequiredTitle;
     QString roomPasswordRequiredPrompt;
     QString roomPasswordJoinPlaceholder;
