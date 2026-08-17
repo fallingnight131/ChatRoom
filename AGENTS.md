@@ -84,6 +84,9 @@ During implementation:
    conditions through the domain model.
 4. Use expand-migrate-contract for schema and protocol migrations.
 5. Add diagnostics at new network, storage, and asynchronous boundaries.
+6. Update the root `README.md` alongside every development change so it stays
+   synchronized with the current implementation. Write and maintain the README
+   in Chinese.
 
 Before completion:
 
