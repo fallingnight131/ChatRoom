@@ -8,6 +8,7 @@ class QSpinBox;
 class QLabel;
 class QPushButton;
 class QGroupBox;
+class WindowsLocaleViewModel;
 
 /// 房间设置对话框
 class RoomSettingsDialog : public QDialog {
@@ -19,7 +20,8 @@ public:
                                 qint64 totalFileSpace,
                                 int maxFileCount,
                                 int maxMembers,
-                                QWidget *parent = nullptr);
+                                QWidget *parent = nullptr,
+                                WindowsLocaleViewModel *localeViewModel = nullptr);
 
     int roomId() const { return m_roomId; }
     void setRoomName(const QString &roomName);
@@ -51,4 +53,5 @@ private:
     QSpinBox        *m_memberLimitSpin = nullptr;
     QLineEdit       *m_developerKeyEdit = nullptr;
     QLineEdit       *m_passwordEdit  = nullptr;
+    WindowsLocaleViewModel *m_localeViewModel = nullptr;
 };

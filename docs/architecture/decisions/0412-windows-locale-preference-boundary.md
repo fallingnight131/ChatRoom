@@ -73,6 +73,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
   presentation, labels, avatar actions, and accessible names; username and
   display name remain opaque identity data. An already-open avatar preview
   follows the same live ViewModel.
+- Pass the shared ViewModel through both profile and room-settings avatar flows
+  into the reusable cropper. Its title, custom-painted instruction, preview,
+  actions, and accessible description are presentation only; crop geometry,
+  source pixels, and the 256x256 result remain locale-independent.
 
 ## Consequences
 
@@ -110,3 +114,5 @@ database migration or protocol compatibility window is required.
   list reconstruction while every dialog-owned string switches together.
 - user-information composition proves typed role presentation and nested avatar
   preview recomposition without changing Unicode display or account identity.
+- avatar-cropper composition proves both entry points carry the shared boundary
+  and a live language switch leaves the resulting image pixel-equivalent.

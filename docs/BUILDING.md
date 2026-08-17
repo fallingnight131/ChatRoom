@@ -3260,6 +3260,11 @@ unchanged Unicode display/account identity, accessible avatar naming, and live
 Chinese/English recomposition of both the parent Widget and an already-open
 full-size avatar preview. It is included in `--qt`; macOS remains portability
 evidence rather than native Windows accessibility evidence.
+`WindowsAvatarCropLocalizationTest` verifies Chinese/English title, painted-
+instruction semantics, preview and actions, plus a 256x256 crop that remains
+pixel-identical through a live switch. Static composition additionally locks
+both profile and room-settings entry paths to the application ViewModel. The
+offscreen run remains development-host evidence.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

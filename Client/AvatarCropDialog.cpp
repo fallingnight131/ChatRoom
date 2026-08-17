@@ -1,4 +1,5 @@
 #include "AvatarCropDialog.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QPainter>
 #include <QPainterPath>
@@ -9,11 +10,14 @@
 #include <QPushButton>
 #include <QLabel>
 
-AvatarCropDialog::AvatarCropDialog(const QPixmap &image, QWidget *parent)
+AvatarCropDialog::AvatarCropDialog(
+        const QPixmap &image, QWidget *parent,
+        WindowsLocaleViewModel *localeViewModel)
     : QDialog(parent)
     , m_original(image)
+    , m_localeViewModel(localeViewModel)
 {
-    setWindowTitle("裁剪头像");
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
     setFixedSize(CANVAS_SIZE + 40, CANVAS_SIZE + 120);
     setMouseTracking(true);
 
@@ -41,29 +45,48 @@ AvatarCropDialog::AvatarCropDialog(const QPixmap &image, QWidget *parent)
     m_previewLabel->setScaledContents(true);
 
     // 按钮
-    auto *okBtn = new QPushButton("确定", this);
-    auto *cancelBtn = new QPushButton("取消", this);
-    okBtn->setFixedWidth(80);
-    cancelBtn->setFixedWidth(80);
+    m_confirmButton = new QPushButton(this);
+    m_cancelButton = new QPushButton(this);
+    m_confirmButton->setFixedWidth(80);
+    m_cancelButton->setFixedWidth(80);
 
-    connect(okBtn, &QPushButton::clicked, this, &QDialog::accept);
-    connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_confirmButton, &QPushButton::clicked, this, &QDialog::accept);
+    connect(m_cancelButton, &QPushButton::clicked, this, &QDialog::reject);
 
     // 底部布局
     auto *bottomLayout = new QHBoxLayout;
     bottomLayout->addStretch();
-    bottomLayout->addWidget(new QLabel("预览:", this));
+    m_previewTextLabel = new QLabel(this);
+    bottomLayout->addWidget(m_previewTextLabel);
     bottomLayout->addWidget(m_previewLabel);
     bottomLayout->addStretch();
-    bottomLayout->addWidget(okBtn);
-    bottomLayout->addWidget(cancelBtn);
+    bottomLayout->addWidget(m_confirmButton);
+    bottomLayout->addWidget(m_cancelButton);
 
     // 使用绝对定位底部布局
     auto *bottomWidget = new QWidget(this);
     bottomWidget->setLayout(bottomLayout);
     bottomWidget->setGeometry(0, CANVAS_SIZE + 20, width(), 80);
 
+    if (m_localeViewModel) {
+        connect(m_localeViewModel, &WindowsLocaleViewModel::changed,
+                this, &AvatarCropDialog::applyLocale);
+    }
+    applyLocale();
     updateCrop();
+}
+
+void AvatarCropDialog::applyLocale() {
+    if (m_localeViewModel) m_locale = m_localeViewModel->locale();
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    setWindowTitle(copy.avatarCropTitle);
+    setAccessibleName(copy.avatarCropTitle);
+    setAccessibleDescription(copy.avatarCropInstruction);
+    m_previewTextLabel->setText(copy.avatarCropPreview);
+    m_previewLabel->setAccessibleName(copy.avatarCropPreviewAccessible);
+    m_confirmButton->setText(copy.avatarCropConfirm);
+    m_cancelButton->setText(copy.cancel);
+    update();
 }
 
 void AvatarCropDialog::updateCrop() {
@@ -146,7 +169,9 @@ void AvatarCropDialog::paintEvent(QPaintEvent *) {
     font.setPointSize(9);
     painter.setFont(font);
     painter.drawText(QRect(0, m_canvasRect.bottom() + 4, width(), 20),
-                     Qt::AlignCenter, "拖动移动裁剪区域 | 滚轮调整大小");
+                     Qt::AlignCenter,
+                     WindowsLocaleCatalog::messages(m_locale)
+                         .avatarCropInstruction);
 }
 
 void AvatarCropDialog::mousePressEvent(QMouseEvent *event) {

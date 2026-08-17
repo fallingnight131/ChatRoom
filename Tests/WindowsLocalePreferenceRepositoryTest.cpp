@@ -87,7 +87,9 @@ int main(int argc, char **argv) {
                 || english.forwardConfirm != QStringLiteral("Forward")
                 || english.userInfoTitle != QStringLiteral("User information")
                 || english.userInfoAdministrator
-                    != QStringLiteral("Administrator")) {
+                    != QStringLiteral("Administrator")
+                || english.avatarCropTitle != QStringLiteral("Crop avatar")
+                || english.avatarCropConfirm != QStringLiteral("Confirm")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }

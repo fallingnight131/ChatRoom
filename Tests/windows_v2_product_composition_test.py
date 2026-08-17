@@ -109,6 +109,8 @@ def main() -> int:
         "new EmojiPicker(this, m_windowsLocaleViewModel)",
         "roomTargets, friendTargets, this, m_windowsLocaleViewModel",
         "username, displayName, avatar, role, this, m_windowsLocaleViewModel",
+        "AvatarCropDialog dlg(img, this, m_windowsLocaleViewModel)",
+        "maxMembers, this, m_windowsLocaleViewModel",
     ), "Client/ChatWindow.cpp")
     require(profile, (
         "WindowsLocaleCatalog::messages(m_locale)",

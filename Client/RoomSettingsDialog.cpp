@@ -25,8 +25,10 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
                                        qint64 totalFileSpace,
                                        int maxFileCount,
                                        int maxMembers,
-                                       QWidget *parent)
-    : QDialog(parent), m_roomId(roomId), m_roomName(roomName), m_isAdmin(isAdmin)
+                                       QWidget *parent,
+                                       WindowsLocaleViewModel *localeViewModel)
+    : QDialog(parent), m_roomId(roomId), m_roomName(roomName),
+      m_isAdmin(isAdmin), m_localeViewModel(localeViewModel)
 {
     setWindowTitle(QStringLiteral("房间设置"));
     setMinimumWidth(380);
@@ -308,7 +310,7 @@ void RoomSettingsDialog::onUploadAvatar() {
         return;
     }
 
-    AvatarCropDialog dlg(img, this);
+    AvatarCropDialog dlg(img, this, m_localeViewModel);
     if (dlg.exec() != QDialog::Accepted) return;
 
     QPixmap cropped = dlg.croppedAvatar();

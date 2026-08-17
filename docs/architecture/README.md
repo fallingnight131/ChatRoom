@@ -1998,6 +1998,10 @@ state instead of a localized role string. Its labels, close/avatar actions,
 accessible avatar name, and already-open full-size preview follow the shared
 locale. Username and Unicode display name remain unchanged server data and are
 never used as catalog keys.
+The reusable Windows avatar cropper now receives that same ViewModel through
+both the profile and room-settings entry paths. Its title, custom-painted drag/
+wheel instruction, preview, actions, and accessible semantics change live;
+crop coordinates and the 256x256 pixel result do not depend on locale.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

@@ -283,6 +283,11 @@ WindowsLocaleMessages createZhCn() {
     m.userInfoViewLargeAvatar = QStringLiteral("查看大图");
     m.userInfoLargeAvatarTitle = QStringLiteral("头像大图");
     m.userInfoClose = QStringLiteral("关闭");
+    m.avatarCropTitle = QStringLiteral("裁剪头像");
+    m.avatarCropInstruction = QStringLiteral("拖动移动裁剪区域 | 滚轮调整大小");
+    m.avatarCropPreview = QStringLiteral("预览：");
+    m.avatarCropPreviewAccessible = QStringLiteral("裁剪后的头像预览");
+    m.avatarCropConfirm = QStringLiteral("确定");
     return m;
 }
 
@@ -575,6 +580,12 @@ WindowsLocaleMessages createEnUs() {
     m.userInfoViewLargeAvatar = QStringLiteral("View full-size avatar");
     m.userInfoLargeAvatarTitle = QStringLiteral("Full-size avatar");
     m.userInfoClose = QStringLiteral("Close");
+    m.avatarCropTitle = QStringLiteral("Crop avatar");
+    m.avatarCropInstruction = QStringLiteral(
+        "Drag to move the crop area | Use the mouse wheel to resize");
+    m.avatarCropPreview = QStringLiteral("Preview:");
+    m.avatarCropPreviewAccessible = QStringLiteral("Cropped avatar preview");
+    m.avatarCropConfirm = QStringLiteral("Confirm");
     return m;
 }
 

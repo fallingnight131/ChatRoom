@@ -287,6 +287,11 @@ struct WindowsLocaleMessages {
     QString userInfoViewLargeAvatar;
     QString userInfoLargeAvatarTitle;
     QString userInfoClose;
+    QString avatarCropTitle;
+    QString avatarCropInstruction;
+    QString avatarCropPreview;
+    QString avatarCropPreviewAccessible;
+    QString avatarCropConfirm;
 };
 
 class WindowsLocaleCatalog final {

@@ -431,6 +431,7 @@ def run_qt_client_unit_tests(jobs: int, build_root: Path) -> None:
         "WindowsEmojiPickerLocalizationTest",
         "WindowsForwardSelectLocalizationTest",
         "WindowsUserInfoLocalizationTest",
+        "WindowsAvatarCropLocalizationTest",
         "AttachmentOutboxServiceTest",
         "OutgoingMessageServiceTest",
         "ConversationSyncServiceTest",

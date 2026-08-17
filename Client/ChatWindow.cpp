@@ -3898,7 +3898,7 @@ void ChatWindow::onChangeAvatar() {
         return;
     }
 
-    AvatarCropDialog dlg(img, this);
+    AvatarCropDialog dlg(img, this, m_windowsLocaleViewModel);
     if (dlg.exec() != QDialog::Accepted) return;
 
     QPixmap cropped = dlg.croppedAvatar();
@@ -4530,8 +4530,9 @@ void ChatWindow::showRoomSettingsDialog(int roomId) {
     int maxFileCount = m_roomMaxFileCount.value(roomId, 1500);
     int maxMembers = m_roomMaxMembers.value(roomId, 50);
 
-    auto *dlg = new RoomSettingsDialog(roomId, roomName, isAdmin,
-                                       maxFileSize, totalFileSpace, maxFileCount, maxMembers, this);
+    auto *dlg = new RoomSettingsDialog(
+        roomId, roomName, isAdmin, maxFileSize, totalFileSpace,
+        maxFileCount, maxMembers, this, m_windowsLocaleViewModel);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
 
     connect(dlg, &RoomSettingsDialog::roomLimitsSaveRequested, this, [this](int) {

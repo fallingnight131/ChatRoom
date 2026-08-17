@@ -2833,6 +2833,9 @@ Candidate slices:
     - [x] Migrate the complete Windows user-information and avatar-preview leaf:
       replace localized role strings with a typed presentation state, preserve
       account/display identity as data, and recompose the open nested preview.
+    - [x] Migrate the shared Windows avatar-cropper leaf from both profile and
+      room-settings entry points, including painted instructions, preview and
+      accessible semantics without mutating crop geometry or output pixels.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 
