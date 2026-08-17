@@ -24,36 +24,39 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
         V2WindowsConversationParticipantViewModel *participantViewModel,
         QWidget *parent, bool mentionsEnabled, bool forwardingEnabled,
         V2WindowsMessageSearchViewModel *searchViewModel,
-        V2WindowsAccountBlockViewModel *accountBlockViewModel)
+        V2WindowsAccountBlockViewModel *accountBlockViewModel,
+        WindowsLocale locale)
     : QDialog(parent), m_directoryViewModel(directoryViewModel),
       m_participantViewModel(participantViewModel),
       m_accountBlockViewModel(accountBlockViewModel),
       m_directoryStatus(new QLabel(this)), m_conversationTitle(new QLabel(this)),
       m_conversations(new QListWidget(this)),
-      m_refresh(new QPushButton(QStringLiteral("刷新"), this)),
-      m_loadMore(new QPushButton(QStringLiteral("加载更多"), this)),
-      m_accountBlock(new QPushButton(QStringLiteral("屏蔽管理"), this)),
+      m_refresh(new QPushButton(WindowsLocaleCatalog::messages(locale).refresh, this)),
+      m_loadMore(new QPushButton(WindowsLocaleCatalog::messages(locale).loadMore, this)),
+      m_accountBlock(new QPushButton(WindowsLocaleCatalog::messages(locale).accountBlock, this)),
       m_messagingPanel(new V2WindowsMessagingPanel(
           messagingViewModel, participantViewModel, this, mentionsEnabled,
-          directoryViewModel, forwardingEnabled, searchViewModel)) {
+          directoryViewModel, forwardingEnabled, searchViewModel, locale)),
+      m_locale(locale) {
     Q_ASSERT(m_directoryViewModel);
     Q_ASSERT(messagingViewModel);
     Q_ASSERT(participantViewModel);
-    setWindowTitle(QStringLiteral("新版会话与回复（预览）"));
-    setAccessibleName(QStringLiteral("新版会话与回复预览窗口"));
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    setWindowTitle(copy.previewWindowTitle);
+    setAccessibleName(copy.previewWindowAccessible);
     setMinimumSize(900, 600);
 
-    auto *directoryTitle = new QLabel(QStringLiteral("会话"), this);
-    directoryTitle->setAccessibleName(QStringLiteral("会话目录标题"));
-    m_directoryStatus->setAccessibleName(QStringLiteral("会话目录状态"));
+    auto *directoryTitle = new QLabel(copy.conversationDirectory, this);
+    directoryTitle->setAccessibleName(copy.conversationDirectoryAccessible);
+    m_directoryStatus->setAccessibleName(copy.conversationDirectoryStatusAccessible);
     m_directoryStatus->setWordWrap(true);
-    m_conversations->setAccessibleName(QStringLiteral("新版会话列表"));
+    m_conversations->setAccessibleName(copy.conversationListAccessible);
     m_conversations->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_refresh->setAccessibleName(QStringLiteral("刷新新版会话列表"));
-    m_loadMore->setAccessibleName(QStringLiteral("加载更多新版会话"));
-    m_conversationTitle->setAccessibleName(QStringLiteral("当前新版会话"));
-    m_conversationTitle->setText(QStringLiteral("请选择会话"));
-    m_accountBlock->setAccessibleName(QStringLiteral("管理当前私聊账号屏蔽状态"));
+    m_refresh->setAccessibleName(copy.refreshConversationsAccessible);
+    m_loadMore->setAccessibleName(copy.loadMoreConversationsAccessible);
+    m_conversationTitle->setAccessibleName(copy.currentConversationAccessible);
+    m_conversationTitle->setText(copy.selectConversation);
+    m_accountBlock->setAccessibleName(copy.accountBlockAccessible);
     m_accountBlock->setVisible(m_accountBlockViewModel != nullptr);
     m_accountBlock->setEnabled(false);
     m_messagingPanel->setEnabled(false);
@@ -77,7 +80,7 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
     messageLayout->addWidget(m_messagingPanel, 1);
 
     auto *splitter = new QSplitter(Qt::Horizontal, this);
-    splitter->setAccessibleName(QStringLiteral("会话与消息分栏"));
+    splitter->setAccessibleName(copy.conversationSplitterAccessible);
     splitter->addWidget(directoryPane);
     splitter->addWidget(messagePane);
     splitter->setStretchFactor(0, 1);
@@ -114,6 +117,7 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
 }
 
 void V2WindowsConversationDialog::renderDirectory() {
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     const QSignalBlocker blocker(m_conversations);
     m_conversations->clear();
     QListWidgetItem *selected = nullptr;
@@ -122,7 +126,7 @@ void V2WindowsConversationDialog::renderDirectory() {
         if (!row.kindLabel.isEmpty()) details.append(row.kindLabel);
         if (!row.roleLabel.isEmpty()) details.append(row.roleLabel);
         if (row.unreadCount > 0)
-            details.append(QStringLiteral("%1 条未读").arg(row.unreadCount));
+            details.append(copy.unreadCount.arg(row.unreadCount));
         auto *item = new QListWidgetItem(
             QStringLiteral("%1\n%2").arg(row.displayName, details.join(QStringLiteral(" · "))),
             m_conversations);
@@ -138,9 +142,9 @@ void V2WindowsConversationDialog::renderDirectory() {
     if (!m_directoryViewModel->failure().isEmpty())
         m_directoryStatus->setText(m_directoryViewModel->failure());
     else if (m_directoryViewModel->busy())
-        m_directoryStatus->setText(QStringLiteral("正在加载会话…"));
+        m_directoryStatus->setText(copy.loadingConversations);
     else if (m_directoryViewModel->rows().isEmpty())
-        m_directoryStatus->setText(QStringLiteral("暂无会话"));
+        m_directoryStatus->setText(copy.noConversations);
     else
         m_directoryStatus->clear();
 }

@@ -7,7 +7,9 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QLabel>
 #include <QListWidget>
+#include <QPlainTextEdit>
 #include <QPushButton>
 
 namespace {
@@ -70,6 +72,26 @@ int main(int argc, char **argv) {
             ++participantRequests;
             return selected == conversationId && !continuation;
         });
+
+    {
+        V2WindowsConversationDialog english(
+            &directory, &messaging, &participants, nullptr, true, false,
+            nullptr, nullptr, WindowsLocale::EnUs);
+        if (!check(english.windowTitle()
+                       == QStringLiteral("Conversations and replies (Preview)"),
+                   QStringLiteral("English shell title must come from the catalog"))
+                || !check(english.refreshForTest()->text() == QStringLiteral("Refresh"),
+                          QStringLiteral("English directory action must be localized"))
+                || !check(english.messagingPanelForTest()->composerForTest()
+                              ->placeholderText() == QStringLiteral("Write a message"),
+                          QStringLiteral("English composer placeholder must be localized"))
+                || !check(english.messagingPanelForTest()->sendForTest()->text()
+                              == QStringLiteral("Send message"),
+                          QStringLiteral("English composer action must be localized"))
+                || !check(english.messagingPanelForTest()->composerBudgetForTest()->text()
+                              .endsWith(QStringLiteral("bytes")),
+                          QStringLiteral("English byte budget must be localized"))) return 1;
+    }
 
     V2WindowsConversationDialog dialog(
         &directory, &messaging, &participants, nullptr, true);

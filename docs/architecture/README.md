@@ -1912,6 +1912,11 @@ the fail-closed default; only the bounded non-secret code is stored under
 foundation is exercised on the macOS development host, but no selector is shown
 until one complete surface can switch without mixed catalog-owned strings, and
 native Windows accessibility evidence remains required.
+The first presentation migration covers the static V2 conversation directory,
+accessible shell names, and composer controls. Runtime view-model diagnostics,
+search, participant picking, and timeline actions remain outside that slice, so
+the stored preference is still not product-composed and cannot create a mixed-
+language user path.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

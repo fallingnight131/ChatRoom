@@ -21,6 +21,7 @@ SOURCES += \
     ../Client/V2WindowsConversationParticipantViewModel.cpp \
     ../Client/V2WindowsMessageSearchViewModel.cpp \
     ../Client/V2WindowsMessagingViewModel.cpp \
+    ../Client/WindowsLocaleCatalog.cpp \
     ../Client/V2LocalMessageRepository.cpp
 
 HEADERS += \
@@ -31,4 +32,5 @@ HEADERS += \
     ../Client/V2WindowsConversationParticipantViewModel.h \
     ../Client/V2WindowsMessageSearchViewModel.h \
     ../Client/V2WindowsMessagingViewModel.h \
+    ../Client/WindowsLocaleCatalog.h \
     ../Client/V2LocalMessageRepository.h

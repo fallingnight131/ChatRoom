@@ -3175,6 +3175,11 @@ restart persistence through a fresh `QSettings` instance, and stable composer/
 byte-budget catalog copy. On macOS this is portability evidence only: no
 language selector is product-composed yet, and native Windows screen-reader or
 keyboard evidence is not claimed.
+`V2WindowsConversationDialogTest` additionally composes the detached English
+catalog through the directory shell and composer, including accessible action
+copy and the UTF-8 byte budget. Runtime status/failure copy, search,
+participants, and timeline actions remain Chinese and therefore the product
+language selector stays intentionally unavailable.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

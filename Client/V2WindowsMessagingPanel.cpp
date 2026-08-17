@@ -28,7 +28,8 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
         QWidget *parent, bool mentionsEnabled,
         V2WindowsConversationDirectoryViewModel *directoryViewModel,
         bool forwardingEnabled,
-        V2WindowsMessageSearchViewModel *searchViewModel)
+        V2WindowsMessageSearchViewModel *searchViewModel,
+        WindowsLocale locale)
     : QWidget(parent), m_viewModel(viewModel),
       m_participantViewModel(participantViewModel),
       m_directoryViewModel(directoryViewModel), m_searchViewModel(searchViewModel),
@@ -46,17 +47,19 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
       m_refreshParticipants(new QPushButton(QStringLiteral("刷新成员"), m_participantPane)),
       m_loadMoreParticipants(new QPushButton(QStringLiteral("加载更多"), m_participantPane)),
       m_closeParticipants(new QPushButton(QStringLiteral("关闭"), m_participantPane)),
-      m_cancelReply(new QPushButton(QStringLiteral("取消回复"), this)),
-      m_mention(new QPushButton(QStringLiteral("@ 提及"), this)),
-      m_send(new QPushButton(QStringLiteral("发送消息"), this)),
+      m_cancelReply(new QPushButton(WindowsLocaleCatalog::messages(locale).cancelReply, this)),
+      m_mention(new QPushButton(WindowsLocaleCatalog::messages(locale).mention, this)),
+      m_send(new QPushButton(WindowsLocaleCatalog::messages(locale).sendMessage, this)),
       m_composerBudget(new QLabel(this)),
       m_draftSaveTimer(new QTimer(this)),
       m_mentionsEnabled(mentionsEnabled),
-      m_forwardingEnabled(forwardingEnabled && directoryViewModel) {
+      m_forwardingEnabled(forwardingEnabled && directoryViewModel),
+      m_locale(locale) {
     Q_ASSERT(m_viewModel);
     Q_ASSERT(m_participantViewModel);
-    setAccessibleName(QStringLiteral("消息和回复"));
-    m_status->setAccessibleName(QStringLiteral("消息状态"));
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    setAccessibleName(copy.messagePanel);
+    m_status->setAccessibleName(copy.messageStatusAccessible);
     m_status->setWordWrap(true);
     m_searchPane->setAccessibleName(QStringLiteral("会话消息搜索"));
     m_searchInput->setAccessibleName(QStringLiteral("搜索当前会话消息"));
@@ -79,10 +82,10 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     m_searchPane->setVisible(m_searchViewModel != nullptr);
     m_replyBanner->setAccessibleName(QStringLiteral("当前回复目标"));
     m_replyBanner->setWordWrap(true);
-    m_messages->setAccessibleName(QStringLiteral("消息列表"));
+    m_messages->setAccessibleName(copy.messageList);
     m_messages->setSelectionMode(QAbstractItemView::NoSelection);
-    m_composer->setAccessibleName(QStringLiteral("消息内容"));
-    m_composer->setPlaceholderText(QStringLiteral("输入消息"));
+    m_composer->setAccessibleName(copy.composer);
+    m_composer->setPlaceholderText(copy.composerPlaceholder);
     m_composer->setMaximumBlockCount(1000);
     m_composer->installEventFilter(this);
     m_participantPane->setAccessibleName(QStringLiteral("会话成员选择器"));
@@ -93,13 +96,13 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     m_refreshParticipants->setAccessibleName(QStringLiteral("刷新可提及成员"));
     m_loadMoreParticipants->setAccessibleName(QStringLiteral("加载更多可提及成员"));
     m_closeParticipants->setAccessibleName(QStringLiteral("关闭成员选择器"));
-    m_mention->setAccessibleName(QStringLiteral("打开会话成员选择器"));
+    m_mention->setAccessibleName(copy.mentionAccessible);
     m_mention->setVisible(m_mentionsEnabled);
-    m_cancelReply->setAccessibleName(QStringLiteral("取消当前回复"));
+    m_cancelReply->setAccessibleName(copy.cancelReplyAccessible);
     m_cancelReply->setToolTip(QStringLiteral("Esc"));
-    m_send->setAccessibleName(QStringLiteral("发送当前消息"));
+    m_send->setAccessibleName(copy.sendMessageAccessible);
     m_send->setToolTip(QStringLiteral("Ctrl+Enter"));
-    m_composerBudget->setAccessibleName(QStringLiteral("消息字节数"));
+    m_composerBudget->setAccessibleName(copy.composerBudgetAccessible);
     m_composerBudget->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     m_draftSaveTimer->setSingleShot(true);
     m_draftSaveTimer->setInterval(400);
@@ -404,19 +407,19 @@ void V2WindowsMessagingPanel::render() {
     const bool editing = !m_editTargetMessageId.isEmpty();
     const bool replying = !m_viewModel->replyTargetMessageId().isEmpty();
     const bool composing = replying || editing;
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     m_replyBanner->setText(editing
-        ? QStringLiteral("正在编辑消息") : m_viewModel->replyBanner());
+        ? copy.editingMessage : m_viewModel->replyBanner());
     m_replyBanner->setVisible(composing);
-    m_cancelReply->setText(editing ? QStringLiteral("取消编辑") : QStringLiteral("取消回复"));
+    m_cancelReply->setText(editing ? copy.cancelEdit : copy.cancelReply);
     m_cancelReply->setAccessibleName(editing
-        ? QStringLiteral("取消当前编辑") : QStringLiteral("取消当前回复"));
+        ? copy.cancelEditAccessible : copy.cancelReplyAccessible);
     m_cancelReply->setVisible(composing);
-    m_send->setText(editing ? QStringLiteral("保存编辑")
-        : replying ? QStringLiteral("发送回复") : QStringLiteral("发送消息"));
+    m_send->setText(editing ? copy.saveEdit
+        : replying ? copy.sendReply : copy.sendMessage);
     m_send->setAccessibleName(editing
-        ? QStringLiteral("保存当前消息编辑")
-        : replying ? QStringLiteral("发送当前回复")
-                   : QStringLiteral("发送当前消息"));
+        ? copy.saveEditAccessible
+        : replying ? copy.sendReplyAccessible : copy.sendMessageAccessible);
     m_mention->setEnabled(
         m_mentionsEnabled && !m_conversationId.isEmpty());
     m_send->setEnabled(!m_conversationId.isEmpty()
@@ -638,10 +641,10 @@ void V2WindowsMessagingPanel::reconcileComposer() {
     m_previousComposerText = next;
     const qsizetype bytes = next.toUtf8().size();
     const bool withinBudget = bytes <= V2LocalMessageRepository::MaxTextBytes;
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
     m_composerBudget->setText(withinBudget
-        ? QStringLiteral("%1 / %2 字节").arg(bytes).arg(
-            V2LocalMessageRepository::MaxTextBytes)
-        : QStringLiteral("超过上限 %1 字节（最多 %2 字节）")
+        ? copy.bytesUsed.arg(bytes).arg(V2LocalMessageRepository::MaxTextBytes)
+        : copy.bytesOverLimit
             .arg(bytes - V2LocalMessageRepository::MaxTextBytes)
             .arg(V2LocalMessageRepository::MaxTextBytes));
     m_send->setEnabled(!m_conversationId.isEmpty()

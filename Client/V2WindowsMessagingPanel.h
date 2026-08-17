@@ -1,6 +1,7 @@
 #pragma once
 
 #include "V2WindowsMentionComposer.h"
+#include "WindowsLocaleCatalog.h"
 
 #include <QWidget>
 
@@ -26,7 +27,8 @@ public:
         QWidget *parent = nullptr, bool mentionsEnabled = false,
         V2WindowsConversationDirectoryViewModel *directoryViewModel = nullptr,
         bool forwardingEnabled = false,
-        V2WindowsMessageSearchViewModel *searchViewModel = nullptr);
+        V2WindowsMessageSearchViewModel *searchViewModel = nullptr,
+        WindowsLocale locale = WindowsLocale::ZhCn);
     ~V2WindowsMessagingPanel() override;
     void setConversation(const QString &conversationId);
     QPlainTextEdit *composerForTest() const { return m_composer; }
@@ -96,4 +98,5 @@ private:
     bool m_updatingComposer = false;
     bool m_mentionsEnabled = false;
     bool m_forwardingEnabled = false;
+    WindowsLocale m_locale;
 };

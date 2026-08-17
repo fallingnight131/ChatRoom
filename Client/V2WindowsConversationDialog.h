@@ -1,5 +1,7 @@
 #pragma once
 
+#include "WindowsLocaleCatalog.h"
+
 #include <QDialog>
 
 class QLabel;
@@ -23,7 +25,8 @@ public:
         QWidget *parent = nullptr, bool mentionsEnabled = false,
         bool forwardingEnabled = false,
         V2WindowsMessageSearchViewModel *searchViewModel = nullptr,
-        V2WindowsAccountBlockViewModel *accountBlockViewModel = nullptr);
+        V2WindowsAccountBlockViewModel *accountBlockViewModel = nullptr,
+        WindowsLocale locale = WindowsLocale::ZhCn);
 
     QListWidget *conversationListForTest() const { return m_conversations; }
     QPushButton *refreshForTest() const { return m_refresh; }
@@ -49,4 +52,5 @@ private:
     V2WindowsMessagingPanel *m_messagingPanel;
     QString m_selectedConversationId;
     bool m_selectedConversationDirect = false;
+    WindowsLocale m_locale;
 };

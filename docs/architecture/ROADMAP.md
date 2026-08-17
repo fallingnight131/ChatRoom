@@ -2758,8 +2758,11 @@ Candidate slices:
       non-secret `ui/locale` preference with invalid-value fallback and restart
       evidence; keep UI composition closed until a complete surface migrates
       (ADR-0412).
-    - [ ] Migrate the complete Windows V2 conversation shell and composer to
-      the locale boundary before exposing a persisted language selector.
+    - [x] Migrate the static Windows V2 conversation shell, accessible names,
+      composer actions, and exact UTF-8 byte budget to the locale boundary,
+      with detached English composition evidence (ADR-0412).
+    - [ ] Migrate runtime status/failure copy, search, participants, and message
+      timeline actions before exposing a persisted language selector.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

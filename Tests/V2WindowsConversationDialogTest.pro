@@ -24,6 +24,7 @@ SOURCES += \
     ../Client/V2WindowsForwardTargetDialog.cpp \
     ../Client/V2WindowsMentionComposer.cpp \
     ../Client/V2WindowsMessagingViewModel.cpp \
+    ../Client/WindowsLocaleCatalog.cpp \
     ../Client/V2LocalMessageRepository.cpp
 
 HEADERS += \
@@ -37,4 +38,5 @@ HEADERS += \
     ../Client/V2WindowsForwardTargetDialog.h \
     ../Client/V2WindowsMentionComposer.h \
     ../Client/V2WindowsMessagingViewModel.h \
+    ../Client/WindowsLocaleCatalog.h \
     ../Client/V2LocalMessageRepository.h
