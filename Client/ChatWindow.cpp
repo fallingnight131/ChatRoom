@@ -623,7 +623,7 @@ void ChatWindow::setupUi() {
     // 安装事件过滤器以拦截滚轮事件
     m_messageView->viewport()->installEventFilter(this);
 
-    m_delegate = new MessageDelegate(this);
+    m_delegate = new MessageDelegate(m_windowsLocaleViewModel, m_messageView);
     m_messageView->setItemDelegate(m_delegate);
     centerLayout->addWidget(m_messageView, 1);
 
@@ -1112,7 +1112,10 @@ void ChatWindow::connectSignals() {
         // 以下操作需要有效 fileId（正数=房间文件，负数=好友文件）
         if (fileId == 0) return;
         if (fileCleared && !cached) {
-            QMessageBox::information(this, "提示", "文件已过期或被清除，无法下载");
+            const auto &copy = WindowsLocaleCatalog::messages(
+                m_windowsLocaleViewModel->locale());
+            QMessageBox::information(this, copy.mainAttachmentUnavailableTitle,
+                                     copy.mainAttachmentCannotDownload);
             return;
         }
 
@@ -1166,7 +1169,10 @@ void ChatWindow::connectSignals() {
         bool fileCleared = idx.data(MessageModel::FileClearedRole).toBool();
         bool cached = FileCache::instance()->isCached(fileId);
         if (fileCleared && !cached) {
-            QMessageBox::information(this, "提示", "文件已过期或被清除，无法打开");
+            const auto &copy = WindowsLocaleCatalog::messages(
+                m_windowsLocaleViewModel->locale());
+            QMessageBox::information(this, copy.mainAttachmentUnavailableTitle,
+                                     copy.mainAttachmentCannotOpen);
             return;
         }
         if (cached) {
@@ -2818,8 +2824,11 @@ void ChatWindow::triggerFileDownload(int fileId, const QString &fileName, qint64
             QModelIndex idx = it.value()->index(row, 0);
             if (idx.data(MessageModel::FileClearedRole).toBool()
                 && !FileCache::instance()->isCached(fileId)) {
-                m_statusLabel->setText("文件已过期或被清除，无法下载");
-                QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("文件已过期或被清除，无法下载"));
+                const auto &copy = WindowsLocaleCatalog::messages(
+                    m_windowsLocaleViewModel->locale());
+                m_statusLabel->setText(copy.mainAttachmentCannotDownload);
+                QMessageBox::information(this, copy.mainAttachmentUnavailableTitle,
+                                         copy.mainAttachmentCannotDownload);
                 return;
             }
             break;
@@ -3567,8 +3576,10 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                 if (msg.contentType() == Message::File || msg.contentType() == Message::Image || msg.contentType() == Message::Video) {
                     const int fileId = msg.fileId();
                     if (fileId == 0 || msg.fileCleared()) {
-                        QMessageBox::warning(this, QStringLiteral("转发失败"),
-                                             QStringLiteral("文件已过期或缺少服务端标识，无法转发"));
+                        const auto &copy = WindowsLocaleCatalog::messages(
+                            m_windowsLocaleViewModel->locale());
+                        QMessageBox::warning(this, copy.mainAttachmentForwardFailedTitle,
+                                             copy.mainAttachmentCannotForward);
                         return;
                     }
                     if (targetRooms.size() + targetFriends.size() > Protocol::MAX_FILE_FORWARD_TARGETS) {
@@ -4108,7 +4119,7 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
             QList<int> ids;
             for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
             for (auto it = m_models.begin(); it != m_models.end(); ++it) {
-                it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+                it.value()->markFilesCleared(ids, QString());
                 persistRoomSnapshot(it.key());
             }
         }
@@ -4177,7 +4188,7 @@ void ChatWindow::onRoomSettingsNotify(int roomId, qint64 maxFileSize,
         QList<int> ids;
         for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
         for (auto it = m_models.begin(); it != m_models.end(); ++it) {
-            it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+            it.value()->markFilesCleared(ids, QString());
             persistRoomSnapshot(it.key());
         }
     }
@@ -4237,8 +4248,7 @@ void ChatWindow::onRoomFilesDeleteResponse(bool success, int roomId, int deleted
     for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
     if (!ids.isEmpty()) {
         for (auto it = m_models.begin(); it != m_models.end(); ++it) {
-            it.value()->markFilesCleared(ids, WindowsLocaleCatalog::messages(
-                m_windowsLocaleViewModel->locale()).roomFileClearedUnavailable);
+            it.value()->markFilesCleared(ids, QString());
             persistRoomSnapshot(it.key());
         }
     }
@@ -4263,7 +4273,7 @@ void ChatWindow::onRoomFilesNotify(int roomId, const QJsonArray &clearedFileIds,
     for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
     if (!ids.isEmpty()) {
         for (auto it = m_models.begin(); it != m_models.end(); ++it) {
-            it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+            it.value()->markFilesCleared(ids, QString());
             persistRoomSnapshot(it.key());
         }
     }

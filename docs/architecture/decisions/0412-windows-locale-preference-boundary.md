@@ -144,6 +144,12 @@ message storage, server behavior, or the supported Web/Windows product scope.
   friendship identity, online state and unread counts remain item data; locale
   changes update existing controls and friend rows without rebuilding lists.
   Default avatars derive from identity display data, never localized suffixes.
+- Treat `fileCleared` as the locale-independent unavailable-attachment state.
+  Local room-cleanup events store an empty reason and the delegate projects the
+  active catalog on every repaint. A non-empty bounded server history reason is
+  safe opaque detail and must be shown unchanged. Do not rewrite existing cache
+  rows or change the compatible V1 `clearReason` field for this presentation
+  correction; Web follows the same state-versus-copy boundary independently.
 
 ## Consequences
 
@@ -260,3 +266,7 @@ database migration or protocol compatibility window is required.
 - profile-avatar selection, local decode/size feedback and upload result use the
   active catalog while crop behavior, PNG/256 KB V1 payload, opaque server error
   and confirmed-success self-avatar refresh remain unchanged.
+- attachment tests prove a fresh local clear stores only `fileCleared`, a
+  bounded server reason survives repeat notification, Web snapshots contain no
+  locale fallback, and the Windows delegate resolves empty reasons from the
+  live catalog without embedding Chinese copy.

@@ -2900,6 +2900,9 @@ Candidate slices:
     - [x] Localize the Windows profile-avatar selection, decode/size validation
       and upload result flow while retaining crop behavior, the 256 KB PNG
       boundary, V1 request shape and forced self-avatar refresh after success.
+    - [x] Keep cleared-attachment state language-neutral across Web and Windows
+      caches, project empty local reasons from each live locale catalog, and
+      preserve non-empty bounded server history reasons as opaque detail.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

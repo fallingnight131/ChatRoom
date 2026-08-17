@@ -18,6 +18,12 @@ def main() -> int:
     main_source = (ROOT / "Client/main.cpp").read_text(encoding="utf-8")
     login = (ROOT / "Client/LoginDialog.cpp").read_text(encoding="utf-8")
     window = (ROOT / "Client/ChatWindow.cpp").read_text(encoding="utf-8")
+    message_delegate = (ROOT / "Client/MessageDelegate.cpp").read_text(
+        encoding="utf-8"
+    )
+    attachment_presentation = (
+        ROOT / "Client/WindowsAttachmentPresentation.cpp"
+    ).read_text(encoding="utf-8")
     controller = (ROOT / "Client/WindowsDeviceManagementController.cpp").read_text(
         encoding="utf-8"
     )
@@ -228,6 +234,10 @@ def main() -> int:
         "copy.mainRoomKickedByAdministrator.arg(operatorName, roomName)",
         "copy.profileNicknameChangedStatus.arg(m_displayName)",
         "copy.profileNicknameChangeFailed : error",
+        "new MessageDelegate(m_windowsLocaleViewModel, m_messageView)",
+        "copy.mainAttachmentCannotDownload",
+        "copy.mainAttachmentCannotOpen",
+        "copy.mainAttachmentCannotForward",
         "copy.profileLocalCacheMigrationFailed",
         "copy.profileUserIdChangedStatus.arg(newUid)",
         "copy.profileUserIdChangedDetail.arg(oldUid, newUid)",
@@ -241,6 +251,25 @@ def main() -> int:
         "copy.profileAvatarUploadSucceededStatus",
         "copy.profileAvatarUploadFailed : error",
     ), "Client/ChatWindow.cpp")
+    require(message_delegate, (
+        "WindowsAttachmentPresentation::unavailableText(",
+        "MessageModel::ClearReasonRole",
+        "WindowsLocaleViewModel::changed",
+        "view->viewport()->update()",
+    ), "Client/MessageDelegate.cpp")
+    if "文件已过期或被清除" in message_delegate:
+        raise AssertionError(
+            "MessageDelegate must project unavailable attachment copy from the locale catalog"
+        )
+    require(attachment_presentation, (
+        "!safeServerReason.trimmed().isEmpty()",
+        "return safeServerReason",
+        "roomFileClearedUnavailable",
+    ), "Client/WindowsAttachmentPresentation.cpp")
+    if "markFilesCleared(ids, QStringLiteral" in window:
+        raise AssertionError(
+            "local file-clearing events must not persist locale-specific copy"
+        )
     composer_surface = window[
         window.index("// 工具栏"):
         window.index("// --- 右侧：用户列表 ---")

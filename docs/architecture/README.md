@@ -2143,6 +2143,16 @@ decode/size failures and upload response from the same catalog. It still crops
 through `AvatarCropDialog`, emits PNG only below the existing 256 KB V1 limit,
 keeps server failure detail opaque, and forces a fresh self-avatar read only
 after confirmed upload success.
+Cleared attachments now use the existing `fileCleared` bit as the stable local
+state on both products. Room-settings and file-manager events no longer write
+Chinese or English fallback text into Web IndexedDB or Windows SQLite snapshots.
+When `clearReason` is empty, each client projects its live catalog at render or
+action time; a non-empty bounded reason returned by server history remains
+opaque and is displayed unchanged. Existing cached non-empty reasons are not
+rewritten, so this is an additive presentation correction with no V1 envelope
+or local-database migration. Cached bytes remain locally openable, while the
+server remains authoritative for whether unavailable bytes may be downloaded or
+forwarded.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

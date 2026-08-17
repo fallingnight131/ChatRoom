@@ -3757,6 +3757,16 @@ The native Windows artifact gate also requires `windeployqt` to include
 `sqldrivers/qsqlite.dll`; compiling `QtSql` without its runtime driver is not
 accepted as local-repository delivery evidence.
 
+The Windows locale Core test and `MessageModelTest` also lock the cleared-file
+presentation boundary: a local cleanup stores `fileCleared` with an empty
+fallback reason, a bounded server history reason remains opaque, and Chinese or
+English copy is selected only at presentation time. The Windows source gate
+requires the live locale ViewModel in the message delegate and rejects embedded
+cleared-file Chinese copy. Web source tests enforce the same cache rule and map
+its stable `ATTACHMENT_UNAVAILABLE` error through the live Web catalog. A macOS
+Qt build is portability evidence only; native Windows rendering and interaction
+remain product-gate evidence.
+
 An eleventh V1 suite verifies server-side room/friend file forwarding, copied-byte
 integrity, notifications without inline bytes, source authorization, target
 authorization, partial-result accounting, and durable live sequence metadata.

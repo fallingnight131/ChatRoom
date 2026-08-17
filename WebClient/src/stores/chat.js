@@ -23,6 +23,16 @@ function newClientMessageId() {
   return `attachment-${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
+function markMessagesCleared(messages, fileIds) {
+  const idSet = new Set(fileIds)
+  messages.forEach(message => {
+    if (!idSet.has(message.fileId)) return
+    const wasCleared = message.fileCleared === true
+    message.fileCleared = true
+    if (!wasCleared) message.clearReason = ''
+  })
+}
+
 export const useChatStore = defineStore('chat', {
   state: () => ({
     rooms: [],              // [{ roomId, roomName, creatorId, unread }]
@@ -1270,13 +1280,7 @@ export const useChatStore = defineStore('chat', {
             maxMembers: d.maxMembers,
           }
           if (Array.isArray(d.clearedFileIds) && d.clearedFileIds.length > 0) {
-            const idSet = new Set(d.clearedFileIds)
-            this.messages.forEach(m => {
-              if (idSet.has(m.fileId)) {
-                m.fileCleared = true
-                m.clearReason = '文件已过期或被清除'
-              }
-            })
+            markMessagesCleared(this.messages, d.clearedFileIds)
             this._persistCurrentRoomSnapshot(d.roomId)
           }
           this._emit('roomSettingsSaved', d)
@@ -1297,13 +1301,7 @@ export const useChatStore = defineStore('chat', {
           maxMembers: d.maxMembers,
         }
         if (Array.isArray(d.clearedFileIds) && d.clearedFileIds.length > 0) {
-          const idSet = new Set(d.clearedFileIds)
-          this.messages.forEach(m => {
-            if (idSet.has(m.fileId)) {
-              m.fileCleared = true
-              m.clearReason = '文件已过期或被清除'
-            }
-          })
+          markMessagesCleared(this.messages, d.clearedFileIds)
           this._persistCurrentRoomSnapshot(d.roomId)
         }
       })
@@ -1670,7 +1668,9 @@ export const useChatStore = defineStore('chat', {
 
       const isFileMessage = msg.contentType === 'file' || msg.contentType === 'image' || msg.contentType === 'video'
       if (isFileMessage && msg.fileCleared) {
-        throw new Error('文件已过期或被清除，Web 端禁止转发')
+        const error = new Error('ATTACHMENT_UNAVAILABLE')
+        error.code = 'ATTACHMENT_UNAVAILABLE'
+        throw error
       }
 
       if (!isFileMessage) {

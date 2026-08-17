@@ -62,7 +62,7 @@
                       @click="openPreview(msg)">
                 <div class="expired-icon">📷</div>
                 <div class="expired-name text-ellipsis">{{ msg.fileName || attachmentMessages.image }}</div>
-                <div class="expired-text">{{ attachmentMessages.expired }}</div>
+                <div class="expired-text">{{ attachmentUnavailableText(msg) }}</div>
               </button>
               <button v-else-if="msg.imageData" type="button" class="msg-image-button"
                       :aria-label="`${attachmentMessages.previewImagePrefix}${msg.fileName || attachmentMessages.chatImage}`"
@@ -91,7 +91,7 @@
                       @click="openPreview(msg)">
                 <div class="expired-icon">🎬</div>
                 <div class="expired-name text-ellipsis">{{ msg.fileName || attachmentMessages.video }}</div>
-                <div class="expired-text">{{ attachmentMessages.expired }}</div>
+                <div class="expired-text">{{ attachmentUnavailableText(msg) }}</div>
               </button>
               <button v-else type="button" class="msg-video-card"
                       :aria-label="`${attachmentMessages.previewVideoPrefix}${msg.fileName || attachmentMessages.video}`"
@@ -117,7 +117,7 @@
                 <div class="file-icon">{{ getFileIcon(msg.fileName) }}</div>
                 <div class="file-info">
                   <div class="file-name text-ellipsis">{{ msg.fileName }}</div>
-                  <div class="file-size">{{ msg.fileCleared ? attachmentMessages.expired : formatSize(msg.fileSize) }}</div>
+                  <div class="file-size">{{ msg.fileCleared ? attachmentUnavailableText(msg) : formatSize(msg.fileSize) }}</div>
                 </div>
               </button>
             </template>
@@ -390,6 +390,11 @@ function formatSize(size) {
   return (size / (1024*1024*1024)).toFixed(2) + ' GB'
 }
 
+function attachmentUnavailableText(msg) {
+  const safeReason = typeof msg?.clearReason === 'string' ? msg.clearReason : ''
+  return safeReason.trim() ? safeReason : attachmentMessages.value.expired
+}
+
 const VIDEO_EXTS = /\.(mp4|webm|ogg|mov|avi|mkv|m4v|flv|3gp)$/i
 const AUDIO_EXTS = /\.(mp3|wav|ogg|flac|aac|m4a|wma)$/i
 const PDF_EXTS = /\.pdf$/i
@@ -513,7 +518,9 @@ async function confirmForward(targets) {
     alert(`${actionMessages.value.forwardSubmittedPrefix}${targets.length}${actionMessages.value.forwardSubmittedSuffix}`)
     closeForwardDialog()
   } catch (err) {
-    alert(err?.message || actionMessages.value.forwardFailed)
+    alert(err?.code === 'ATTACHMENT_UNAVAILABLE'
+      ? attachmentMessages.value.cannotForward
+      : (err?.message || actionMessages.value.forwardFailed))
   } finally {
     forwardSubmitting.value = false
   }

@@ -612,6 +612,11 @@ struct WindowsLocaleMessages {
     QString mainRoomKickFailed;
     QString mainRoomKickedTitle;
     QString mainRoomKickedByAdministrator;
+    QString mainAttachmentUnavailableTitle;
+    QString mainAttachmentCannotDownload;
+    QString mainAttachmentCannotOpen;
+    QString mainAttachmentForwardFailedTitle;
+    QString mainAttachmentCannotForward;
 };
 
 class WindowsLocaleCatalog final {

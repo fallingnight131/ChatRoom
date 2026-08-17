@@ -3,12 +3,15 @@
 #include <QStyledItemDelegate>
 #include <QPixmap>
 
+class WindowsLocaleViewModel;
+
 /// 消息气泡委托绘制 —— 自定义 QStyledItemDelegate
 /// 支持：文本气泡、系统消息、文件消息、图片消息、已撤回消息
 class MessageDelegate : public QStyledItemDelegate {
     Q_OBJECT
 public:
-    explicit MessageDelegate(QObject *parent = nullptr);
+    explicit MessageDelegate(WindowsLocaleViewModel *localeViewModel,
+                             QObject *parent = nullptr);
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option,
                const QModelIndex &index) const override;
@@ -60,6 +63,7 @@ private:
     QColor m_senderColor;
     QColor m_timeColor;
     QColor m_fileBgColor;
+    WindowsLocaleViewModel *m_localeViewModel;
 
     int m_bubbleRadius   = 12;
     int m_avatarSize     = 36;

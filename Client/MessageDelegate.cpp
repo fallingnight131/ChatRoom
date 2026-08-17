@@ -4,6 +4,8 @@
 #include "FileCache.h"
 #include "ChatWindow.h"
 #include "ThemeManager.h"
+#include "WindowsAttachmentPresentation.h"
+#include "WindowsLocaleViewModel.h"
 
 #include <QPainter>
 #include <QPainterPath>
@@ -14,10 +16,13 @@
 #include <QPixmapCache>
 #include <QFileInfo>
 #include <QFile>
+#include <QAbstractItemView>
 
-MessageDelegate::MessageDelegate(QObject *parent)
-    : QStyledItemDelegate(parent)
+MessageDelegate::MessageDelegate(WindowsLocaleViewModel *localeViewModel,
+                                 QObject *parent)
+    : QStyledItemDelegate(parent), m_localeViewModel(localeViewModel)
 {
+    Q_ASSERT(m_localeViewModel);
     // 根据当前主题初始化颜色
     updateThemeColors(ThemeManager::instance()->currentTheme() == ThemeManager::Dark);
 
@@ -25,6 +30,17 @@ MessageDelegate::MessageDelegate(QObject *parent)
     connect(ThemeManager::instance(), &ThemeManager::themeChanged, this, [this](ThemeManager::Theme t) {
         updateThemeColors(t == ThemeManager::Dark);
     });
+    connect(m_localeViewModel, &WindowsLocaleViewModel::changed, this, [this] {
+        if (auto *view = qobject_cast<QAbstractItemView *>(this->parent()))
+            view->viewport()->update();
+    });
+}
+
+static QString unavailableFileText(const QModelIndex &index,
+                                   WindowsLocaleViewModel *localeViewModel) {
+    return WindowsAttachmentPresentation::unavailableText(
+        localeViewModel->locale(),
+        index.data(MessageModel::ClearReasonRole).toString());
 }
 
 void MessageDelegate::updateThemeColors(bool isDark) {
@@ -605,7 +621,7 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     painter->setPen(m_timeColor);
     QString statusStr = sizeStr;
     if (fileCleared && !cached) {
-        statusStr = QStringLiteral("文件已过期或被清除");
+        statusStr = unavailableFileText(index, m_localeViewModel);
         painter->setPen(QColor(150, 150, 150));
     } else if (dlState == Message::Downloading) {
         statusStr += QString("  下载中 %1%").arg(static_cast<int>(dlProgress * 100));
@@ -762,7 +778,8 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
         txtFont.setPointSize(txtFont.pointSize() - 1);
         txtFont.setBold(true);
         painter->setFont(txtFont);
-        painter->drawText(thumbRect.adjusted(0, 42, 0, 0), Qt::AlignCenter, QStringLiteral("文件已过期或被清除"));
+        painter->drawText(thumbRect.adjusted(0, 42, 0, 0), Qt::AlignCenter,
+                          unavailableFileText(index, m_localeViewModel));
     } else {
         // 无缩略图 → 渐变占位 + 胶片装饰
         QLinearGradient grad(thumbRect.topLeft(), thumbRect.bottomRight());
@@ -985,7 +1002,8 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
         txtFont.setPointSize(txtFont.pointSize() - 1);
         txtFont.setBold(true);
         painter->setFont(txtFont);
-        painter->drawText(imgRect.adjusted(0, 42, 0, 0), Qt::AlignCenter, QStringLiteral("文件已过期或被清除"));
+        painter->drawText(imgRect.adjusted(0, 42, 0, 0), Qt::AlignCenter,
+                          unavailableFileText(index, m_localeViewModel));
     } else {
         // 占位背景
         painter->setPen(Qt::NoPen);

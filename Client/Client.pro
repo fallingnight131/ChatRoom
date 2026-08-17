@@ -86,6 +86,7 @@ SOURCES += \
     WindowsBandwidthPreferenceRepository.cpp \
     WindowsBandwidthViewModel.cpp \
     WindowsConnectionStatusViewModel.cpp \
+    WindowsAttachmentPresentation.cpp \
     WindowsLocaleCatalog.cpp \
     WindowsLocalePreferenceRepository.cpp \
     WindowsLocaleViewModel.cpp
@@ -142,6 +143,7 @@ HEADERS += \
     WindowsBandwidthPreferenceRepository.h \
     WindowsBandwidthViewModel.h \
     WindowsConnectionStatusViewModel.h \
+    WindowsAttachmentPresentation.h \
     WindowsLocaleCatalog.h \
     WindowsLocalePreferenceRepository.h \
     WindowsLocaleViewModel.h

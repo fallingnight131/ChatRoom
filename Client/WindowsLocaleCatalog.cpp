@@ -624,6 +624,14 @@ WindowsLocaleMessages createZhCn() {
     m.mainRoomKickedTitle = QStringLiteral("已被移出聊天室");
     m.mainRoomKickedByAdministrator = QStringLiteral(
         "你已被管理员 %1 移出聊天室“%2”");
+    m.mainAttachmentUnavailableTitle = QStringLiteral("文件不可用");
+    m.mainAttachmentCannotDownload = QStringLiteral(
+        "文件已过期或被清除，无法下载");
+    m.mainAttachmentCannotOpen = QStringLiteral(
+        "文件已过期或被清除，无法打开");
+    m.mainAttachmentForwardFailedTitle = QStringLiteral("转发失败");
+    m.mainAttachmentCannotForward = QStringLiteral(
+        "文件已过期或缺少服务端标识，无法转发");
     return m;
 }
 
@@ -1270,6 +1278,14 @@ WindowsLocaleMessages createEnUs() {
     m.mainRoomKickedTitle = QStringLiteral("Removed from room");
     m.mainRoomKickedByAdministrator = QStringLiteral(
         "Administrator %1 removed you from room \"%2\"");
+    m.mainAttachmentUnavailableTitle = QStringLiteral("File unavailable");
+    m.mainAttachmentCannotDownload = QStringLiteral(
+        "This file expired or was removed and cannot be downloaded.");
+    m.mainAttachmentCannotOpen = QStringLiteral(
+        "This file expired or was removed and cannot be opened.");
+    m.mainAttachmentForwardFailedTitle = QStringLiteral("Forwarding failed");
+    m.mainAttachmentCannotForward = QStringLiteral(
+        "This file expired or has no server identifier and cannot be forwarded.");
     return m;
 }
 

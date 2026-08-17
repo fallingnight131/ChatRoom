@@ -1,4 +1,5 @@
 #include "WindowsLocaleCatalog.h"
+#include "WindowsAttachmentPresentation.h"
 #include "WindowsLocalePreferenceRepository.h"
 #include "WindowsLocaleViewModel.h"
 
@@ -254,7 +255,16 @@ int main(int argc, char **argv) {
                     != QStringLiteral("Removed %1 from the room")
                 || english.mainRoomKickedByAdministrator
                     != QStringLiteral(
-                        "Administrator %1 removed you from room \"%2\"")) {
+                        "Administrator %1 removed you from room \"%2\"")
+                || english.mainAttachmentCannotDownload
+                    != QStringLiteral(
+                        "This file expired or was removed and cannot be downloaded.")
+                || WindowsAttachmentPresentation::unavailableText(
+                       WindowsLocale::EnUs, QString())
+                    != QStringLiteral("File expired or was cleared")
+                || WindowsAttachmentPresentation::unavailableText(
+                       WindowsLocale::EnUs, QStringLiteral("retention-policy"))
+                    != QStringLiteral("retention-policy")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -316,6 +326,11 @@ int main(int argc, char **argv) {
                     != QStringLiteral("聊天室名称修改成功")
                 || chinese.mainRoomKickSucceeded
                     != QStringLiteral("已将 %1 移出聊天室")
+                || chinese.mainAttachmentCannotOpen
+                    != QStringLiteral("文件已过期或被清除，无法打开")
+                || WindowsAttachmentPresentation::unavailableText(
+                       WindowsLocale::ZhCn, QString())
+                    != QStringLiteral("文件已过期或被清除")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

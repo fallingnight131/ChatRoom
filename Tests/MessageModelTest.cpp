@@ -196,6 +196,26 @@ int main(int argc, char *argv[]) {
     readModel.addMessage(replayAccepted);
     passed = passed
         && readModel.messageAt(0).deliveryState() == Message::Read;
+
+    MessageModel clearedFileModel;
+    Message clearedFile = Message::createFileMessage(
+        1, QStringLiteral("alice"), QStringLiteral("evidence.pdf"), 512, 44);
+    clearedFileModel.addMessage(clearedFile);
+    clearedFileModel.markFilesCleared({44}, QString());
+    passed = passed
+        && clearedFileModel.messageAt(0).fileCleared()
+        && clearedFileModel.messageAt(0).clearReason().isEmpty();
+
+    Message serverReasonFile = Message::createFileMessage(
+        1, QStringLiteral("bob"), QStringLiteral("archive.zip"), 1024, 45);
+    serverReasonFile.setFileCleared(true);
+    serverReasonFile.setClearReason(QStringLiteral("retention-policy"));
+    clearedFileModel.addMessage(serverReasonFile);
+    clearedFileModel.markFilesCleared({45}, QString());
+    passed = passed
+        && clearedFileModel.messageAt(1).fileCleared()
+        && clearedFileModel.messageAt(1).clearReason()
+            == QStringLiteral("retention-policy");
     if (!passed) qCritical() << "Message model reconciliation verification failed";
     return passed ? 0 : 1;
 }
