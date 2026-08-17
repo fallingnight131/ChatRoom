@@ -269,7 +269,7 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
             m_pendingLoginUsername.clear();
             m_pendingLoginPassword.clear();
             if (m_socket) m_socket->disconnectFromHost();
-            emit forceOffline(QStringLiteral("会话恢复失败，请重新登录"));
+            emit forceOffline(QString());
             return;
         } else if (ok && restored) {
             m_restoringSession = false;

@@ -16,6 +16,7 @@ def require(text: str, markers: tuple[str, ...], source: str) -> None:
 def main() -> int:
     cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
     main_source = (ROOT / "Client/main.cpp").read_text(encoding="utf-8")
+    network = (ROOT / "Client/NetworkManager.cpp").read_text(encoding="utf-8")
     login = (ROOT / "Client/LoginDialog.cpp").read_text(encoding="utf-8")
     window = (ROOT / "Client/ChatWindow.cpp").read_text(encoding="utf-8")
     message_delegate = (ROOT / "Client/MessageDelegate.cpp").read_text(
@@ -120,10 +121,13 @@ def main() -> int:
         "showLoginDialog();",
         "QPointer<LoginDialog> activeLoginDialog",
         "if (activeLoginDialog)",
-        "copy.mainForcedOfflineTitle, reason",
+        "copy.mainForcedOfflineTitle",
+        "reason.isEmpty() ? copy.mainSessionRestoreFailed : reason",
     ), "Client/main.cpp")
     if "用户主动注销" in main_source or "用户主动注销" in window:
         raise AssertionError("local logout must not use localized text as control state")
+    if "会话恢复失败，请重新登录" in network:
+        raise AssertionError("transport must not own session-restore presentation copy")
     require(login, (
         "QByteArray LoginDialog::takePasswordUtf8()",
         "m_loginPass->clear()",

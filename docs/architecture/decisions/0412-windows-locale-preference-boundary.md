@@ -390,3 +390,7 @@ database migration or protocol compatibility window is required.
   join/leave timeline entries remain outside this slice because their free-form
   text may later enter a conversation snapshot; they require typed events with
   render-time localization rather than translated stored content.
+- local session-resume rejection no longer embeds presentation copy in
+  `NetworkManager`; an empty local reason is projected by the application shell
+  through the active catalog. Non-empty server termination reasons remain
+  opaque and the existing login restart path is unchanged.

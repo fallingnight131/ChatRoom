@@ -554,6 +554,7 @@ WindowsLocaleMessages createZhCn() {
     m.mainLogoutTitle = QStringLiteral("注销");
     m.mainLogoutConfirm = QStringLiteral("确定要注销当前账号吗？");
     m.mainForcedOfflineTitle = QStringLiteral("会话已结束");
+    m.mainSessionRestoreFailed = QStringLiteral("会话恢复失败，请重新登录");
     m.mainCreateRoomTitle = QStringLiteral("创建聊天室");
     m.mainCreateRoomPrompt = QStringLiteral("请输入聊天室名称：");
     m.mainCreateRoomAccessible = QStringLiteral("创建聊天室对话框");
@@ -1413,6 +1414,8 @@ WindowsLocaleMessages createEnUs() {
     m.mainLogoutTitle = QStringLiteral("Sign out");
     m.mainLogoutConfirm = QStringLiteral("Sign out of the current account?");
     m.mainForcedOfflineTitle = QStringLiteral("Session ended");
+    m.mainSessionRestoreFailed = QStringLiteral(
+        "The session could not be restored. Sign in again.");
     m.mainCreateRoomTitle = QStringLiteral("Create room");
     m.mainCreateRoomPrompt = QStringLiteral("Enter a room name:");
     m.mainCreateRoomAccessible = QStringLiteral("Create room dialog");

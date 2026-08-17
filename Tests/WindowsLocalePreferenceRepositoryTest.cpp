@@ -224,6 +224,9 @@ int main(int argc, char **argv) {
                     != QStringLiteral("Sign out of the current account?")
                 || english.mainForcedOfflineTitle
                     != QStringLiteral("Session ended")
+                || english.mainSessionRestoreFailed
+                    != QStringLiteral(
+                        "The session could not be restored. Sign in again.")
                 || english.mainCreateRoomTitle
                     != QStringLiteral("Create room")
                 || english.mainCreateRoomPrompt

@@ -537,6 +537,7 @@ struct WindowsLocaleMessages {
     QString mainLogoutTitle;
     QString mainLogoutConfirm;
     QString mainForcedOfflineTitle;
+    QString mainSessionRestoreFailed;
     QString mainCreateRoomTitle;
     QString mainCreateRoomPrompt;
     QString mainCreateRoomAccessible;

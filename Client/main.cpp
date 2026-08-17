@@ -305,7 +305,9 @@ int main(int argc, char *argv[]) {
         }
 
         const auto &copy = WindowsLocaleCatalog::messages(localeViewModel.locale());
-        QMessageBox::warning(nullptr, copy.mainForcedOfflineTitle, reason);
+        QMessageBox::warning(
+            nullptr, copy.mainForcedOfflineTitle,
+            reason.isEmpty() ? copy.mainSessionRestoreFailed : reason);
         showLoginDialog();
     });
 
