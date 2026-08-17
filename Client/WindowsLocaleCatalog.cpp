@@ -531,6 +531,30 @@ WindowsLocaleMessages createZhCn() {
     m.mainRoomSearchJoinAccessible = QStringLiteral("加入聊天室 %1");
     m.mainRoomSearchRequestedAccessible = QStringLiteral("已申请加入聊天室 %1");
     m.mainRoomSearchResultAccessible = QStringLiteral("%1，ID %2，%3 人");
+    m.mainFriendSearchTitle = QStringLiteral("搜索好友");
+    m.mainFriendSearchAccessible = QStringLiteral("搜索好友对话框");
+    m.mainFriendSearchPlaceholder = QStringLiteral("输入用户 ID 或昵称搜索");
+    m.mainFriendSearchInputAccessible = QStringLiteral("好友搜索关键词");
+    m.mainFriendSearchSubmitAccessible = QStringLiteral("搜索用户");
+    m.mainFriendSearchResultsAccessible = QStringLiteral("用户搜索结果");
+    m.mainFriendSearchIntro = QStringLiteral("输入关键词后点击搜索");
+    m.mainFriendSearchSearching = QStringLiteral("搜索中…");
+    m.mainFriendSearchSearchingStatus = QStringLiteral("正在搜索用户…");
+    m.mainFriendSearchFailed = QStringLiteral("搜索失败");
+    m.mainFriendSearchEmpty = QStringLiteral("未找到匹配的用户");
+    m.mainFriendSearchMetadata = QStringLiteral("ID: %1");
+    m.mainFriendSearchCurrentAccount = QStringLiteral("当前账号");
+    m.mainFriendSearchAlreadyFriend = QStringLiteral("已添加");
+    m.mainFriendSearchSendRequest = QStringLiteral("发送申请");
+    m.mainFriendSearchSent = QStringLiteral("已发送");
+    m.mainFriendSearchCurrentAccountAccessible = QStringLiteral("%1 是当前账号");
+    m.mainFriendSearchAlreadyFriendAccessible = QStringLiteral("%1 已是好友");
+    m.mainFriendSearchSendRequestAccessible = QStringLiteral("向 %1 发送好友申请");
+    m.mainFriendSearchSentAccessible = QStringLiteral("已向 %1 发送好友申请");
+    m.mainFriendSearchOnlineAccessible = QStringLiteral("%1，在线");
+    m.mainFriendSearchOfflineAccessible = QStringLiteral("%1，离线");
+    m.mainFriendSearchResultOnlineAccessible = QStringLiteral("%1，ID %2，在线");
+    m.mainFriendSearchResultOfflineAccessible = QStringLiteral("%1，ID %2，离线");
     return m;
 }
 
@@ -1083,6 +1107,30 @@ WindowsLocaleMessages createEnUs() {
     m.mainRoomSearchJoinAccessible = QStringLiteral("Join room %1");
     m.mainRoomSearchRequestedAccessible = QStringLiteral("Requested to join room %1");
     m.mainRoomSearchResultAccessible = QStringLiteral("%1, ID %2, %3 members");
+    m.mainFriendSearchTitle = QStringLiteral("Find friends");
+    m.mainFriendSearchAccessible = QStringLiteral("Find friends dialog");
+    m.mainFriendSearchPlaceholder = QStringLiteral("Search by user ID or display name");
+    m.mainFriendSearchInputAccessible = QStringLiteral("Friend search keyword");
+    m.mainFriendSearchSubmitAccessible = QStringLiteral("Search for users");
+    m.mainFriendSearchResultsAccessible = QStringLiteral("User search results");
+    m.mainFriendSearchIntro = QStringLiteral("Enter a keyword, then select Search");
+    m.mainFriendSearchSearching = QStringLiteral("Searching…");
+    m.mainFriendSearchSearchingStatus = QStringLiteral("Searching for users…");
+    m.mainFriendSearchFailed = QStringLiteral("Search failed");
+    m.mainFriendSearchEmpty = QStringLiteral("No matching users found");
+    m.mainFriendSearchMetadata = QStringLiteral("ID: %1");
+    m.mainFriendSearchCurrentAccount = QStringLiteral("Current account");
+    m.mainFriendSearchAlreadyFriend = QStringLiteral("Added");
+    m.mainFriendSearchSendRequest = QStringLiteral("Send request");
+    m.mainFriendSearchSent = QStringLiteral("Sent");
+    m.mainFriendSearchCurrentAccountAccessible = QStringLiteral("%1 is the current account");
+    m.mainFriendSearchAlreadyFriendAccessible = QStringLiteral("%1 is already a friend");
+    m.mainFriendSearchSendRequestAccessible = QStringLiteral("Send friend request to %1");
+    m.mainFriendSearchSentAccessible = QStringLiteral("Friend request sent to %1");
+    m.mainFriendSearchOnlineAccessible = QStringLiteral("%1, online");
+    m.mainFriendSearchOfflineAccessible = QStringLiteral("%1, offline");
+    m.mainFriendSearchResultOnlineAccessible = QStringLiteral("%1, ID %2, online");
+    m.mainFriendSearchResultOfflineAccessible = QStringLiteral("%1, ID %2, offline");
     return m;
 }
 

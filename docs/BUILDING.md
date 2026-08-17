@@ -3298,7 +3298,12 @@ does not write the text value; the accepted trimmed V1 room name is unchanged.
 directory leaf offscreen: stable room IDs, Unicode query preservation, live
 language switching, opaque server detail, single-flight join/search intents,
 and deferred avatar intent. Static composition keeps `NetworkManager` outside
-the dialog while `ChatWindow` remains the V1 transport adapter.
+the dialog while `ChatWindow` remains the V1 transport adapter; duplicate,
+invalid, and oversized pages are bounded to 100 unique positive room IDs.
+`WindowsFriendSearchDialogTest` applies the same boundary to account discovery:
+Unicode and placeholder-like display names remain opaque, current/self and
+existing-friend actions stay disabled, request intent is single-flight, avatar
+updates are live, and duplicate/oversized result pages are bounded to 100 rows.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

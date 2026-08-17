@@ -186,7 +186,13 @@ int main(int argc, char **argv) {
                 || english.mainRoomSearchMetadata
                     != QStringLiteral("ID: %1  ·  %2 members")
                 || english.mainRoomSearchRequested
-                    != QStringLiteral("Requested")) {
+                    != QStringLiteral("Requested")
+                || english.mainFriendSearchTitle
+                    != QStringLiteral("Find friends")
+                || english.mainFriendSearchCurrentAccount
+                    != QStringLiteral("Current account")
+                || english.mainFriendSearchSendRequest
+                    != QStringLiteral("Send request")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -215,6 +221,8 @@ int main(int argc, char **argv) {
                     != QStringLiteral("创建聊天室")
                 || chinese.mainRoomSearchTitle
                     != QStringLiteral("搜索聊天室")
+                || chinese.mainFriendSearchTitle
+                    != QStringLiteral("搜索好友")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

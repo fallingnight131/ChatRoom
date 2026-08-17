@@ -74,6 +74,7 @@ SOURCES += \
     WindowsUpdateController.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
+    FriendSearchDialog.cpp \
     RoomSettingsDialog.cpp \
     RoomFileManagerDialog.cpp \
     RoomPasswordPromptDialog.cpp \
@@ -128,6 +129,7 @@ HEADERS += \
     WindowsUpdateController.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
+    FriendSearchDialog.h \
     RoomSettingsDialog.h \
     RoomFileManagerDialog.h \
     RoomPasswordPromptDialog.h \

@@ -80,6 +80,20 @@ int main(int argc, char **argv) {
         qCritical() << "trimmed search intent or single-flight state failed";
         return 1;
     }
+    QVector<RoomSearchDialog::Result> many;
+    for (int index = 1; index <= 105; ++index) {
+        RoomSearchDialog::Result result;
+        result.roomId = index;
+        result.roomName = QStringLiteral("room-%1").arg(index);
+        result.avatar = avatar;
+        many.push_back(result);
+    }
+    many.push_back(many.constFirst());
+    dialog.showResults(many);
+    if (results->count() != 100) {
+        qCritical() << "room-search result bound was not enforced";
+        return 1;
+    }
 
     qInfo() << "[WindowsRoomSearchDialogTest] PASS";
     return 0;

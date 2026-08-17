@@ -524,6 +524,30 @@ struct WindowsLocaleMessages {
     QString mainRoomSearchJoinAccessible;
     QString mainRoomSearchRequestedAccessible;
     QString mainRoomSearchResultAccessible;
+    QString mainFriendSearchTitle;
+    QString mainFriendSearchAccessible;
+    QString mainFriendSearchPlaceholder;
+    QString mainFriendSearchInputAccessible;
+    QString mainFriendSearchSubmitAccessible;
+    QString mainFriendSearchResultsAccessible;
+    QString mainFriendSearchIntro;
+    QString mainFriendSearchSearching;
+    QString mainFriendSearchSearchingStatus;
+    QString mainFriendSearchFailed;
+    QString mainFriendSearchEmpty;
+    QString mainFriendSearchMetadata;
+    QString mainFriendSearchCurrentAccount;
+    QString mainFriendSearchAlreadyFriend;
+    QString mainFriendSearchSendRequest;
+    QString mainFriendSearchSent;
+    QString mainFriendSearchCurrentAccountAccessible;
+    QString mainFriendSearchAlreadyFriendAccessible;
+    QString mainFriendSearchSendRequestAccessible;
+    QString mainFriendSearchSentAccessible;
+    QString mainFriendSearchOnlineAccessible;
+    QString mainFriendSearchOfflineAccessible;
+    QString mainFriendSearchResultOnlineAccessible;
+    QString mainFriendSearchResultOfflineAccessible;
 };
 
 class WindowsLocaleCatalog final {

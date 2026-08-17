@@ -10,6 +10,8 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+#include <utility>
+
 RoomSearchDialog::RoomSearchDialog(WindowsLocaleViewModel *localeViewModel,
                                    QWidget *parent)
     : QDialog(parent), m_localeViewModel(localeViewModel) {
@@ -68,15 +70,23 @@ void RoomSearchDialog::submitSearch() {
 }
 
 void RoomSearchDialog::showResults(const QVector<Result> &results) {
-    m_results = results;
-    m_state = results.isEmpty() ? State::Empty : State::Results;
+    m_results.clear();
+    m_results.reserve(qMin(results.size(), MaxResults));
+    QSet<int> seenRoomIds;
+    for (const Result &result : results) {
+        if (m_results.size() >= MaxResults) break;
+        if (result.roomId <= 0 || seenRoomIds.contains(result.roomId)) continue;
+        seenRoomIds.insert(result.roomId);
+        m_results.push_back(result);
+    }
+    m_state = m_results.isEmpty() ? State::Empty : State::Results;
     m_failureDetail.clear();
     m_rowControls.clear();
     m_avatarLabels.clear();
     m_requestedJoins.clear();
     m_resultList->clear();
 
-    for (const Result &result : m_results) {
+    for (const Result &result : std::as_const(m_results)) {
         auto *itemWidget = new QWidget;
         auto *row = new QHBoxLayout(itemWidget);
         row->setContentsMargins(4, 4, 4, 4);
@@ -118,7 +128,7 @@ void RoomSearchDialog::showResults(const QVector<Result> &results) {
         m_rowControls.insert(result.roomId, {metadata, join});
     }
     refreshText();
-    for (const Result &result : m_results) {
+    for (const Result &result : std::as_const(m_results)) {
         if (result.avatarNeedsRefresh) emit roomAvatarRequested(result.roomId);
     }
 }
@@ -182,7 +192,7 @@ void RoomSearchDialog::refreshText() {
 
 void RoomSearchDialog::refreshRows() {
     const auto &copy = WindowsLocaleCatalog::messages(m_localeViewModel->locale());
-    for (const Result &result : m_results) {
+    for (const Result &result : std::as_const(m_results)) {
         const RowControls controls = m_rowControls.value(result.roomId);
         if (!controls.metadata || !controls.join) continue;
         controls.metadata->setText(copy.mainRoomSearchMetadata

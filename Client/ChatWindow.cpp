@@ -17,6 +17,7 @@
 #include "RoomPasswordPromptDialog.h"
 #include "RoomSearchDialog.h"
 #include "ForwardSelectDialog.h"
+#include "FriendSearchDialog.h"
 #include "ProfileDialog.h"
 #include "UserInfoDialog.h"
 #include "Protocol.h"
@@ -5115,156 +5116,67 @@ void ChatWindow::onClearCache() {
 // ==================== 好友系统 ====================
 
 void ChatWindow::onAddFriend() {
-    // 创建搜索对话框
-    QDialog dlg(this);
-    dlg.setWindowTitle("搜索好友");
-    dlg.setMinimumSize(400, 350);
-    dlg.resize(420, 400);
-
-    auto *layout = new QVBoxLayout(&dlg);
-
-    // 搜索行
-    auto *searchLayout = new QHBoxLayout;
-    auto *searchInput = new QLineEdit;
-    searchInput->setPlaceholderText("输入用户ID或昵称搜索");
-    auto *searchBtn = new QPushButton("搜索");
-    searchLayout->addWidget(searchInput);
-    searchLayout->addWidget(searchBtn);
-    layout->addLayout(searchLayout);
-
-    // 结果列表
-    auto *resultList = new QListWidget;
-    resultList->setStyleSheet("QListWidget::item { padding: 4px; min-height: 40px; }");
-    layout->addWidget(resultList);
-
-    // 提示标签
-    auto *hintLabel = new QLabel("输入关键词后点击搜索");
-    hintLabel->setAlignment(Qt::AlignCenter);
-    hintLabel->setStyleSheet("color: gray; padding: 20px;");
-    layout->addWidget(hintLabel);
-
-    // 关闭按钮
-    auto *closeBtn = new QPushButton("关闭");
-    layout->addWidget(closeBtn);
-
     auto *net = NetworkManager::instance();
-
-    // 搜索逻辑
-    auto doSearch = [&]() {
-        QString keyword = searchInput->text().trimmed();
-        if (keyword.isEmpty()) return;
-        searchBtn->setEnabled(false);
-        searchBtn->setText("搜索中…");
-        resultList->clear();
-        hintLabel->hide();
-
+    FriendSearchDialog dialog(m_windowsLocaleViewModel, this);
+    connect(&dialog, &FriendSearchDialog::searchRequested, &dialog,
+            [net](const QString &keyword) {
         QJsonObject data;
         data["keyword"] = keyword;
         net->sendMessage(Protocol::makeMessage(Protocol::MsgType::USER_SEARCH_REQ, data));
-    };
-
-    // 处理搜索结果
-    QMetaObject::Connection conn = connect(net, &NetworkManager::userSearchResponse,
-        &dlg, [&](bool success, const QJsonArray &users, const QString &error) {
-        searchBtn->setEnabled(true);
-        searchBtn->setText("搜索");
-
+    });
+    connect(&dialog, &FriendSearchDialog::friendRequestRequested, &dialog,
+            [net](const QString &username) {
+        QJsonObject data;
+        data["username"] = username;
+        net->sendMessage(Protocol::makeMessage(
+            Protocol::MsgType::FRIEND_REQUEST_REQ, data));
+    });
+    connect(&dialog, &FriendSearchDialog::avatarRequested, &dialog,
+            [this](const QString &username) { requestAvatar(username); });
+    connect(net, &NetworkManager::userSearchResponse, &dialog,
+            [this, &dialog](bool success, const QJsonArray &users,
+                            const QString &error) {
         if (!success) {
-            hintLabel->setText(error.isEmpty() ? "搜索失败" : error);
-            hintLabel->show();
+            dialog.showFailure(error);
             return;
         }
-
-        resultList->clear();
-        if (users.isEmpty()) {
-            hintLabel->setText("未找到匹配的用户");
-            hintLabel->show();
-            return;
-        }
-        hintLabel->hide();
-
-        for (const auto &val : users) {
-            QJsonObject u = val.toObject();
-            QString username    = u["username"].toString();
-            QString displayName = u["displayName"].toString();
-            bool online         = u["online"].toBool();
-
-            // 创建列表项
-            auto *itemWidget = new QWidget;
-            auto *hl = new QHBoxLayout(itemWidget);
-            hl->setContentsMargins(4, 4, 4, 4);
-
-            auto *avatarLabel = new QLabel;
-            avatarLabel->setFixedSize(36, 36);
-            avatarLabel->setAlignment(Qt::AlignCenter);
-            if (s_avatarCache.contains(username)) {
-                avatarLabel->setPixmap(s_avatarCache[username].scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-            } else {
-                avatarLabel->setPixmap(generateDefaultAvatar(displayName.isEmpty() ? username : displayName, qHash(username)));
-                // 请求头像，收到后更新
-                requestAvatar(username);
-            }
-            hl->addWidget(avatarLabel);
-
-            auto *infoLayout = new QVBoxLayout;
-            infoLayout->setSpacing(2);
-            auto *nameLabel = new QLabel(displayName);
-            nameLabel->setStyleSheet("font-weight: bold; font-size: 13px;");
-            auto *idLabel = new QLabel("ID: " + username);
-            idLabel->setStyleSheet("color: gray; font-size: 11px;");
-            infoLayout->addWidget(nameLabel);
-            infoLayout->addWidget(idLabel);
-            hl->addLayout(infoLayout, 1);
-
-            if (online) {
-                auto *onlineLabel = new QLabel("●");
-                onlineLabel->setStyleSheet("color: #4caf50; font-size: 14px;");
-                hl->addWidget(onlineLabel);
-            }
-
-            auto *sendBtn = new QPushButton;
-            sendBtn->setFixedHeight(28);
-
-            // 检查是否已是好友
-            bool alreadyFriend = false;
-            for (const auto &fv : m_friendData) {
-                if (fv.toObject()["username"].toString() == username) {
-                    alreadyFriend = true;
+        QVector<FriendSearchDialog::Result> results;
+        results.reserve(users.size());
+        for (const QJsonValue &value : users) {
+            const QJsonObject user = value.toObject();
+            FriendSearchDialog::Result result;
+            result.username = user["username"].toString();
+            result.displayName = user["displayName"].toString();
+            result.online = user["online"].toBool();
+            result.currentAccount = result.username == m_username;
+            for (const QJsonValue &friendValue : m_friendData) {
+                if (friendValue.toObject()["username"].toString()
+                        == result.username) {
+                    result.alreadyFriend = true;
                     break;
                 }
             }
-
-            if (alreadyFriend) {
-                sendBtn->setText("已添加");
-                sendBtn->setEnabled(false);
+            if (s_avatarCache.contains(result.username)) {
+                result.avatar = s_avatarCache.value(result.username);
             } else {
-                sendBtn->setText("发送申请");
-                connect(sendBtn, &QPushButton::clicked, &dlg, [username, sendBtn, net]() {
-                    QJsonObject reqData;
-                    reqData["username"] = username;
-                    net->sendMessage(
-                        Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_REQ, reqData));
-                    sendBtn->setText("已发送");
-                    sendBtn->setEnabled(false);
-                });
+                const QString identity = result.displayName.isEmpty()
+                    ? result.username : result.displayName;
+                result.avatar = generateDefaultAvatar(
+                    identity, qHash(result.username));
+                result.avatarNeedsRefresh = true;
             }
-            hl->addWidget(sendBtn);
-
-            auto *item = new QListWidgetItem;
-            item->setSizeHint(QSize(0, qMax(itemWidget->sizeHint().height(), 48)));
-            resultList->addItem(item);
-            resultList->setItemWidget(item, itemWidget);
+            results.push_back(std::move(result));
         }
+        dialog.showResults(results);
     });
-
-    connect(searchBtn, &QPushButton::clicked, &dlg, doSearch);
-    connect(searchInput, &QLineEdit::returnPressed, &dlg, doSearch);
-    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
-
-    dlg.exec();
-
-    // 断开临时连接
-    disconnect(conn);
+    connect(net, &NetworkManager::avatarGetResponse, &dialog,
+            [&dialog](const QString &username, const QByteArray &avatarData) {
+        if (avatarData.isEmpty()) return;
+        QPixmap avatar;
+        if (avatar.loadFromData(avatarData))
+            dialog.updateAvatar(username, avatar);
+    });
+    dialog.exec();
 }
 
 void ChatWindow::onShowFriendRequests() {

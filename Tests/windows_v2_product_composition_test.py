@@ -45,6 +45,9 @@ def main() -> int:
         encoding="utf-8"
     )
     room_search = (ROOT / "Client/RoomSearchDialog.cpp").read_text(encoding="utf-8")
+    friend_search = (ROOT / "Client/FriendSearchDialog.cpp").read_text(
+        encoding="utf-8"
+    )
     device_dialog = (ROOT / "Client/DeviceManagementDialog.cpp").read_text(
         encoding="utf-8"
     )
@@ -196,6 +199,9 @@ def main() -> int:
         "&RoomSearchDialog::searchRequested",
         "&RoomSearchDialog::joinRequested",
         "dialog.showResults(results)",
+        "FriendSearchDialog dialog(m_windowsLocaleViewModel, this)",
+        "&FriendSearchDialog::friendRequestRequested",
+        "dialog.updateAvatar(username, avatar)",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -283,6 +289,23 @@ def main() -> int:
     ), "Client/RoomSearchDialog.cpp")
     if "NetworkManager" in room_search:
         raise AssertionError("room-search presentation must not own transport")
+    friend_search_surface = window[
+        window.index("void ChatWindow::onAddFriend()"):
+        window.index("void ChatWindow::onShowFriendRequests()")
+    ]
+    if "new QPushButton" in friend_search_surface or "new QLabel" in friend_search_surface:
+        raise AssertionError("ChatWindow must not own friend-search presentation")
+    require(friend_search, (
+        "copy.mainFriendSearchTitle",
+        "copy.mainFriendSearchResultOnlineAccessible",
+        "emit searchRequested(keyword)",
+        "emit friendRequestRequested(username)",
+        "emit avatarRequested(result.username)",
+        "result.currentAccount",
+        "MaxResults",
+    ), "Client/FriendSearchDialog.cpp")
+    if "NetworkManager" in friend_search:
+        raise AssertionError("friend-search presentation must not own transport")
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

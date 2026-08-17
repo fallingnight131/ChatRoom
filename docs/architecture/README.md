@@ -2110,6 +2110,10 @@ accepted value still crosses the existing V1 command boundary unchanged.
 Room search is now a separate transport-free dialog. It owns query/result/join
 presentation and stable row identity; `ChatWindow` only adapts V1 JSON, joined
 room state and cached avatars to typed rows and forwards emitted command IDs.
+The legacy page is defensively capped at 100 unique positive room IDs.
+Friend search is likewise transport-free and bounded to 100 unique usernames.
+It presents current-account, existing-friend, requested and presence state from
+typed fields, while `ChatWindow` adapts V1 responses and live avatar bytes.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

@@ -234,4 +234,8 @@ database migration or protocol compatibility window is required.
   its Unicode draft and sending only the trimmed accepted value through V1.
 - room search is a transport-free dialog boundary: `ChatWindow` adapts V1 JSON
   and cached avatars, while the dialog owns localized single-flight UI and
-  emits stable keyword, room-ID, and avatar intents.
+  emits stable keyword, room-ID, and avatar intents. It admits at most 100
+  unique positive room IDs from a legacy response.
+- friend search follows the same boundary with stable usernames, a 100-row
+  defensive cap, explicit current-account/already-friend/requested states, and
+  live avatar/presence projection without owning `NetworkManager`.
