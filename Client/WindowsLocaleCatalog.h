@@ -202,6 +202,35 @@ struct WindowsLocaleMessages {
     QString languageSelectorAccessible;
     QString localePreferenceStatusAccessible;
     QString languageSelectorDescription;
+    QString profileTitle;
+    QString profileAvatar;
+    QString profileAvatarFallback;
+    QString profileChangeAvatar;
+    QString profileBasicInformation;
+    QString profileNickname;
+    QString profileSave;
+    QString profileUserId;
+    QString profileUserIdHint;
+    QString profileNetworkAndData;
+    QString profileLowBandwidth;
+    QString profileLowBandwidthDescription;
+    QString profileLowBandwidthStatusAccessible;
+    QString profileLowBandwidthSaveFailed;
+    QString profileChangePassword;
+    QString profileOldPassword;
+    QString profileNewPassword;
+    QString profileConfirmPassword;
+    QString profileSuccessTitle;
+    QString profilePasswordChanged;
+    QString profilePasswordChangeFailedTitle;
+    QString profileValidationErrorTitle;
+    QString profileNicknameRequired;
+    QString profileNicknameTooLong;
+    QString profileUserIdRequired;
+    QString profileUserIdInvalid;
+    QString profilePasswordFieldsRequired;
+    QString profilePasswordsMismatch;
+    QString profilePasswordTooShort;
 };
 
 class WindowsLocaleCatalog final {

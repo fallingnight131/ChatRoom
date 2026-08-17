@@ -69,7 +69,11 @@ int main(int argc, char **argv) {
         }
         const auto &english = WindowsLocaleCatalog::messages(repository.load());
         if (english.sendMessage != QStringLiteral("Send message")
-                || english.bytesUsed != QStringLiteral("%1 / %2 bytes")) {
+                || english.bytesUsed != QStringLiteral("%1 / %2 bytes")
+                || english.profileTitle != QStringLiteral("Edit profile")
+                || english.profileLowBandwidth != QStringLiteral("Low-bandwidth mode")
+                || english.profilePasswordFieldsRequired
+                    != QStringLiteral("Complete every password field")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }

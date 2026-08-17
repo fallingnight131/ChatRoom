@@ -196,6 +196,37 @@ WindowsLocaleMessages createZhCn() {
     m.languageSelectorAccessible = QStringLiteral("会话界面语言");
     m.localePreferenceStatusAccessible = QStringLiteral("语言偏好状态");
     m.languageSelectorDescription = QStringLiteral("更改并保存新版会话界面的语言");
+    m.profileTitle = QStringLiteral("修改个人信息");
+    m.profileAvatar = QStringLiteral("头像");
+    m.profileAvatarFallback = QStringLiteral("头像");
+    m.profileChangeAvatar = QStringLiteral("更换头像");
+    m.profileBasicInformation = QStringLiteral("基本信息");
+    m.profileNickname = QStringLiteral("昵称：");
+    m.profileSave = QStringLiteral("保存");
+    m.profileUserId = QStringLiteral("用户ID：");
+    m.profileUserIdHint = QStringLiteral("6-20位字母/数字/下划线，每月仅可修改一次");
+    m.profileNetworkAndData = QStringLiteral("网络与流量");
+    m.profileLowBandwidth = QStringLiteral("省流量模式");
+    m.profileLowBandwidthDescription = QStringLiteral(
+        "停止自动请求未缓存头像；消息同步和主动操作仍正常工作。");
+    m.profileLowBandwidthStatusAccessible = QStringLiteral("省流量偏好状态");
+    m.profileLowBandwidthSaveFailed = QStringLiteral(
+        "无法保存省流量偏好，已保持原设置");
+    m.profileChangePassword = QStringLiteral("修改密码");
+    m.profileOldPassword = QStringLiteral("旧密码：");
+    m.profileNewPassword = QStringLiteral("新密码：");
+    m.profileConfirmPassword = QStringLiteral("确认新密码：");
+    m.profileSuccessTitle = QStringLiteral("成功");
+    m.profilePasswordChanged = QStringLiteral("密码修改成功");
+    m.profilePasswordChangeFailedTitle = QStringLiteral("修改密码失败");
+    m.profileValidationErrorTitle = QStringLiteral("错误");
+    m.profileNicknameRequired = QStringLiteral("昵称不能为空");
+    m.profileNicknameTooLong = QStringLiteral("昵称不能超过20个字符");
+    m.profileUserIdRequired = QStringLiteral("用户ID不能为空");
+    m.profileUserIdInvalid = QStringLiteral("用户ID必须为6-20位字母/数字/下划线");
+    m.profilePasswordFieldsRequired = QStringLiteral("请填写所有密码字段");
+    m.profilePasswordsMismatch = QStringLiteral("两次输入的新密码不一致");
+    m.profilePasswordTooShort = QStringLiteral("新密码至少4个字符");
     return m;
 }
 
@@ -394,6 +425,40 @@ WindowsLocaleMessages createEnUs() {
     m.languageSelectorAccessible = QStringLiteral("Conversation interface language");
     m.localePreferenceStatusAccessible = QStringLiteral("Language preference status");
     m.languageSelectorDescription = QStringLiteral("Change and save the conversation interface language");
+    m.profileTitle = QStringLiteral("Edit profile");
+    m.profileAvatar = QStringLiteral("Avatar");
+    m.profileAvatarFallback = QStringLiteral("Avatar");
+    m.profileChangeAvatar = QStringLiteral("Change avatar");
+    m.profileBasicInformation = QStringLiteral("Basic information");
+    m.profileNickname = QStringLiteral("Nickname:");
+    m.profileSave = QStringLiteral("Save");
+    m.profileUserId = QStringLiteral("User ID:");
+    m.profileUserIdHint = QStringLiteral(
+        "6-20 letters, numbers, or underscores; changeable once per month");
+    m.profileNetworkAndData = QStringLiteral("Network and data");
+    m.profileLowBandwidth = QStringLiteral("Low-bandwidth mode");
+    m.profileLowBandwidthDescription = QStringLiteral(
+        "Stops automatic requests for uncached avatars; message sync and explicit actions continue normally.");
+    m.profileLowBandwidthStatusAccessible = QStringLiteral(
+        "Low-bandwidth preference status");
+    m.profileLowBandwidthSaveFailed = QStringLiteral(
+        "Unable to save low-bandwidth preference; the previous setting was kept");
+    m.profileChangePassword = QStringLiteral("Change password");
+    m.profileOldPassword = QStringLiteral("Current password:");
+    m.profileNewPassword = QStringLiteral("New password:");
+    m.profileConfirmPassword = QStringLiteral("Confirm new password:");
+    m.profileSuccessTitle = QStringLiteral("Success");
+    m.profilePasswordChanged = QStringLiteral("Password changed successfully");
+    m.profilePasswordChangeFailedTitle = QStringLiteral("Password change failed");
+    m.profileValidationErrorTitle = QStringLiteral("Error");
+    m.profileNicknameRequired = QStringLiteral("Nickname is required");
+    m.profileNicknameTooLong = QStringLiteral("Nickname cannot exceed 20 characters");
+    m.profileUserIdRequired = QStringLiteral("User ID is required");
+    m.profileUserIdInvalid = QStringLiteral(
+        "User ID must contain 6-20 letters, numbers, or underscores");
+    m.profilePasswordFieldsRequired = QStringLiteral("Complete every password field");
+    m.profilePasswordsMismatch = QStringLiteral("The new passwords do not match");
+    m.profilePasswordTooShort = QStringLiteral("New password must be at least 4 characters");
     return m;
 }
 

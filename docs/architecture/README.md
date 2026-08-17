@@ -1962,6 +1962,10 @@ The real profile Widget is covered separately from the pure policy: its
 checkbox activation persists through a fresh settings instance, while an
 unwritable target restores the prior checked state and retains announced local
 failure text.
+The next Windows localization slice has an exact profile catalog covering
+avatar, basic identity, password, low-bandwidth, validation, and local response
+copy. It is intentionally not yet consumed by the Widget, preventing a partial
+mixed-language profile while composition and dynamic-switch evidence are built.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

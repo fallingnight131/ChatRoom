@@ -36,6 +36,10 @@ message storage, server behavior, or the supported Web/Windows product scope.
 - The selector has an explicit label buddy and accessible description. Its
   first tab transition is deterministic, and visible persistence failure emits
   an accessibility Alert after restoring the accepted locale.
+- Grow the catalog for the complete legacy profile surface before connecting
+  that Widget. Avatar, identity, password, low-bandwidth, validation, and local
+  feedback copy must migrate together; server-provided failure text remains
+  opaque data.
 
 ## Consequences
 

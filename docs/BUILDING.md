@@ -3228,6 +3228,10 @@ is portability evidence only; native Windows Release interaction remains open.
 unwritable QSettings instances. It activates the checkbox and requires its
 accessible description, restart-stable exact value, restored accepted state,
 and visible failure status. It is included in the `--qt` project list.
+`WindowsLocalePreferenceRepositoryTest` also locks the first complete-profile
+English terms and validation copy. Catalog presence alone is not profile
+localization evidence; the Widget remains on its existing language until every
+profile-owned string is composed and dynamically verified together.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the
