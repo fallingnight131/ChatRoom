@@ -670,6 +670,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/WindowsUpdateController.cpp
                 Client/AvatarCropDialog.cpp
                 Client/ForwardSelectDialog.cpp
+                Client/FriendRequestsDialog.cpp
+                Client/FriendRequestsDialog.h
                 Client/FriendSearchDialog.cpp
                 Client/FriendSearchDialog.h
                 Client/RoomSettingsDialog.cpp
@@ -855,6 +857,22 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             COMMAND WindowsLocalePreferenceRepositoryTest)
         set_tests_properties(m6_windows_locale_preference PROPERTIES TIMEOUT 30)
         if(TARGET Qt6::Widgets)
+            add_executable(
+                WindowsFriendRequestsDialogTest
+                Tests/WindowsFriendRequestsDialogTest.cpp
+                Client/FriendRequestsDialog.cpp
+                Client/FriendRequestsDialog.h)
+            set_target_properties(WindowsFriendRequestsDialogTest PROPERTIES AUTOMOC ON)
+            target_include_directories(WindowsFriendRequestsDialogTest PRIVATE Client)
+            target_link_libraries(
+                WindowsFriendRequestsDialogTest
+                PRIVATE Qt6::Widgets chatroom_v2_messaging_ui_core)
+            add_test(
+                NAME m6_windows_friend_requests_dialog
+                COMMAND WindowsFriendRequestsDialogTest)
+            set_tests_properties(
+                m6_windows_friend_requests_dialog
+                PROPERTIES TIMEOUT 30 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
             add_executable(
                 WindowsFriendSearchDialogTest
                 Tests/WindowsFriendSearchDialogTest.cpp

@@ -48,6 +48,9 @@ def main() -> int:
     friend_search = (ROOT / "Client/FriendSearchDialog.cpp").read_text(
         encoding="utf-8"
     )
+    friend_requests = (ROOT / "Client/FriendRequestsDialog.cpp").read_text(
+        encoding="utf-8"
+    )
     device_dialog = (ROOT / "Client/DeviceManagementDialog.cpp").read_text(
         encoding="utf-8"
     )
@@ -202,6 +205,12 @@ def main() -> int:
         "FriendSearchDialog dialog(m_windowsLocaleViewModel, this)",
         "&FriendSearchDialog::friendRequestRequested",
         "dialog.updateAvatar(username, avatar)",
+        "FriendRequestsDialog dialog(m_windowsLocaleViewModel, this)",
+        "&FriendRequestsDialog::acceptRequested",
+        "&FriendRequestsDialog::rejectRequested",
+        "dialog.resolveAccept(success, error)",
+        "dialog.resolveReject(success, error)",
+        "dialog.setRequests(pending)",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -306,6 +315,28 @@ def main() -> int:
     ), "Client/FriendSearchDialog.cpp")
     if "NetworkManager" in friend_search:
         raise AssertionError("friend-search presentation must not own transport")
+    friend_requests_surface = window[
+        window.index("void ChatWindow::onFriendPendingReceived("):
+        window.index("void ChatWindow::onFriendChatMessage(")
+    ]
+    if "new QPushButton" in friend_requests_surface or "new QLabel" in friend_requests_surface:
+        raise AssertionError("ChatWindow must not own friend-request presentation")
+    require(friend_requests, (
+        "MaxRequests",
+        "QSet<int> seenIds",
+        "QSet<QString> seenUsernames",
+        "m_pendingOperation != Operation::None",
+        "m_pendingOperation != operation",
+        "RowState::Accepted",
+        "RowState::Rejected",
+        "emit acceptRequested(requestId, username)",
+        "emit rejectRequested(requestId)",
+        "emit avatarRequested(request.username)",
+        "copy.mainFriendRequestsTitle",
+        "copy.mainFriendRequestsRowAccessible",
+    ), "Client/FriendRequestsDialog.cpp")
+    if "NetworkManager" in friend_requests:
+        raise AssertionError("friend-request presentation must not own transport")
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

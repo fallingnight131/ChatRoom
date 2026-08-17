@@ -2114,6 +2114,12 @@ The legacy page is defensively capped at 100 unique positive room IDs.
 Friend search is likewise transport-free and bounded to 100 unique usernames.
 It presents current-account, existing-friend, requested and presence state from
 typed fields, while `ChatWindow` adapts V1 responses and live avatar bytes.
+Pending friend requests now follow the same leaf boundary. The dialog accepts
+at most 100 unique positive request IDs and usernames, emits only typed accept,
+reject and avatar intents, and renders a terminal accepted/rejected state only
+after the matching V1 response type succeeds. Because V1 responses carry no
+request ID, one global mutation may be pending in the dialog; an opposite-type
+response cannot resolve it. `ChatWindow` remains the JSON/transport adapter.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

@@ -2883,6 +2883,9 @@ Candidate slices:
     - [x] Extract the Windows friend-search/request presentation from
       `ChatWindow`, including bounded stable identities, current-account denial,
       live avatars, presence accessibility and transport-free UI.
+    - [x] Extract the Windows pending friend-request presentation with bounded
+      stable request IDs, response-type-correlated global single flight,
+      confirmed-only terminal state, live avatars and locale projection.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

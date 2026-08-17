@@ -555,6 +555,23 @@ WindowsLocaleMessages createZhCn() {
     m.mainFriendSearchOfflineAccessible = QStringLiteral("%1，离线");
     m.mainFriendSearchResultOnlineAccessible = QStringLiteral("%1，ID %2，在线");
     m.mainFriendSearchResultOfflineAccessible = QStringLiteral("%1，ID %2，离线");
+    m.mainFriendRequestsTitle = QStringLiteral("好友申请");
+    m.mainFriendRequestsAccessible = QStringLiteral("好友申请对话框");
+    m.mainFriendRequestsCount = QStringLiteral("待处理的好友申请 (%1)");
+    m.mainFriendRequestsListAccessible = QStringLiteral("待处理好友申请列表");
+    m.mainFriendRequestsEmpty = QStringLiteral("暂无待处理的好友申请");
+    m.mainFriendRequestsPending = QStringLiteral("正在处理好友申请…");
+    m.mainFriendRequestsFailed = QStringLiteral("好友申请处理失败");
+    m.mainFriendRequestsMetadata = QStringLiteral("ID: %1");
+    m.mainFriendRequestsAccept = QStringLiteral("接受");
+    m.mainFriendRequestsReject = QStringLiteral("拒绝");
+    m.mainFriendRequestsAccepted = QStringLiteral("已接受");
+    m.mainFriendRequestsRejected = QStringLiteral("已拒绝");
+    m.mainFriendRequestsAcceptAccessible = QStringLiteral("接受 %1 的好友申请");
+    m.mainFriendRequestsRejectAccessible = QStringLiteral("拒绝 %1 的好友申请");
+    m.mainFriendRequestsAcceptedAccessible = QStringLiteral("已接受 %1 的好友申请");
+    m.mainFriendRequestsRejectedAccessible = QStringLiteral("已拒绝 %1 的好友申请");
+    m.mainFriendRequestsRowAccessible = QStringLiteral("%1，ID %2，好友申请");
     return m;
 }
 
@@ -1131,6 +1148,23 @@ WindowsLocaleMessages createEnUs() {
     m.mainFriendSearchOfflineAccessible = QStringLiteral("%1, offline");
     m.mainFriendSearchResultOnlineAccessible = QStringLiteral("%1, ID %2, online");
     m.mainFriendSearchResultOfflineAccessible = QStringLiteral("%1, ID %2, offline");
+    m.mainFriendRequestsTitle = QStringLiteral("Friend requests");
+    m.mainFriendRequestsAccessible = QStringLiteral("Friend requests dialog");
+    m.mainFriendRequestsCount = QStringLiteral("Pending friend requests (%1)");
+    m.mainFriendRequestsListAccessible = QStringLiteral("Pending friend request list");
+    m.mainFriendRequestsEmpty = QStringLiteral("No pending friend requests");
+    m.mainFriendRequestsPending = QStringLiteral("Processing friend request…");
+    m.mainFriendRequestsFailed = QStringLiteral("Unable to process friend request");
+    m.mainFriendRequestsMetadata = QStringLiteral("ID: %1");
+    m.mainFriendRequestsAccept = QStringLiteral("Accept");
+    m.mainFriendRequestsReject = QStringLiteral("Reject");
+    m.mainFriendRequestsAccepted = QStringLiteral("Accepted");
+    m.mainFriendRequestsRejected = QStringLiteral("Rejected");
+    m.mainFriendRequestsAcceptAccessible = QStringLiteral("Accept friend request from %1");
+    m.mainFriendRequestsRejectAccessible = QStringLiteral("Reject friend request from %1");
+    m.mainFriendRequestsAcceptedAccessible = QStringLiteral("Accepted friend request from %1");
+    m.mainFriendRequestsRejectedAccessible = QStringLiteral("Rejected friend request from %1");
+    m.mainFriendRequestsRowAccessible = QStringLiteral("%1, ID %2, friend request");
     return m;
 }
 

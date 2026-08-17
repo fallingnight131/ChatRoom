@@ -239,3 +239,9 @@ database migration or protocol compatibility window is required.
 - friend search follows the same boundary with stable usernames, a 100-row
   defensive cap, explicit current-account/already-friend/requested states, and
   live avatar/presence projection without owning `NetworkManager`.
+- pending friend requests use a transport-free dialog with unique positive
+  request IDs and usernames, a 100-row cap, live avatars and localized rows.
+  V1 accept/reject responses do not identify a request, so the dialog permits
+  one mutation globally, resolves only a matching response type, restores open
+  actions on failure, and shows accepted/rejected only after confirmed success;
+  `ChatWindow` remains the V1 JSON and network adapter.

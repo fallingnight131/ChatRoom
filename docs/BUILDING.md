@@ -3304,6 +3304,14 @@ invalid, and oversized pages are bounded to 100 unique positive room IDs.
 Unicode and placeholder-like display names remain opaque, current/self and
 existing-friend actions stay disabled, request intent is single-flight, avatar
 updates are live, and duplicate/oversized result pages are bounded to 100 rows.
+`WindowsFriendRequestsDialogTest` covers the adjacent transport-free pending
+request leaf. It locks unique positive request IDs/usernames, a 100-row bound,
+live avatars and locale projection, plus the V1-safe global mutation lock:
+accept and reject responses are matched by type, failure restores actions, and
+terminal accepted/rejected presentation appears only after confirmed success.
+The V1 response has no request ID, so this deliberately does not claim
+per-request response correlation. Native Windows interaction remains a product
+release gate.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

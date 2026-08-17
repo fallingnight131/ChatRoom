@@ -18,6 +18,7 @@
 #include "RoomSearchDialog.h"
 #include "ForwardSelectDialog.h"
 #include "FriendSearchDialog.h"
+#include "FriendRequestsDialog.h"
 #include "ProfileDialog.h"
 #include "UserInfoDialog.h"
 #include "Protocol.h"
@@ -5243,13 +5244,16 @@ void ChatWindow::onFriendRequestNotify(const QString &fromUsername, const QStrin
 }
 
 void ChatWindow::onFriendAcceptResponse(bool success, const QString &error) {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success) {
-        m_statusLabel->setText("已接受好友请求");
+        m_statusLabel->setText(copy.mainFriendRequestsAccepted);
         onRefreshFriendList();
         // 部分环境下数据库写入与列表查询存在极短时序差，补一次延迟刷新保证即时可见。
         QTimer::singleShot(250, this, [this] { onRefreshFriendList(); });
     } else {
-        QMessageBox::warning(this, "好友请求", error);
+        m_statusLabel->setText(error.isEmpty()
+            ? copy.mainFriendRequestsFailed : error);
     }
 }
 
@@ -5261,10 +5265,13 @@ void ChatWindow::onFriendAcceptNotify(const QString &username, const QString &di
 }
 
 void ChatWindow::onFriendRejectResponse(bool success, const QString &error) {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success)
-        m_statusLabel->setText("已拒绝好友请求");
+        m_statusLabel->setText(copy.mainFriendRequestsRejected);
     else
-        QMessageBox::warning(this, "好友请求", error);
+        m_statusLabel->setText(error.isEmpty()
+            ? copy.mainFriendRequestsFailed : error);
 }
 
 void ChatWindow::onFriendRemoveResponse(bool success, const QString &username, const QString &error) {
@@ -5452,120 +5459,61 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
 }
 
 void ChatWindow::onFriendPendingReceived(const QJsonArray &requests) {
-    if (requests.isEmpty()) {
-        QMessageBox::information(this, "好友申请", "暂无待处理的好友申请");
-        return;
-    }
+    auto *net = NetworkManager::instance();
+    FriendRequestsDialog dialog(m_windowsLocaleViewModel, this);
+    connect(&dialog, &FriendRequestsDialog::acceptRequested, &dialog,
+            [net](int requestId, const QString &username) {
+        QJsonObject data;
+        data["requestId"] = requestId;
+        data["fromUsername"] = username;
+        net->sendMessage(Protocol::makeMessage(
+            Protocol::MsgType::FRIEND_ACCEPT_REQ, data));
+    });
+    connect(&dialog, &FriendRequestsDialog::rejectRequested, &dialog,
+            [net](int requestId) {
+        QJsonObject data;
+        data["requestId"] = requestId;
+        net->sendMessage(Protocol::makeMessage(
+            Protocol::MsgType::FRIEND_REJECT_REQ, data));
+    });
+    connect(&dialog, &FriendRequestsDialog::avatarRequested, &dialog,
+            [this](const QString &username) { requestAvatar(username); });
+    connect(net, &NetworkManager::friendAcceptResponse, &dialog,
+            [&dialog](bool success, const QString &error) {
+        dialog.resolveAccept(success, error);
+    });
+    connect(net, &NetworkManager::friendRejectResponse, &dialog,
+            [&dialog](bool success, const QString &error) {
+        dialog.resolveReject(success, error);
+    });
+    connect(net, &NetworkManager::avatarGetResponse, &dialog,
+            [&dialog](const QString &username, const QByteArray &avatarData) {
+        if (avatarData.isEmpty()) return;
+        QPixmap avatar;
+        if (avatar.loadFromData(avatarData))
+            dialog.updateAvatar(username, avatar);
+    });
 
-    // 构建对话框（风格与搜索好友一致）
-    QDialog dlg(this);
-    dlg.setWindowTitle("好友申请");
-    dlg.setMinimumSize(400, 350);
-    dlg.resize(420, 400);
-    auto *dlgLayout = new QVBoxLayout(&dlg);
-
-    auto *titleLabel = new QLabel(QString("待处理的好友申请 (%1)").arg(requests.size()));
-    titleLabel->setStyleSheet("font-size: 14px; font-weight: bold; padding: 4px;");
-    dlgLayout->addWidget(titleLabel);
-
-    auto *listWidget = new QListWidget;
-    listWidget->setStyleSheet("QListWidget::item { padding: 4px; min-height: 40px; }");
-    dlgLayout->addWidget(listWidget);
-
-    // 记录对话框中待回填头像的控件（username -> avatarLabel）。
-    QHash<QString, QLabel*> pendingAvatarLabels;
-
-    for (const QJsonValue &v : requests) {
-        QJsonObject req = v.toObject();
-        int reqId = req["requestId"].toInt();
-        QString fromUsername = req["fromUsername"].toString();
-        QString fromDisplayName = req["fromDisplayName"].toString();
-        QString displayLabel = fromDisplayName.isEmpty() ? fromUsername : fromDisplayName;
-
-        auto *itemWidget = new QWidget;
-        auto *hl = new QHBoxLayout(itemWidget);
-        hl->setContentsMargins(4, 4, 4, 4);
-
-        // 头像
-        auto *avatarLabel = new QLabel;
-        avatarLabel->setFixedSize(36, 36);
-        avatarLabel->setAlignment(Qt::AlignCenter);
-        if (s_avatarCache.contains(fromUsername)) {
-            avatarLabel->setPixmap(s_avatarCache[fromUsername].scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    QVector<FriendRequestsDialog::Request> pending;
+    pending.reserve(requests.size());
+    for (const QJsonValue &value : requests) {
+        const QJsonObject request = value.toObject();
+        FriendRequestsDialog::Request row;
+        row.requestId = request["requestId"].toInt();
+        row.username = request["fromUsername"].toString();
+        row.displayName = request["fromDisplayName"].toString();
+        const QString identity = row.displayName.isEmpty()
+            ? row.username : row.displayName;
+        if (s_avatarCache.contains(row.username)) {
+            row.avatar = s_avatarCache.value(row.username);
         } else {
-            avatarLabel->setPixmap(generateDefaultAvatar(displayLabel, qHash(fromUsername)));
-            pendingAvatarLabels[fromUsername] = avatarLabel;
-            requestAvatar(fromUsername);
+            row.avatar = generateDefaultAvatar(identity, qHash(row.username));
+            row.avatarNeedsRefresh = true;
         }
-        hl->addWidget(avatarLabel);
-
-        // 信息（双行：昵称 + ID）
-        auto *infoLayout = new QVBoxLayout;
-        infoLayout->setSpacing(2);
-        auto *nameLabel = new QLabel(displayLabel);
-        nameLabel->setStyleSheet("font-weight: bold; font-size: 13px;");
-        auto *idLabel = new QLabel("ID: " + fromUsername);
-        idLabel->setStyleSheet("color: gray; font-size: 11px;");
-        infoLayout->addWidget(nameLabel);
-        infoLayout->addWidget(idLabel);
-        hl->addLayout(infoLayout, 1);
-
-        // 按钮
-        auto *acceptBtn = new QPushButton("接受");
-        auto *rejectBtn = new QPushButton("拒绝");
-        acceptBtn->setFixedHeight(28);
-        rejectBtn->setFixedHeight(28);
-        hl->addWidget(acceptBtn);
-        hl->addWidget(rejectBtn);
-
-        connect(acceptBtn, &QPushButton::clicked, [this, reqId, fromUsername, acceptBtn, rejectBtn, &dlg] {
-            QJsonObject data;
-            data["requestId"] = reqId;
-            data["fromUsername"] = fromUsername;
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::FRIEND_ACCEPT_REQ, data));
-            acceptBtn->setText("已接受");
-            acceptBtn->setEnabled(false);
-            rejectBtn->setEnabled(false);
-        });
-        connect(rejectBtn, &QPushButton::clicked, [this, reqId, acceptBtn, rejectBtn, &dlg] {
-            QJsonObject data;
-            data["requestId"] = reqId;
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::FRIEND_REJECT_REQ, data));
-            rejectBtn->setText("已拒绝");
-            rejectBtn->setEnabled(false);
-            acceptBtn->setEnabled(false);
-        });
-
-        auto *item = new QListWidgetItem;
-        item->setSizeHint(QSize(0, qMax(itemWidget->sizeHint().height(), 48)));
-        listWidget->addItem(item);
-        listWidget->setItemWidget(item, itemWidget);
+        pending.push_back(std::move(row));
     }
-
-    auto *closeBtn = new QPushButton("关闭");
-    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
-    dlgLayout->addWidget(closeBtn);
-
-    QMetaObject::Connection avatarConn = connect(NetworkManager::instance(),
-        &NetworkManager::avatarGetResponse, &dlg,
-        [&pendingAvatarLabels](const QString &username, const QByteArray &avatarData) {
-            if (avatarData.isEmpty()) return;
-            if (!pendingAvatarLabels.contains(username)) return;
-            QLabel *label = pendingAvatarLabels.value(username, nullptr);
-            if (!label) return;
-
-            QPixmap pix;
-            pix.loadFromData(avatarData);
-            if (!pix.isNull()) {
-                label->setPixmap(pix.scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-            }
-            pendingAvatarLabels.remove(username);
-        });
-
-    dlg.exec();
-    disconnect(avatarConn);
+    dialog.setRequests(pending);
+    dialog.exec();
 }
 
 void ChatWindow::onFriendChatMessage(const QJsonObject &data) {

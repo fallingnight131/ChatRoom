@@ -548,6 +548,23 @@ struct WindowsLocaleMessages {
     QString mainFriendSearchOfflineAccessible;
     QString mainFriendSearchResultOnlineAccessible;
     QString mainFriendSearchResultOfflineAccessible;
+    QString mainFriendRequestsTitle;
+    QString mainFriendRequestsAccessible;
+    QString mainFriendRequestsCount;
+    QString mainFriendRequestsListAccessible;
+    QString mainFriendRequestsEmpty;
+    QString mainFriendRequestsPending;
+    QString mainFriendRequestsFailed;
+    QString mainFriendRequestsMetadata;
+    QString mainFriendRequestsAccept;
+    QString mainFriendRequestsReject;
+    QString mainFriendRequestsAccepted;
+    QString mainFriendRequestsRejected;
+    QString mainFriendRequestsAcceptAccessible;
+    QString mainFriendRequestsRejectAccessible;
+    QString mainFriendRequestsAcceptedAccessible;
+    QString mainFriendRequestsRejectedAccessible;
+    QString mainFriendRequestsRowAccessible;
 };
 
 class WindowsLocaleCatalog final {

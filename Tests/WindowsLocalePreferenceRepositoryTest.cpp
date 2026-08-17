@@ -192,7 +192,17 @@ int main(int argc, char **argv) {
                 || english.mainFriendSearchCurrentAccount
                     != QStringLiteral("Current account")
                 || english.mainFriendSearchSendRequest
-                    != QStringLiteral("Send request")) {
+                    != QStringLiteral("Send request")
+                || english.mainFriendRequestsTitle
+                    != QStringLiteral("Friend requests")
+                || english.mainFriendRequestsPending
+                    != QStringLiteral("Processing friend request…")
+                || english.mainFriendRequestsFailed
+                    != QStringLiteral("Unable to process friend request")
+                || english.mainFriendRequestsAccepted
+                    != QStringLiteral("Accepted")
+                || english.mainFriendRequestsRejected
+                    != QStringLiteral("Rejected")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -223,6 +233,12 @@ int main(int argc, char **argv) {
                     != QStringLiteral("搜索聊天室")
                 || chinese.mainFriendSearchTitle
                     != QStringLiteral("搜索好友")
+                || chinese.mainFriendRequestsTitle
+                    != QStringLiteral("好友申请")
+                || chinese.mainFriendRequestsAccepted
+                    != QStringLiteral("已接受")
+                || chinese.mainFriendRequestsRejected
+                    != QStringLiteral("已拒绝")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";
