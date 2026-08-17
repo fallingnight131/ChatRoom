@@ -6,7 +6,8 @@ macx:isEmpty(SODIUM_ROOT) {
 
 !isEmpty(SODIUM_ROOT) {
     INCLUDEPATH += $$quote($$SODIUM_ROOT/include)
-    LIBS += -L$$quote($$SODIUM_ROOT/lib) -lsodium
+    win32: LIBS += $$quote($$SODIUM_ROOT/lib/libsodium.lib)
+    else: LIBS += -L$$quote($$SODIUM_ROOT/lib) -lsodium
 } else:win32 {
     error("SODIUM_ROOT must point to a vcpkg libsodium installation")
 } else {
