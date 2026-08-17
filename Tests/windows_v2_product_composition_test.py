@@ -106,7 +106,7 @@ def main() -> int:
     ),
             "Client/LoginDialog.cpp")
     require(window, (
-        'QStringLiteral("登录设备(&D)...")',
+        "m_deviceManagementAction = m_settingsMenu->addAction(",
         "m_deviceManagementAction->setVisible(false)",
         "m_deviceManagementController->start()",
         "m_deviceManagementController->stop()",
@@ -140,7 +140,23 @@ def main() -> int:
         "m_windowsLocaleViewModel);",
         "}, 256, m_windowsLocaleViewModel);",
         "new TrayManager(this, m_windowsLocaleViewModel)",
+        "WindowsLocaleViewModel::changed,",
+        "&ChatWindow::refreshWindowChrome",
+        "copy.mainWindowTitleForUser.arg(m_displayName)",
+        "m_deviceManagementAction->setText(copy.mainMenuDevices)",
+        "m_v2ConversationAction->setText(copy.mainMenuV2Preview)",
+        "m_accountBlockDirectoryAction->setText(copy.mainMenuBlockedAccounts)",
+        "QMessageBox::about(this, copy.mainAboutTitle, copy.mainAboutBody)",
     ), "Client/ChatWindow.cpp")
+    menu_surface = window[
+        window.index("void ChatWindow::setupMenuBar()"):
+        window.index("// ==================== 信号连接")
+    ]
+    if any(text in menu_surface for text in (
+        "文件(&F)", "视图(&V)", "设置(&S)", "帮助(&H)",
+        "登录设备(&D)...", "检查更新(&U)...",
+    )):
+        raise AssertionError("ChatWindow menu surface must not embed localized copy")
     require(tray, (
         "WindowsLocaleViewModel::changed",
         "WindowsLocaleCatalog::messages(locale)",

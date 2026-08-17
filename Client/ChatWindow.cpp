@@ -332,12 +332,15 @@ ChatWindow::ChatWindow(QWidget *parent, WindowsLocaleViewModel *localeViewModel)
                 m_windowsLocaleRepository.get());
         m_windowsLocaleViewModel = m_ownedWindowsLocaleViewModel.get();
     }
-    setWindowTitle("Qt聊天室");
+    setWindowTitle(WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale()).mainWindowTitle);
     setWindowFlags(Qt::Window | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
     resize(1000, 700);
 
     setupUi();
     setupMenuBar();
+    connect(m_windowsLocaleViewModel, &WindowsLocaleViewModel::changed,
+            this, &ChatWindow::refreshWindowChrome);
     connectSignals();
     connect(m_bandwidthViewModel.get(), &WindowsBandwidthViewModel::changed,
             this, [this] {
@@ -358,7 +361,7 @@ void ChatWindow::setCurrentUser(int userId, const QString &username, const QStri
     m_userId   = userId;
     m_username = username;
     m_displayName = displayName;
-    setWindowTitle(QString("Qt聊天室 - %1").arg(displayName));
+    refreshWindowChrome();
     m_nicknameLabel->setText(displayName);
 
     // 设置用户缓存目录（以用户uniqueId隔离）
@@ -697,51 +700,84 @@ void ChatWindow::setupUi() {
 }
 
 void ChatWindow::setupMenuBar() {
-    auto *fileMenu = menuBar()->addMenu("文件(&F)");
-    fileMenu->addAction("注销(&L)", this, &ChatWindow::onLogout);
-    fileMenu->addSeparator();
-    fileMenu->addAction("退出(&Q)", [this] {
+    m_fileMenu = menuBar()->addMenu(QString{});
+    m_logoutAction = m_fileMenu->addAction(
+        QString{}, this, &ChatWindow::onLogout);
+    m_fileMenu->addSeparator();
+    m_quitAction = m_fileMenu->addAction(QString{}, QKeySequence::Quit, this, [this] {
         m_forceQuit = true;
         close();
-    }, QKeySequence::Quit);
+    });
 
-    auto *viewMenu = menuBar()->addMenu("视图(&V)");
-    viewMenu->addAction("切换主题(&T)", this, &ChatWindow::onToggleTheme, QKeySequence("Ctrl+T"));
+    m_viewMenu = menuBar()->addMenu(QString{});
+    m_toggleThemeAction = m_viewMenu->addAction(
+        QString{}, QKeySequence("Ctrl+T"), this, &ChatWindow::onToggleTheme);
 
-    auto *settingsMenu = menuBar()->addMenu("设置(&S)");
-    settingsMenu->addAction("修改个人信息(&P)...", this, &ChatWindow::showProfileDialog);
+    m_settingsMenu = menuBar()->addMenu(QString{});
+    m_profileAction = m_settingsMenu->addAction(
+        QString{}, this, &ChatWindow::showProfileDialog);
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
-    m_deviceManagementAction = settingsMenu->addAction(
-        QStringLiteral("登录设备(&D)..."), this,
+    m_deviceManagementAction = m_settingsMenu->addAction(
+        QString{}, this,
         &ChatWindow::showDeviceManagement);
     m_deviceManagementAction->setVisible(false);
-    m_v2ConversationAction = settingsMenu->addAction(
-        QStringLiteral("新版会话与回复（预览）(&V)..."), this,
+    m_v2ConversationAction = m_settingsMenu->addAction(
+        QString{}, this,
         &ChatWindow::showV2Conversations);
     m_v2ConversationAction->setVisible(false);
-    m_accountBlockDirectoryAction = settingsMenu->addAction(
-        QStringLiteral("隐私与屏蔽账号(&B)..."), this,
+    m_accountBlockDirectoryAction = m_settingsMenu->addAction(
+        QString{}, this,
         &ChatWindow::showAccountBlockDirectory);
     m_accountBlockDirectoryAction->setVisible(false);
 #endif
-    settingsMenu->addSeparator();
-    settingsMenu->addAction("缓存路径(&C)...", this, &ChatWindow::onChangeCacheDir);
-    settingsMenu->addAction("清除缓存(&X)...", this, &ChatWindow::onClearCache);
-    settingsMenu->addAction("待发送文件(&U)...", this,
-                            &ChatWindow::showPendingAttachments);
+    m_settingsMenu->addSeparator();
+    m_cachePathAction = m_settingsMenu->addAction(
+        QString{}, this, &ChatWindow::onChangeCacheDir);
+    m_clearCacheAction = m_settingsMenu->addAction(
+        QString{}, this, &ChatWindow::onClearCache);
+    m_pendingAttachmentsAction = m_settingsMenu->addAction(
+        QString{}, this, &ChatWindow::showPendingAttachments);
 
-    auto *helpMenu = menuBar()->addMenu("帮助(&H)");
-    m_checkForUpdatesAction = helpMenu->addAction(
-        QStringLiteral("检查更新(&U)..."), this,
+    m_helpMenu = menuBar()->addMenu(QString{});
+    m_checkForUpdatesAction = m_helpMenu->addAction(
+        QString{}, this,
         &ChatWindow::checkForUpdatesRequested);
     m_checkForUpdatesAction->setVisible(false);
-    helpMenu->addSeparator();
-    helpMenu->addAction("关于(&A)", [this] {
-        QMessageBox::about(this, "关于",
-                           "Qt聊天室 v1.0\n\n"
-                           "基于 Qt/C++ 开发的聊天应用\n"
-                           "支持群组聊天、文件传输、消息撤回等功能");
-    });
+    m_helpMenu->addSeparator();
+    m_aboutAction = m_helpMenu->addAction(
+        QString{}, this, &ChatWindow::showAboutDialog);
+    refreshWindowChrome();
+}
+
+void ChatWindow::refreshWindowChrome() {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    setWindowTitle(m_displayName.isEmpty()
+        ? copy.mainWindowTitle : copy.mainWindowTitleForUser.arg(m_displayName));
+    m_fileMenu->setTitle(copy.mainMenuFile);
+    m_viewMenu->setTitle(copy.mainMenuView);
+    m_settingsMenu->setTitle(copy.mainMenuSettings);
+    m_helpMenu->setTitle(copy.mainMenuHelp);
+    m_logoutAction->setText(copy.mainMenuLogout);
+    m_quitAction->setText(copy.mainMenuQuit);
+    m_toggleThemeAction->setText(copy.mainMenuToggleTheme);
+    m_profileAction->setText(copy.mainMenuProfile);
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+    m_deviceManagementAction->setText(copy.mainMenuDevices);
+    m_v2ConversationAction->setText(copy.mainMenuV2Preview);
+    m_accountBlockDirectoryAction->setText(copy.mainMenuBlockedAccounts);
+#endif
+    m_cachePathAction->setText(copy.mainMenuCachePath);
+    m_clearCacheAction->setText(copy.mainMenuClearCache);
+    m_pendingAttachmentsAction->setText(copy.mainMenuPendingAttachments);
+    m_checkForUpdatesAction->setText(copy.mainMenuCheckUpdates);
+    m_aboutAction->setText(copy.mainMenuAbout);
+}
+
+void ChatWindow::showAboutDialog() {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    QMessageBox::about(this, copy.mainAboutTitle, copy.mainAboutBody);
 }
 
 // ==================== 信号连接 ====================

@@ -3251,6 +3251,12 @@ ViewModel and `TrayManager` to update the existing tooltip and show/quit actions
 on `changed`; it rejects embedded Chinese presentation text in the adapter.
 This is deterministic composition and macOS development-host compile evidence,
 not native Windows tray availability, activation, or shell-menu evidence.
+The same Core and source gates cover main-window chrome. They lock exact title,
+menu, gated action and About terminology; require locale changes to update the
+existing QMenu/QAction objects; and reject embedded Chinese copy inside the
+menu surface. A successful macOS link proves portability only. Windows Release
+must still verify native menu mnemonics, shortcuts, visibility gates and About
+presentation.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

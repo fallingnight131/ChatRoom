@@ -432,6 +432,28 @@ WindowsLocaleMessages createZhCn() {
     m.trayApplicationName = QStringLiteral("聊天软件");
     m.trayShowMainWindow = QStringLiteral("显示主窗口");
     m.trayQuit = QStringLiteral("退出");
+    m.mainWindowTitle = QStringLiteral("Qt聊天室");
+    m.mainWindowTitleForUser = QStringLiteral("Qt聊天室 - %1");
+    m.mainMenuFile = QStringLiteral("文件(&F)");
+    m.mainMenuView = QStringLiteral("视图(&V)");
+    m.mainMenuSettings = QStringLiteral("设置(&S)");
+    m.mainMenuHelp = QStringLiteral("帮助(&H)");
+    m.mainMenuLogout = QStringLiteral("注销(&L)");
+    m.mainMenuQuit = QStringLiteral("退出(&Q)");
+    m.mainMenuToggleTheme = QStringLiteral("切换主题(&T)");
+    m.mainMenuProfile = QStringLiteral("修改个人信息(&P)...");
+    m.mainMenuDevices = QStringLiteral("登录设备(&D)...");
+    m.mainMenuV2Preview = QStringLiteral("新版会话与回复（预览）(&V)...");
+    m.mainMenuBlockedAccounts = QStringLiteral("隐私与屏蔽账号(&B)...");
+    m.mainMenuCachePath = QStringLiteral("缓存路径(&C)...");
+    m.mainMenuClearCache = QStringLiteral("清除缓存(&X)...");
+    m.mainMenuPendingAttachments = QStringLiteral("待发送文件(&U)...");
+    m.mainMenuCheckUpdates = QStringLiteral("检查更新(&U)...");
+    m.mainMenuAbout = QStringLiteral("关于(&A)");
+    m.mainAboutTitle = QStringLiteral("关于");
+    m.mainAboutBody = QStringLiteral(
+        "Qt聊天室 v1.0\n\n基于 Qt/C++ 开发的聊天应用\n"
+        "支持群组聊天、文件传输、消息撤回等功能");
     return m;
 }
 
@@ -884,6 +906,28 @@ WindowsLocaleMessages createEnUs() {
     m.trayApplicationName = QStringLiteral("Chat Room");
     m.trayShowMainWindow = QStringLiteral("Show main window");
     m.trayQuit = QStringLiteral("Quit");
+    m.mainWindowTitle = QStringLiteral("Qt Chat Room");
+    m.mainWindowTitleForUser = QStringLiteral("Qt Chat Room - %1");
+    m.mainMenuFile = QStringLiteral("&File");
+    m.mainMenuView = QStringLiteral("&View");
+    m.mainMenuSettings = QStringLiteral("&Settings");
+    m.mainMenuHelp = QStringLiteral("&Help");
+    m.mainMenuLogout = QStringLiteral("&Sign out");
+    m.mainMenuQuit = QStringLiteral("&Quit");
+    m.mainMenuToggleTheme = QStringLiteral("Toggle &theme");
+    m.mainMenuProfile = QStringLiteral("Edit &profile...");
+    m.mainMenuDevices = QStringLiteral("Signed-in &devices...");
+    m.mainMenuV2Preview = QStringLiteral("New conversations and replies (&Preview)...");
+    m.mainMenuBlockedAccounts = QStringLiteral("Privacy and &blocked accounts...");
+    m.mainMenuCachePath = QStringLiteral("&Cache location...");
+    m.mainMenuClearCache = QStringLiteral("Clear cache (&X)...");
+    m.mainMenuPendingAttachments = QStringLiteral("Pending &uploads...");
+    m.mainMenuCheckUpdates = QStringLiteral("Check for &updates...");
+    m.mainMenuAbout = QStringLiteral("&About");
+    m.mainAboutTitle = QStringLiteral("About");
+    m.mainAboutBody = QStringLiteral(
+        "Qt Chat Room v1.0\n\nA chat application built with Qt/C++\n"
+        "Supports group chat, file transfer, and message recall");
     return m;
 }
 

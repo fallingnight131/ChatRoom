@@ -2860,6 +2860,8 @@ Candidate slices:
       operation/retry, disconnected rows and server-side authorization.
     - [x] Localize the Windows system-tray tooltip and show/quit actions through
       the application locale while preserving menu action and activation state.
+    - [x] Localize Windows main-window chrome as one slice: title, menu hierarchy,
+      menu actions and About copy, preserving identity, shortcuts and gate state.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

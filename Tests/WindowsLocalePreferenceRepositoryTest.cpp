@@ -123,7 +123,16 @@ int main(int argc, char **argv) {
                 || english.trayApplicationName != QStringLiteral("Chat Room")
                 || english.trayShowMainWindow
                     != QStringLiteral("Show main window")
-                || english.trayQuit != QStringLiteral("Quit")) {
+                || english.trayQuit != QStringLiteral("Quit")
+                || english.mainWindowTitleForUser
+                    != QStringLiteral("Qt Chat Room - %1")
+                || english.mainMenuFile != QStringLiteral("&File")
+                || english.mainMenuLogout != QStringLiteral("&Sign out")
+                || english.mainMenuDevices
+                    != QStringLiteral("Signed-in &devices...")
+                || english.mainMenuCheckUpdates
+                    != QStringLiteral("Check for &updates...")
+                || english.mainAboutTitle != QStringLiteral("About")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -133,6 +142,8 @@ int main(int argc, char **argv) {
                 || chinese.trayApplicationName != QStringLiteral("聊天软件")
                 || chinese.trayShowMainWindow != QStringLiteral("显示主窗口")
                 || chinese.trayQuit != QStringLiteral("退出")
+                || chinese.mainMenuFile != QStringLiteral("文件(&F)")
+                || chinese.mainMenuAbout != QStringLiteral("关于(&A)")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

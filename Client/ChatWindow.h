@@ -256,6 +256,8 @@ private slots:
 private:
     void setupUi();
     void setupMenuBar();
+    void refreshWindowChrome();
+    void showAboutDialog();
     void connectSignals();
     void completeUploadBytes();
     void onUploadFinalizeResponse(const QJsonObject &data);
@@ -362,6 +364,18 @@ private:
     QLabel       *m_avatarPreview  = nullptr;
     EmojiPicker  *m_emojiPicker    = nullptr;
     TrayManager  *m_trayManager    = nullptr;
+    QMenu        *m_fileMenu       = nullptr;
+    QMenu        *m_viewMenu       = nullptr;
+    QMenu        *m_settingsMenu   = nullptr;
+    QMenu        *m_helpMenu       = nullptr;
+    QAction      *m_logoutAction   = nullptr;
+    QAction      *m_quitAction     = nullptr;
+    QAction      *m_toggleThemeAction = nullptr;
+    QAction      *m_profileAction  = nullptr;
+    QAction      *m_cachePathAction = nullptr;
+    QAction      *m_clearCacheAction = nullptr;
+    QAction      *m_pendingAttachmentsAction = nullptr;
+    QAction      *m_aboutAction = nullptr;
 
     // 好友系统 UI
     QPushButton  *m_tabRoomBtn     = nullptr;

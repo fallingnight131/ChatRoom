@@ -428,6 +428,26 @@ struct WindowsLocaleMessages {
     QString trayApplicationName;
     QString trayShowMainWindow;
     QString trayQuit;
+    QString mainWindowTitle;
+    QString mainWindowTitleForUser;
+    QString mainMenuFile;
+    QString mainMenuView;
+    QString mainMenuSettings;
+    QString mainMenuHelp;
+    QString mainMenuLogout;
+    QString mainMenuQuit;
+    QString mainMenuToggleTheme;
+    QString mainMenuProfile;
+    QString mainMenuDevices;
+    QString mainMenuV2Preview;
+    QString mainMenuBlockedAccounts;
+    QString mainMenuCachePath;
+    QString mainMenuClearCache;
+    QString mainMenuPendingAttachments;
+    QString mainMenuCheckUpdates;
+    QString mainMenuAbout;
+    QString mainAboutTitle;
+    QString mainAboutBody;
 };
 
 class WindowsLocaleCatalog final {
