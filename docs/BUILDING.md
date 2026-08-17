@@ -3184,6 +3184,10 @@ language selector stays intentionally unavailable.
 proves English reply fallback/banner and send-failure state. This covers local
 application diagnostics, delivery/recall labels, and reply previews without
 translating server-provided or user-authored data.
+`WindowsConversationRuntimeLocalizationTest` is a detached Qt Core gate for
+the other conversation runtime ViewModels. It exercises English directory,
+participant, and search rejection/continuation/unavailable states while
+preserving supplied safe server reasons as data.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

@@ -73,6 +73,20 @@ struct WindowsLocaleMessages {
     QString sendFailed;
     QString replyUnavailable;
     QString replyRecalled;
+    QString refreshConversationsFailed;
+    QString loadMoreConversationsFailed;
+    QString openConversationFailed;
+    QString conversationRequestFailed;
+    QString conversationServiceUnavailable;
+    QString refreshParticipantsFailed;
+    QString loadMoreParticipantsFailed;
+    QString participantRequestFailed;
+    QString participantServiceUnavailable;
+    QString searchMessagesFailed;
+    QString loadMoreSearchFailed;
+    QString loadMessageContextFailed;
+    QString searchRequestFailed;
+    QString searchServiceUnavailable;
 };
 
 class WindowsLocaleCatalog final {

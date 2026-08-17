@@ -6,9 +6,10 @@
 #include <utility>
 
 V2WindowsConversationDirectoryViewModel::V2WindowsConversationDirectoryViewModel(
-        Action refresh, Action loadMore, OpenConversation open, QObject *parent)
+        Action refresh, Action loadMore, OpenConversation open, QObject *parent,
+        WindowsLocale locale)
     : QObject(parent), m_refresh(std::move(refresh)),
-      m_loadMore(std::move(loadMore)), m_open(std::move(open)) {
+      m_loadMore(std::move(loadMore)), m_open(std::move(open)), m_locale(locale) {
     if (!m_refresh || !m_loadMore || !m_open)
         throw std::invalid_argument("invalid Windows V2 directory view model");
 }
@@ -20,7 +21,7 @@ bool V2WindowsConversationDirectoryViewModel::refresh() {
     emit changed();
     if (m_refresh()) return true;
     m_busy = false;
-    m_failure = QStringLiteral("无法刷新会话列表");
+    m_failure = WindowsLocaleCatalog::messages(m_locale).refreshConversationsFailed;
     emit changed();
     return false;
 }
@@ -32,7 +33,7 @@ bool V2WindowsConversationDirectoryViewModel::loadMore() {
     emit changed();
     if (m_loadMore()) return true;
     m_busy = false;
-    m_failure = QStringLiteral("无法加载更多会话");
+    m_failure = WindowsLocaleCatalog::messages(m_locale).loadMoreConversationsFailed;
     emit changed();
     return false;
 }
@@ -42,7 +43,7 @@ bool V2WindowsConversationDirectoryViewModel::openConversation(
     const auto exists = std::find_if(m_rows.cbegin(), m_rows.cend(),
         [&](const Row &row) { return row.conversationId == conversationId; });
     if (exists == m_rows.cend() || !m_open(conversationId)) {
-        m_failure = QStringLiteral("无法打开该会话");
+        m_failure = WindowsLocaleCatalog::messages(m_locale).openConversationFailed;
         emit changed();
         return false;
     }
@@ -71,13 +72,15 @@ void V2WindowsConversationDirectoryViewModel::applyPage(
 
 void V2WindowsConversationDirectoryViewModel::applyFailure(const QString &safeReason) {
     m_busy = false;
-    m_failure = safeReason.isEmpty() ? QStringLiteral("会话列表请求失败") : safeReason;
+    m_failure = safeReason.isEmpty()
+        ? WindowsLocaleCatalog::messages(m_locale).conversationRequestFailed
+        : safeReason;
     emit changed();
 }
 
 void V2WindowsConversationDirectoryViewModel::setUnavailable() {
     m_busy = false;
     m_hasMore = false;
-    m_failure = QStringLiteral("会话服务已断开，正在重连");
+    m_failure = WindowsLocaleCatalog::messages(m_locale).conversationServiceUnavailable;
     emit changed();
 }

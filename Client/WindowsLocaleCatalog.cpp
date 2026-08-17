@@ -67,6 +67,20 @@ WindowsLocaleMessages createZhCn() {
     m.sendFailed = QStringLiteral("发送失败");
     m.replyUnavailable = QStringLiteral("引用的消息不可用");
     m.replyRecalled = QStringLiteral("引用的消息已撤回");
+    m.refreshConversationsFailed = QStringLiteral("无法刷新会话列表");
+    m.loadMoreConversationsFailed = QStringLiteral("无法加载更多会话");
+    m.openConversationFailed = QStringLiteral("无法打开该会话");
+    m.conversationRequestFailed = QStringLiteral("会话列表请求失败");
+    m.conversationServiceUnavailable = QStringLiteral("会话服务已断开，正在重连");
+    m.refreshParticipantsFailed = QStringLiteral("无法刷新成员列表");
+    m.loadMoreParticipantsFailed = QStringLiteral("无法加载更多成员");
+    m.participantRequestFailed = QStringLiteral("成员列表请求失败");
+    m.participantServiceUnavailable = QStringLiteral("成员服务已断开，正在重连");
+    m.searchMessagesFailed = QStringLiteral("无法搜索消息");
+    m.loadMoreSearchFailed = QStringLiteral("无法加载更多搜索结果");
+    m.loadMessageContextFailed = QStringLiteral("无法读取消息上下文");
+    m.searchRequestFailed = QStringLiteral("搜索请求失败");
+    m.searchServiceUnavailable = QStringLiteral("搜索服务已断开，请重连后重试");
     return m;
 }
 
@@ -136,6 +150,20 @@ WindowsLocaleMessages createEnUs() {
     m.sendFailed = QStringLiteral("Send failed");
     m.replyUnavailable = QStringLiteral("Referenced message is unavailable");
     m.replyRecalled = QStringLiteral("Referenced message was recalled");
+    m.refreshConversationsFailed = QStringLiteral("Unable to refresh conversations");
+    m.loadMoreConversationsFailed = QStringLiteral("Unable to load more conversations");
+    m.openConversationFailed = QStringLiteral("Unable to open this conversation");
+    m.conversationRequestFailed = QStringLiteral("Conversation request failed");
+    m.conversationServiceUnavailable = QStringLiteral("Conversation service disconnected; reconnecting");
+    m.refreshParticipantsFailed = QStringLiteral("Unable to refresh members");
+    m.loadMoreParticipantsFailed = QStringLiteral("Unable to load more members");
+    m.participantRequestFailed = QStringLiteral("Member request failed");
+    m.participantServiceUnavailable = QStringLiteral("Member service disconnected; reconnecting");
+    m.searchMessagesFailed = QStringLiteral("Unable to search messages");
+    m.loadMoreSearchFailed = QStringLiteral("Unable to load more search results");
+    m.loadMessageContextFailed = QStringLiteral("Unable to load message context");
+    m.searchRequestFailed = QStringLiteral("Search request failed");
+    m.searchServiceUnavailable = QStringLiteral("Search service disconnected; reconnect and try again");
     return m;
 }
 

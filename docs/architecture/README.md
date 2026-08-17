@@ -1921,6 +1921,10 @@ Messaging ViewModel projections now use that same boundary for local failures,
 reply state, delivery/recall labels, and unavailable reply previews. User text,
 account names, role labels, and server diagnostics remain data and are never
 used as catalog lookup keys.
+Directory, participant, and search ViewModels apply the same rule to locally
+generated request and disconnected states. Supplied safe server reasons remain
+opaque presentation data; localization never changes their meaning or uses
+them to select a catalog entry.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

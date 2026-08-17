@@ -6,9 +6,10 @@
 #include <utility>
 
 V2WindowsMessageSearchViewModel::V2WindowsMessageSearchViewModel(
-        Request request, ContextRequest contextRequest, QObject *parent)
+        Request request, ContextRequest contextRequest, QObject *parent,
+        WindowsLocale locale)
     : QObject(parent), m_request(std::move(request)),
-      m_contextRequest(std::move(contextRequest)) {
+      m_contextRequest(std::move(contextRequest)), m_locale(locale) {
     if (!m_request) throw std::invalid_argument("invalid Windows search view model");
 }
 
@@ -42,7 +43,7 @@ bool V2WindowsMessageSearchViewModel::search(const QString &literalQuery) {
     emit changed();
     if (m_request(m_conversationId, m_query, 0, false)) return true;
     m_busy = false;
-    m_failure = QStringLiteral("无法搜索消息");
+    m_failure = WindowsLocaleCatalog::messages(m_locale).searchMessagesFailed;
     emit changed();
     return false;
 }
@@ -57,7 +58,7 @@ bool V2WindowsMessageSearchViewModel::loadMore() {
     emit changed();
     if (m_request(m_conversationId, m_query, m_nextBeforeSequence, true)) return true;
     m_busy = false;
-    m_failure = QStringLiteral("无法加载更多搜索结果");
+    m_failure = WindowsLocaleCatalog::messages(m_locale).loadMoreSearchFailed;
     emit changed();
     return false;
 }
@@ -75,7 +76,7 @@ bool V2WindowsMessageSearchViewModel::requestContext(const QString &messageId) {
         return true;
     m_contextBusy = false;
     m_contextMessageId.clear();
-    m_failure = QStringLiteral("无法读取消息上下文");
+    m_failure = WindowsLocaleCatalog::messages(m_locale).loadMessageContextFailed;
     emit changed();
     return false;
 }
@@ -95,7 +96,8 @@ void V2WindowsMessageSearchViewModel::applyContextFailure(
     m_contextBusy = false;
     m_contextMessageId.clear();
     m_failure = safeReason.isEmpty()
-        ? QStringLiteral("无法读取消息上下文") : safeReason;
+        ? WindowsLocaleCatalog::messages(m_locale).loadMessageContextFailed
+        : safeReason;
     emit changed();
 }
 
@@ -125,7 +127,9 @@ void V2WindowsMessageSearchViewModel::applyFailure(
         const QString &safeReason) {
     if (conversationId != m_conversationId || query != m_query) return;
     m_busy = false;
-    m_failure = safeReason.isEmpty() ? QStringLiteral("搜索请求失败") : safeReason;
+    m_failure = safeReason.isEmpty()
+        ? WindowsLocaleCatalog::messages(m_locale).searchRequestFailed
+        : safeReason;
     emit changed();
 }
 
@@ -137,6 +141,6 @@ void V2WindowsMessageSearchViewModel::setUnavailable() {
     m_contextBusy = false;
     m_contextMessageId.clear();
     m_hasMore = false;
-    m_failure = QStringLiteral("搜索服务已断开，请重连后重试");
+    m_failure = WindowsLocaleCatalog::messages(m_locale).searchServiceUnavailable;
     emit changed();
 }

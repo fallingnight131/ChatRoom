@@ -6,8 +6,9 @@
 #include <utility>
 
 V2WindowsConversationParticipantViewModel::
-V2WindowsConversationParticipantViewModel(Request request, QObject *parent)
-    : QObject(parent), m_request(std::move(request)) {
+V2WindowsConversationParticipantViewModel(
+        Request request, QObject *parent, WindowsLocale locale)
+    : QObject(parent), m_request(std::move(request)), m_locale(locale) {
     if (!m_request) throw std::invalid_argument("invalid participant view model");
 }
 
@@ -40,8 +41,9 @@ bool V2WindowsConversationParticipantViewModel::request(bool continuation) {
     emit changed();
     if (m_request(m_conversationId, continuation)) return true;
     m_busy = false;
-    m_failure = continuation ? QStringLiteral("无法加载更多成员")
-                             : QStringLiteral("无法刷新成员列表");
+    const auto &copy = WindowsLocaleCatalog::messages(m_locale);
+    m_failure = continuation ? copy.loadMoreParticipantsFailed
+                             : copy.refreshParticipantsFailed;
     emit changed();
     return false;
 }
@@ -72,13 +74,15 @@ void V2WindowsConversationParticipantViewModel::applyFailure(
         const QString &conversationId, const QString &safeReason) {
     if (conversationId != m_conversationId) return;
     m_busy = false;
-    m_failure = safeReason.isEmpty() ? QStringLiteral("成员列表请求失败") : safeReason;
+    m_failure = safeReason.isEmpty()
+        ? WindowsLocaleCatalog::messages(m_locale).participantRequestFailed
+        : safeReason;
     emit changed();
 }
 
 void V2WindowsConversationParticipantViewModel::setUnavailable() {
     m_busy = false;
     m_hasMore = false;
-    m_failure = QStringLiteral("成员服务已断开，正在重连");
+    m_failure = WindowsLocaleCatalog::messages(m_locale).participantServiceUnavailable;
     emit changed();
 }

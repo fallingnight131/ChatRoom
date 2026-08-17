@@ -1,5 +1,7 @@
 #pragma once
 
+#include "WindowsLocaleCatalog.h"
+
 #include <QObject>
 #include <QString>
 #include <QVector>
@@ -21,7 +23,7 @@ public:
 
     V2WindowsConversationDirectoryViewModel(
         Action refresh, Action loadMore, OpenConversation open,
-        QObject *parent = nullptr);
+        QObject *parent = nullptr, WindowsLocale locale = WindowsLocale::ZhCn);
     QVector<Row> rows() const { return m_rows; }
     bool busy() const { return m_busy; }
     bool hasMore() const { return m_hasMore; }
@@ -45,4 +47,5 @@ private:
     bool m_busy = false;
     bool m_hasMore = false;
     QString m_failure;
+    WindowsLocale m_locale;
 };

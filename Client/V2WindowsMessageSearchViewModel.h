@@ -1,5 +1,7 @@
 #pragma once
 
+#include "WindowsLocaleCatalog.h"
+
 #include <QObject>
 #include <QString>
 #include <QVector>
@@ -23,7 +25,8 @@ public:
         const QString &, quint64, const QString &)>;
 
     explicit V2WindowsMessageSearchViewModel(
-        Request request, ContextRequest contextRequest = {}, QObject *parent = nullptr);
+        Request request, ContextRequest contextRequest = {}, QObject *parent = nullptr,
+        WindowsLocale locale = WindowsLocale::ZhCn);
     QString conversationId() const { return m_conversationId; }
     QString query() const { return m_query; }
     QVector<Row> rows() const { return m_rows; }
@@ -59,4 +62,5 @@ private:
     QString m_contextMessageId;
     bool m_hasMore = false;
     QString m_failure;
+    WindowsLocale m_locale;
 };

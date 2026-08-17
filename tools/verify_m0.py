@@ -419,6 +419,7 @@ def run_qt_client_unit_tests(jobs: int, build_root: Path) -> None:
         "LocalConversationRepositoryTest",
         "V2LocalMessageRepositoryTest",
         "V2WindowsMessagingViewModelTest",
+        "WindowsConversationRuntimeLocalizationTest",
         "V2WindowsMentionComposerTest",
         "V2WindowsMessagingPanelTest",
         "V2WindowsForwardTargetDialogTest",

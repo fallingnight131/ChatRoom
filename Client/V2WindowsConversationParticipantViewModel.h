@@ -1,5 +1,7 @@
 #pragma once
 
+#include "WindowsLocaleCatalog.h"
+
 #include <QObject>
 #include <QString>
 #include <QVector>
@@ -12,7 +14,8 @@ public:
     using Request = std::function<bool(const QString &, bool)>;
 
     explicit V2WindowsConversationParticipantViewModel(
-        Request request, QObject *parent = nullptr);
+        Request request, QObject *parent = nullptr,
+        WindowsLocale locale = WindowsLocale::ZhCn);
     QString conversationId() const { return m_conversationId; }
     QVector<Row> rows() const { return m_rows; }
     bool busy() const { return m_busy; }
@@ -39,4 +42,5 @@ private:
     bool m_busy = false;
     bool m_hasMore = false;
     QString m_failure;
+    WindowsLocale m_locale;
 };
