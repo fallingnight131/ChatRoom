@@ -218,6 +218,14 @@ def main() -> int:
         "copy.mainFriendRemovedByStatus.arg(identity)",
         "copy.mainLeaveRoomConfirm.arg(roomName)",
         "m_statusLabel->setText(copy.mainLeaveRoomFailed)",
+        "copy.mainRoomDeleted.arg(roomName)",
+        "copy.mainRoomDeletedByAdministrator.arg(roomName)",
+        "error.isEmpty() ? copy.roomDeleteFailedTitle : error",
+        "copy.mainRoomRenamed",
+        "copy.mainRoomRenameFailed : error",
+        "copy.mainRoomKickSucceeded.arg(username)",
+        "copy.mainRoomKickFailed : error",
+        "copy.mainRoomKickedByAdministrator.arg(operatorName, roomName)",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -363,6 +371,18 @@ def main() -> int:
     ]
     if "退出聊天室" in leave_room_surface:
         raise AssertionError("leave-room flow must use catalog presentation copy")
+    room_management_surface = window[
+        window.index("void ChatWindow::onDeleteRoomResponse("):
+        window.index("// ==================== 修改昵称")
+    ]
+    for embedded_copy in (
+        "删除成功", "聊天室已删除", "修改成功",
+        "聊天室名称修改成功", "踢人失败", "被踢出聊天室",
+    ):
+        if embedded_copy in room_management_surface:
+            raise AssertionError(
+                "room-management result flow must use catalog presentation copy"
+            )
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

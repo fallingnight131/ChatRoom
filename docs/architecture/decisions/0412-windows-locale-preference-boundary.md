@@ -251,3 +251,6 @@ database migration or protocol compatibility window is required.
   the existing V1/cache-cleanup flow are unchanged.
 - leave-room confirmation and rejection feedback use the active catalog while
   the stable room ID, V1 command and successful cache/model cleanup stay intact.
+- room deletion, rename, member-removal and kicked-user results use the active
+  catalog with local empty-error fallbacks. Names and non-empty server errors
+  remain opaque, while authority, stable IDs and cleanup behavior are unchanged.

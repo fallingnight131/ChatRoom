@@ -3321,6 +3321,11 @@ release evidence to collect.
 The same source/catalog gate locks leave-room confirmation and the previously
 silent negative response while preserving stable room-ID dispatch and success
 cleanup. Native Windows modal focus and keyboard behavior remain release evidence.
+Room deletion, rename, member-removal and kicked-user results are covered by
+the same exact catalog and source-composition gate. It rejects embedded copy,
+requires empty-error local fallbacks, and leaves stable IDs, server authority,
+model/cache transitions and V1 commands untouched. Native Windows modal and
+assistive-technology behavior remains release evidence to collect.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

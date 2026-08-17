@@ -219,7 +219,21 @@ int main(int argc, char **argv) {
                 || english.mainLeaveRoomConfirm
                     != QStringLiteral("Leave room %1?")
                 || english.mainLeaveRoomFailed
-                    != QStringLiteral("Unable to leave room")) {
+                    != QStringLiteral("Unable to leave room")
+                || english.mainRoomDeleted
+                    != QStringLiteral("Room \"%1\" was deleted")
+                || english.mainRoomDeletedByAdministrator
+                    != QStringLiteral(
+                        "Room \"%1\" was deleted by an administrator")
+                || english.mainRoomRenamed
+                    != QStringLiteral("The room name was updated")
+                || english.mainRoomRenameFailed
+                    != QStringLiteral("Unable to rename room")
+                || english.mainRoomKickSucceeded
+                    != QStringLiteral("Removed %1 from the room")
+                || english.mainRoomKickedByAdministrator
+                    != QStringLiteral(
+                        "Administrator %1 removed you from room \"%2\"")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -264,6 +278,12 @@ int main(int argc, char **argv) {
                     != QStringLiteral("好友申请已发送")
                 || chinese.mainLeaveRoomTitle
                     != QStringLiteral("退出聊天室")
+                || chinese.mainRoomDeleted
+                    != QStringLiteral("聊天室“%1”已被删除")
+                || chinese.mainRoomRenamed
+                    != QStringLiteral("聊天室名称修改成功")
+                || chinese.mainRoomKickSucceeded
+                    != QStringLiteral("已将 %1 移出聊天室")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

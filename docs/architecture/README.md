@@ -2128,6 +2128,10 @@ username; the existing V1 commands and local conversation cleanup are unchanged.
 The Windows leave-room edge now uses the catalog for confirmation and exposes
 an explicit localized rejection status. Stable room ID dispatch and the
 successful local model/cache cleanup sequence are unchanged.
+Room deletion, rename, member removal, and kicked-user result surfaces now use
+the same event-time locale projection. Room/account/operator names remain
+opaque data, server authorization and error detail remain authoritative, and
+the existing stable-ID list/model/cache transitions are unchanged.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

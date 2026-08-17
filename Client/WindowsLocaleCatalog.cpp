@@ -588,6 +588,21 @@ WindowsLocaleMessages createZhCn() {
     m.mainLeaveRoomTitle = QStringLiteral("退出聊天室");
     m.mainLeaveRoomConfirm = QStringLiteral("确定要退出聊天室 %1 吗？");
     m.mainLeaveRoomFailed = QStringLiteral("退出聊天室失败");
+    m.mainRoomDeleteSucceededTitle = QStringLiteral("删除成功");
+    m.mainRoomDeleted = QStringLiteral("聊天室“%1”已被删除");
+    m.mainRoomDeletedNotifyTitle = QStringLiteral("聊天室已删除");
+    m.mainRoomDeletedByAdministrator = QStringLiteral(
+        "聊天室“%1”已被管理员删除");
+    m.mainRoomRenameSucceededTitle = QStringLiteral("修改成功");
+    m.mainRoomRenamed = QStringLiteral("聊天室名称修改成功");
+    m.mainRoomRenameFailedTitle = QStringLiteral("修改失败");
+    m.mainRoomRenameFailed = QStringLiteral("聊天室名称修改失败");
+    m.mainRoomKickSucceeded = QStringLiteral("已将 %1 移出聊天室");
+    m.mainRoomKickFailedTitle = QStringLiteral("移出成员失败");
+    m.mainRoomKickFailed = QStringLiteral("无法移出该聊天室成员");
+    m.mainRoomKickedTitle = QStringLiteral("已被移出聊天室");
+    m.mainRoomKickedByAdministrator = QStringLiteral(
+        "你已被管理员 %1 移出聊天室“%2”");
     return m;
 }
 
@@ -1197,6 +1212,21 @@ WindowsLocaleMessages createEnUs() {
     m.mainLeaveRoomTitle = QStringLiteral("Leave room");
     m.mainLeaveRoomConfirm = QStringLiteral("Leave room %1?");
     m.mainLeaveRoomFailed = QStringLiteral("Unable to leave room");
+    m.mainRoomDeleteSucceededTitle = QStringLiteral("Room deleted");
+    m.mainRoomDeleted = QStringLiteral("Room \"%1\" was deleted");
+    m.mainRoomDeletedNotifyTitle = QStringLiteral("Room no longer available");
+    m.mainRoomDeletedByAdministrator = QStringLiteral(
+        "Room \"%1\" was deleted by an administrator");
+    m.mainRoomRenameSucceededTitle = QStringLiteral("Room renamed");
+    m.mainRoomRenamed = QStringLiteral("The room name was updated");
+    m.mainRoomRenameFailedTitle = QStringLiteral("Rename failed");
+    m.mainRoomRenameFailed = QStringLiteral("Unable to rename room");
+    m.mainRoomKickSucceeded = QStringLiteral("Removed %1 from the room");
+    m.mainRoomKickFailedTitle = QStringLiteral("Unable to remove member");
+    m.mainRoomKickFailed = QStringLiteral("The room member could not be removed");
+    m.mainRoomKickedTitle = QStringLiteral("Removed from room");
+    m.mainRoomKickedByAdministrator = QStringLiteral(
+        "Administrator %1 removed you from room \"%2\"");
     return m;
 }
 

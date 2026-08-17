@@ -581,6 +581,19 @@ struct WindowsLocaleMessages {
     QString mainLeaveRoomTitle;
     QString mainLeaveRoomConfirm;
     QString mainLeaveRoomFailed;
+    QString mainRoomDeleteSucceededTitle;
+    QString mainRoomDeleted;
+    QString mainRoomDeletedNotifyTitle;
+    QString mainRoomDeletedByAdministrator;
+    QString mainRoomRenameSucceededTitle;
+    QString mainRoomRenamed;
+    QString mainRoomRenameFailedTitle;
+    QString mainRoomRenameFailed;
+    QString mainRoomKickSucceeded;
+    QString mainRoomKickFailedTitle;
+    QString mainRoomKickFailed;
+    QString mainRoomKickedTitle;
+    QString mainRoomKickedByAdministrator;
 };
 
 class WindowsLocaleCatalog final {

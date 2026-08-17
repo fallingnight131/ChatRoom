@@ -4276,9 +4276,13 @@ void ChatWindow::onRoomFilesNotify(int roomId, const QJsonArray &clearedFileIds,
 // ==================== 删除聊天室 ====================
 
 void ChatWindow::onDeleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error) {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success) {
         removeCachedRoom(roomId);
-        QMessageBox::information(this, "删除成功", QString("聊天室 \"%1\" 已被删除").arg(roomName));
+        QMessageBox::information(
+            this, copy.mainRoomDeleteSucceededTitle,
+            copy.mainRoomDeleted.arg(roomName));
         // 从房间列表中移除
         for (int i = 0; i < m_roomList->count(); ++i) {
             if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
@@ -4303,7 +4307,8 @@ void ChatWindow::onDeleteRoomResponse(bool success, int roomId, const QString &r
         }
         if (m_models.contains(roomId)) delete m_models.take(roomId);
     } else {
-        QMessageBox::warning(this, "删除失败", error);
+        QMessageBox::warning(this, copy.roomDeleteFailedTitle,
+            error.isEmpty() ? copy.roomDeleteFailedTitle : error);
     }
 }
 
@@ -4319,8 +4324,10 @@ void ChatWindow::onDeleteRoomNotify(int roomId, const QString &roomName, const Q
     }
     // 如果当前正在该房间，切换到第一个房间
     if (m_currentRoomId == roomId) {
-        QMessageBox::information(this, "聊天室已删除",
-            QString("聊天室 \"%1\" 已被管理员删除").arg(roomName));
+        const auto &copy = WindowsLocaleCatalog::messages(
+            m_windowsLocaleViewModel->locale());
+        QMessageBox::information(this, copy.mainRoomDeletedNotifyTitle,
+            copy.mainRoomDeletedByAdministrator.arg(roomName));
         m_currentRoomId = -1;
         m_messageView->setModel(nullptr);
         m_restoringDraft = true;
@@ -4340,6 +4347,8 @@ void ChatWindow::onDeleteRoomNotify(int roomId, const QString &roomName, const Q
 // ==================== 重命名聊天室 ====================
 
 void ChatWindow::onRenameRoomResponse(bool success, int roomId, const QString &newName, const QString &error) {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success) {
         for (int i = 0; i < m_roomList->count(); ++i) {
             if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
@@ -4356,9 +4365,11 @@ void ChatWindow::onRenameRoomResponse(bool success, int roomId, const QString &n
                 dlg->setRoomName(newName);
             }
         }
-        QMessageBox::information(this, QStringLiteral("修改成功"), QStringLiteral("聊天室名称修改成功"));
+        QMessageBox::information(this, copy.mainRoomRenameSucceededTitle,
+                                 copy.mainRoomRenamed);
     } else {
-        QMessageBox::warning(this, "修改失败", error);
+        QMessageBox::warning(this, copy.mainRoomRenameFailedTitle,
+            error.isEmpty() ? copy.mainRoomRenameFailed : error);
     }
 }
 
@@ -4441,10 +4452,13 @@ void ChatWindow::onJoinRoomNeedPassword(int roomId) {
 
 void ChatWindow::onKickUserResponse(bool success, int roomId, const QString &username, const QString &error) {
     Q_UNUSED(roomId)
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success) {
-        m_statusLabel->setText(QStringLiteral("已将 %1 踢出聊天室").arg(username));
+        m_statusLabel->setText(copy.mainRoomKickSucceeded.arg(username));
     } else {
-        QMessageBox::warning(this, "踢人失败", error);
+        QMessageBox::warning(this, copy.mainRoomKickFailedTitle,
+            error.isEmpty() ? copy.mainRoomKickFailed : error);
     }
 }
 
@@ -4471,8 +4485,10 @@ void ChatWindow::onKickedFromRoom(int roomId, const QString &roomName, const QSt
     m_adminRooms.remove(roomId);
     if (m_models.contains(roomId)) delete m_models.take(roomId);
 
-    QMessageBox::warning(this, "被踢出聊天室",
-        QStringLiteral("您已被管理员 %1 踢出聊天室 \"%2\"").arg(operatorName, roomName));
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    QMessageBox::warning(this, copy.mainRoomKickedTitle,
+        copy.mainRoomKickedByAdministrator.arg(operatorName, roomName));
 }
 
 // ==================== 修改昵称 ====================
