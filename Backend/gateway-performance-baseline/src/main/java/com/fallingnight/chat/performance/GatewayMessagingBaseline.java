@@ -953,6 +953,10 @@ public final class GatewayMessagingBaseline {
                     execute(connection,
                             "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
                             conversation);
+                    execute(connection, "INSERT INTO chat.direct_conversation(conversation_id, "
+                                    + "first_account_id, second_account_id) "
+                                    + "VALUES (?, LEAST(?, ?), GREATEST(?, ?))",
+                            conversation, sender, peers.getFirst(), sender, peers.getFirst());
                 } else {
                     execute(connection, "INSERT INTO chat.conversation(id, kind, title) "
                             + "VALUES (?, 'GROUP', ?)", conversation,
