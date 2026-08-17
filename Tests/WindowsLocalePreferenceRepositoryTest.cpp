@@ -170,7 +170,9 @@ int main(int argc, char **argv) {
                 || english.mainConversationMembers
                     != QStringLiteral("Room members")
                 || english.mainConversationMemberOffline
-                    != QStringLiteral("Offline")) {
+                    != QStringLiteral("Offline")
+                || english.mainTrayMinimizedBody
+                    != QStringLiteral("The app was minimized to the system tray")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -192,6 +194,8 @@ int main(int argc, char **argv) {
                     != QStringLiteral("请选择一个会话")
                 || chinese.mainConversationMembers
                     != QStringLiteral("聊天室成员")
+                || chinese.mainTrayMinimizedTitle
+                    != QStringLiteral("聊天软件")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

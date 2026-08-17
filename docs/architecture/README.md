@@ -2097,6 +2097,8 @@ The conversation header and member sidebar use the same projection boundary:
 room/peer identity, administrator role, and presence remain structured state.
 A language switch may replace member row widgets, but retains list items,
 selection, the active message model, and conversation identity.
+The minimize-to-tray notice also resolves from the active locale at close time;
+the existing hide, ignored-close and explicit-quit behavior is unchanged.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

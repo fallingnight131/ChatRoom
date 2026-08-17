@@ -178,6 +178,7 @@ def main() -> int:
         "copy.mainConversationDirectTitle.arg(identity)",
         "copy.mainConversationAdminTitle.arg(item->text())",
         "copy.mainConversationMemberOfflineAccessible.arg(displayName)",
+        "copy.mainTrayMinimizedTitle, copy.mainTrayMinimizedBody",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -248,6 +249,12 @@ def main() -> int:
         raise AssertionError(
             "connection lifecycle must not overwrite activity or own localized copy"
         )
+    close_surface = window[
+        window.index("void ChatWindow::closeEvent(QCloseEvent *event)"):
+        window.index("void ChatWindow::moveEvent(QMoveEvent *event)")
+    ]
+    if 'showNotification("Qt聊天室"' in close_surface:
+        raise AssertionError("minimize-to-tray notification must use the locale catalog")
     require(connection_status, (
         "State::Disconnected",
         "State::Connected",

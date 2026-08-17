@@ -504,6 +504,8 @@ WindowsLocaleMessages createZhCn() {
     m.mainConversationMemberOffline = QStringLiteral("离线");
     m.mainConversationMemberOnlineAccessible = QStringLiteral("%1，在线");
     m.mainConversationMemberOfflineAccessible = QStringLiteral("%1，离线");
+    m.mainTrayMinimizedTitle = QStringLiteral("聊天软件");
+    m.mainTrayMinimizedBody = QStringLiteral("程序已最小化到系统托盘");
     return m;
 }
 
@@ -1029,6 +1031,8 @@ WindowsLocaleMessages createEnUs() {
     m.mainConversationMemberOffline = QStringLiteral("Offline");
     m.mainConversationMemberOnlineAccessible = QStringLiteral("%1, online");
     m.mainConversationMemberOfflineAccessible = QStringLiteral("%1, offline");
+    m.mainTrayMinimizedTitle = QStringLiteral("Chat Room");
+    m.mainTrayMinimizedBody = QStringLiteral("The app was minimized to the system tray");
     return m;
 }
 

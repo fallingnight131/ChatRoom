@@ -3282,6 +3282,9 @@ derive from stable roles through the catalog. Locale projection may replace a
 member row widget but cannot change its item, selection, conversation identity,
 or active message model. Native Windows screen-reader output remains evidence
 to collect.
+The same source gate requires minimize-to-tray notification copy to be resolved
+from the active locale at close time while retaining the existing close/ignore
+and force-quit branches.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

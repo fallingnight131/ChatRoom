@@ -3888,7 +3888,10 @@ void ChatWindow::closeEvent(QCloseEvent *event) {
     } else if (m_trayManager && m_trayManager->isAvailable()) {
         // 点击 X：最小化到托盘
         hide();
-        m_trayManager->showNotification("Qt聊天室", "程序已最小化到系统托盘");
+        const auto &copy = WindowsLocaleCatalog::messages(
+            m_windowsLocaleViewModel->locale());
+        m_trayManager->showNotification(
+            copy.mainTrayMinimizedTitle, copy.mainTrayMinimizedBody);
         event->ignore();
     } else {
         NetworkManager::instance()->disconnectFromServer();

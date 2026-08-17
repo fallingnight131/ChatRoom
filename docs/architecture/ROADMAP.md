@@ -2872,6 +2872,8 @@ Candidate slices:
       online state from identity text and locale-independent avatar generation.
     - [x] Localize the Windows conversation header and room-member sidebar from
       structured room, direct-chat, administrator and online-state data.
+    - [x] Localize the Windows minimize-to-tray notification without changing
+      close, hide, exit or notification-activation behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

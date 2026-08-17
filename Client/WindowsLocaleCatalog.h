@@ -497,6 +497,8 @@ struct WindowsLocaleMessages {
     QString mainConversationMemberOffline;
     QString mainConversationMemberOnlineAccessible;
     QString mainConversationMemberOfflineAccessible;
+    QString mainTrayMinimizedTitle;
+    QString mainTrayMinimizedBody;
 };
 
 class WindowsLocaleCatalog final {

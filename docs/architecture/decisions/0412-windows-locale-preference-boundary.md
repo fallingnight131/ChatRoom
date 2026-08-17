@@ -225,3 +225,5 @@ database migration or protocol compatibility window is required.
 - conversation-shell composition derives titles and member rows from stable
   identity, administrator and online roles; locale changes retain the active
   message model, conversation identity, member items and selection.
+- minimize-to-tray copy uses the active catalog at notification time while the
+  existing close/ignore and force-quit control flow remains unchanged.
