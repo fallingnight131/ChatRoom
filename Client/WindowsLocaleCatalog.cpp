@@ -506,6 +506,9 @@ WindowsLocaleMessages createZhCn() {
     m.mainConversationMemberOfflineAccessible = QStringLiteral("%1，离线");
     m.mainTrayMinimizedTitle = QStringLiteral("聊天软件");
     m.mainTrayMinimizedBody = QStringLiteral("程序已最小化到系统托盘");
+    m.mainLogoutTitle = QStringLiteral("注销");
+    m.mainLogoutConfirm = QStringLiteral("确定要注销当前账号吗？");
+    m.mainForcedOfflineTitle = QStringLiteral("会话已结束");
     return m;
 }
 
@@ -1033,6 +1036,9 @@ WindowsLocaleMessages createEnUs() {
     m.mainConversationMemberOfflineAccessible = QStringLiteral("%1, offline");
     m.mainTrayMinimizedTitle = QStringLiteral("Chat Room");
     m.mainTrayMinimizedBody = QStringLiteral("The app was minimized to the system tray");
+    m.mainLogoutTitle = QStringLiteral("Sign out");
+    m.mainLogoutConfirm = QStringLiteral("Sign out of the current account?");
+    m.mainForcedOfflineTitle = QStringLiteral("Session ended");
     return m;
 }
 

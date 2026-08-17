@@ -2874,6 +2874,8 @@ Candidate slices:
       structured room, direct-chat, administrator and online-state data.
     - [x] Localize the Windows minimize-to-tray notification without changing
       close, hide, exit or notification-activation behavior.
+    - [x] Replace the Windows local-logout presentation-string sentinel with a
+      typed lifecycle signal and keep remote session termination independent.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

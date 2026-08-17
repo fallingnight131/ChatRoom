@@ -77,6 +77,7 @@ public:
 
 signals:
     void checkForUpdatesRequested();
+    void logoutRequested();
 
 protected:
     void closeEvent(QCloseEvent *event) override;

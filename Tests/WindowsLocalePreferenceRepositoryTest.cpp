@@ -172,7 +172,12 @@ int main(int argc, char **argv) {
                 || english.mainConversationMemberOffline
                     != QStringLiteral("Offline")
                 || english.mainTrayMinimizedBody
-                    != QStringLiteral("The app was minimized to the system tray")) {
+                    != QStringLiteral("The app was minimized to the system tray")
+                || english.mainLogoutTitle != QStringLiteral("Sign out")
+                || english.mainLogoutConfirm
+                    != QStringLiteral("Sign out of the current account?")
+                || english.mainForcedOfflineTitle
+                    != QStringLiteral("Session ended")) {
             qCritical() << "English catalog shape changed";
             return 1;
         }
@@ -196,6 +201,7 @@ int main(int argc, char **argv) {
                     != QStringLiteral("聊天室成员")
                 || chinese.mainTrayMinimizedTitle
                     != QStringLiteral("聊天软件")
+                || chinese.mainLogoutTitle != QStringLiteral("注销")
                 || WindowsLocaleCatalog::code(repository.load())
                     != QStringLiteral("zh-CN")) {
             qCritical() << "Chinese catalog shape changed";

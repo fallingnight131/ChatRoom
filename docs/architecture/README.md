@@ -2099,6 +2099,11 @@ A language switch may replace member row widgets, but retains list items,
 selection, the active message model, and conversation identity.
 The minimize-to-tray notice also resolves from the active locale at close time;
 the existing hide, ignored-close and explicit-quit behavior is unchanged.
+Local sign-out now emits an explicit window-lifecycle event. It no longer
+routes a translated sentinel through the remote-session failure signal; remote
+termination detail stays opaque while its application-owned title is localized.
+The application composition root owns one re-login dialog at a time, preventing
+duplicate lifecycle events from creating competing authentication surfaces.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

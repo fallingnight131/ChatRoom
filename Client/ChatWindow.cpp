@@ -4807,7 +4807,9 @@ void ChatWindow::showUserInfoDialog(const QString &username, const QString &disp
 // ==================== 注销 ====================
 
 void ChatWindow::onLogout() {
-    if (QMessageBox::question(this, "注销", "确定要注销当前账号吗？")
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    if (QMessageBox::question(this, copy.mainLogoutTitle, copy.mainLogoutConfirm)
         != QMessageBox::Yes) return;
 
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
@@ -4823,9 +4825,7 @@ void ChatWindow::onLogout() {
     // 隐藏当前窗口
     hide();
 
-    // 通知 main 重新显示登录界面
-    // 通过发送 forceOffline 信号触发 main.cpp 的重登录流程
-    emit NetworkManager::instance()->forceOffline("用户主动注销");
+    emit logoutRequested();
 }
 
 // ==================== 设置 ====================

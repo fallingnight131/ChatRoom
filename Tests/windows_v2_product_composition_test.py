@@ -100,7 +100,14 @@ def main() -> int:
         "v2Configuration.notificationsEnabled",
         "v2Configuration.accountBlockingEnabled",
         "password.fill('\\0')",
+        "&ChatWindow::logoutRequested",
+        "showLoginDialog();",
+        "QPointer<LoginDialog> activeLoginDialog",
+        "if (activeLoginDialog)",
+        "copy.mainForcedOfflineTitle, reason",
     ), "Client/main.cpp")
+    if "用户主动注销" in main_source or "用户主动注销" in window:
+        raise AssertionError("local logout must not use localized text as control state")
     require(login, (
         "QByteArray LoginDialog::takePasswordUtf8()",
         "m_loginPass->clear()",
@@ -179,6 +186,8 @@ def main() -> int:
         "copy.mainConversationAdminTitle.arg(item->text())",
         "copy.mainConversationMemberOfflineAccessible.arg(displayName)",
         "copy.mainTrayMinimizedTitle, copy.mainTrayMinimizedBody",
+        "copy.mainLogoutTitle, copy.mainLogoutConfirm",
+        "emit logoutRequested()",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):

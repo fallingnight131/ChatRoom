@@ -3285,6 +3285,12 @@ to collect.
 The same source gate requires minimize-to-tray notification copy to be resolved
 from the active locale at close time while retaining the existing close/ignore
 and force-quit branches.
+Local sign-out is also source-gated: confirmation copy comes from the catalog,
+the window emits a typed lifecycle signal, and remote `forceOffline` detail is
+never compared with localized UI text. The shell recreates the login dialog
+through one shared activation path after either outcome.
+The source gate also requires a guarded single re-login dialog so repeated
+session-end notifications cannot create competing authentication windows.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

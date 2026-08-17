@@ -10,6 +10,7 @@
 #include <QTimer>
 #include <QSettings>
 #include <cstdio>
+#include <functional>
 #include <utility>
 #include "LoginDialog.h"
 #include "ChatWindow.h"
@@ -22,6 +23,7 @@
 #include "WindowsUpdateProductConfiguration.h"
 #include "WindowsUpdateTrustDiagnostic.h"
 #include "WindowsLocalePreferenceRepository.h"
+#include "WindowsLocaleCatalog.h"
 #include "WindowsLocaleViewModel.h"
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
 #include "WindowsDeviceIdentityRepository.h"
@@ -244,7 +246,56 @@ int main(int argc, char *argv[]) {
     });
 #endif
 
-    // 强制下线处理（包括异地登录和用户主动注销）
+    std::function<void()> showLoginDialog;
+    QPointer<LoginDialog> activeLoginDialog;
+    std::function<void(LoginDialog *, int, const QString &, const QString &)>
+        activateChatWindow;
+    activateChatWindow = [&](LoginDialog *loginDialog, int userId,
+                             const QString &username,
+                             const QString &displayName) {
+        auto *window = new ChatWindow(nullptr, &localeViewModel);
+        chatWindow = window;
+        window->setCurrentUser(userId, username, displayName);
+        QObject::connect(window, &ChatWindow::logoutRequested, &app, [&, window] {
+            if (chatWindow != window) return;
+            window->deleteLater();
+            chatWindow = nullptr;
+            showLoginDialog();
+        });
+#ifdef Q_OS_WIN
+        configureUpdateUi(window);
+        configureDeviceUi(window, loginDialog);
+#else
+        QByteArray password = loginDialog->takePasswordUtf8();
+        password.fill('\0');
+#endif
+        window->show();
+    };
+
+    showLoginDialog = [&] {
+        if (activeLoginDialog) {
+            activeLoginDialog->show();
+            activeLoginDialog->raise();
+            activeLoginDialog->activateWindow();
+            return;
+        }
+        auto *loginDialog = new LoginDialog(nullptr, &localeViewModel);
+        activeLoginDialog = loginDialog;
+        QObject::connect(loginDialog, &LoginDialog::loginSuccess,
+                         [&, loginDialog](int userId, const QString &username,
+                                          const QString &displayName) {
+            activeLoginDialog = nullptr;
+            activateChatWindow(loginDialog, userId, username, displayName);
+        });
+        QObject::connect(loginDialog, &QDialog::rejected, &app, [&] {
+            activeLoginDialog = nullptr;
+            qApp->quit();
+        });
+        loginDialog->setAttribute(Qt::WA_DeleteOnClose);
+        loginDialog->show();
+    };
+
+    // 远端会话终止保留独立错误路径；本地主动注销使用类型化信号。
     QObject::connect(NetworkManager::instance(), &NetworkManager::forceOffline,
                      [&](const QString &reason) {
         if (chatWindow) {
@@ -253,32 +304,9 @@ int main(int argc, char *argv[]) {
             chatWindow = nullptr;
         }
 
-        // 主动注销不需要弹出警告
-        if (reason != "用户主动注销") {
-            QMessageBox::warning(nullptr, "异地登录", reason);
-        }
-
-        // 重新显示登录对话框
-        LoginDialog *loginDialog = new LoginDialog(nullptr, &localeViewModel);
-        QObject::connect(loginDialog, &LoginDialog::loginSuccess,
-                         [&, loginDialog](int userId, const QString &username,
-                                          const QString &displayName) {
-            chatWindow = new ChatWindow(nullptr, &localeViewModel);
-            chatWindow->setCurrentUser(userId, username, displayName);
-#ifdef Q_OS_WIN
-            configureUpdateUi(chatWindow);
-            configureDeviceUi(chatWindow, loginDialog);
-#else
-            QByteArray password = loginDialog->takePasswordUtf8();
-            password.fill('\0');
-#endif
-            chatWindow->show();
-        });
-        QObject::connect(loginDialog, &QDialog::rejected, [&]() {
-            qApp->quit();
-        });
-        loginDialog->setAttribute(Qt::WA_DeleteOnClose);
-        loginDialog->show();
+        const auto &copy = WindowsLocaleCatalog::messages(localeViewModel.locale());
+        QMessageBox::warning(nullptr, copy.mainForcedOfflineTitle, reason);
+        showLoginDialog();
     });
 
     // 显示登录对话框
@@ -286,16 +314,7 @@ int main(int argc, char *argv[]) {
 
     QObject::connect(&loginDialog, &LoginDialog::loginSuccess,
                      [&](int userId, const QString &username, const QString &displayName) {
-        chatWindow = new ChatWindow(nullptr, &localeViewModel);
-        chatWindow->setCurrentUser(userId, username, displayName);
-#ifdef Q_OS_WIN
-        configureUpdateUi(chatWindow);
-        configureDeviceUi(chatWindow, &loginDialog);
-#else
-        QByteArray password = loginDialog.takePasswordUtf8();
-        password.fill('\0');
-#endif
-        chatWindow->show();
+        activateChatWindow(&loginDialog, userId, username, displayName);
     });
 
     if (loginDialog.exec() != QDialog::Accepted) {

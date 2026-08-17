@@ -227,3 +227,6 @@ database migration or protocol compatibility window is required.
   message model, conversation identity, member items and selection.
 - minimize-to-tray copy uses the active catalog at notification time while the
   existing close/ignore and force-quit control flow remains unchanged.
+- local sign-out uses an explicit lifecycle signal rather than localized text;
+  remote session termination retains opaque server detail under a localized
+  application-owned title.
