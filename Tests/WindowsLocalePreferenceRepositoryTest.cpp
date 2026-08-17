@@ -74,6 +74,17 @@ int main(int argc, char **argv) {
                 || english.profileLowBandwidth != QStringLiteral("Low-bandwidth mode")
                 || english.profilePasswordFieldsRequired
                     != QStringLiteral("Complete every password field")
+                || english.profileNicknameChangedStatus
+                    != QStringLiteral("Nickname changed to %1")
+                || english.profileNicknameChangeFailed
+                    != QStringLiteral("Unable to change nickname")
+                || english.profileUserIdChangedDetail
+                    != QStringLiteral("User ID changed from %1 to %2")
+                || english.profileUserIdChangeFailed
+                    != QStringLiteral("Unable to change user ID")
+                || english.profileLocalCacheMigrationFailed
+                    != QStringLiteral(
+                        "Local message-cache migration failed; online-only mode is active")
                 || english.loginWindowTitle
                     != QStringLiteral("Qt Chat Room - Sign in")
                 || english.registrationSucceeded
@@ -278,6 +289,13 @@ int main(int argc, char **argv) {
                     != QStringLiteral("好友申请已发送")
                 || chinese.mainLeaveRoomTitle
                     != QStringLiteral("退出聊天室")
+                || chinese.profileNicknameChangedStatus
+                    != QStringLiteral("昵称已修改为：%1")
+                || chinese.profileUserIdChangedDetail
+                    != QStringLiteral("用户 ID 已从 %1 修改为 %2")
+                || chinese.profileLocalCacheMigrationFailed
+                    != QStringLiteral(
+                        "本地消息缓存迁移失败，已切换为在线模式")
                 || chinese.mainRoomDeleted
                     != QStringLiteral("聊天室“%1”已被删除")
                 || chinese.mainRoomRenamed

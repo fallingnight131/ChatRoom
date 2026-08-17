@@ -226,6 +226,14 @@ def main() -> int:
         "copy.mainRoomKickSucceeded.arg(username)",
         "copy.mainRoomKickFailed : error",
         "copy.mainRoomKickedByAdministrator.arg(operatorName, roomName)",
+        "copy.profileNicknameChangedStatus.arg(m_displayName)",
+        "copy.profileNicknameChangeFailed : error",
+        "copy.profileLocalCacheMigrationFailed",
+        "copy.profileUserIdChangedStatus.arg(newUid)",
+        "copy.profileUserIdChangedDetail.arg(oldUid, newUid)",
+        "copy.profileUserIdChangeFailed : error",
+        "m_localRepository->copyAccountTo(",
+        "NetworkManager::instance()->setCredentials(",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -383,6 +391,22 @@ def main() -> int:
             raise AssertionError(
                 "room-management result flow must use catalog presentation copy"
             )
+    identity_change_surface = window[
+        window.index("void ChatWindow::onChangeNicknameResponse("):
+        window.index("// ==================== 房间设置对话框")
+    ]
+    if any(copy in identity_change_surface for copy in (
+        "昵称已修改为", "修改昵称失败", "用户ID已修改为",
+        "修改用户ID失败", "Qt聊天室 - %1",
+        "本地消息缓存迁移失败",
+    )):
+        raise AssertionError(
+            "identity-change result flow must use catalog presentation copy"
+        )
+    if "refreshWindowChrome();" not in identity_change_surface:
+        raise AssertionError(
+            "nickname changes must reproject the existing localized window chrome"
+        )
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

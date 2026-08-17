@@ -2894,6 +2894,9 @@ Candidate slices:
     - [x] Localize Windows room deletion, rename, member-removal and kicked-user
       result surfaces while preserving server authority, opaque identities and
       errors, stable room IDs, cache cleanup and V1 command semantics.
+    - [x] Localize Windows nickname and user-ID result surfaces, reproject the
+      existing window chrome after nickname changes, and retain account-keyed
+      cache migration, online-only degradation and credential update behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

@@ -231,6 +231,15 @@ struct WindowsLocaleMessages {
     QString profilePasswordFieldsRequired;
     QString profilePasswordsMismatch;
     QString profilePasswordTooShort;
+    QString profileNicknameChangedStatus;
+    QString profileNicknameChangeFailedTitle;
+    QString profileNicknameChangeFailed;
+    QString profileUserIdChangedStatus;
+    QString profileUserIdChangedTitle;
+    QString profileUserIdChangedDetail;
+    QString profileUserIdChangeFailedTitle;
+    QString profileUserIdChangeFailed;
+    QString profileLocalCacheMigrationFailed;
     QString loginWindowTitle;
     QString loginTab;
     QString registerTab;

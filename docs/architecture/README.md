@@ -2132,6 +2132,12 @@ Room deletion, rename, member removal, and kicked-user result surfaces now use
 the same event-time locale projection. Room/account/operator names remain
 opaque data, server authorization and error detail remain authoritative, and
 the existing stable-ID list/model/cache transitions are unchanged.
+Nickname and user-ID mutation results now share the Profile/main-window locale
+boundary. A nickname change reprojects the existing window chrome instead of
+writing a fixed title. User-ID success, failure, and local-cache migration
+degradation are localized without changing the server-authoritative mutation,
+old-to-new account database copy, model sender-key update, credential refresh,
+or online-only fallback when local migration cannot be completed.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

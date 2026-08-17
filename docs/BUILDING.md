@@ -3326,6 +3326,12 @@ the same exact catalog and source-composition gate. It rejects embedded copy,
 requires empty-error local fallbacks, and leaves stable IDs, server authority,
 model/cache transitions and V1 commands untouched. Native Windows modal and
 assistive-technology behavior remains release evidence to collect.
+Identity-mutation source composition requires nickname success to reproject the
+existing localized chrome and user-ID changes to retain the account-database
+copy, sender-key updates and network credential refresh. Exact catalog tests
+cover local success/failure plus the online-only cache-migration degradation;
+non-empty server details remain opaque. This is macOS development-host evidence,
+not native Windows profile, cache-upgrade or screen-reader release evidence.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

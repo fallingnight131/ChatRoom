@@ -4496,14 +4496,18 @@ void ChatWindow::onKickedFromRoom(int roomId, const QString &roomName, const QSt
 // ==================== 修改昵称 ====================
 
 void ChatWindow::onChangeNicknameResponse(bool success, const QString &newDisplayName, const QString &error) {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success) {
         m_displayName = newDisplayName;
-        setWindowTitle(QString("Qt聊天室 - %1").arg(m_displayName));
+        refreshWindowChrome();
         m_nicknameLabel->setText(m_displayName);
-        m_statusLabel->setText(QString("昵称已修改为: %1").arg(m_displayName));
+        m_statusLabel->setText(
+            copy.profileNicknameChangedStatus.arg(m_displayName));
         if (m_profileDialog) m_profileDialog->updateDisplayName(m_displayName);
     } else {
-        QMessageBox::warning(this, "修改昵称失败", error);
+        QMessageBox::warning(this, copy.profileNicknameChangeFailedTitle,
+            error.isEmpty() ? copy.profileNicknameChangeFailed : error);
     }
 }
 
@@ -4530,6 +4534,8 @@ void ChatWindow::onNicknameChangeNotify(int roomId, const QString &username, con
 // ==================== 修改用户ID ====================
 
 void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const QString &newUid, const QString &error) {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success) {
         flushCurrentDraft();
         // 重命名本地缓存目录
@@ -4598,7 +4604,7 @@ void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const 
                 "[LocalStore] operation=migrate-account outcome=degraded detail=%1")
                 .arg(migrationError);
             m_localRepository.reset();
-            m_statusLabel->setText(QStringLiteral("本地消息缓存迁移失败，已切换为在线模式"));
+            m_statusLabel->setText(copy.profileLocalCacheMigrationFailed);
         }
         m_outgoingMessageService->setRepository(m_localRepository.get());
         m_attachmentOutboxService->setRepository(m_localRepository.get());
@@ -4610,12 +4616,13 @@ void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const 
             NetworkManager::instance()->currentUserId(), newUid);
 
         if (m_localRepository)
-            m_statusLabel->setText(QString("用户ID已修改为: %1").arg(newUid));
+            m_statusLabel->setText(copy.profileUserIdChangedStatus.arg(newUid));
         if (m_profileDialog) m_profileDialog->updateUid(newUid);
-        QMessageBox::information(this, "修改成功",
-            QString("用户ID已从 %1 修改为 %2").arg(oldUid, newUid));
+        QMessageBox::information(this, copy.profileUserIdChangedTitle,
+            copy.profileUserIdChangedDetail.arg(oldUid, newUid));
     } else {
-        QMessageBox::warning(this, "修改用户ID失败", error);
+        QMessageBox::warning(this, copy.profileUserIdChangeFailedTitle,
+            error.isEmpty() ? copy.profileUserIdChangeFailed : error);
     }
 }
 

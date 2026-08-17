@@ -254,3 +254,6 @@ database migration or protocol compatibility window is required.
 - room deletion, rename, member-removal and kicked-user results use the active
   catalog with local empty-error fallbacks. Names and non-empty server errors
   remain opaque, while authority, stable IDs and cleanup behavior are unchanged.
+- nickname/user-ID results and local cache-migration degradation use the active
+  catalog. Nickname success reprojects existing chrome; user-ID mutation keeps
+  account-copy, sender-key, credential and online-only fallback behavior intact.

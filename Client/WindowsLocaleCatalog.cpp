@@ -227,6 +227,16 @@ WindowsLocaleMessages createZhCn() {
     m.profilePasswordFieldsRequired = QStringLiteral("请填写所有密码字段");
     m.profilePasswordsMismatch = QStringLiteral("两次输入的新密码不一致");
     m.profilePasswordTooShort = QStringLiteral("新密码至少4个字符");
+    m.profileNicknameChangedStatus = QStringLiteral("昵称已修改为：%1");
+    m.profileNicknameChangeFailedTitle = QStringLiteral("修改昵称失败");
+    m.profileNicknameChangeFailed = QStringLiteral("无法修改昵称");
+    m.profileUserIdChangedStatus = QStringLiteral("用户 ID 已修改为：%1");
+    m.profileUserIdChangedTitle = QStringLiteral("用户 ID 修改成功");
+    m.profileUserIdChangedDetail = QStringLiteral("用户 ID 已从 %1 修改为 %2");
+    m.profileUserIdChangeFailedTitle = QStringLiteral("修改用户 ID 失败");
+    m.profileUserIdChangeFailed = QStringLiteral("无法修改用户 ID");
+    m.profileLocalCacheMigrationFailed = QStringLiteral(
+        "本地消息缓存迁移失败，已切换为在线模式");
     m.loginWindowTitle = QStringLiteral("Qt聊天室 - 登录");
     m.loginTab = QStringLiteral("登录");
     m.registerTab = QStringLiteral("注册");
@@ -835,6 +845,16 @@ WindowsLocaleMessages createEnUs() {
     m.profilePasswordFieldsRequired = QStringLiteral("Complete every password field");
     m.profilePasswordsMismatch = QStringLiteral("The new passwords do not match");
     m.profilePasswordTooShort = QStringLiteral("New password must be at least 4 characters");
+    m.profileNicknameChangedStatus = QStringLiteral("Nickname changed to %1");
+    m.profileNicknameChangeFailedTitle = QStringLiteral("Nickname change failed");
+    m.profileNicknameChangeFailed = QStringLiteral("Unable to change nickname");
+    m.profileUserIdChangedStatus = QStringLiteral("User ID changed to %1");
+    m.profileUserIdChangedTitle = QStringLiteral("User ID changed");
+    m.profileUserIdChangedDetail = QStringLiteral("User ID changed from %1 to %2");
+    m.profileUserIdChangeFailedTitle = QStringLiteral("User ID change failed");
+    m.profileUserIdChangeFailed = QStringLiteral("Unable to change user ID");
+    m.profileLocalCacheMigrationFailed = QStringLiteral(
+        "Local message-cache migration failed; online-only mode is active");
     m.loginWindowTitle = QStringLiteral("Qt Chat Room - Sign in");
     m.loginTab = QStringLiteral("Sign in");
     m.registerTab = QStringLiteral("Register");
