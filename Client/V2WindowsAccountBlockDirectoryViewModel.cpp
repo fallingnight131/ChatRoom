@@ -164,11 +164,12 @@ void V2WindowsAccountBlockDirectoryViewModel::applyPage(
 }
 
 void V2WindowsAccountBlockDirectoryViewModel::applyFailure(
-        const QString &safeReason) {
+        bool retryable, const QString &safeReason) {
     if (!m_busy) throw std::runtime_error("unsolicited account block directory failure");
     m_busy = false;
     m_appendPending = false;
-    m_failure = Failure::RequestFailed;
+    m_failure = retryable
+        ? Failure::RetryableRequestFailed : Failure::RequestFailed;
     m_failureDetail = safeReason;
     emit changed();
 }

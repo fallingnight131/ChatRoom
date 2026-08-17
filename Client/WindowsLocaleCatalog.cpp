@@ -414,6 +414,7 @@ WindowsLocaleMessages createZhCn() {
     m.blockDirectorySessionEnded = QStringLiteral("屏蔽目录已退出");
     m.blockDirectoryRefreshNotSent = QStringLiteral("无法刷新屏蔽目录");
     m.blockDirectoryLoadMoreNotSent = QStringLiteral("无法加载更多屏蔽账号");
+    m.blockDirectoryRetryableRequestFailed = QStringLiteral("屏蔽目录暂不可用，可重试");
     m.blockDirectoryRequestFailed = QStringLiteral("屏蔽目录请求失败");
     m.blockDirectoryServiceUnavailable = QStringLiteral("屏蔽服务已断开，正在重连");
     m.blockDirectoryMutationNotSent = QStringLiteral("取消屏蔽未发送，可重试");
@@ -887,6 +888,8 @@ WindowsLocaleMessages createEnUs() {
     m.blockDirectorySessionEnded = QStringLiteral("Blocked-account directory closed");
     m.blockDirectoryRefreshNotSent = QStringLiteral("Unable to refresh blocked accounts");
     m.blockDirectoryLoadMoreNotSent = QStringLiteral("Unable to load more blocked accounts");
+    m.blockDirectoryRetryableRequestFailed = QStringLiteral(
+        "Blocked-account directory is temporarily unavailable; try again");
     m.blockDirectoryRequestFailed = QStringLiteral("Blocked-account request failed");
     m.blockDirectoryServiceUnavailable = QStringLiteral(
         "Blocking service disconnected; reconnecting");

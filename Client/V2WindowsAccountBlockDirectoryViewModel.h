@@ -11,7 +11,7 @@ public:
     static constexpr qsizetype MaxRows = 500;
     enum class Failure {
         None, SessionEnded, RefreshNotSent, LoadMoreNotSent,
-        RequestFailed, ServiceUnavailable
+        RetryableRequestFailed, RequestFailed, ServiceUnavailable
     };
     enum class MutationFailure { None, NotSent, Retryable, Failed, Disconnected };
     struct Row {
@@ -46,7 +46,7 @@ public:
     void applyUnblockFailure(const QString &clientOperationId, bool retryable);
     void applyPage(QVector<Row> rows, const QString &nextAfterTargetAccountId,
                    bool hasMore);
-    void applyFailure(const QString &safeReason);
+    void applyFailure(bool retryable, const QString &safeReason = {});
     void setUnavailable();
 
 signals:

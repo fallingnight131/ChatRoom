@@ -116,6 +116,9 @@ int main(int argc, char **argv) {
                 || english.blockDirectoryMutationDisconnected
                     != QStringLiteral(
                         "Connection lost; retry unblocking after reconnecting")
+                || english.blockDirectoryRetryableRequestFailed
+                    != QStringLiteral(
+                        "Blocked-account directory is temporarily unavailable; try again")
                 || english.notificationMentionedYou
                     != QStringLiteral("You were mentioned")
                 || english.notificationOpenApp

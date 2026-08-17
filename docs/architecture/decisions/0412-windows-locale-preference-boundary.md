@@ -117,6 +117,9 @@ message storage, server behavior, or the supported Web/Windows product scope.
   paging, actions and default-cancel confirmation. Recomposition retains the
   selected stable account and correlated idempotent unblock operation; retry
   and authorization remain application/server responsibilities.
+- Preserve account-block directory protocol retryability as a typed failure.
+  The controller must not synthesize localized text into the safe-server-detail
+  channel; absent real safe detail, the Widget projects typed state by locale.
 - Keep the Windows V2 notification policy locale-free: it emits only generic or
   mention semantics and stable conversation identity. The presenter consumes
   the shared locale at show time and maps to privacy-safe catalog copy; locale
@@ -189,6 +192,8 @@ database migration or protocol compatibility window is required.
   safe server detail stays verbatim, selection survives live switching, one
   operation ID owns unblock/retry, and disconnect preserves rows while disabling
   network mutation.
+- controller source composition rejects manufactured Chinese directory detail,
+  and Widget tests distinguish localized retryable state from opaque detail.
 - notification policy/presenter tests prove no localized copy or message body
   enters policy state, while both Chinese and English projection retain bounded
   deduplication and stable conversation activation.

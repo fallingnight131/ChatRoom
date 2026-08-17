@@ -21,6 +21,9 @@ def main() -> int:
     controller = (ROOT / "Client/WindowsDeviceManagementController.cpp").read_text(
         encoding="utf-8"
     )
+    block_controller = (ROOT / "Client/WindowsAccountBlockController.cpp").read_text(
+        encoding="utf-8"
+    )
     messaging_controller = (ROOT / "Client/WindowsV2MessagingController.cpp").read_text(
         encoding="utf-8"
     )
@@ -251,6 +254,16 @@ def main() -> int:
         "WindowsAccountBlockController",
         "accountBlockViewModel",
     ), "Client/WindowsDeviceManagementController.cpp")
+    require(block_controller, (
+        "m_directoryViewModel->applyFailure(event.retryable)",
+        "m_viewModel->applyFailure(operationId, event.retryable)",
+    ), "Client/WindowsAccountBlockController.cpp")
+    if any(text in block_controller for text in (
+        "屏蔽目录暂不可用", "无法读取屏蔽目录",
+    )):
+        raise AssertionError(
+            "WindowsAccountBlockController must not manufacture localized server detail"
+        )
     require(session_protocol, (
         "CLIENT_CAPABILITY_MESSAGE_MENTIONS",
         "CLIENT_CAPABILITY_MESSAGE_SEARCH",

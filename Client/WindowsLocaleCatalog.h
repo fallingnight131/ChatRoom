@@ -411,6 +411,7 @@ struct WindowsLocaleMessages {
     QString blockDirectorySessionEnded;
     QString blockDirectoryRefreshNotSent;
     QString blockDirectoryLoadMoreNotSent;
+    QString blockDirectoryRetryableRequestFailed;
     QString blockDirectoryRequestFailed;
     QString blockDirectoryServiceUnavailable;
     QString blockDirectoryMutationNotSent;

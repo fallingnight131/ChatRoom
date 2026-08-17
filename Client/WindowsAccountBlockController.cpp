@@ -119,9 +119,7 @@ void WindowsAccountBlockController::receive(const QByteArray &frame) {
             m_directoryViewModel->applyPage(
                 std::move(rows), qt(event.nextAfterTargetAccountId), event.hasMore);
         } else if (event.clientOperationId.empty()) {
-            m_directoryViewModel->applyFailure(
-                event.retryable ? QStringLiteral("屏蔽目录暂不可用，可重试")
-                                : QStringLiteral("无法读取屏蔽目录"));
+            m_directoryViewModel->applyFailure(event.retryable);
         } else {
             const QString operationId = qt(event.clientOperationId);
             if (m_directoryViewModel->ownsOperation(operationId))

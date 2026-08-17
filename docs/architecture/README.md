@@ -2041,6 +2041,10 @@ timestamps, paging, empty/disconnected state, actions and default-cancel
 confirmation. Language changes retain the selected stable account and pending
 idempotent unblock operation; same-account retry continues to reuse that
 operation ID and server authorization remains authoritative.
+The controller preserves protocol retryability as a typed directory failure
+instead of manufacturing Chinese text as if it were a server reason. Only an
+actually supplied safe detail may occupy the opaque-detail channel; otherwise
+the active catalog projects retryable or terminal request feedback.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

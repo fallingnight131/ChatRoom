@@ -59,11 +59,19 @@ int main(int argc, char **argv) {
     if (!check(requestedAfter.isEmpty() && viewModel.busy()
                    && !dialog.refreshForTest()->isEnabled(),
                QStringLiteral("刷新动作没有进入单飞忙碌状态"))) return 1;
-    viewModel.applyFailure(QStringLiteral("opaque Ω reason"));
+    viewModel.applyFailure(true, QStringLiteral("opaque Ω reason"));
     locale.select(WindowsLocale::EnUs);
     application.processEvents();
     if (!check(dialog.statusForTest()->text() == QStringLiteral("opaque Ω reason"),
                QStringLiteral("安全服务端原因不得被翻译或替换"))) return 1;
+    dialog.refreshForTest()->click();
+    application.processEvents();
+    viewModel.applyFailure(true);
+    application.processEvents();
+    if (!check(dialog.statusForTest()->text()
+                   == QStringLiteral(
+                       "Blocked-account directory is temporarily unavailable; try again"),
+               QStringLiteral("可重试协议错误必须按当前语言投影"))) return 1;
     locale.select(WindowsLocale::ZhCn);
     dialog.refreshForTest()->click();
     application.processEvents();

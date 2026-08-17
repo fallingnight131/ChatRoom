@@ -87,6 +87,10 @@ QString V2WindowsAccountBlockDirectoryDialog::failureText() const {
         return copy.blockDirectoryRefreshNotSent;
     case V2WindowsAccountBlockDirectoryViewModel::Failure::LoadMoreNotSent:
         return copy.blockDirectoryLoadMoreNotSent;
+    case V2WindowsAccountBlockDirectoryViewModel::Failure::RetryableRequestFailed:
+        return m_viewModel->failureDetail().isEmpty()
+            ? copy.blockDirectoryRetryableRequestFailed
+            : m_viewModel->failureDetail();
     case V2WindowsAccountBlockDirectoryViewModel::Failure::RequestFailed:
         return m_viewModel->failureDetail().isEmpty()
             ? copy.blockDirectoryRequestFailed : m_viewModel->failureDetail();

@@ -35,11 +35,11 @@ int main(int argc, char **argv) {
     if (!check(viewModel.refresh() && viewModel.busy() && requestedAfter.isEmpty(),
                QStringLiteral("刷新没有从空游标开始"))
             || !check(throws([&] {
-                    viewModel.applyFailure(QStringLiteral("重复响应"));
-                    viewModel.applyFailure(QStringLiteral("重复响应"));
+                    viewModel.applyFailure(true, QStringLiteral("重复响应"));
+                    viewModel.applyFailure(true, QStringLiteral("重复响应"));
                 }), QStringLiteral("重复目录响应必须失败关闭"))) return 1;
     if (!check(viewModel.failure()
-                   == V2WindowsAccountBlockDirectoryViewModel::Failure::RequestFailed
+                   == V2WindowsAccountBlockDirectoryViewModel::Failure::RetryableRequestFailed
                    && viewModel.failureDetail() == QStringLiteral("重复响应"),
                QStringLiteral("安全服务端原因必须作为不透明细节保留"))) return 1;
     if (!check(viewModel.refresh(), QStringLiteral("失败后应允许刷新"))) return 1;

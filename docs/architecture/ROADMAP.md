@@ -2858,6 +2858,8 @@ Candidate slices:
     - [x] Type and localize the Windows V2 blocked-account directory: preserve
       opaque safe server detail, selected stable identity, correlated unblock
       operation/retry, disconnected rows and server-side authorization.
+      - [x] Remove controller-manufactured Chinese failure detail and preserve
+        directory protocol retryability as typed locale-independent state.
     - [x] Localize the Windows system-tray tooltip and show/quit actions through
       the application locale while preserving menu action and activation state.
     - [x] Localize Windows main-window chrome as one slice: title, menu hierarchy,
