@@ -1953,8 +1953,11 @@ sync. Its bounded QSettings preference defaults off on missing or malformed
 input, while a pure policy permits automatic avatar requests only for a nonempty
 uncached account when the preference is off. Message history, reconnect repair,
 search, and user-initiated transfers are explicitly outside this suppression.
-The policy is not exposed until product composition can prove dispatch behavior
-and persistence-failure rollback.
+The Windows profile now exposes that ViewModel-owned preference. Automatic
+login/list/search-result avatar requests pass through a coordinator; explicit
+profile access and upload-completion refresh remain available. A failed write
+restores the accepted checkbox value and exposes visible and accessible failure
+status. The V2 messaging controller remains independent of the preference.
 
 ADR-0405 starts that isolation for V2 message notifications. Only a validated,
 locally persisted remote live publication becomes a notification candidate;

@@ -5,6 +5,8 @@
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QCheckBox;
+class WindowsBandwidthViewModel;
 
 /// 个人信息修改对话框
 class ProfileDialog : public QDialog {
@@ -12,7 +14,8 @@ class ProfileDialog : public QDialog {
 public:
     explicit ProfileDialog(int userId, const QString &username,
                            const QString &displayName, const QPixmap &avatar,
-                           QWidget *parent = nullptr);
+                           QWidget *parent = nullptr,
+                           WindowsBandwidthViewModel *bandwidthViewModel = nullptr);
 
 signals:
     /// 用户请求更换头像（ChatWindow 触发文件选择流程）
@@ -42,4 +45,7 @@ private:
     QLineEdit   *m_oldPwdEdit     = nullptr;
     QLineEdit   *m_newPwdEdit     = nullptr;
     QLineEdit   *m_confirmPwdEdit = nullptr;
+    WindowsBandwidthViewModel *m_bandwidthViewModel = nullptr;
+    QCheckBox   *m_lowBandwidth = nullptr;
+    QLabel      *m_bandwidthStatus = nullptr;
 };

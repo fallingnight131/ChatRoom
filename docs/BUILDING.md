@@ -3219,8 +3219,11 @@ same path passes on a native Windows Release build.
 `WindowsBandwidthPreferenceRepositoryTest` is the portable foundation for the
 Windows low-bandwidth path. It verifies exact persisted values, restart,
 malformed-input fallback, unwritable-target rollback, and the pure automatic
-avatar eligibility matrix. It does not prove product request suppression; that
-requires the later composed Windows test and native Release evidence.
+avatar eligibility matrix, coordinator dispatch classification, and ViewModel
+write-failure rollback. The static Windows product-composition gate requires the
+profile control, ChatWindow coordinator, explicit profile/upload requests, and
+absence of low-bandwidth branching from V2 messaging. The full Qt client build
+is portability evidence only; native Windows Release interaction remains open.
 `windows_v2_product_composition_test.py`, which is part of the Windows artifact
 policy step, locks the final source wiring: the product dialog enables mention
 authoring, the session requests and strictly validates capability 4, the

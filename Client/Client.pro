@@ -79,7 +79,8 @@ SOURCES += \
     ProfileDialog.cpp \
     UserInfoDialog.cpp \
     WindowsBandwidthPolicy.cpp \
-    WindowsBandwidthPreferenceRepository.cpp
+    WindowsBandwidthPreferenceRepository.cpp \
+    WindowsBandwidthViewModel.cpp
 
 HEADERS += \
     NetworkManager.h \
@@ -126,7 +127,8 @@ HEADERS += \
     ProfileDialog.h \
     UserInfoDialog.h \
     WindowsBandwidthPolicy.h \
-    WindowsBandwidthPreferenceRepository.h
+    WindowsBandwidthPreferenceRepository.h \
+    WindowsBandwidthViewModel.h
 
 RESOURCES += \
     resources/resources.qrc

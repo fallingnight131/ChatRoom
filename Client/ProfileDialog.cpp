@@ -1,6 +1,7 @@
 #include "ProfileDialog.h"
 #include "NetworkManager.h"
 #include "Protocol.h"
+#include "WindowsBandwidthViewModel.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -14,6 +15,9 @@
 #include <QPixmap>
 #include <QPainter>
 #include <QPainterPath>
+#include <QCheckBox>
+#include <QSignalBlocker>
+#include <QAccessible>
 
 static QPixmap roundedPixmap(const QPixmap &src, int radius) {
     QPixmap dst(src.size());
@@ -29,8 +33,10 @@ static QPixmap roundedPixmap(const QPixmap &src, int radius) {
 
 ProfileDialog::ProfileDialog(int userId, const QString &username,
                              const QString &displayName, const QPixmap &avatar,
-                             QWidget *parent)
-    : QDialog(parent), m_userId(userId), m_username(username), m_displayName(displayName)
+                             QWidget *parent,
+                             WindowsBandwidthViewModel *bandwidthViewModel)
+    : QDialog(parent), m_userId(userId), m_username(username), m_displayName(displayName),
+      m_bandwidthViewModel(bandwidthViewModel)
 {
     setWindowTitle(QStringLiteral("修改个人信息"));
     setMinimumWidth(400);
@@ -99,6 +105,40 @@ ProfileDialog::ProfileDialog(int userId, const QString &username,
     infoLayout->addWidget(uidHint);
 
     mainLayout->addWidget(infoGroup);
+
+    if (m_bandwidthViewModel) {
+        auto *bandwidthGroup = new QGroupBox(QStringLiteral("网络与流量"));
+        auto *bandwidthLayout = new QVBoxLayout(bandwidthGroup);
+        m_lowBandwidth = new QCheckBox(QStringLiteral("省流量模式"));
+        m_lowBandwidth->setChecked(m_bandwidthViewModel->enabled());
+        m_lowBandwidth->setAccessibleDescription(QStringLiteral(
+            "停止自动请求未缓存头像；消息同步和主动操作不受影响"));
+        auto *description = new QLabel(QStringLiteral(
+            "停止自动请求未缓存头像；消息同步和主动操作仍正常工作。"));
+        description->setWordWrap(true);
+        m_bandwidthStatus = new QLabel;
+        m_bandwidthStatus->setAccessibleName(QStringLiteral("省流量偏好状态"));
+        m_bandwidthStatus->setWordWrap(true);
+        bandwidthLayout->addWidget(m_lowBandwidth);
+        bandwidthLayout->addWidget(description);
+        bandwidthLayout->addWidget(m_bandwidthStatus);
+        mainLayout->addWidget(bandwidthGroup);
+        connect(m_lowBandwidth, &QCheckBox::toggled,
+                m_bandwidthViewModel, &WindowsBandwidthViewModel::select);
+        connect(m_bandwidthViewModel, &WindowsBandwidthViewModel::changed,
+                this, [this] {
+                    const QSignalBlocker blocker(m_lowBandwidth);
+                    m_lowBandwidth->setChecked(m_bandwidthViewModel->enabled());
+                    m_bandwidthStatus->setText(m_bandwidthViewModel->saveFailed()
+                        ? QStringLiteral("无法保存省流量偏好，已保持原设置")
+                        : QString());
+                    if (m_bandwidthViewModel->saveFailed() && isVisible()) {
+                        QAccessibleEvent announcement(
+                            m_bandwidthStatus, QAccessible::Alert);
+                        QAccessible::updateAccessibility(&announcement);
+                    }
+                });
+    }
 
     // --- 修改密码 ---
     auto *pwdGroup = new QGroupBox(QStringLiteral("修改密码"));

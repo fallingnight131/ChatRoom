@@ -26,8 +26,12 @@ a safe data-saving feature.
   visible, and an explicit user action may still request an avatar.
 - Do not alter message delivery, reconnect synchronization, history repair,
   text search, attachment metadata, or user-initiated attachment transfer.
-- Do not expose a Windows control until product composition can prove both
-  request suppression and persistence-failure rollback.
+- Expose the control from the Windows profile dialog through a preference
+  ViewModel. Failed persistence restores the accepted checkbox state and emits
+  visible status plus an accessibility Alert.
+- Route avatar dispatch through `WindowsAvatarRequestCoordinator`; ordinary
+  list/login requests consult the policy, while explicit profile access and an
+  upload-completion refresh are classified as user initiated.
 
 ## Consequences
 
@@ -49,5 +53,5 @@ code. Older clients ignore the harmless QSettings key.
 - an unwritable settings target retains the disabled default;
 - the policy permits only a non-empty, uncached, automatic request while the
   preference is disabled;
-- later product tests must distinguish automatic avatar loading from explicit
-  profile access and must keep message synchronization unchanged.
+- product composition distinguishes automatic avatar loading from explicit
+  profile access and keeps message synchronization independent of the setting.

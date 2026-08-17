@@ -31,6 +31,10 @@ def main() -> int:
         encoding="utf-8"
     )
     panel = (ROOT / "Client/V2WindowsMessagingPanel.cpp").read_text(encoding="utf-8")
+    profile = (ROOT / "Client/ProfileDialog.cpp").read_text(encoding="utf-8")
+    bandwidth_policy = (ROOT / "Client/WindowsBandwidthPolicy.cpp").read_text(
+        encoding="utf-8"
+    )
     conversation_dialog = (ROOT / "Client/V2WindowsConversationDialog.cpp").read_text(
         encoding="utf-8"
     )
@@ -86,7 +90,31 @@ def main() -> int:
         "WindowsLocalePreferenceRepository",
         "WindowsLocaleViewModel",
         "m_windowsLocaleViewModel->locale()",
+        "WindowsBandwidthPreferenceRepository",
+        "WindowsBandwidthViewModel",
+        "WindowsAvatarRequestCoordinator",
+        "requestAvatar(m_username, true)",
     ), "Client/ChatWindow.cpp")
+    require(profile, (
+        'QStringLiteral("省流量模式")',
+        "m_bandwidthViewModel->enabled()",
+        "WindowsBandwidthViewModel::select",
+        "m_bandwidthViewModel->saveFailed()",
+    ), "Client/ProfileDialog.cpp")
+    require(bandwidth_policy, (
+        "WindowsBandwidthPolicy::shouldAutoRequestAvatar",
+        "!lowBandwidthEnabled && !cached",
+        "if (!explicitRequest",
+        "m_dispatch(accountId)",
+    ), "Client/WindowsBandwidthPolicy.cpp")
+    for source, text in (
+        ("Client/WindowsV2MessagingController.cpp", messaging_controller),
+        ("Client/V2WindowsMessagingPanel.cpp", panel),
+    ):
+        if "lowBandwidth" in text:
+            raise AssertionError(
+                f"{source} must not weaken messaging for low-bandwidth mode"
+            )
     require(controller, (
         "ReadyForAuthentication",
         "authenticationRejected",

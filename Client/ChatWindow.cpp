@@ -19,6 +19,9 @@
 #include "UserInfoDialog.h"
 #include "Protocol.h"
 #include "Message.h"
+#include "WindowsBandwidthPolicy.h"
+#include "WindowsBandwidthPreferenceRepository.h"
+#include "WindowsBandwidthViewModel.h"
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
 #include "DeviceManagementDialog.h"
 #include "DeviceManagementViewModel.h"
@@ -305,6 +308,19 @@ ChatWindow::ChatWindow(QWidget *parent)
     m_attachmentOutboxService = std::make_unique<AttachmentOutboxService>();
     m_outgoingMessageService = std::make_unique<OutgoingMessageService>();
     m_conversationSyncService = std::make_unique<ConversationSyncService>();
+    m_bandwidthSettings = std::make_unique<QSettings>();
+    m_bandwidthRepository =
+        std::make_unique<WindowsBandwidthPreferenceRepository>(*m_bandwidthSettings);
+    m_bandwidthViewModel =
+        std::make_unique<WindowsBandwidthViewModel>(m_bandwidthRepository.get());
+    m_avatarRequests = std::make_unique<WindowsAvatarRequestCoordinator>(
+        [](const QString &username) {
+            QJsonObject data;
+            data["username"] = username;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::AVATAR_GET_REQ, data));
+        });
+    m_avatarRequests->setLowBandwidthEnabled(m_bandwidthViewModel->enabled());
     setWindowTitle("Qt聊天室");
     setWindowFlags(Qt::Window | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
     resize(1000, 700);
@@ -312,6 +328,11 @@ ChatWindow::ChatWindow(QWidget *parent)
     setupUi();
     setupMenuBar();
     connectSignals();
+    connect(m_bandwidthViewModel.get(), &WindowsBandwidthViewModel::changed,
+            this, [this] {
+                m_avatarRequests->setLowBandwidthEnabled(
+                    m_bandwidthViewModel->enabled());
+            });
 
     // 系统托盘
     m_trayManager = new TrayManager(this);
@@ -3895,7 +3916,7 @@ void ChatWindow::onAvatarUploadResponse(bool success, const QString &error) {
     if (success) {
         m_statusLabel->setText("头像上传成功");
         // 请求自己的头像以更新缓存
-        requestAvatar(m_username);
+        requestAvatar(m_username, true);
     } else {
         QMessageBox::warning(this, "头像上传失败", error);
     }
@@ -3941,11 +3962,9 @@ void ChatWindow::cacheAvatar(const QString &username, const QByteArray &data) {
     }
 }
 
-void ChatWindow::requestAvatar(const QString &username) {
-    QJsonObject data;
-    data["username"] = username;
-    NetworkManager::instance()->sendMessage(
-        Protocol::makeMessage(Protocol::MsgType::AVATAR_GET_REQ, data));
+bool ChatWindow::requestAvatar(const QString &username, bool explicitRequest) {
+    return m_avatarRequests && m_avatarRequests->request(
+        username, s_avatarCache.contains(username), explicitRequest);
 }
 
 // ==================== 房间设置 ====================
@@ -4543,7 +4562,10 @@ void ChatWindow::showProfileDialog() {
     }
 
     QPixmap avatar = s_avatarCache.value(m_username);
-    m_profileDialog = new ProfileDialog(m_userId, m_username, m_displayName, avatar, this);
+    if (avatar.isNull()) requestAvatar(m_username, true);
+    m_profileDialog = new ProfileDialog(
+        m_userId, m_username, m_displayName, avatar, this,
+        m_bandwidthViewModel.get());
     m_profileDialog->setAttribute(Qt::WA_DeleteOnClose);
 
     connect(m_profileDialog, &ProfileDialog::changeAvatarRequested, this, &ChatWindow::onChangeAvatar);
@@ -4556,6 +4578,7 @@ void ChatWindow::showProfileDialog() {
 
 void ChatWindow::showUserInfoDialog(const QString &username, const QString &displayName) {
     QPixmap avatar = s_avatarCache.value(username);
+    if (avatar.isNull()) requestAvatar(username, true);
 
     // 查找用户在当前聊天室的角色
     QString role = QStringLiteral("成员");

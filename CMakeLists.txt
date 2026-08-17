@@ -315,10 +315,12 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             Client/WindowsBandwidthPolicy.h
             Client/WindowsBandwidthPreferenceRepository.cpp
             Client/WindowsBandwidthPreferenceRepository.h
+            Client/WindowsBandwidthViewModel.cpp
+            Client/WindowsBandwidthViewModel.h
         )
         set_target_properties(
             chatroom_client_ui_preferences
-            PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+            PROPERTIES AUTOMOC ON CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
         target_include_directories(chatroom_client_ui_preferences PUBLIC Client)
         target_link_libraries(chatroom_client_ui_preferences PUBLIC Qt6::Core)
 

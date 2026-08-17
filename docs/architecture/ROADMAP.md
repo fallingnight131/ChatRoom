@@ -2787,11 +2787,14 @@ Candidate slices:
     - [x] Add bounded Windows conversation keyboard commands: `Ctrl+F` focuses
       enabled message search and `F5` invokes the existing guarded directory
       refresh path, with offscreen focus and dispatch evidence.
-    - [ ] Add explicit Windows low-bandwidth behavior without weakening message
+    - [x] Add explicit Windows low-bandwidth behavior without weakening message
       delivery, reconnect synchronization, or user-initiated transfers.
       - [x] Establish an exact restart-stable `ui/lowBandwidth` repository and
         pure automatic-avatar eligibility policy; keep product UI closed until
         request suppression and write-failure rollback are composed (ADR-0413).
+      - [x] Compose the preference ViewModel into the Windows profile dialog,
+        route avatar dispatch through the policy, retain explicit profile/upload
+        refreshes, and restore plus announce failed preference writes.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

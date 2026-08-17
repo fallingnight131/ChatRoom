@@ -25,6 +25,9 @@ class QAction;
 class QMenu;
 class QTimer;
 class QSettings;
+class WindowsBandwidthPreferenceRepository;
+class WindowsBandwidthViewModel;
+class WindowsAvatarRequestCoordinator;
 
 class MessageModel;
 class Message;
@@ -309,7 +312,7 @@ private:
     void generateVideoThumbnail(int fileId, const QString &videoPath);
     QByteArray generateVideoThumbnailData(const QString &videoPath);
     void cacheAvatar(const QString &username, const QByteArray &data);
-    void requestAvatar(const QString &username);
+    bool requestAvatar(const QString &username, bool explicitRequest = false);
     void leaveRoom(int roomId);
     void addUserListItem(const QString &username, const QString &displayName, bool isAdmin, bool isOnline);
     void updateUserListItemWidget(QListWidgetItem *item);
@@ -411,6 +414,10 @@ private:
 
     // 头像缓存（静态，供 MessageDelegate 使用）
     static QMap<QString, QPixmap> s_avatarCache;
+    std::unique_ptr<QSettings> m_bandwidthSettings;
+    std::unique_ptr<WindowsBandwidthPreferenceRepository> m_bandwidthRepository;
+    std::unique_ptr<WindowsBandwidthViewModel> m_bandwidthViewModel;
+    std::unique_ptr<WindowsAvatarRequestCoordinator> m_avatarRequests;
 
     // 聊天室头像缓存  roomId -> pixmap
     QMap<int, QPixmap> m_roomAvatarCache;

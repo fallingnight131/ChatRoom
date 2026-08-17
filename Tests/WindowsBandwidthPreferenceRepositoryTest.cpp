@@ -1,5 +1,6 @@
 #include "WindowsBandwidthPolicy.h"
 #include "WindowsBandwidthPreferenceRepository.h"
+#include "WindowsBandwidthViewModel.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -37,12 +38,17 @@ int main(int argc, char **argv) {
             qCritical() << "bandwidth preference did not survive restart";
             return 1;
         }
+        WindowsBandwidthViewModel viewModel(&repository);
+        if (!viewModel.enabled() || !viewModel.select(false)
+                || viewModel.enabled() || viewModel.saveFailed()) return 1;
     }
 
     {
         QSettings settings(temporary.path(), QSettings::IniFormat);
         WindowsBandwidthPreferenceRepository repository(settings);
-        if (repository.save(true) || repository.load()) {
+        WindowsBandwidthViewModel viewModel(&repository);
+        if (viewModel.select(true) || viewModel.enabled()
+                || !viewModel.saveFailed() || repository.load()) {
             qCritical() << "failed bandwidth save did not preserve the default";
             return 1;
         }
@@ -56,6 +62,15 @@ int main(int argc, char **argv) {
         qCritical() << "automatic avatar request policy changed";
         return 1;
     }
+    QStringList dispatched;
+    WindowsAvatarRequestCoordinator coordinator(
+        [&](const QString &value) { dispatched.append(value); });
+    if (!coordinator.request(accountId, false, false)
+            || dispatched != QStringList{accountId}) return 1;
+    coordinator.setLowBandwidthEnabled(true);
+    if (coordinator.request(accountId, false, false)
+            || !coordinator.request(accountId, false, true)
+            || dispatched != QStringList{accountId, accountId}) return 1;
 
     qInfo() << "[WindowsBandwidthPreferenceRepositoryTest] PASS";
     return 0;
