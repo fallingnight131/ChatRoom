@@ -2400,7 +2400,7 @@ Candidate slices:
     with owned/zeroed subscription credentials, canonical HTTPS/P-256 bounds,
     stable payload-free message identity, and a maximum 24-hour event lifetime;
     message acceptance, PostgreSQL, HTTP, provider, and Web UI remain uncomposed.
-  - [ ] Add encrypted PostgreSQL subscriptions and a transactionally produced,
+  - [x] Add encrypted PostgreSQL subscriptions and a transactionally produced,
     bounded notification outbox with retention and concurrent claim evidence.
     - [x] Expand the schema with ciphertext-only subscriptions, a keyed endpoint
       lookup tag, and payload-free 24-hour outbox/claim/retention constraints.
@@ -2572,7 +2572,7 @@ Candidate slices:
       loopback secure-context Chromium/Firefox gate proving exact worker
       discovery, registration, activation, unregistration, and locale-cache
       cleanup without claiming PushManager or provider delivery.
-    - [ ] Add the exact-gated Web lease bridge, localized durable worker copy/UI,
+    - [x] Add the exact-gated Web lease bridge, localized durable worker copy/UI,
       and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
