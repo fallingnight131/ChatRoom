@@ -3993,13 +3993,17 @@ QListWidgetItem* ChatWindow::findUserListItem(const QString &username) {
 // ==================== 头像功能 ====================
 
 void ChatWindow::onChangeAvatar() {
-    QString filePath = QFileDialog::getOpenFileName(this, "选择头像图片", QString(),
-        "图片文件 (*.png *.jpg *.jpeg *.bmp *.gif)");
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
+    QString filePath = QFileDialog::getOpenFileName(
+        this, copy.profileAvatarChooseTitle, QString(),
+        copy.profileAvatarFileFilter);
     if (filePath.isEmpty()) return;
 
     QPixmap img(filePath);
     if (img.isNull()) {
-        QMessageBox::warning(this, "错误", "无法加载图片");
+        QMessageBox::warning(this, copy.profileAvatarLoadFailedTitle,
+                             copy.profileAvatarLoadFailed);
         return;
     }
 
@@ -4017,7 +4021,8 @@ void ChatWindow::onChangeAvatar() {
     buf.close();
 
     if (pngData.size() > 256 * 1024) {
-        QMessageBox::warning(this, "提示", "头像数据过大，请选择更小的图片或裁剪区域");
+        QMessageBox::warning(this, copy.profileAvatarTooLargeTitle,
+                             copy.profileAvatarTooLarge);
         return;
     }
 
@@ -4029,12 +4034,15 @@ void ChatWindow::onChangeAvatar() {
 }
 
 void ChatWindow::onAvatarUploadResponse(bool success, const QString &error) {
+    const auto &copy = WindowsLocaleCatalog::messages(
+        m_windowsLocaleViewModel->locale());
     if (success) {
-        m_statusLabel->setText("头像上传成功");
+        m_statusLabel->setText(copy.profileAvatarUploadSucceededStatus);
         // 请求自己的头像以更新缓存
         requestAvatar(m_username, true);
     } else {
-        QMessageBox::warning(this, "头像上传失败", error);
+        QMessageBox::warning(this, copy.profileAvatarUploadFailedTitle,
+            error.isEmpty() ? copy.profileAvatarUploadFailed : error);
     }
 }
 

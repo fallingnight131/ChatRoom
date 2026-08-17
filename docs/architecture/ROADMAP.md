@@ -2897,6 +2897,9 @@ Candidate slices:
     - [x] Localize Windows nickname and user-ID result surfaces, reproject the
       existing window chrome after nickname changes, and retain account-keyed
       cache migration, online-only degradation and credential update behavior.
+    - [x] Localize the Windows profile-avatar selection, decode/size validation
+      and upload result flow while retaining crop behavior, the 256 KB PNG
+      boundary, V1 request shape and forced self-avatar refresh after success.
 - voice/video through a dedicated real-time media architecture, not the chat
   message gateway.
 

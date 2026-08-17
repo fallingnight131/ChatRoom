@@ -2138,6 +2138,11 @@ writing a fixed title. User-ID success, failure, and local-cache migration
 degradation are localized without changing the server-authoritative mutation,
 old-to-new account database copy, model sender-key update, credential refresh,
 or online-only fallback when local migration cannot be completed.
+The adjacent profile-avatar path now resolves its native file dialog, local
+decode/size failures and upload response from the same catalog. It still crops
+through `AvatarCropDialog`, emits PNG only below the existing 256 KB V1 limit,
+keeps server failure detail opaque, and forces a fresh self-avatar read only
+after confirmed upload success.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

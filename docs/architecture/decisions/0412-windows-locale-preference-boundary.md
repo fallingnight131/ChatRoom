@@ -257,3 +257,6 @@ database migration or protocol compatibility window is required.
 - nickname/user-ID results and local cache-migration degradation use the active
   catalog. Nickname success reprojects existing chrome; user-ID mutation keeps
   account-copy, sender-key, credential and online-only fallback behavior intact.
+- profile-avatar selection, local decode/size feedback and upload result use the
+  active catalog while crop behavior, PNG/256 KB V1 payload, opaque server error
+  and confirmed-success self-avatar refresh remain unchanged.

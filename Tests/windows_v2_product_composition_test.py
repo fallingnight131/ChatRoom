@@ -234,6 +234,12 @@ def main() -> int:
         "copy.profileUserIdChangeFailed : error",
         "m_localRepository->copyAccountTo(",
         "NetworkManager::instance()->setCredentials(",
+        "copy.profileAvatarChooseTitle",
+        "copy.profileAvatarFileFilter",
+        "copy.profileAvatarLoadFailed",
+        "copy.profileAvatarTooLarge",
+        "copy.profileAvatarUploadSucceededStatus",
+        "copy.profileAvatarUploadFailed : error",
     ), "Client/ChatWindow.cpp")
     composer_surface = window[
         window.index("// 工具栏"):
@@ -407,6 +413,22 @@ def main() -> int:
         raise AssertionError(
             "nickname changes must reproject the existing localized window chrome"
         )
+    avatar_change_surface = window[
+        window.index("void ChatWindow::onChangeAvatar()"):
+        window.index("void ChatWindow::onAvatarGetResponse(")
+    ]
+    require(avatar_change_surface, (
+        'cropped.save(&buf, "PNG")',
+        "pngData.size() > 256 * 1024",
+        "QString::fromLatin1(pngData.toBase64())",
+        "Protocol::MsgType::AVATAR_UPLOAD_REQ",
+        "requestAvatar(m_username, true)",
+    ), "Client/ChatWindow.cpp avatar change surface")
+    if any(copy in avatar_change_surface for copy in (
+        "选择头像图片", "图片文件", "无法加载图片",
+        "头像数据过大", "头像上传成功", "头像上传失败",
+    )):
+        raise AssertionError("avatar-change flow must use catalog presentation copy")
     connection_surface = window[
         window.index("// ==================== 连接状态"):
         window.index("// ==================== 窗口事件")

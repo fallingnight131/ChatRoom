@@ -206,6 +206,15 @@ struct WindowsLocaleMessages {
     QString profileAvatar;
     QString profileAvatarFallback;
     QString profileChangeAvatar;
+    QString profileAvatarChooseTitle;
+    QString profileAvatarFileFilter;
+    QString profileAvatarLoadFailedTitle;
+    QString profileAvatarLoadFailed;
+    QString profileAvatarTooLargeTitle;
+    QString profileAvatarTooLarge;
+    QString profileAvatarUploadSucceededStatus;
+    QString profileAvatarUploadFailedTitle;
+    QString profileAvatarUploadFailed;
     QString profileBasicInformation;
     QString profileNickname;
     QString profileSave;

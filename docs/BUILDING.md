@@ -3332,6 +3332,11 @@ copy, sender-key updates and network credential refresh. Exact catalog tests
 cover local success/failure plus the online-only cache-migration degradation;
 non-empty server details remain opaque. This is macOS development-host evidence,
 not native Windows profile, cache-upgrade or screen-reader release evidence.
+Profile-avatar source composition locks the PNG encoding, 256 KB post-crop
+limit, unchanged V1 `avatarData` request, and confirmed-success refresh while
+requiring file-picker, local validation and response copy from the catalog.
+macOS compilation is portability evidence; native Windows file dialog, image
+codec, scaling and assistive-technology behavior remain release evidence.
 The Windows locale Core test also locks the complete English login/registration
 terminology and success feedback. `WindowsLoginLocalizationTest` composes the
 real Widget with the application-shared locale ViewModel and verifies live

@@ -200,6 +200,17 @@ WindowsLocaleMessages createZhCn() {
     m.profileAvatar = QStringLiteral("头像");
     m.profileAvatarFallback = QStringLiteral("头像");
     m.profileChangeAvatar = QStringLiteral("更换头像");
+    m.profileAvatarChooseTitle = QStringLiteral("选择头像图片");
+    m.profileAvatarFileFilter = QStringLiteral(
+        "图片文件 (*.png *.jpg *.jpeg *.bmp *.gif)");
+    m.profileAvatarLoadFailedTitle = QStringLiteral("无法打开图片");
+    m.profileAvatarLoadFailed = QStringLiteral("所选文件不是可读取的图片");
+    m.profileAvatarTooLargeTitle = QStringLiteral("头像数据过大");
+    m.profileAvatarTooLarge = QStringLiteral(
+        "裁剪后的头像超过 256 KB，请选择更小的图片或裁剪区域");
+    m.profileAvatarUploadSucceededStatus = QStringLiteral("头像上传成功");
+    m.profileAvatarUploadFailedTitle = QStringLiteral("头像上传失败");
+    m.profileAvatarUploadFailed = QStringLiteral("无法上传头像");
     m.profileBasicInformation = QStringLiteral("基本信息");
     m.profileNickname = QStringLiteral("昵称：");
     m.profileSave = QStringLiteral("保存");
@@ -815,6 +826,18 @@ WindowsLocaleMessages createEnUs() {
     m.profileAvatar = QStringLiteral("Avatar");
     m.profileAvatarFallback = QStringLiteral("Avatar");
     m.profileChangeAvatar = QStringLiteral("Change avatar");
+    m.profileAvatarChooseTitle = QStringLiteral("Choose avatar image");
+    m.profileAvatarFileFilter = QStringLiteral(
+        "Image files (*.png *.jpg *.jpeg *.bmp *.gif)");
+    m.profileAvatarLoadFailedTitle = QStringLiteral("Unable to open image");
+    m.profileAvatarLoadFailed = QStringLiteral(
+        "The selected file is not a readable image");
+    m.profileAvatarTooLargeTitle = QStringLiteral("Avatar data is too large");
+    m.profileAvatarTooLarge = QStringLiteral(
+        "The cropped avatar exceeds 256 KB; choose a smaller image or crop area");
+    m.profileAvatarUploadSucceededStatus = QStringLiteral("Avatar uploaded");
+    m.profileAvatarUploadFailedTitle = QStringLiteral("Avatar upload failed");
+    m.profileAvatarUploadFailed = QStringLiteral("Unable to upload avatar");
     m.profileBasicInformation = QStringLiteral("Basic information");
     m.profileNickname = QStringLiteral("Nickname:");
     m.profileSave = QStringLiteral("Save");

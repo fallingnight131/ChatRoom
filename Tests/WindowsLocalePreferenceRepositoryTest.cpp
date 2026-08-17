@@ -72,6 +72,16 @@ int main(int argc, char **argv) {
                 || english.bytesUsed != QStringLiteral("%1 / %2 bytes")
                 || english.profileTitle != QStringLiteral("Edit profile")
                 || english.profileLowBandwidth != QStringLiteral("Low-bandwidth mode")
+                || english.profileAvatarChooseTitle
+                    != QStringLiteral("Choose avatar image")
+                || english.profileAvatarFileFilter
+                    != QStringLiteral(
+                        "Image files (*.png *.jpg *.jpeg *.bmp *.gif)")
+                || english.profileAvatarTooLarge
+                    != QStringLiteral(
+                        "The cropped avatar exceeds 256 KB; choose a smaller image or crop area")
+                || english.profileAvatarUploadFailed
+                    != QStringLiteral("Unable to upload avatar")
                 || english.profilePasswordFieldsRequired
                     != QStringLiteral("Complete every password field")
                 || english.profileNicknameChangedStatus
@@ -291,6 +301,10 @@ int main(int argc, char **argv) {
                     != QStringLiteral("退出聊天室")
                 || chinese.profileNicknameChangedStatus
                     != QStringLiteral("昵称已修改为：%1")
+                || chinese.profileAvatarChooseTitle
+                    != QStringLiteral("选择头像图片")
+                || chinese.profileAvatarUploadSucceededStatus
+                    != QStringLiteral("头像上传成功")
                 || chinese.profileUserIdChangedDetail
                     != QStringLiteral("用户 ID 已从 %1 修改为 %2")
                 || chinese.profileLocalCacheMigrationFailed
